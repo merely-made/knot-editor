@@ -2,3 +2,4 @@ target/
 .DS_Store
 *.pdb
 *.dll
+.claude/settings.local.json

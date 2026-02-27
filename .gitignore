@@ -3,3 +3,4 @@ target/
 *.pdb
 *.dll
 .claude/settings.local.json
+license-report.json

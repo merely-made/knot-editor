@@ -4,4 +4,6 @@ target-clat/
 *.pdb
 *.dll
 .claude/settings.local.json
+.claude/worktrees/
 license-report.json
+*.snap.new

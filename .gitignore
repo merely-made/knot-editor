@@ -7,3 +7,4 @@ target-clat/
 .claude/worktrees/
 license-report.json
 *.snap.new
+design_docs/graphshell_docs/testing/wr-wgpu_notes/

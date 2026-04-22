@@ -8,3 +8,4 @@ target-clat/
 license-report.json
 *.snap.new
 design_docs/graphshell_docs/testing/wr-wgpu_notes/
+logs/

@@ -9,3 +9,6 @@ license-report.json
 *.snap.new
 design_docs/graphshell_docs/testing/wr-wgpu_notes/
 logs/
+
+# sem (Ataraxy-Labs) semantic-diff index cache — local, never committed.
+.sem/

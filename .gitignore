@@ -1,14 +1,3 @@
-target/
-target-clat/
-.DS_Store
-*.pdb
-*.dll
-.claude/settings.local.json
-.claude/worktrees/
-license-report.json
-*.snap.new
-design_docs/graphshell_docs/testing/wr-wgpu_notes/
-logs/
-
-# sem (Ataraxy-Labs) semantic-diff index cache — local, never committed.
-.sem/
+/target/
+/target-*/
+/.cargo/

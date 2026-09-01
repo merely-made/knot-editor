@@ -10,8 +10,15 @@ permissions:
 jobs:
   test:
     runs-on: windows-latest
+    env:
+      # Genet retains WPT/Test262 paths that exceed Win32's legacy path limit.
+      # Use Git's long-path-aware checkout instead of Cargo's libgit2 fetcher.
+      CARGO_NET_GIT_FETCH_WITH_CLI: "true"
+      CARGO_HOME: C:\cargo
     steps:
       - uses: actions/checkout@v4
+      - name: Enable long Git paths
+        run: git config --global core.longpaths true
       - name: Install Rust toolchain
         run: rustup show
       - name: Test document surface

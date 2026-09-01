@@ -6,7 +6,6 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-
 use knot_editor::{StartupUnlockedPersonalVault, local_device_root, personal_vault_writer};
 use pandect::{DeviceSettings, save_device_settings, wallet_store};
 use personae::PersonaId;

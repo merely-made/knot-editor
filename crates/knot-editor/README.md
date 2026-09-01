@@ -1,6 +1,6 @@
 # Knot Editor
 
-Knot Editor is Mere's files-in-place authoring port. It serves a Graphshell
+Knot Editor is a files-in-place authoring application and embeddable Mere port. It serves a Graphshell
 projection over a real directory or a sealed personal vault, so a host can
 mount documents without owning the source files or the vault keys. File bytes
 stay on disk; containers carry `file:` references, titles, media types, and
@@ -55,11 +55,12 @@ Integration tests: `tests/place_projection.rs`, `tests/revision_bell.rs`,
 - Effects: `fetch`, `script-rhai`, `url`.
 - Filesystem and platform: `notify` 8, and `windows-sys` on Windows for file
   identity.
-- Dev-dependencies: `graphshell` (path `../graphshell`), `notochord`,
+- Dev-dependencies: `graphshell`, `notochord`,
   `tempfile`.
 
 ## Plans
 
-- [Knot port plan](../../design_docs/mere_docs/implementation_strategy/2026-07-25_knot_port_plan.md)
-- [Knot authoring consumer plan](../../design_docs/mere_docs/implementation_strategy/2026-07-27_knot_authoring_consumer_plan.md)
-- [Knot in Graphshell plan](../../design_docs/mere_docs/implementation_strategy/2026-08-02_knot_in_graphshell_plan.md)
+- [Repository extraction plan](../../design_docs/2026-09-01_knot_editor_repository_extraction_plan.md)
+- [Knot port plan](../../design_docs/2026-07-25_knot_port_plan.md)
+- [Knot authoring consumer plan](../../design_docs/2026-07-27_knot_authoring_consumer_plan.md)
+- [Knot in Graphshell plan](../../design_docs/2026-08-02_knot_in_graphshell_plan.md)

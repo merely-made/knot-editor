@@ -1,9 +1,13 @@
+[workspace]
+resolver = "2"
+
 [package]
 name = "knot-document"
 version = "0.0.1"
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+edition = "2024"
+rust-version = "1.97"
+license = "MPL-2.0"
+repository = "https://github.com/merely-made/knot-editor"
 description = "Djot-first local document authority and reusable Knot surface."
 
 [features]
@@ -19,18 +23,29 @@ engine = [
 ]
 
 [dependencies]
-cambium.workspace = true
-genet-host-api = { workspace = true }
-illume = { workspace = true, optional = true }
-knot-editor-host = { workspace = true }
-inker = { workspace = true, optional = true }
-nematic = { workspace = true, optional = true }
-serde_json = { workspace = true, optional = true }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+genet-host-api = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", optional = true }
+inker = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", optional = true }
+knot-editor-host = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", default-features = false }
+nematic = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", default-features = false, optional = true }
+serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
+genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+layout-dom-api = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
 tempfile = "3"
-genet-scripted-dom = { workspace = true }
-layout-dom-api = { workspace = true }
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "warn"
+
+[lints.clippy]
+all = "warn"
+
+[patch.crates-io]
+vello = { git = "https://github.com/mark-ik/vello.git", tag = "vello-0.10.0" }
+layout-dom-api = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+parley = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+ipc-channel = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }

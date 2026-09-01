@@ -1,0 +1,24 @@
+[package]
+name = "knot-desktop"
+version = "0.0.1"
+edition = "2024"
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "knot"
+path = "src/main.rs"
+
+[dependencies]
+cambium-genet-winit-host.workspace = true
+knot-document.workspace = true
+layout-dom-api.workspace = true
+
+[dev-dependencies]
+genet-probe.workspace = true
+tempfile = "3"
+
+[lints]
+workspace = true

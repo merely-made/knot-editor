@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Test document surface
+        run: cargo test --manifest-path crates/knot-document/Cargo.toml
+      - name: Test editor library
+        run: cargo test -p knot-editor --lib
+      - name: Test desktop host receipt
+        run: cargo test -p knot-desktop

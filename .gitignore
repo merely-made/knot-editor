@@ -1,97 +1,35 @@
-# Cargo build artifacts.
-# Use `target/` (not `/target/`) so the rule catches nested workspaces too
-# — `crates/probes/` is a separate workspace whose target/ is multi-GB.
+# Cargo output and isolated verification caches.
 target/
+target-*/
+.cargo-*/
+/crates/knot-document/Cargo.lock
 
-# Don't commit Cargo.lock (any workspace, any depth). A committed lock pins git
-# deps to dev-history commits and crates.io deps to specific releases, which go
-# stale as we develop. Tracking branch tips / latest matching releases keeps the
-# dependency landscape current rather than expiring on a pin.
-Cargo.lock
+# Local Cargo path overrides. A committed example may document the edit loop.
+**/.cargo/*
+!/.cargo/config.toml.example
 
-# Probes are throwaway experiments in a separate workspace. Ignore probe content
-# so it never clutters git status or lands in a `git add -A` (the multi-GB
-# p2panda / willow clones live here). Already-committed probes stay tracked;
-# `git add -f` to keep a new one, `git rm --cached` to drop one.
-/crates/probes/
-
-# Backup / swap files
-**/*.rs.bk
-*.swp
-*.swo
-*~
-
-# IDE / editor configs
-.vscode/
-.idea/
-*.iml
-
-# OS noise
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Local env / secrets
-.env
-.env.local
-.env.*.local
-
-# Coverage / profiling output
+# Local receipts, logs, and runtime state.
+.tmp/
+logs/
+.test-logs/
+.cargo-check-logs/
+diagnostics-dump.txt
 *.profraw
 *.profdata
 flamegraph.svg
 perf.data*
 
-# Test / debug log directories (project convention: logs go here, not
-# alongside source). No leading slash so the rule catches these dirs at any
-# depth (e.g. crates/*/.cargo-check-logs/), not just the repo root.
-logs/
-.test-logs/
-.cargo-check-logs/
-
-# Local scratch and verification artifacts. These runs can contain logs,
-# screenshots, session state, comms stores, and diagnostics dumps that are
-# machine-local and should never be published from the repo.
-/.tmp/
-/target-codex/
-/diagnostics-dump.txt
-
-# Locally-downloaded model weights (e.g. all-MiniLM-L6-v2 fetched via
-# `huggingface_hub.snapshot_download` for intelligence-embeddings BERT
-# validation). Multi-MB binaries; do not commit. Devs set MERE_MINILM_DIR
-# to point at this directory after running the download recipe in
-# crates/intelligence-embeddings/README.md.
-/models/
-
-# Host session store — runtime artifact written by `cargo run -p host`
-# (./mere-sessions relative to the run cwd). Never commit session state.
-mere-sessions/
-
-# Local tooling cache (semantic index / scratch db). Multi-MB binary cache,
-# not source — never commit.
-.sem/
-
-# Local cargo path overrides (genet/netrender local working copies) - local-dev only.
-# The .example is committed: it documents the sibling-checkout edit loop and its
-# paths are relative, so it is copyable as-is. The live file stays ignored so a
-# clean clone still resolves the owned repos from GitHub and builds standalone.
-# Two constraints fight here. Git cannot re-include a file whose parent DIRECTORY
-# is excluded, so a bare `.cargo/` makes the negation below silently dead. But a
-# pattern containing a slash is anchored to THIS file's directory, so a bare
-# `.cargo/*` would stop ignoring nested ones (ports/graphshell/web/.cargo/).
-# `**/.cargo/*` excludes the contents at every level without excluding the dirs.
-**/.cargo/*
-!/.cargo/config.toml.example
-/target-*/
-
-# Isolated cargo homes created for dependency experiments — e.g.
-# `.cargo-conatus-rapier-test/`, used on 2026-08-24 to resolve conatus against
-# rapier in a clean resolver. Each holds a full git checkout cache: thousands of
-# vendored files, including entire upstream test suites (that one carried a WPT
-# checkout). A `git add -A` sweeps every one of them into the commit, which is
-# how this rule came to be written. Ignore the class rather than the one name.
-.cargo-*/
-
-# Local host receipts can contain machine addresses, key fingerprints, and
-# endpoint reachability details. Keep the raw resident-host rehearsal local.
-ports/graphshell/docs/2026-07-28_h4f_resident_device_host_receipt.md
+# Editors, operating systems, and secrets.
+.vscode/
+.idea/
+*.iml
+*.swp
+*.swo
+*~
+**/*.rs.bk
+.DS_Store
+Thumbs.db
+desktop.ini
+.env
+.env.local
+.env.*.local

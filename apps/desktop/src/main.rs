@@ -63,8 +63,8 @@ fn focused_text(
     drop(dom_ref);
     textarea.then(|| FocusedTextSlot {
         node: focused,
-        get: Box::new(|state| state.session().input()),
-        get_mut: Box::new(|state| {
+        get: Box::new(|state: &KnotDocumentSurfaceState| state.session().input()),
+        get_mut: Box::new(|state: &mut KnotDocumentSurfaceState| {
             state
                 .session_mut()
                 .input_mut()
@@ -100,7 +100,7 @@ fn run_standalone(session: KnotDocumentSession) -> Result<(), String> {
         },
         move |_, _, _| Init {
             state: KnotDocumentSurfaceState::new(session),
-            logic: knot_document_view,
+            logic: knot_document_view as fn(&KnotDocumentSurfaceState) -> KnotDocumentView,
             sheet: KNOT_DOCUMENT_CSS.into(),
         },
         host_hooks(),
@@ -122,7 +122,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cambium_genet_winit_host::{CloseRequest, Harness, Modifiers};
+    use cambium_genet_winit_host::{CloseRequest, Harness, Modifiers, NamedKey};
     use genet_probe::Selector;
     use tempfile::tempdir;
     #[test]
@@ -132,13 +132,15 @@ mod tests {
         std::fs::write(&path, "# Receipt\n").unwrap();
         let init = Init {
             state: KnotDocumentSurfaceState::new(KnotDocumentSession::open(&path).unwrap()),
-            logic: knot_document_view,
+            logic: knot_document_view as fn(&KnotDocumentSurfaceState) -> KnotDocumentView,
             sheet: KNOT_DOCUMENT_CSS.into(),
         };
         let mut harness = Harness::with_hooks(init, host_hooks());
         harness.layout_at(900.0, 640.0);
-        assert!(harness.click_on(&Selector::role("textbox").containing("Document text")));
-        harness.key_injected("Body\n");
+        assert!(harness.click_on(&Selector::role("textbox").containing("Receipt")));
+        assert!(harness.focus().is_some());
+        harness.key_injected("Body");
+        harness.press_key(&KeyPress::named(NamedKey::Enter));
         assert!(harness.state().snapshot().dirty);
         harness.set_modifiers(Modifiers {
             ctrl: true,

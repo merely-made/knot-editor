@@ -2,9 +2,10 @@
 name = "knot-editor"
 version = "0.0.3"
 edition.workspace = true
+rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-description = "Knot Editor, Mere's files-in-place local-first Djot editor."
+description = "Files-in-place local-first Djot editor, document authority, and peer sync."
 
 [[bin]]
 name = "knot_endpoint"
@@ -76,7 +77,7 @@ zeroize = { version = "1", features = ["derive"] }
 [dev-dependencies]
 gemot.workspace = true
 genet-probe = { workspace = true }
-graphshell = { path = "../graphshell" }
+graphshell.workspace = true
 graphshell-local.workspace = true
 rcgen = "0.14"
 tempfile = "3"

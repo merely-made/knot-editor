@@ -1,7 +1,7 @@
 # Knot Editor Repository Extraction Plan
 
 **Date:** 2026-09-01  
-**Status:** in progress  
+**Status:** E0 complete; E1 in progress
 **Owner:** Knot Editor
 
 ## Ruling
@@ -73,3 +73,18 @@ consumer and integration references.
 - Do not delete Mere's source copies until both external consumers compile
   against an immutable pushed revision.
 - Preserve unrelated work by performing each cutover in an isolated worktree.
+
+## E0 receipt
+
+The preserved-history repository is public at
+<https://github.com/merely-made/knot-editor>. A fresh clone of immutable
+revision `4434584ec8b5448cfacfdef515cf60839cb38c52` independently resolved the
+root and narrow document workspaces, then passed:
+
+- `cargo test --manifest-path crates/knot-document/Cargo.toml --features engine`:
+  15 passed;
+- `cargo test -p knot-editor --lib --locked`: 94 passed;
+- `cargo test -p knot-desktop --locked`: 1 passed.
+
+The resolved graph contained one source identity apiece for the Mere contracts
+crossing the boundary and for Cambium, Genet host, DOM, and layout contracts.

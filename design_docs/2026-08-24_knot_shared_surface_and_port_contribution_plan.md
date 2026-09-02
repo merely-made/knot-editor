@@ -1,5 +1,11 @@
 # Knot Shared Surface and Port Contribution Plan
 
+> **Repository note (2026-09-01):** this is the historical shared-surface
+> execution record. The
+> [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> governs the current source boundary; `ports/knot` paths below name the
+> original Mere layout.
+
 **Date:** 2026-08-24
 **Status:** in progress; current-origin G0 and the narrow `knot-document`
 package published; K0, the reusable Knot surface, desktop wrapper, and semantic

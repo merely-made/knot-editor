@@ -1,5 +1,10 @@
 # Knot Authoring Consumer Plan
 
+> **Repository note (2026-09-01):** this is a historical integration record.
+> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> is the current repository authority; paths below retain the layout used by
+> the recorded receipts.
+
 **Date:** 2026-07-27
 **Status:** all Knot-owned work in the reconciled sequence is complete locally:
 A1 through A4, typed Inspector clip insertion, production Resolve/Run

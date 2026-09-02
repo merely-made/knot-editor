@@ -1,5 +1,10 @@
 # Knot in Graphshell Plan
 
+> **Repository note (2026-09-01):** this is a historical integration record.
+> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> is the current repository authority; `ports/knot` paths below name the
+> original Mere layout when each receipt landed.
+
 **Date:** 2026-08-02
 **Status:** K0-K3 complete. K1 chose Option A (Mark): shared documents are
 projected, personal documents replicate, and T4's done condition is replaced

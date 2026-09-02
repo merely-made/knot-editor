@@ -1,7 +1,7 @@
 # Knot Editor Repository Extraction Plan
 
 **Date:** 2026-09-01  
-**Status:** E0 complete; E1 in progress
+**Status:** E0 complete; E1 and E2 implemented and green in open consumer PRs
 **Owner:** Knot Editor
 
 ## Ruling
@@ -86,5 +86,25 @@ root and narrow document workspaces, then passed:
 - `cargo test -p knot-editor --lib --locked`: 94 passed;
 - `cargo test -p knot-desktop --locked`: 1 passed.
 
+[Hosted Windows CI run 33572522617](https://github.com/merely-made/knot-editor/actions/runs/33572522617)
+passed the document, editor-library, and desktop-host gates at revision
+`2e01c78851c8d9d0243b472b2b7a3fb4726ad4bc`.
+
 The resolved graph contained one source identity apiece for the Mere contracts
 crossing the boundary and for Cambium, Genet host, DOM, and layout contracts.
+
+## E1 and E2 review receipt
+
+Consumers pin pushed revision `c4d15aa66eee46060081902ba8459f01c9c82f98`.
+
+- [Turnstone PR #4](https://github.com/merely-made/turnstone/pull/4) passes two
+  five-test Knot authoring suites and five ignored external-endpoint tests
+  against the executable built from this repository.
+- [Mere PR #5](https://github.com/merely-made/mere/pull/5) removes both local
+  Knot packages. Its metadata contains one Git identity for each Knot package
+  and one identity for every audited Mere and Genet boundary package. Djinn's
+  live pairing, joined-sync, route-reopen resident test passes against the
+  external package.
+
+Both PRs are mergeable and clean. E1 and E2 close on their merge rather than
+turning review-state changes into default-branch claims.

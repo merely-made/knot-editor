@@ -1,5 +1,10 @@
 # Knot Publishing Protocol Plan
 
+> **Repository note (2026-09-01):** this is a historical integration record.
+> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> is the current repository authority; `ports/knot` paths below name the
+> original Mere layout when each receipt landed.
+
 **Date**: 2026-08-07
 **Status**: Phase A implemented and physically receipted, including a
 public-client renewal on 2026-08-19. Direction remains **A then B** (§4). The

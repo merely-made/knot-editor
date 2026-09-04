@@ -305,6 +305,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ar_archive_writer"
+version = "0.5.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73cd58deff2140a0a8eae87e417bd01db68a33e148aa93d1e8cd837e55e312b6"
+dependencies = [
+ "object",
+]
+
+[[package]]
 name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -345,7 +354,7 @@ dependencies = [
 [[package]]
 name = "armillary"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "tracing",
 ]
@@ -998,9 +1007,10 @@ dependencies = [
 [[package]]
 name = "buckram"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "genet-taffy",
+ "stacker",
 ]
 
 [[package]]
@@ -1114,11 +1124,11 @@ dependencies = [
 [[package]]
 name = "cambium"
 version = "0.3.3"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
- "genet-host-api",
  "genet-scripted-dom",
  "layout-dom-api",
+ "mere-surface-api",
  "meristem",
  "sprigging",
  "unicode-segmentation",
@@ -1128,7 +1138,7 @@ dependencies = [
 [[package]]
 name = "cambium-genet-winit-host"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "accesskit",
  "cambium",
@@ -1156,7 +1166,7 @@ dependencies = [
 [[package]]
 name = "cambium-rootstock"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "cambium",
  "cambium-winit",
@@ -1177,7 +1187,7 @@ dependencies = [
 [[package]]
 name = "cambium-winit"
 version = "0.3.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "cambium",
  "web-time",
@@ -1187,7 +1197,7 @@ dependencies = [
 [[package]]
 name = "cambium-winit-a11y"
 version = "0.3.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "accesskit",
  "cambium-rootstock",
@@ -1202,7 +1212,7 @@ dependencies = [
 [[package]]
 name = "castellan"
 version = "0.0.3"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "base64",
  "blake3",
@@ -1343,10 +1353,9 @@ dependencies = [
 
 [[package]]
 name = "chartulary"
-version = "0.2.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+version = "0.2.2"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
- "codicil",
  "muniment",
  "petgraph",
  "rkyv",
@@ -1358,7 +1367,7 @@ dependencies = [
 [[package]]
 name = "chirograph"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "base64",
  "blake3",
@@ -1440,15 +1449,6 @@ dependencies = [
  "serde",
  "termcolor",
  "unicode-width",
-]
-
-[[package]]
-name = "codicil"
-version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
-dependencies = [
- "muniment",
- "serde",
 ]
 
 [[package]]
@@ -2122,6 +2122,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "document-session-api"
+version = "0.1.0"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "downcast-rs"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2266,7 +2274,7 @@ checksum = "66b7e2430c6dff6a955451e2cfc438f09cea1965a9d6f87f7e3b90decc014099"
 [[package]]
 name = "engine-observables-api"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "genet-paint-types",
  "serde",
@@ -2344,7 +2352,7 @@ checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
 [[package]]
 name = "errand"
 version = "0.3.4"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "finger-protocol",
  "gemini-protocol",
@@ -2375,7 +2383,7 @@ dependencies = [
 [[package]]
 name = "esp"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "serde",
 ]
@@ -2522,7 +2530,7 @@ dependencies = [
 [[package]]
 name = "fleece"
 version = "0.4.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "layout-dom-api",
  "unicode-segmentation",
@@ -2847,7 +2855,7 @@ dependencies = [
 [[package]]
 name = "gemot"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "mere-capability",
  "mere-proofs",
@@ -2925,7 +2933,7 @@ dependencies = [
 [[package]]
 name = "genet-document-resources"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "genet-host-api",
  "layout-dom-api",
@@ -2933,16 +2941,13 @@ dependencies = [
 
 [[package]]
 name = "genet-host-api"
-version = "0.1.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
-dependencies = [
- "workbench",
-]
+version = "0.2.0"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 
 [[package]]
 name = "genet-livery"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "buckram",
  "cssparser",
@@ -2958,12 +2963,13 @@ dependencies = [
  "parley",
  "selectors",
  "serde",
+ "stacker",
 ]
 
 [[package]]
 name = "genet-paint-types"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "app_units",
  "euclid",
@@ -2975,7 +2981,7 @@ dependencies = [
 [[package]]
 name = "genet-probe"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "genet-livery",
  "genet-scripted-dom",
@@ -2985,12 +2991,12 @@ dependencies = [
 [[package]]
 name = "genet-render"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "accesskit",
+ "document-session-api",
  "genet-livery",
  "genet-scripted-dom",
- "inker",
  "layout-dom-api",
  "netrender",
  "paint_list_api",
@@ -3000,7 +3006,7 @@ dependencies = [
 [[package]]
 name = "genet-render-host"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "netrender",
  "tracing",
@@ -3010,7 +3016,7 @@ dependencies = [
 [[package]]
 name = "genet-scripted-dom"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "engine-observables-api",
  "genet-static-dom",
@@ -3022,7 +3028,7 @@ dependencies = [
 [[package]]
 name = "genet-static-dom"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "html5ever",
  "layout-dom-api",
@@ -3032,7 +3038,7 @@ dependencies = [
 [[package]]
 name = "genet-taffy"
 version = "0.14.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "arrayvec",
  "serde",
@@ -3043,7 +3049,7 @@ dependencies = [
 [[package]]
 name = "genet-winit-host"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "accesskit",
  "accesskit_macos",
@@ -3087,9 +3093,11 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "899def5c37c4fd7b2664648c28120ecec138e4d395b459e5ca34f9cce2dd77fd"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "r-efi 5.3.0",
  "wasip2",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -3203,12 +3211,13 @@ dependencies = [
 [[package]]
 name = "graphshell"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "base64",
  "blake3",
  "castellan",
  "chirograph",
+ "getrandom 0.3.4",
  "graphshell-client",
  "graphshell-endpoint",
  "graphshell-network",
@@ -3240,7 +3249,7 @@ dependencies = [
 [[package]]
 name = "graphshell-client"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "chirograph",
  "sceno",
@@ -3252,7 +3261,7 @@ dependencies = [
 [[package]]
 name = "graphshell-endpoint"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "chirograph",
 ]
@@ -3260,7 +3269,7 @@ dependencies = [
 [[package]]
 name = "graphshell-local"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "chirograph",
  "graphshell-endpoint",
@@ -3271,7 +3280,7 @@ dependencies = [
 [[package]]
 name = "graphshell-network"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "chirograph",
  "serde_json",
@@ -3281,7 +3290,7 @@ dependencies = [
 [[package]]
 name = "graphshell-stdio"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "chirograph",
  "graphshell-endpoint",
@@ -4013,7 +4022,7 @@ dependencies = [
 [[package]]
 name = "illume"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "jotdown",
  "logos",
@@ -4066,7 +4075,7 @@ checksum = "89194689a993ab15268672e99e7b0e19da2da3268ac682e8f02d29d4d1434cd7"
 [[package]]
 name = "incipit"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "serde",
  "uuid",
@@ -4094,8 +4103,9 @@ dependencies = [
 [[package]]
 name = "inker"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
+ "document-session-api",
  "petgraph",
  "serde",
  "tracing",
@@ -4164,7 +4174,7 @@ dependencies = [
 [[package]]
 name = "ipc-channel"
 version = "0.22.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "crossbeam-channel",
  "libc",
@@ -4740,10 +4750,10 @@ name = "knot-document"
 version = "0.0.1"
 dependencies = [
  "cambium",
- "genet-host-api",
  "illume",
  "inker",
  "knot-editor-host",
+ "mere-surface-api",
  "nematic",
  "serde_json",
 ]
@@ -4810,7 +4820,7 @@ dependencies = [
 [[package]]
 name = "knot-editor-host"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "cambium",
  "illume",
@@ -4854,7 +4864,7 @@ dependencies = [
 [[package]]
 name = "layout-dom-api"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "markup5ever",
  "serde",
@@ -5024,7 +5034,7 @@ checksum = "11d3d7f243d5c5a8b9bb5d6dd2b1602c0cb0b9db1621bafc7ed66e35ff9fe092"
 [[package]]
 name = "livery"
 version = "0.0.3"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "cssparser",
  "precomputed-hash",
@@ -5119,6 +5129,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
 
 [[package]]
+name = "luggage"
+version = "0.1.0"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
+dependencies = [
+ "semver",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "time",
+ "url",
+]
+
+[[package]]
 name = "mac-addr"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5192,12 +5215,12 @@ dependencies = [
 [[package]]
 name = "mere-capability"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 
 [[package]]
 name = "mere-eidetic"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "async-trait",
  "blake3",
@@ -5210,7 +5233,7 @@ dependencies = [
 [[package]]
 name = "mere-fetch"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "armillary",
  "errand",
@@ -5231,7 +5254,7 @@ dependencies = [
 [[package]]
 name = "mere-forme"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "serde",
  "serde_json",
@@ -5242,11 +5265,10 @@ dependencies = [
 [[package]]
 name = "mere-kernel"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "accesskit",
  "chartulary",
- "codicil",
  "crossbeam-channel",
  "euclid",
  "futures-util",
@@ -5298,7 +5320,7 @@ dependencies = [
 [[package]]
 name = "mere-proofs"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "blake3",
  "serde",
@@ -5306,9 +5328,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "mere-surface-api"
+version = "0.1.0"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
+dependencies = [
+ "workbench",
+]
+
+[[package]]
 name = "mere-transport"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "bytes",
  "hkdf 0.13.0",
@@ -5332,16 +5362,17 @@ dependencies = [
 [[package]]
 name = "mere-webrtc-carrier"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "blake3",
+ "luggage",
  "thiserror 1.0.69",
 ]
 
 [[package]]
 name = "meristem"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "anymore",
  "tracing",
@@ -5429,7 +5460,7 @@ dependencies = [
 [[package]]
 name = "mooting"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "p2panda-core",
  "serde",
@@ -5445,7 +5476,7 @@ checksum = "f61139ec5831650112f1c300bdeaabe7e793cfcc9a6de66179a096db40e52289"
 [[package]]
 name = "mora-cmudict"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "mora",
 ]
@@ -5483,7 +5514,7 @@ dependencies = [
 [[package]]
 name = "muniment"
 version = "0.1.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "async-trait",
  "blake3",
@@ -5642,7 +5673,7 @@ dependencies = [
 [[package]]
 name = "nematic"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "errand",
  "genet-static-dom",
@@ -5720,7 +5751,7 @@ dependencies = [
 [[package]]
 name = "netfetcher"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "async-compression",
  "base64",
@@ -6033,7 +6064,7 @@ dependencies = [
 [[package]]
 name = "notochord"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "blake3",
  "personae",
@@ -6199,7 +6230,7 @@ dependencies = [
 [[package]]
 name = "numen"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "serde",
  "strum",
@@ -6622,6 +6653,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "object"
+version = "0.39.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e5a6c098c7a3b6547378093f5cc30bc54fd361ce711e05293a5cc589562739b"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
 name = "oid-registry"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6845,7 +6885,7 @@ dependencies = [
 [[package]]
 name = "pandect"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "blake3",
  "chacha20poly1305 0.11.0",
@@ -6914,7 +6954,7 @@ checksum = "4b6937eda350acc1a5d05872c3cbf99fe78619c269096e2be3d4a350058639d5"
 [[package]]
 name = "parley"
 version = "0.10.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "fontique",
  "harfrust",
@@ -7024,7 +7064,7 @@ checksum = "9b4f627cb1b25917193a259e49bdad08f671f8d9708acfd5fe0a8c1455d87220"
 [[package]]
 name = "personae"
 version = "0.2.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "argon2",
  "blake3",
@@ -7032,6 +7072,7 @@ dependencies = [
  "ed25519-dalek 3.0.0",
  "gethostname",
  "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "serde",
  "serde_json",
  "signature 2.2.0",
@@ -7561,6 +7602,16 @@ name = "psl-types"
 version = "2.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33cb294fe86a74cbcf50d4445b37da762029549ebeea341421c7c70370f86cac"
+
+[[package]]
+name = "psm"
+version = "0.1.32"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4dcd034599e63b970727f70d79e02d62390a4a84f7c6b827c27c46d5ac3fa622"
+dependencies = [
+ "ar_archive_writer",
+ "cc",
+]
 
 [[package]]
 name = "ptr_meta"
@@ -8522,7 +8573,7 @@ dependencies = [
 [[package]]
 name = "sceno"
 version = "0.0.4"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "serde",
  "serde_json",
@@ -8531,7 +8582,7 @@ dependencies = [
 [[package]]
 name = "scenotime"
 version = "0.0.4"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "sceno",
  "serde",
@@ -8561,7 +8612,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 [[package]]
 name = "script-rhai"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "inker",
  "rhai",
@@ -8775,7 +8826,7 @@ dependencies = [
 [[package]]
 name = "servitor"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "chartulary",
  "mere-capability",
@@ -8785,7 +8836,7 @@ dependencies = [
 [[package]]
 name = "servo-allocator"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "libc",
  "tikv-jemalloc-sys",
@@ -8796,7 +8847,7 @@ dependencies = [
 [[package]]
 name = "servo-malloc-size-of"
 version = "0.2.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "app_units",
  "atomic_refcell",
@@ -9213,7 +9264,7 @@ dependencies = [
 [[package]]
 name = "sprigging"
 version = "0.2.1"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "accesskit",
  "paint_list_api",
@@ -9299,6 +9350,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ce2be8dc25455e1f91df71bfa12ad37d7af1092ae736f3a6cd0e37bc7810596"
 
 [[package]]
+name = "stacker"
+version = "0.1.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "707f49d46706bacf8a2b00d51dace3f9de527c13eec3778f570c411f89e69967"
+dependencies = [
+ "cc",
+ "cfg-if",
+ "libc",
+ "psm",
+ "windows-sys 0.60.2",
+]
+
+[[package]]
 name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9307,7 +9371,7 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 [[package]]
 name = "stickleback"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "blake3",
  "hex",
@@ -9784,7 +9848,7 @@ checksum = "1f3ccbac311fea05f86f61904b462b55fb3df8837a366dfc601a0161d0532f20"
 [[package]]
 name = "titulus"
 version = "0.0.2"
-source = "git+https://github.com/merely-made/mere.git?rev=1e59c0b7c930b78046fd62896a4b5fa8e6e9f120#1e59c0b7c930b78046fd62896a4b5fa8e6e9f120"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 dependencies = [
  "base64",
  "blake3",
@@ -10420,7 +10484,7 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 [[package]]
 name = "verso-tile"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 
 [[package]]
 name = "void"
@@ -11417,7 +11481,7 @@ dependencies = [
 [[package]]
 name = "workbench"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/genet.git?rev=eff0cb6df4834ecce9ac552a055c1c459befa7c3#eff0cb6df4834ecce9ac552a055c1c459befa7c3"
+source = "git+https://github.com/merely-made/mere.git?rev=b57d2021bac2bb32febfd5b96098384a63ef58a4#b57d2021bac2bb32febfd5b96098384a63ef58a4"
 
 [[package]]
 name = "writeable"

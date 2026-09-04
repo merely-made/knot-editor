@@ -23,17 +23,17 @@ engine = [
 ]
 
 [dependencies]
-cambium = { version = "0.3.3", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-genet-host-api = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-illume = { version = "0.0.2", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", optional = true }
-inker = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", optional = true }
-knot-editor-host = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", default-features = false }
-nematic = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3", default-features = false, optional = true }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "b57d2021bac2bb32febfd5b96098384a63ef58a4" }
+mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "b57d2021bac2bb32febfd5b96098384a63ef58a4" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "b57d2021bac2bb32febfd5b96098384a63ef58a4", optional = true }
+inker = { git = "https://github.com/merely-made/mere.git", rev = "b57d2021bac2bb32febfd5b96098384a63ef58a4", optional = true }
+knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "b57d2021bac2bb32febfd5b96098384a63ef58a4", default-features = false }
+nematic = { git = "https://github.com/merely-made/mere.git", rev = "b57d2021bac2bb32febfd5b96098384a63ef58a4", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [dev-dependencies]
-genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-layout-dom-api = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }
+layout-dom-api = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }
 tempfile = "3"
 
 [lints.rust]
@@ -44,8 +44,8 @@ all = "warn"
 
 [patch.crates-io]
 vello = { git = "https://github.com/mark-ik/vello.git", tag = "vello-0.10.0" }
-layout-dom-api = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-parley = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
-ipc-channel = { git = "https://github.com/merely-made/genet.git", rev = "eff0cb6df4834ecce9ac552a055c1c459befa7c3" }
+layout-dom-api = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }
+genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }
+taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }
+parley = { git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }
+ipc-channel = { git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }

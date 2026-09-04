@@ -108,3 +108,20 @@ Consumers pin pushed revision `c4d15aa66eee46060081902ba8459f01c9c82f98`.
 
 Both PRs are mergeable and clean. E1 and E2 close on their merge rather than
 turning review-state changes into default-branch claims.
+
+## Progress
+
+- 2026-09-03: **the platform-boundary repoint landed** (P4's first consumer, per
+  mere `design_docs/mere_docs/implementation_strategy/`
+  `2026-09-02_platform_boundary_and_repository_topology_plan.md`). Both
+  workspaces now resolve one source per repository: genet.git at
+  `115d348deddc344d949754e63beaece47cf49f34` and mere.git at
+  `b57d2021bac2bb32febfd5b96098384a63ef58a4`. `cambium`,
+  `cambium-genet-winit-host`, `illume`, `inker`, `knot-editor-host` and
+  `nematic` moved from genet.git to mere.git; `knot-document`'s
+  `genet-host-api` became `mere-surface-api`, the Mere half of that crate's
+  split; `fleece`, `genet-probe`, `genet-scripted-dom`, `layout-dom-api`,
+  `genet-taffy`, `parley` and `ipc-channel` stay on genet.git at the new
+  revision. E1 and E2 are unblocked and stay open: their consumer PRs are
+  stale and are redone as fresh commits against a pushed revision of this
+  repository, which the stop rule above still gates.

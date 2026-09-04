@@ -125,3 +125,16 @@ turning review-state changes into default-branch claims.
   revision. E1 and E2 are unblocked and stay open: their consumer PRs are
   stale and are redone as fresh commits against a pushed revision of this
   repository, which the stop rule above still gates.
+
+- 2026-09-04: **E2 landed in mere** at `d666e1604cdbeb127527fce62fb97e41504bdc9e`
+  (not pushed). `ports/knot`, `ports/knot-document` and `ports/knot/desktop`
+  are removed, `ports/knot/editor-host` moved to `crates/inker/knot-editor-host`
+  as integration code, and Djinn consumes `knot-editor` 0.0.3 and
+  `knot-document` 0.0.1 from this repository at
+  `fcd004b655b595038eba0a7e49f209b8477edadf`. mere's unpatched `cargo metadata`
+  names those two packages from one revision of this repository and no local
+  package by either name; its workspace check is green patched and unpatched,
+  and Djinn's live pairing, joined-sync, route-reopen resident test passes
+  against the external package. Turnstone's half of E1 is green at its own
+  pushed `e68e2764e4d`. The stale PRs (turnstone #4, mere #5) are superseded by
+  these fresh commits and are Mark's to close.

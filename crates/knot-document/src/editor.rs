@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use std::fs;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use cambium::{CaretSelection, TextCommand, TextInput};
@@ -14,8 +15,42 @@ use illume::{Fold, OutlineItem, Span};
 use inker::EngineDocument;
 pub use knot_editor_host::EditOutcome;
 use knot_editor_host::KnotEditor as SharedKnotEditor;
+use same_file::Handle;
 
 use crate::{DocumentFormat, SaveOutcome, write_if_distinct};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum KnotEditorSaveError {
+    ExternalChange,
+    Failed(String),
+}
+
+#[derive(Debug)]
+struct FileBaseline {
+    bytes: Vec<u8>,
+    handle: Handle,
+}
+
+impl FileBaseline {
+    fn observe(path: &Path) -> Result<Self, String> {
+        let mut file = fs::File::open(path)
+            .map_err(|error| format!("could not read {}: {error}", path.display()))?;
+        let mut bytes = Vec::new();
+        file.read_to_end(&mut bytes)
+            .map_err(|error| format!("could not read {}: {error}", path.display()))?;
+        let handle = Handle::from_file(file)
+            .map_err(|error| format!("could not inspect {}: {error}", path.display()))?;
+        Ok(Self { bytes, handle })
+    }
+
+    fn still_matches(&self, path: &Path) -> Result<bool, String> {
+        let handle = Handle::from_path(path)
+            .map_err(|error| format!("could not inspect {}: {error}", path.display()))?;
+        let bytes = fs::read(path)
+            .map_err(|error| format!("could not read {}: {error}", path.display()))?;
+        Ok(handle == self.handle && bytes == self.bytes)
+    }
+}
 
 /// One Djot or legacy `.knot` session. Its Cambium input is the only source buffer.
 pub struct KnotEditor {
@@ -23,30 +58,34 @@ pub struct KnotEditor {
     address: String,
     format: DocumentFormat,
     editor: SharedKnotEditor,
+    baseline: Option<FileBaseline>,
 }
 
 impl KnotEditor {
     pub fn open(path: impl Into<PathBuf>) -> Result<Self, String> {
-        let path = path.into();
-        let format = DocumentFormat::from_path(&path)
+        let requested_path = path.into();
+        let format = DocumentFormat::from_path(&requested_path)
             .filter(|format| matches!(format, DocumentFormat::Knot | DocumentFormat::Djot))
             .ok_or_else(|| {
                 format!(
                     "KnotEditor requires a .djot or .knot file: {}",
-                    path.display()
+                    requested_path.display()
                 )
             })?;
-        let source = String::from_utf8(
-            fs::read(&path)
-                .map_err(|error| format!("could not read {}: {error}", path.display()))?,
-        )
-        .map_err(|error| format!("{} is not UTF-8: {error}", path.display()))?;
+        // A document opened through a symlink keeps editing the resolved file,
+        // rather than later replacing the symlink itself during atomic save.
+        let path = fs::canonicalize(&requested_path)
+            .map_err(|error| format!("could not resolve {}: {error}", requested_path.display()))?;
+        let baseline = FileBaseline::observe(&path)?;
+        let source = String::from_utf8(baseline.bytes.clone())
+            .map_err(|error| format!("{} is not UTF-8: {error}", path.display()))?;
         let address = crate::writer::file_address(&path)?;
         Ok(Self {
             path: Some(path),
             editor: SharedKnotEditor::scratch(address.clone(), source),
             address,
             format,
+            baseline: Some(baseline),
         })
     }
 
@@ -57,6 +96,7 @@ impl KnotEditor {
             editor: SharedKnotEditor::scratch(address.clone(), source),
             address,
             format: DocumentFormat::Djot,
+            baseline: None,
         }
     }
 
@@ -90,21 +130,128 @@ impl KnotEditor {
     pub fn path(&self) -> Option<&Path> {
         self.path.as_deref()
     }
+    pub fn is_file_read_only(&self) -> bool {
+        self.path.as_ref().is_some_and(|path| {
+            fs::metadata(path).is_ok_and(|metadata| metadata.permissions().readonly())
+        })
+    }
 
     pub fn save(&mut self) -> Result<SaveOutcome, String> {
-        let path = self
-            .path
-            .as_deref()
-            .ok_or_else(|| "scratch Knot editor has no save path".to_owned())?;
+        self.save_guarded().map_err(|error| match error {
+            KnotEditorSaveError::ExternalChange => "file changed on disk since opening".to_owned(),
+            KnotEditorSaveError::Failed(message) => message,
+        })
+    }
+
+    pub fn save_guarded(&mut self) -> Result<SaveOutcome, KnotEditorSaveError> {
+        let path = self.path.as_deref().ok_or_else(|| {
+            KnotEditorSaveError::Failed("scratch Knot editor has no save path".to_owned())
+        })?;
         if !self.editor.is_dirty() {
             return Ok(SaveOutcome::Unchanged);
         }
+        let baseline = self.baseline.as_ref().ok_or_else(|| {
+            KnotEditorSaveError::Failed("file document has no disk baseline".to_owned())
+        })?;
+        match fs::metadata(path) {
+            Ok(metadata) if metadata.permissions().readonly() => {
+                return Err(KnotEditorSaveError::Failed(
+                    "document target is read-only".to_owned(),
+                ));
+            },
+            Ok(_) => {},
+            Err(error) => {
+                return match error.kind() {
+                    std::io::ErrorKind::NotFound => Err(KnotEditorSaveError::ExternalChange),
+                    _ => Err(KnotEditorSaveError::Failed(format!(
+                        "could not inspect {}: {error}",
+                        path.display()
+                    ))),
+                };
+            },
+        }
+        let matches_baseline = baseline
+            .still_matches(path)
+            .map_err(KnotEditorSaveError::Failed)?;
+        if !matches_baseline {
+            return Err(KnotEditorSaveError::ExternalChange);
+        }
         let source = self.editor.source().to_owned();
-        let existing = fs::read(path)
-            .map_err(|error| format!("could not read {}: {error}", path.display()))?;
-        let outcome = write_if_distinct(path, &existing, source.as_bytes())?;
+        let outcome = write_if_distinct(path, &baseline.bytes, source.as_bytes())
+            .map_err(KnotEditorSaveError::Failed)?;
+        let updated_baseline = FileBaseline::observe(path).map_err(KnotEditorSaveError::Failed)?;
+        if updated_baseline.bytes != source.as_bytes() {
+            return Err(KnotEditorSaveError::ExternalChange);
+        }
         self.editor.accept_saved_source(&source);
+        self.baseline = Some(updated_baseline);
         Ok(outcome)
+    }
+
+    pub fn save_as(
+        &mut self,
+        target: impl Into<PathBuf>,
+    ) -> Result<SaveOutcome, KnotEditorSaveError> {
+        let target = target.into();
+        let format = DocumentFormat::from_path(&target)
+            .filter(|format| matches!(format, DocumentFormat::Knot | DocumentFormat::Djot))
+            .ok_or_else(|| {
+                KnotEditorSaveError::Failed(format!(
+                    "KnotEditor requires a .djot or .knot save target: {}",
+                    target.display()
+                ))
+            })?;
+        if self.is_current_path(&target) {
+            return self.save_guarded();
+        }
+        let source = self.editor.source().to_owned();
+        crate::writer::create_bytes_new(&target, source.as_bytes())
+            .map_err(KnotEditorSaveError::Failed)?;
+        let target = fs::canonicalize(&target).map_err(|error| {
+            KnotEditorSaveError::Failed(format!(
+                "could not resolve saved target {}: {error}",
+                target.display()
+            ))
+        })?;
+        let address = crate::writer::file_address(&target).map_err(KnotEditorSaveError::Failed)?;
+        let baseline = FileBaseline::observe(&target).map_err(KnotEditorSaveError::Failed)?;
+        if baseline.bytes != source.as_bytes() {
+            return Err(KnotEditorSaveError::ExternalChange);
+        }
+        self.path = Some(target);
+        self.address = address.clone();
+        self.format = format;
+        let mut replacement = SharedKnotEditor::scratch(address, "");
+        std::mem::swap(replacement.input_mut(), self.editor.input_mut());
+        replacement.accept_saved_source(&source);
+        self.editor = replacement;
+        self.baseline = Some(baseline);
+        Ok(SaveOutcome::Written)
+    }
+
+    pub fn reload(&mut self) -> Result<(), String> {
+        let path = self
+            .path
+            .as_deref()
+            .ok_or_else(|| "scratch Knot editor has no reload path".to_owned())?;
+        let baseline = FileBaseline::observe(path)?;
+        let source = String::from_utf8(baseline.bytes.clone())
+            .map_err(|error| format!("{} is not UTF-8: {error}", path.display()))?;
+        let address = crate::writer::file_address(path)?;
+        self.address = address.clone();
+        self.editor = SharedKnotEditor::scratch(address, source);
+        self.baseline = Some(baseline);
+        Ok(())
+    }
+
+    fn is_current_path(&self, target: &Path) -> bool {
+        self.path.as_ref().is_some_and(|path| {
+            path == target
+                || matches!(
+                    (fs::canonicalize(path).ok(), fs::canonicalize(target).ok()),
+                    (Some(path), Some(target)) if path == target
+                )
+        })
     }
 
     #[cfg(feature = "engine")]

@@ -4,9 +4,9 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::{DocumentFormat, KnotEditor, SaveOutcome};
+use crate::{DocumentFormat, KnotEditor, KnotEditorSaveError, SaveOutcome};
 use cambium::{CaretSelection, TextCommand, TextInput};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum KnotDocumentSourceKindV1 {
@@ -35,6 +35,7 @@ pub enum KnotDocumentSaveOutcomeV1 {
 pub enum KnotDocumentRefusalV1 {
     ScratchHasNoSaveTarget,
     ReadOnly,
+    ExternalChange,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KnotDocumentSaveFailureV1 {
@@ -62,6 +63,9 @@ pub struct KnotDocumentSnapshotV1 {
 pub enum KnotDocumentIntentV1 {
     Edit(TextCommand),
     Save,
+    SaveAs(PathBuf),
+    /// The caller must obtain any discard confirmation before dispatching this.
+    Reload,
 }
 
 /// One selected document over the retained Knot editor. There is no second buffer.
@@ -89,8 +93,16 @@ impl KnotDocumentSession {
         path: impl Into<std::path::PathBuf>,
         write_posture: KnotDocumentWritePostureV1,
     ) -> Result<Self, String> {
+        let editor = KnotEditor::open(path)?;
+        let write_posture = if write_posture == KnotDocumentWritePostureV1::FileTarget
+            && editor.is_file_read_only()
+        {
+            KnotDocumentWritePostureV1::ReadOnly
+        } else {
+            write_posture
+        };
         Ok(Self {
-            editor: KnotEditor::open(path)?,
+            editor,
             write_posture,
             last_save_outcome: None,
             refusal: None,
@@ -180,19 +192,18 @@ impl KnotDocumentSession {
                 }
                 self.editor.apply(command);
                 self.refusal = None;
-            }
+            },
             KnotDocumentIntentV1::Save => self.save()?,
+            KnotDocumentIntentV1::SaveAs(path) => self.save_as(path)?,
+            KnotDocumentIntentV1::Reload => self.reload()?,
         };
         Ok(self.snapshot())
     }
     fn save(&mut self) -> Result<(), KnotDocumentIntentErrorV1> {
-        if self.write_posture == KnotDocumentWritePostureV1::ReadOnly {
-            self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Refused);
-            self.refusal = Some(KnotDocumentRefusalV1::ReadOnly);
-            self.last_save_failure = None;
-            return Err(KnotDocumentIntentErrorV1::Refused(
-                KnotDocumentRefusalV1::ReadOnly,
-            ));
+        if self.write_posture == KnotDocumentWritePostureV1::ReadOnly
+            || self.editor.is_file_read_only()
+        {
+            return self.refuse_read_only_write();
         }
         if self.editor.path().is_none() {
             self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Refused);
@@ -202,26 +213,105 @@ impl KnotDocumentSession {
                 KnotDocumentRefusalV1::ScratchHasNoSaveTarget,
             ));
         }
-        match self.editor.save() {
+        match self.editor.save_guarded() {
             Ok(SaveOutcome::Written) => {
                 self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Written);
                 self.refusal = None;
                 self.last_save_failure = None;
                 Ok(())
-            }
+            },
             Ok(SaveOutcome::Unchanged) => {
                 self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Unchanged);
                 self.refusal = None;
                 self.last_save_failure = None;
                 Ok(())
-            }
-            Err(message) => {
+            },
+            Err(KnotEditorSaveError::ExternalChange) => {
+                self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Refused);
+                self.refusal = Some(KnotDocumentRefusalV1::ExternalChange);
+                self.last_save_failure = None;
+                Err(KnotDocumentIntentErrorV1::Refused(
+                    KnotDocumentRefusalV1::ExternalChange,
+                ))
+            },
+            Err(KnotEditorSaveError::Failed(message)) => {
                 self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Failed);
+                self.refusal = None;
                 let failure = KnotDocumentSaveFailureV1 { message };
                 self.last_save_failure = Some(failure.clone());
                 Err(KnotDocumentIntentErrorV1::SaveFailed(failure))
-            }
+            },
         }
+    }
+
+    fn save_as(&mut self, path: PathBuf) -> Result<(), KnotDocumentIntentErrorV1> {
+        if self.write_posture == KnotDocumentWritePostureV1::ReadOnly {
+            return self.refuse_read_only_write();
+        }
+        match self.editor.save_as(path) {
+            Ok(outcome) => {
+                self.write_posture = KnotDocumentWritePostureV1::FileTarget;
+                self.record_save_outcome(outcome);
+                Ok(())
+            },
+            Err(KnotEditorSaveError::ExternalChange) => {
+                self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Refused);
+                self.refusal = Some(KnotDocumentRefusalV1::ExternalChange);
+                self.last_save_failure = None;
+                Err(KnotDocumentIntentErrorV1::Refused(
+                    KnotDocumentRefusalV1::ExternalChange,
+                ))
+            },
+            Err(KnotEditorSaveError::Failed(message)) => self.record_save_failure(message),
+        }
+    }
+
+    fn reload(&mut self) -> Result<(), KnotDocumentIntentErrorV1> {
+        if self.write_posture == KnotDocumentWritePostureV1::ReadOnly {
+            return self.refuse_read_only_write();
+        }
+        if self.editor.path().is_none() {
+            self.refusal = Some(KnotDocumentRefusalV1::ScratchHasNoSaveTarget);
+            self.last_save_failure = None;
+            return Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ScratchHasNoSaveTarget,
+            ));
+        }
+        match self.editor.reload() {
+            Ok(()) => {
+                self.last_save_outcome = None;
+                self.refusal = None;
+                self.last_save_failure = None;
+                Ok(())
+            },
+            Err(message) => self.record_save_failure(message),
+        }
+    }
+
+    fn record_save_outcome(&mut self, outcome: SaveOutcome) {
+        self.last_save_outcome = Some(match outcome {
+            SaveOutcome::Written => KnotDocumentSaveOutcomeV1::Written,
+            SaveOutcome::Unchanged => KnotDocumentSaveOutcomeV1::Unchanged,
+        });
+        self.refusal = None;
+        self.last_save_failure = None;
+    }
+
+    fn record_save_failure(&mut self, message: String) -> Result<(), KnotDocumentIntentErrorV1> {
+        self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Failed);
+        self.refusal = None;
+        let failure = KnotDocumentSaveFailureV1 { message };
+        self.last_save_failure = Some(failure.clone());
+        Err(KnotDocumentIntentErrorV1::SaveFailed(failure))
+    }
+
+    fn refuse_read_only_write(&mut self) -> Result<(), KnotDocumentIntentErrorV1> {
+        self.last_save_outcome = Some(KnotDocumentSaveOutcomeV1::Refused);
+        self.refusal = Some(KnotDocumentRefusalV1::ReadOnly);
+        self.last_save_failure = None;
+        Err(KnotDocumentIntentErrorV1::Refused(
+            KnotDocumentRefusalV1::ReadOnly,
+        ))
     }
 
     fn refuse_read_only_edit(&mut self) {
@@ -263,6 +353,161 @@ mod tests {
                 KnotDocumentRefusalV1::ScratchHasNoSaveTarget
             ))
         ));
+    }
+
+    #[test]
+    fn scratch_save_as_creates_a_new_djot_target_and_retains_undo_history() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        let mut session = KnotDocumentSession::scratch("memory:field", "# Field\n");
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "body\n".into(),
+            )))
+            .unwrap();
+
+        let saved = session
+            .apply(KnotDocumentIntentV1::SaveAs(path.clone()))
+            .unwrap();
+        assert_eq!(saved.source.kind, KnotDocumentSourceKindV1::File);
+        assert_eq!(saved.write_posture, KnotDocumentWritePostureV1::FileTarget);
+        assert!(!saved.dirty);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "# Field\nbody\n");
+
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+            .unwrap();
+        assert_eq!(session.snapshot().text, "# Field\n");
+        assert!(session.snapshot().dirty);
+    }
+
+    #[test]
+    fn long_valid_filename_supports_save_as_then_atomic_save() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join(format!("{}.djot", "a".repeat(230)));
+        let mut session = KnotDocumentSession::scratch("memory:field", "one");
+
+        session
+            .apply(KnotDocumentIntentV1::SaveAs(path.clone()))
+            .unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                " two".into(),
+            )))
+            .unwrap();
+        session.apply(KnotDocumentIntentV1::Save).unwrap();
+
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "one two");
+    }
+
+    #[test]
+    fn save_as_does_not_clobber_an_existing_target_or_convert_scratch() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "external\n").unwrap();
+        let mut session = KnotDocumentSession::scratch("memory:field", "local\n");
+
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::SaveAs(path.clone())),
+            Err(KnotDocumentIntentErrorV1::SaveFailed(_))
+        ));
+        assert_eq!(
+            session.snapshot().source.kind,
+            KnotDocumentSourceKindV1::Scratch
+        );
+        assert_eq!(session.snapshot().text, "local\n");
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "external\n");
+    }
+
+    #[test]
+    fn external_edit_or_deletion_refuses_save_until_explicit_reload() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "# Field\n").unwrap();
+        let mut session = KnotDocumentSession::open(&path).unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local\n".into(),
+            )))
+            .unwrap();
+        std::fs::write(&path, "external\n").unwrap();
+
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Save),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ExternalChange
+            ))
+        ));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "external\n");
+        assert!(session.snapshot().dirty);
+        assert_eq!(
+            session.snapshot().refusal,
+            Some(KnotDocumentRefusalV1::ExternalChange)
+        );
+
+        let reloaded = session.apply(KnotDocumentIntentV1::Reload).unwrap();
+        assert_eq!(reloaded.text, "external\n");
+        assert!(!reloaded.dirty);
+        assert_eq!(reloaded.refusal, None);
+
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local again\n".into(),
+            )))
+            .unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Save),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ExternalChange
+            ))
+        ));
+    }
+
+    #[test]
+    fn same_path_save_as_keeps_the_external_change_guard() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "# Field\n").unwrap();
+        let mut session = KnotDocumentSession::open(&path).unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local\n".into(),
+            )))
+            .unwrap();
+        std::fs::write(&path, "external\n").unwrap();
+
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::SaveAs(path.clone())),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ExternalChange
+            ))
+        ));
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "external\n");
+    }
+
+    #[test]
+    fn byte_identical_replacement_is_still_an_external_change() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        let replacement = temp.path().join("replacement.djot");
+        std::fs::write(&path, "# Field\n").unwrap();
+        let mut session = KnotDocumentSession::open(&path).unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local\n".into(),
+            )))
+            .unwrap();
+        std::fs::write(&replacement, "# Field\n").unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
+
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Save),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ExternalChange
+            ))
+        ));
+        assert_eq!(std::fs::read_to_string(path).unwrap(), "# Field\n");
     }
 
     #[test]
@@ -308,7 +553,75 @@ mod tests {
             session.input_mut(),
             Err(KnotDocumentRefusalV1::ReadOnly)
         ));
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::SaveAs(temp.path().join("copy.djot"))),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ReadOnly
+            ))
+        ));
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Reload),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ReadOnly
+            ))
+        ));
         assert_eq!(std::fs::read_to_string(path).unwrap(), "# Field\n");
+    }
+
+    #[test]
+    fn read_only_file_mode_opens_without_atomic_replace_authority() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "# Field\n").unwrap();
+        let original = std::fs::metadata(&path).unwrap().permissions();
+        let mut read_only = original.clone();
+        read_only.set_readonly(true);
+        std::fs::set_permissions(&path, read_only).unwrap();
+
+        let session = KnotDocumentSession::open(&path).unwrap();
+        assert_eq!(
+            session.snapshot().write_posture,
+            KnotDocumentWritePostureV1::ReadOnly
+        );
+
+        std::fs::set_permissions(path, original).unwrap();
+    }
+
+    #[test]
+    fn file_becoming_read_only_after_open_refuses_save_but_allows_save_as() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "# Field\n").unwrap();
+        let original = std::fs::metadata(&path).unwrap().permissions();
+        let mut session = KnotDocumentSession::open(&path).unwrap();
+        session.input_mut().unwrap().insert_str("draft");
+        let mut read_only = original.clone();
+        read_only.set_readonly(true);
+        std::fs::set_permissions(&path, read_only).unwrap();
+
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Save),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ReadOnly
+            ))
+        ));
+        assert_eq!(
+            session.snapshot().write_posture,
+            KnotDocumentWritePostureV1::FileTarget
+        );
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::SaveAs(path.clone())),
+            Err(KnotDocumentIntentErrorV1::SaveFailed(_))
+        ));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "# Field\n");
+        let draft = session.snapshot().text;
+        let saved_elsewhere = temp.path().join("copy.djot");
+        session
+            .apply(KnotDocumentIntentV1::SaveAs(saved_elsewhere.clone()))
+            .unwrap();
+        assert_eq!(std::fs::read_to_string(saved_elsewhere).unwrap(), draft);
+
+        std::fs::set_permissions(path, original).unwrap();
     }
 
     #[test]

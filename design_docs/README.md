@@ -5,10 +5,14 @@ to an independently consumable repository.
 
 Current authority:
 
+- [Application workspace](2026-09-05_knot_application_workspace_plan.md): planned writing UI, connected documents and relations, saved graph questions, coordinated presentations, evidence, and review.
 - [Repository extraction](2026-09-01_knot_editor_repository_extraction_plan.md)
-- [Shared document surface](2026-08-24_knot_shared_surface_and_port_contribution_plan.md)
 - [Publishing protocol](2026-08-07_knot_publishing_protocol_plan.md)
 - [Mark read adapter](2026-08-08_knot_mark_read_adapter.md)
+
+Retained contract and historical execution:
+
+- [Shared document surface and port contribution](2026-08-24_knot_shared_surface_and_port_contribution_plan.md)
 
 Earlier product and integration plans:
 

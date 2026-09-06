@@ -12,11 +12,13 @@ name = "knot"
 path = "src/main.rs"
 
 [dependencies]
+cambium.workspace = true
 cambium-genet-winit-host.workspace = true
 knot-document.workspace = true
 layout-dom-api.workspace = true
 
 [dev-dependencies]
+genet-scripted-dom.workspace = true
 genet-probe.workspace = true
 tempfile = "3"
 

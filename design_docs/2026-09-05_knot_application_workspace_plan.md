@@ -1,0 +1,607 @@
+# Knot Application Workspace Plan
+
+**Date:** 2026-09-05
+**Status:** A1 single-document lifecycle implemented, 2026-09-06; full A1 acceptance and A2-A4/G1-G3 remain open
+**Owner:** Knot Editor
+
+## Ruling
+
+Knot's next application target is a coherent writing workspace:
+safe document ownership, a source-first editor, and optional readings of that
+same source. **Expanded 2026-09-05:** connected writing is a core product target:
+documents and passages participate in an addressable graph with meaningful
+relationships, saved queries, algorithms, and multiple editable presentations.
+Evidence, revision, and sharing then become adjacent views of the
+document, rather than separate administration applications.
+
+The standalone application and an embedded Knot surface should use the same
+product components and truthful authority snapshots. A host still owns window
+placement, theme, and the policy for presenting a contributed surface. Knot
+owns source selection once admitted, file and vault writes, evidence custody,
+revision resolution, and publication decisions. Cambium and `workbench` supply
+generic tabs, splits, floats, menus, command surfaces, and focus-preserving
+component composition; they do not acquire document, vault, or peer authority.
+
+This is an application plan, not a replacement for the completed retained
+surface and second-provider work in
+[`2026-08-24_knot_shared_surface_and_port_contribution_plan.md`](2026-08-24_knot_shared_surface_and_port_contribution_plan.md).
+That plan's `knot.document.v1` remains the narrow embeddable seam. This plan
+grows the standalone product around it and promotes host-visible surfaces only
+when they have a product-owned snapshot and effect boundary.
+
+## What exists and what the application has not adopted
+
+| Concern | Existing Knot authority or API | Current standalone surface | Required application work |
+| --- | --- | --- | --- |
+| Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` tracks dirty state and writes a selected `.djot` or legacy `.knot` file. | One text area, status labels, and Save. File selection is CLI-only; scratch Save refuses. | A document lifecycle model, Open/New/Save As, recovery, and safe close. Djot is the default authoring route. |
+| Derived readings | The optional `engine` feature exposes highlights, outline, folds, and preview from the same source buffer. | Not rendered. The desktop package currently takes the narrow default `knot-document` feature set. | Source decoration, outline navigation and folding, and a source-preserving preview mode. |
+| Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
+| Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
+| Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
+| Revisions and replication | `KnotDocumentProjection` exposes causal heads, conflicts, automatic text merges, and pending operations. | No revision or conflict view. | A review panel and explicit resolve flows. Titled drafts are a product capability still to be designed, not an existing sync type. |
+| Publishing and sharing | Publication candidates, pinned-head tickets, recipient delegation, and revocation APIs exist. | No publishing interface. | A share flow that states what exact revision is offered, to whom, for how long, and whether it remains available. |
+
+The current `KnotEditor::save` reads the current file immediately before it
+writes, but it retains no open-time file baseline. It can therefore overwrite
+an external edit while its buffer is dirty. This is a local file-custody bug,
+not the same problem as an endpoint rejecting a stale opaque base token. Both
+need visible, separate refusal states.
+
+## Workspace layout
+
+The default layout should be deliberately quiet: a document navigator on the
+left, the writing area in the middle, and one optional right-hand panel. The
+right panel changes among Outline, Preview, References, Lenses, Changes, and Share;
+it is not five permanent columns. Tabs represent open document sessions. A
+document can move between tab stacks or a floating window through the shared
+workspace tree, while its document identity and product state remain in Knot.
+
+```text
+Document navigator       Writing area                  Context panel
+------------------       ---------------------------   ---------------------
+Open / recent             title, source and state       Outline
+files or vault             source editor                 Preview
+search results             inline diagnostics             References
+                           status: save / sync / lock     Lenses
+                                                         Changes / Share
+```
+
+The source remains authoritative. Preview, outline, highlights, Rosette,
+evidence anchors, search results, merge comparisons, and sharing status are
+readings of a source or causal head. A range-bearing reading selects the source
+range it describes; document-level facts select the relevant document or head.
+Neither edits a second authoritative document representation. If a
+reading cannot be generated, the writing area remains usable and the panel
+explains why.
+
+The workspace model is an application preference, not a vault fact. A saved
+layout may remember open pane kinds, splits, floats, and panel visibility, but
+must not silently reopen a locked vault, re-authorize evidence access, or
+convert a stale share route into a current one.
+
+## Product cuts
+
+A1 and A2 form the first usable writing workspace. Layout, typography, command
+access, and derived-view experiments can advance alongside file-lifecycle work;
+they do not wait for all storage or sharing work to finish. The safe-save gates
+control acceptance of the workspace. A3 and A4 add independently useful product
+views as their concrete authority adapters become available.
+
+G1-G3 below are the connected-writing sequence. G1 begins alongside A1/A2;
+it does not wait for publishing or the lexical graph. These are planned
+consumer integrations and domain work, not claims that the current standalone
+editor already supports them.
+
+### A1. File-safe writing workspace
+
+**Dependency for tabs and docking:** a pushed Mere revision containing Workbench W5 S1/S2 and
+`cambium::workspace`. Neither Knot's published `d82afa17` family pin nor the
+in-flight `b9b0ee13` update should be treated as that adoption: the latter was
+checked and does not contain `cambium/src/workspace.rs`. Align boundary types
+on one immutable source identity before compiling the new workspace; do not
+absorb the unrelated in-flight Cargo edits into this work. The single-document
+file lifecycle below can use the current pinned controls and shared host.
+
+Build the first standalone workspace around a product-owned `DocumentWorkspace`
+model. It owns the open-document list, active document, transient recovery
+state, and the mapping from a workbench tile to a document session. It does
+not put source bytes or file handles in `workbench::Workspace`.
+
+`New` creates an untitled Djot scratch document. `Open` and `Save As` request
+a path through a host-provided picker or a caller-supplied path capability;
+Cambium does not perform filesystem selection. Save As validates the Djot
+target, records the file identity and baseline only after a successful write,
+then changes the session from scratch to file-target posture. A failed or
+cancelled picker leaves the scratch document intact.
+
+On opening a file, retain a baseline that can distinguish the opened bytes and
+file identity from the latest disk observation. Before saving a dirty buffer,
+compare the current disk state with that baseline. If it changed, refuse the
+ordinary Save and show an external-change state with three explicit actions:
+reload the disk version, compare it with the buffer, or save the buffer to a
+new path. Replacing the changed target requires a separately named, deliberate
+overwrite action. The normal shortcut may never silently perform that action.
+
+The write implementation must also preserve the old file on a failed replacement.
+Its receipt records atomic-replacement behavior and the limit of external-writer
+coordination; a pre-write comparison alone is not a proof against a concurrent
+write between the comparison and replacement.
+
+A native close or tab-close of a dirty document asks to Save, Discard, or
+Cancel. Save proceeds only when its custody check succeeds. A session with an
+unresolved external change remains open. Clean file documents, scratch
+documents never edited, and read-only documents close directly.
+
+The navigator starts modestly: Open, New, recent files, and currently open
+documents. A vault or directory listing enters only through an adapter that
+can state `available`, `locked`, `denied`, `unconfigured`, or `failed`; it
+does not make every source look like a local file.
+
+*Done when* a headed desktop receipt creates a scratch Djot document, edits it
+through IME-capable text input, Save As writes and reopens it, and tab-close
+preserves the chosen Save/Discard/Cancel outcome. A test which externally edits
+an open file after the buffer becomes dirty proves that ordinary Save never
+overwrites those bytes. The compare, reload, and Save As paths each leave a
+truthful dirty/baseline state. A stale endpoint base token is displayed as an
+endpoint refusal, not as an external local-file change.
+
+### A2. Source, structure, and preview
+
+Adopt the existing engine-derived readouts without adding another text model.
+Enable `knot-document`'s `engine` feature for the desktop application target
+that presents these readings; retain the narrow default feature set for
+surface-only consumers, rather than widening every embedding dependency.
+Source is the default mode. Its decoration uses the existing highlights;
+outline rows select source spans; fold controls conceal source ranges in the
+editor view only. Preview is a second reading of the active source in the
+right panel or a sibling tab, with a clear source/preview toggle and a
+source-range return path for inspectable elements.
+
+Preview may lag while parsing or rendering, but it labels the source revision
+it represents and never becomes a save target. Parse or conversion failures
+stay local to the reading and preserve the last valid diagnostic information;
+they must not erase the source or make a dirty document appear clean.
+
+*Done when* source edits update outline, folds, highlights, and preview from
+one buffer; selecting an outline or preview item focuses its source range; a
+Djot source -> preview -> source interaction leaves exact source bytes and
+selection intact; and malformed source presents a diagnostic while Save and
+source editing still work. Include Unicode/IME and a realistically large
+document probe so source mapping and input behavior are demonstrated beyond
+ASCII fixture text.
+
+### A3. References and lexical lenses
+
+Add a `References` panel for the active source range and a `Lenses` panel for
+Rosette. The references view distinguishes a declared clip reference from
+bytes currently available to inspect. When evidence is available, it reports
+canonical URI, content identity, media type, byte size, role, verification
+result, and selector resolution. When custody is absent, denied, locked,
+stale, or verification fails, it says so without inventing replacement bytes.
+
+Clip insertion is an explicit command over an external document observation:
+an admitted producer, such as Turnstone's browser, supplies the captured bytes,
+canonical source URI, media type, artifact role, and selectors. Knot asks the
+admitted evidence authority to retain that artifact and inserts provenance
+through the existing versioned clip intent, then the appropriate save/commit
+path. The standalone app must expose a producer/import adapter before offering
+Capture. Referencing authored Djot is a separate operation and must not silently
+archive it as an external observation. Insertion is never a background edit.
+
+Rosette presents rhyme, meter, and coverage as optional readings. Its existing
+geometry and lens toggles become per-workspace preferences. Coverage stays
+visible. Alternative pronunciation providers and filtering thresholds require
+a concrete consumer before they become settings. A compact list is enough for the first lens
+panel, but Rosette's existing source-addressable graph projection remains an
+alternative working view for relationships among lines, stanzas, and rhymes.
+It should stay optional until a document-focused graph interaction earns its
+place; Knot need not invent a generic graph schema to expose it. Selecting a
+line, stanza, chord, or meter row selects its documented byte span in the
+source. Coverage informs the writer; it does not claim that an unknown word
+has a guessed pronunciation.
+
+*Done when* a retained clip can be inspected from source selection through a
+verified evidence read, while a denied or missing store is visibly distinct;
+the same source span round-trips through a Web Annotation selector; and a
+Rosette list or graph interaction focuses the intended source range while
+unresolved tokens remain reported rather than inferred.
+
+### A4. Changes, drafts, and sharing
+
+The `Changes` panel first exposes only facts already provided by the causal
+projection: the current document head, pending operations, automatic merges,
+and concurrent versions. It provides source-first comparison and an explicit
+resolve command whose result passes back to the owning sync/vault authority.
+Conflicts appear in the writer's working document, rather than as detached
+opaque records. A conflict view cannot mark a resolution complete until the
+authority returns the resulting head or refusal.
+
+Titled drafts are the next design gate, not a quick label attached to a local
+dirty buffer. The desired review unit is a titled set of related causal edits
+with an explicit base, authorship, and outcome: keep private, offer for
+review, merge, supersede, or abandon. Before implementation, settle whether a
+draft is represented by a new signed event family or a local grouping over
+existing causal operations, and prove how it rebases when another draft
+merges. Do not present it as live co-editing or turn remote cursors into a
+requirement.
+
+The `Share` panel is present only for a selected publishable document and an
+admitted publishing authority. It names the source revision, publication
+scope, recipient identity, optional expiry, pinned-head choice, endpoint
+availability, and revocation outcome. It performs publish, ticket creation,
+copy/export, and revocation through product commands. An unavailable endpoint
+or unconfigured persona is actionable status, never a fake success state.
+
+*Done when* a two-writer receipt shows a clean automatic merge and a real
+conflict in the same document workspace, then records an explicit accepted
+resolution or refusal. A sharing receipt creates a least-privilege,
+pinned-head ticket for one selected revision, reads it as the recipient,
+revokes it, and shows the new availability state without exposing vault keys
+or local paths. A titled-draft slice may begin only after its representation
+and rebase behavior are recorded and tested.
+
+## Connected writing: Mere as the graph foundation
+
+**Direction approved 2026-09-05.** Treat the graph as structured material that
+can be authored, queried, and transformed. A network picture is one reading of
+it. Obsidian, Anytype, and Notion are product comparison references for future
+task-based evaluation; this plan makes no claim about their current features
+or Knot's parity with them.
+
+Keep three connected structures explicit:
+
+| Structure | Examples | Editing meaning |
+| --- | --- | --- |
+| Authored document | ordered headings, passages, lists, references | change Djot through the document's edit and save commands |
+| Knowledge graph | documents, passage references, claims, concepts, sources, attributed relationships | issue a graph-domain command against a known revision |
+| Presentation | a query's table, network, reading sequence, filters, positions | change view parameters or layout; an explicit authoring action may change underlying facts |
+
+Mere's graph kernel already has semantic, containment, arrangement, imported,
+traversal, and provenance edge families. Its semantic vocabulary includes
+`Cites`, `Quotes`, `Supports`, `Contradicts`, and `DependsOn`; its payloads
+support semantic statements. Its query module includes traversal, paths, and
+component algorithms. This is the starting inventory, not a reason to build a
+second generic graph engine in Knot.
+
+### Ownership and durable representation gate
+
+Mere owns reusable graph representation, typed relation machinery, graph
+algorithms, and projection contracts. Knot owns writing-specific semantics,
+passage identity, accepted relation commands, and integration with its document
+and vault authority. Cambium supplies controls and interactive composition;
+Genet supplies rendering/platform behavior. Existing Mere projection grammar,
+Scenograph, and Graphshell work is adopted where its contracts fit.
+
+Before persisting the first authored relation, trace its complete owner and
+storage path. Record whether it is encoded in authored Djot, a referenced
+sidecar, or the existing vault's causal operations, and why. Pick one durable
+owner for each fact. Link extraction and indexes are rebuildable readings;
+user-authored relations must survive discarding those readings. A files-in-place
+document can remain useful without its workspace, while export must disclose
+which additional relationships and evidence travel with it.
+
+Do not silently manufacture a new `.knot` format, RDF database, generic query
+language, or replication protocol. Audit current statement identity, scope,
+attribution, and retraction against the consumer before extending them. Record
+an explicit mapping for user-defined predicate names and migration/rename
+behavior; display labels alone are not stable predicate identity. A missing
+portable envelope or graph mutation command is an implementation gap.
+
+The current bridge needs particular care. `linked-data/src/statements.rs`
+applies recognized relations to existing targets and reports unknown predicates
+and absent targets separately. Preserve those inputs pending resolution rather
+than implying arbitrary links already become complete graph facts. In
+`graph-kernel/src/graph/edge_data.rs`, semantic statement deduplication by
+subkind, predicate, and scope can update metadata on an existing statement.
+G1 must prove that two independent authors or evidence assertions about the
+same endpoints remain distinguishable; the current dedup behavior must not
+silently collapse their authorship or evidence histories.
+
+### G1. Links, passages, and inspectable relations
+
+Start with document links, backlinks, and heading/passage targets. A writer
+can select a passage and link it to another document, then optionally name the
+relationship: cites, supports, contradicts, or a user-defined predicate. The
+ordinary linking gesture must work before relation forms are opened. Do not
+require classifying every paragraph or promoting every word into a node.
+
+Give an authored relationship an inspectable identity, endpoints, predicate,
+author, scope, revision, and any evidence or qualification. Distinguish an
+assertion from an extracted hyperlink, an imported statement, or an inferred
+suggestion. Acceptance of a suggestion creates an attributable authoring event
+without erasing the suggestion's origin. Retraction preserves its history.
+
+Document identity is not its current filename. Define moves, renames, copies,
+duplicate opens, deleted targets, and unavailable peers. Passage references
+carry document/revision context and an anchor policy; byte offsets alone are
+not durable identity. After edits, resolve or mark the target stale/ambiguous.
+An external evidence selector continues to name the captured artifact, not the
+authored passage that cites it. Backlinks respect access scope.
+
+*Done when* an essay links to two source documents and selected passages, and
+shows a support and a contradiction as separately inspectable assertions.
+Rename one source and edit one target passage: references either resolve
+correctly or visibly report their exact unresolved state. Restart, rebuild
+derived indexes, and verify authored relations persist. Revoke access to one
+source and confirm that backlinks and counts do not disclose its private facts.
+
+### G2. Saved questions and coordinated presentations
+
+Implement one useful saved question: "claims in this essay, their supporting
+passages, and contradictory sources." Its bounded definition records roots,
+relation filters, direction, scope, and traversal limit. Saving the question
+does not freeze or duplicate its results. A pinned result names its source
+revision separately from a live reading.
+
+Knot must define the saved-question record and its authorization, versioning,
+and result shape. Mere's serializable facet filters and linked-data read-query
+facilities are candidate execution paths, not a pre-existing saved-query
+authority. Its relation matrix is a useful reading, not a general result-table
+engine. The first bounded definition should reuse these paths where suitable
+without exposing a mandatory query language to the writer.
+
+Show the same result identities as a table/list and a graph. Share selection
+through existing coordination contracts while retaining each view's camera,
+scroll, and arrangement. Clicking a relationship opens its inspector. Editing
+its predicate from either presentation submits the same validated domain
+command; both update from the resulting authoritative revision. A node drag
+changes layout unless the user invokes a named relation/grouping action.
+Board, timeline, and other presentations follow concrete field requirements.
+
+*Done when* one saved question reopens, both views show identical permitted
+result membership, and editing a relation in either view updates the other.
+A refused stale edit preserves both the current facts and the user's proposed
+change for review. A layout-only drag leaves semantic relations unchanged.
+An empty, truncated, unavailable, or stale result has a distinct explanation.
+
+### G3. Explainable graph operations
+
+Use existing Mere algorithms for a bounded path-between-passages operation
+and a claim-support coverage reading. Record input graph revision, access
+scope, predicate/direction filters, algorithm version, parameters, and limits.
+Paths retain the identities of the traversed relationships so the writer can
+inspect the evidence. An unsupported-claim result means "no qualifying support
+in this permitted scope," not a judgment that the claim is false.
+
+Audit each selected algorithm's actual direction and edge-weight semantics.
+Existing traversal/path helpers do not by themselves implement the proposed
+predicate-sensitive claim analysis. Retain multiple semantic statements per
+endpoint pair in the explanation even if an algorithm traverses one structural
+edge. A directed dependency view must not silently use an undirected path.
+
+Grouping, centrality, similarity, and dependency analysis remain subsequent
+operations chosen for a writing task. Their outputs are derived and may be
+discarded. Promoting a result into an authored group or relation is an explicit
+command with provenance. Apply access filtering before computation so hidden
+material cannot leak through paths, clusters, counts, or suggested neighbors.
+
+*Done when* a known fixture gives an independently expected path and support
+coverage result; results disclose scope and limits; a relevant source edit
+invalidates the old result; and unauthorized material does not influence the
+visible output. Cancellation and stale asynchronous completion must not stall
+or replace the active document view.
+
+## Writing tasks and interaction acceptance
+
+Use an essay revision, a poem, a research note with citations, and a two-writer
+review as shared fixtures across A and G cuts. Record the actual interaction
+sequence, authored result, keyboard route, and headed evidence. Feature counts
+alone are not a parity receipt.
+
+The first writing workspace specifies find/replace, undo grouping, paste,
+indentation/list continuation, link insertion, and navigation. These are
+adoption or implementation checks, not assumed capabilities of a text area.
+Document state owns the source and undo history; each view owns selection,
+scroll, and folds. Closing one view retains a document shown elsewhere;
+closing its final dirty view invokes the save/recovery decision.
+
+Compare focused writing, source beside preview, and research with references
+on the same material at narrow and regular sizes, with keyboard-only use.
+Make recovery, automatic file saving, and peer publication separately
+configurable actions. Private drafts require a demonstrated local-to-shared
+transition, not merely a name on already-replicated operations.
+
+## Settings and recovery boundaries
+
+There is no universal Knot settings bucket.
+
+| Scope | Examples | Owner |
+| --- | --- | --- |
+| App/workspace preference | theme, UI zoom, writing width, font and line spacing, preview mode, panel visibility, Rosette geometry, workspace layout | standalone Knot application; embedded presentation respects host policy |
+| Transient/recovery session | open documents, unsaved recovery copy, active tab, selection, last source path subject to local policy | `DocumentWorkspace`; recovery never writes the source target without a custody check |
+| Persona/vault policy | paired writers, relay hints, device label, unlock state, vault retention | existing persona-scoped Knot settings and vault/resident authority |
+| Document and causal facts | authored source, clip provenance, revision heads, conflicts, publication choice | document, evidence, sync, and publishing authorities |
+
+Preferences should remain user-configurable and portable only where their
+scope permits. The workspace must tolerate missing optional panels and an
+unavailable resident without corrupting its saved layout. Recovery material is
+private local state with a clear restore/discard affordance and a bounded
+retention policy set by the user. Recovery of sealed-vault material must respect
+the vault's encryption and lock state; a generic plaintext recovery file is not
+an acceptable shortcut. Lock state is live authority state, not a persisted
+preference that can unlock a vault on restoration.
+
+After adopting the shared host API, Knot supplies persisted UI zoom at startup
+and applies user changes through that host's zoom mechanism. Respect its stated
+launch-override precedence. Verify typing, pointer selection, IME placement, and
+panel layout at narrow and regular window sizes and multiple zoom levels; do
+not implement an independent CSS scale with different input coordinates.
+
+## Cambium adoption boundary
+
+Use the existing shared `workbench` and `cambium::workspace` composition after
+the Knot pin contains the published interface. A `DocumentTile` maps to a
+Knot-owned session; a right-panel tile maps to a derived reading or an
+authority-backed component. Component-local UI state may follow a tile inside
+one projection. Durable document identity, source text, permissions, and
+authority status remain in Knot and are re-read when a tile enters another
+projection.
+
+Use `Component` for retained component state and typed events, the shared tab
+bar for tabs, `tree_view` for navigation and outline, `detail_panel` for inert
+authority facts, `command_surface` for actions, and `setting_row` for scoped
+preferences. Generic control events still need Knot's effect validation.
+Menus, disclosure controls, popovers, and lists should be adopted as existing Cambium furniture before
+adding Knot-specific replacements. The first implementation should exercise
+one document tab stack, a navigator, the writing component, and a replaceable
+context slot. It should not require floating windows, arbitrary multi-window
+restoration, or a universal dashboard to ship the safe writing cut.
+
+## Stop rules
+
+- For these cuts, do not add a second authoritative source buffer, editable preview DOM, or serialized
+  component tree.
+- Do not make normal Save overwrite a file changed since its retained baseline.
+- Do not treat a local file baseline mismatch as a causal-head or endpoint
+  token mismatch.
+- Do not make Cambium, Turnstone, or a host own vault keys, evidence bytes,
+  sync resolution, or publication authority.
+- Do not let an evidence reference imply that the referenced bytes are present
+  or verified.
+- Do not call Rosette, preview, search, or any other derived reading durable
+  document authority.
+- Do not start titled-draft implementation until its causal representation and
+  rebase rule are settled.
+
+## Overarching questions to investigate
+
+- **Writing and source visibility.** Compare source with adjacent preview,
+  source with inline derived annotations, and a reading-focused arrangement on
+  the same prose and verse documents. Record selection, undo, source fidelity,
+  and attention costs before deciding whether richer projected editing needs
+  its own slice. These cuts do not settle that longer-term interaction.
+- **Private drafting and shared history.** Prove which edits remain local and
+  when an offer becomes visible to peers. A title over already-replicated
+  operations does not make a draft private. Separate local recovery, saved
+  revisions, and explicitly offered review units in the UI.
+- **Document and graph navigation.** Compare an outline/list with Rosette's
+  graph for finding and revising related passages. Promote graph interactions
+  that improve that task; retain straightforward document navigation.
+- **One document in several views.** Test the document/view split specified
+  above: view positions are independent, with optional linked navigation.
+  Shared text and undo history survive view moves and closes without opening
+  a second resident store owner.
+- **Standalone and embedded composition.** Start with the existing narrow
+  embedded document. Decide from a Turnstone consumer whether navigator and
+  contextual panels belong inside a contributed workspace or are separately
+  mounted contributions, so embedded Knot does not duplicate the host's tabs.
+- **Bounded derived work.** Measure input response while preview, search, and
+  lexical analysis run on representative long documents. Tag asynchronous work
+  with document identity and revision, discard stale results, and expose
+  actionable resource limits without freezing the writing view.
+
+## Findings and progress
+
+- 2026-09-06: began A1 with Luna implementing standalone document commands and
+  dirty-close handling, Terra implementing guarded file writes and Save As,
+  and a separate Terra review. This first slice uses existing pinned Cambium
+  controls and the shared desktop host. Workbench tab/docking adoption remains
+  a separate dependency gate; the slice does not claim the complete workspace.
+  Existing dependency-pin edits are retained and excluded from this work's
+  change ownership. The implementation adds direct desktop control/test
+  dependencies, `same-file` for file identity, and a Windows-only replacement
+  adapter; existing Mere/Genet revision values are unchanged by this slice.
+- 2026-09-06: implemented the single-document New/Open/Save/Save As/Reload
+  workflow with a caller-entered path, command shortcuts, and Save/Discard/Cancel
+  handling for dirty transitions and native close. Explicit read-only surface
+  admission remains enforced; a file becoming read-only after editing can be
+  rescued through a new Save As target. Save As preserves undo and selection.
+  Compare, a native picker, recent files, recovery after restart, tabs/docking,
+  and headed UI acceptance remain open A1 work. A2-A4 and G1-G3 are unchanged.
+- 2026-09-06: saves retain file identity and bytes from opening or the previous
+  successful save. Changed, removed, or byte-identically replaced files refuse
+  dirty Save. Source is written and synced to a sibling temporary before
+  replacement; Save As uses an exclusive hard-link commit and therefore requires
+  filesystem support for hard links. Windows replacement uses `ReplaceFileW`
+  with an exclusive recovery directory and retains recovery paths on partial
+  failure. Other platforms copy basic permissions before rename; extended ACL
+  and other filesystem metadata preservation remain unverified there. The
+  baseline check is not transactional coordination with arbitrary external
+  writers, and these tests do not establish power-loss durability.
+- 2026-09-06: desktop harness coverage uses the combined application stylesheet,
+  the real path text control and command shortcuts, and the host's own window
+  command queue. Native-close cases explicitly supply the redraw frame requested
+  by `KeepVisible` before interacting with newly created prompt controls. This
+  remains windowless acceptance, distinct from headed input and visual checks.
+- 2026-09-06: temporary and recovery names are independent of the document's
+  basename, so a valid long document name does not become an invalid temporary
+  name. A regression exercises Save As and a subsequent guarded Save with a
+  230-character basename.
+- 2026-09-06 validation: Windows/NTFS, Rust 1.97.1, current worktree with the
+  preserved dependency edits. The following commands passed on the final source:
+
+  ```powershell
+  $env:CARGO_HOME='C:\Users\mark_\Code\.cargo-knot-a1'
+  $env:CARGO_TARGET_DIR='C:\t\knot-a1'
+  $env:CARGO_BUILD_JOBS='1'
+  cargo test --manifest-path crates/knot-document/Cargo.toml --offline -j 1
+  # 20 passed; 0 failed; 0 doc tests
+  cargo test --manifest-path crates/knot-document/Cargo.toml --features engine --offline -j 1
+  # 26 passed; 0 failed; 0 doc tests
+  cargo test -p knot-desktop --offline --locked -j 1
+  # 9 passed; 0 failed
+  ```
+
+  An isolated copied Cargo cache avoided contention with concurrent builds.
+  Focused `rustfmt --check` and `git diff --check` also passed. The Windows
+  replacement adapter emits the configured unsafe-code warning around its
+  documented Win32 call. The narrow manifest reports unused optional patches.
+  No headed, non-Windows, or full editor-library suite receipt is claimed here.
+
+- 2026-09-05: expanded the product direction following the graph-as-data
+  discussion. G1-G3 now make links and inspectable relations, saved questions
+  with coordinated presentations, and explainable operations explicit
+  consumer work alongside the writing workspace. Implementation remains open.
+  Verified reusable starting points:
+  `mere/crates/graph/graph-kernel/src/graph/edge_payload.rs`,
+  `edge_taxonomy.rs`, and `query.rs`. Existing types and algorithms do not
+  establish Knot persistence, domain mutation, or UI integration.
+- 2026-09-05: Luna's seam review identified the explicit integration gaps:
+  statement multiplicity, unknown-predicate ingestion, saved-query authority,
+  relation-edit events, and algorithm direction semantics. Further inspected
+  seams are `mere/crates/graph/linked-data/src/statements.rs`,
+  `mere/crates/graph/graph-kernel/src/graph/filter.rs`, and
+  `mere/crates/canvas/cartography/src/reading.rs`. Graph-capable arrangement
+  state is not a substitute for semantic relation edits or their causal history.
+
+- 2026-09-05: the independent Knot repository has a thin standalone
+  document host and substantial product authority behind it. Published
+  `a8d23e3` passed Windows CI with 9 document, 94 editor-library, and 1 desktop
+  harness tests; this is not a headed acceptance receipt for the proposed UI.
+  The inspected worktree has unrelated dependency-pin changes, outside this
+  documentation pass. The application
+  gap is UI adoption and coherent composition, not an absence of editor,
+  evidence, replication, or sharing primitives.
+- 2026-09-05: the current file save path compares a dirty buffer only with the
+  latest disk bytes immediately before writing; it does not retain an
+  open-time baseline. External-change protection therefore belongs in A1
+  before accepting the writing workspace. See
+  [`KnotEditor::save`](../crates/knot-document/src/editor.rs) and
+  [`write_if_distinct`](../crates/knot-document/src/writer.rs).
+- 2026-09-05: existing persona-scoped `KnotSettings` intentionally describes
+  sync policy, not presentation preferences. Workspace preferences and
+  recovery state need their own application scope. See
+  [`settings.rs`](../crates/knot-editor/src/settings.rs).
+- 2026-09-05: `knot-document` keeps derived readings behind its optional
+  `engine` feature and the current desktop wrapper uses the narrow default.
+  Desktop preview adoption must opt in there, without making every embeddable
+  surface consumer resolve the engine graph. See the
+  [document manifest](../crates/knot-document/Cargo.toml) and
+  [desktop manifest](../apps/desktop/Cargo.toml).
+- 2026-09-05: Cambium's current workspace composition is the intended
+  foundation for the first workspace. Knot adoption remains unverified. Its
+  persistence and component identity rules must be exercised as a consumer,
+  while Knot keeps product identity and authority. Relevant code is
+  `mere/crates/cambium/cambium/src/workspace.rs` and
+  `mere/crates/cambium/workbench/lib.rs` and `float.rs`.
+
+## Related material
+
+- [`README.md`](../README.md)
+- [`2026-08-24_knot_shared_surface_and_port_contribution_plan.md`](2026-08-24_knot_shared_surface_and_port_contribution_plan.md)
+- [`2026-09-01_knot_editor_repository_extraction_plan.md`](2026-09-01_knot_editor_repository_extraction_plan.md)
+- `mere/design_docs/mere_docs/research/2026-08-19_knot_lane_brief.md`
+- `mere/design_docs/cambium_docs/implementation_strategy/2026-08-31_workbench_component_plan.md`
+- `mere/design_docs/cambium_docs/implementation_strategy/2026-07-15_component_catalog_growth_plan.md`
+- `mere/design_docs/cambium_docs/implementation_strategy/2026-09-03_host_ui_zoom_plan.md`
+- `mere/design_docs/mere_docs/implementation_strategy/2026-08-15_projection_grammar_adoption_plan.md`

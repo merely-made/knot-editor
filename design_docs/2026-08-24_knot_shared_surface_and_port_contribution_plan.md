@@ -1,10 +1,15 @@
 # Knot Shared Surface and Port Contribution Plan
 
-> **Repository note (2026-09-01):** this is the historical shared-surface
+> **Repository note (2026-09-05):** this is the historical shared-surface
 > execution record. The
 > [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
-> governs the current source boundary; `ports/knot` paths below name the
-> original Mere layout.
+> governs the current source boundary, and the
+> [application workspace plan](2026-09-05_knot_application_workspace_plan.md#product-cuts)
+> is the current application UX authority and product execution sequence for
+> F0. In the current repository topology, Mere owns Cambium and the generic
+> surface runtime; Knot owns document product authority and state. The
+> `ports/knot` paths below name the original Mere layout, and the dated
+> findings, receipts, and contracts remain here as historical record.
 
 **Date:** 2026-08-24
 **Status:** in progress; current-origin G0 and the narrow `knot-document`
@@ -15,7 +20,8 @@ accessibility landed; P0 is complete — Turnstone admits
 `distillery.installed.v1` through the existing registry with no
 provider-specific renderer arm, the full shell binary builds from published
 sources, and the contract is reduced and frozen at v1 (Genet `001448d55`,
-Turnstone `3f63671`); F0 is the next gated lane
+Turnstone `3f63671`); F0 continues through the product execution sequence in
+the [application workspace plan](2026-09-05_knot_application_workspace_plan.md#product-cuts)
 **Scope:** prove one Knot document surface in a standalone host and Turnstone,
 then prove the contribution seam with a second port. This plan does not require
 or privilege a `.knot` container format, a subprocess boundary, or a universal
@@ -23,12 +29,12 @@ plugin API.
 
 **Related:**
 
-- [Turnstone suite composition and capability census](../../2026-08-22_turnstone_suite_composition_and_capability_census.md)
+- Turnstone suite composition and capability census: `mere/design_docs/2026-08-22_turnstone_suite_composition_and_capability_census.md`
 - [Knot port plan](2026-07-25_knot_port_plan.md)
 - [Knot authoring consumer plan](2026-07-27_knot_authoring_consumer_plan.md)
 - [Knot in Graphshell plan](2026-08-02_knot_in_graphshell_plan.md)
-- [Device resident consolidation plan](2026-08-20_device_resident_consolidation_plan.md)
-- [Configuration ownership and settings projection plan](2026-08-06_configuration_ownership_settings_projection_plan.md)
+- Device resident consolidation: `mere/design_docs/mere_docs/implementation_strategy/2026-08-20_device_resident_consolidation_plan.md`
+- Configuration ownership and settings projection: `mere/design_docs/mere_docs/implementation_strategy/2026-08-06_configuration_ownership_settings_projection_plan.md`
 - Turnstone `design_docs/2026-08-08_pane_registry_and_graph_panes_plan.md`
 - Genet `docs/2026-08-12_meristem_scope_cut_and_component_contract_brief.md`
 
@@ -507,6 +513,11 @@ the contract is then reduced and frozen.
 
 **Owner:** Knot authority lanes.
 **Depends on:** P0 and the relevant resident receipts.
+
+The [application workspace plan](2026-09-05_knot_application_workspace_plan.md#product-cuts)
+owns the current product execution sequence (A1-A4), with connected-writing
+work (G1-G3) alongside it. This section retains the original F0 gate and its
+authority constraints.
 
 Promote broader status, evidence, and sharing surfaces one authority at a time.
 Each snapshot distinguishes absent, denied, locked, stale, unconfigured, and

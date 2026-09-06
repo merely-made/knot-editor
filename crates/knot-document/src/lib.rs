@@ -15,7 +15,7 @@ mod editor;
 mod writer;
 
 pub use document_surface::{
-    KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
+    KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
     KnotDocumentSaveFailureV1, KnotDocumentSaveOutcomeV1, KnotDocumentSession,
     KnotDocumentSnapshotV1, KnotDocumentSourceKindV1, KnotDocumentSourceV1,
     KnotDocumentWritePostureV1,

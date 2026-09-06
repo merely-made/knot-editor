@@ -33,7 +33,7 @@ when they have a product-owned snapshot and effect boundary.
 
 | Concern | Existing Knot authority or API | Current standalone surface | Required application work |
 | --- | --- | --- | --- |
-| Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` tracks dirty state and writes a selected `.djot` or legacy `.knot` file. | One text area, status labels, and Save. File selection is CLI-only; scratch Save refuses. | A document lifecycle model, Open/New/Save As, recovery, and safe close. Djot is the default authoring route. |
+| Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
 | Derived readings | The optional `engine` feature exposes highlights, outline, folds, and preview from the same source buffer. | Not rendered. The desktop package currently takes the narrow default `knot-document` feature set. | Source decoration, outline navigation and folding, and a source-preserving preview mode. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
 | Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
@@ -41,11 +41,11 @@ when they have a product-owned snapshot and effect boundary.
 | Revisions and replication | `KnotDocumentProjection` exposes causal heads, conflicts, automatic text merges, and pending operations. | No revision or conflict view. | A review panel and explicit resolve flows. Titled drafts are a product capability still to be designed, not an existing sync type. |
 | Publishing and sharing | Publication candidates, pinned-head tickets, recipient delegation, and revocation APIs exist. | No publishing interface. | A share flow that states what exact revision is offered, to whom, for how long, and whether it remains available. |
 
-The current `KnotEditor::save` reads the current file immediately before it
-writes, but it retains no open-time file baseline. It can therefore overwrite
-an external edit while its buffer is dirty. This is a local file-custody bug,
-not the same problem as an endpoint rejecting a stale opaque base token. Both
-need visible, separate refusal states.
+The implemented guarded save retains file identity and bytes from opening or
+the last successful save. It refuses a dirty save after an observed external
+change. Local file custody and an endpoint rejecting a stale opaque base token
+still need separate visible refusal states. The file check does not establish
+transactional coordination with arbitrary external writers.
 
 ## Workspace layout
 
@@ -121,6 +121,16 @@ ordinary Save and show an external-change state with three explicit actions:
 reload the disk version, compare it with the buffer, or save the buffer to a
 new path. Replacing the changed target requires a separately named, deliberate
 overwrite action. The normal shortcut may never silently perform that action.
+
+The first Compare presentation is two read-only source snapshots, labelled
+buffer and disk, with an explicit refresh action. It records whether disk
+bytes or identity differed from the saved baseline at observation time. It
+does not claim to watch the file. Subsequent buffer edits mark the comparison
+stale; a failed refresh replaces the old reading with an error. The disk
+column remains explicitly historical even if an inner document Save changes
+the file without changing the buffer. Inspection
+preserves selection, undo, dirty state, the saved baseline, and any pending
+close decision. Diff highlighting and deliberate overwrite are later work.
 
 The write implementation must also preserve the old file on a failed replacement.
 Its receipt records atomic-replacement behavior and the limit of external-writer
@@ -492,6 +502,30 @@ restoration, or a universal dashboard to ship the safe writing cut.
 
 ## Findings and progress
 
+- 2026-09-06 follow-up: committed the single-document lifecycle and workspace
+  plan as `74912aa`, leaving the pre-existing Mere pin edits in the working
+  tree. Added immutable `KnotDiskComparisonV1` observations and a standalone
+  Compare panel. The panel displays exact buffer and disk source as text,
+  identifies comparison-time baseline changes, labels subsequent buffer edits
+  stale, and offers explicit refresh and hide actions. Disk text remains
+  labelled as a historical reading after an ordinary Save. A failed refresh
+  removes the previous comparison. Successful New/Open/Reload/Save As clears it. Inspection preserves
+  save refusal, selection, undo, dirty state, and pending close decisions.
+  Two source columns are the initial comparison presentation; line-level diff
+  highlighting remains open.
+  The test environment continues to use the preserved `b9b0ee13` worktree pin;
+  commits retain `d82afa17`. A separate source/API review found the required
+  desktop host interfaces at `d82afa17`; this is not a fresh compile receipt
+  for that revision.
+  Final comparison validation used the same Windows/NTFS, Rust 1.97.1,
+  isolated Cargo home, target directory, and three commands recorded below:
+  **24 default document tests, 30 engine-enabled document tests, and 15 desktop
+  harness tests passed**, with zero failures and zero document doctests.
+  The desktop receipt includes edit -> Compare -> inner Save, retaining the
+  old disk reading with its historical label while the saved buffer is clean.
+  Focused formatting, diff checks, and relative documentation links passed.
+  Headed acceptance, tabs, native picker, recent files, restart recovery, and
+  A2-A4/G1-G3 implementation remain open.
 - 2026-09-06: began A1 with Luna implementing standalone document commands and
   dirty-close handling, Terra implementing guarded file writes and Save As,
   and a separate Terra review. This first slice uses existing pinned Cambium

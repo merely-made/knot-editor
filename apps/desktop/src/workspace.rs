@@ -11,8 +11,8 @@ use cambium_genet_winit_host::{
     CloseDisposition, CloseRequest, FocusedTextSlot, Key, KeyPress, Runner, WindowCommands,
 };
 use knot_document::{
-    KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1, KnotDocumentSession,
-    KnotDocumentSurfaceState, knot_document_view,
+    KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
+    KnotDocumentSession, KnotDocumentSurfaceState, knot_document_view,
 };
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::path::PathBuf;
@@ -39,6 +39,8 @@ pub struct DesktopState {
     pub document: KnotDocumentSurfaceState,
     pub path: TextInput,
     pub message: Option<String>,
+    comparison: Option<KnotDiskComparisonV1>,
+    comparison_error: Option<String>,
     window: WindowCommands,
     pending: Option<PendingAction>,
     discard_close: bool,
@@ -61,6 +63,8 @@ impl DesktopState {
             document: KnotDocumentSurfaceState::new(session),
             path,
             message: None,
+            comparison: None,
+            comparison_error: None,
             window,
             pending: None,
             discard_close: false,
@@ -80,6 +84,28 @@ impl DesktopState {
         }
     }
 
+    fn clear_comparison(&mut self) {
+        self.comparison = None;
+        self.comparison_error = None;
+    }
+
+    fn compare_disk(&mut self) {
+        match self.document.session().compare_disk() {
+            Ok(comparison) => {
+                self.comparison = Some(comparison);
+                self.comparison_error = None;
+            },
+            Err(error) => {
+                self.comparison = None;
+                self.comparison_error = Some(error);
+            },
+        }
+    }
+
+    fn hide_comparison(&mut self) {
+        self.clear_comparison();
+    }
+
     fn request(&mut self, action: PendingAction) {
         if self.dirty() {
             self.pending = Some(action);
@@ -97,18 +123,23 @@ impl DesktopState {
                     "",
                 ));
                 self.path = TextInput::default();
+                self.clear_comparison();
                 self.message = Some("New untitled Djot document.".to_owned());
             },
             PendingAction::Open(path) => match KnotDocumentSession::open(&path) {
                 Ok(session) => {
                     self.path = TextInput::new(path.to_string_lossy().into_owned());
                     self.document = KnotDocumentSurfaceState::new(session);
+                    self.clear_comparison();
                     self.message = Some(format!("Opened {}.", path.display()));
                 },
                 Err(error) => self.message = Some(format!("Open failed: {error}")),
             },
             PendingAction::Reload => match self.document.apply(KnotDocumentIntentV1::Reload) {
-                Ok(_) => self.message = Some("Reloaded from disk.".to_owned()),
+                Ok(_) => {
+                    self.clear_comparison();
+                    self.message = Some("Reloaded from disk.".to_owned());
+                },
                 Err(error) => self.message = Some(intent_error_label(error)),
             },
         }
@@ -145,6 +176,7 @@ impl DesktopState {
             .apply(KnotDocumentIntentV1::SaveAs(path.clone()))
         {
             Ok(_) => {
+                self.clear_comparison();
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
             },
@@ -239,7 +271,8 @@ impl DesktopState {
 fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
     match error {
         KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ExternalChange) => {
-            "Save refused: file changed on disk. Reload or choose a new Save As path.".to_owned()
+            "Save refused: file changed on disk. Compare, Reload, or choose a new Save As path."
+                .to_owned()
         },
         KnotDocumentIntentErrorV1::Refused(refusal) => format!("Action refused: {refusal:?}"),
         KnotDocumentIntentErrorV1::SaveFailed(failure) => {
@@ -249,6 +282,88 @@ fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
 }
 
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
+    let comparison_panel: DesktopView = if let Some(error) = &state.comparison_error {
+        Box::new(
+            el(
+                "section",
+                (
+                    span("Comparison unavailable"),
+                    span(error.clone()).attr("class", "knot-comparison-error"),
+                    span("Disk text could not be read; refresh to try again."),
+                    button("Refresh comparison", |state: &mut DesktopState, _| {
+                        state.compare_disk();
+                    }),
+                    button("Hide comparison", |state: &mut DesktopState, _| {
+                        state.hide_comparison();
+                    }),
+                ),
+            )
+            .attr("class", "knot-comparison knot-comparison-error-panel")
+            .attr("role", "region")
+            .attr("aria-label", "Disk comparison error"),
+        )
+    } else if let Some(comparison) = &state.comparison {
+        let snapshot = state.document.snapshot();
+        let stale = comparison.buffer_text != snapshot.text
+            || comparison.address != snapshot.source.address;
+        let status = if stale {
+            "Snapshot: stale because the source or address changed since comparison"
+        } else {
+            "Buffer snapshot matches current source"
+        };
+        let disk_status = if comparison.disk_changed_since_baseline {
+            "Disk changed since the saved baseline at comparison: yes"
+        } else {
+            "Disk changed since the saved baseline at comparison: no"
+        };
+        Box::new(
+            el(
+                "section",
+                (
+                    el("header", (span("Disk comparison"), span(status)))
+                        .attr("class", "knot-comparison-header"),
+                    span(format!("Compared address: {}", comparison.address)),
+                    span(disk_status),
+                    span("Disk text was read when compared; refresh to read it again."),
+                    button("Refresh comparison", |state: &mut DesktopState, _| {
+                        state.compare_disk();
+                    }),
+                    button("Hide comparison", |state: &mut DesktopState, _| {
+                        state.hide_comparison();
+                    }),
+                    el(
+                        "div",
+                        (
+                            el(
+                                "section",
+                                (
+                                    span("Buffer at comparison"),
+                                    el("pre", comparison.buffer_text.clone()),
+                                ),
+                            )
+                            .attr("class", "knot-comparison-version")
+                            .attr("aria-label", "Buffer source at comparison"),
+                            el(
+                                "section",
+                                (
+                                    span("Disk at comparison"),
+                                    el("pre", comparison.disk_text.clone()),
+                                ),
+                            )
+                            .attr("class", "knot-comparison-version")
+                            .attr("aria-label", "Disk source at comparison"),
+                        ),
+                    )
+                    .attr("class", "knot-comparison-versions"),
+                ),
+            )
+            .attr("class", "knot-comparison")
+            .attr("role", "region")
+            .attr("aria-label", "Disk comparison"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
     let document: DesktopView = Box::new(lens(
         |state: &mut KnotDocumentSurfaceState| knot_document_view(state),
         |state: &mut DesktopState| &mut state.document,
@@ -301,6 +416,9 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                             state.save_as();
                         }),
                         button("Reload", |state: &mut DesktopState, _| state.reload()),
+                        button("Compare", |state: &mut DesktopState, _| {
+                            state.compare_disk();
+                        }),
                         el(
                             "label",
                             (
@@ -318,6 +436,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .attr("class", "knot-workspace-toolbar"),
                 message,
                 document,
+                comparison_panel,
                 prompt,
             ),
         )
@@ -414,6 +533,11 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-document { flex:1; }",
     ".knot-document-body textarea { width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
+    ".knot-comparison { max-height:360px; overflow:auto; padding:12px; border:1px solid; }",
+    ".knot-comparison-header { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; }",
+    ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
+    ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
+    ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
     "@media (max-width:700px) { .knot-workspace { padding:12px; } .knot-path-field input { min-width:160px; } }",
 );
 
@@ -459,6 +583,45 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| input_node(dom, child))
+    }
+
+    fn named_node(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        name: &str,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom
+            .element_name(node)
+            .is_some_and(|element| element.local.as_ref() == name)
+        {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| named_node(dom, child, name))
+    }
+
+    fn class_node(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        class: &str,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom.has_class(node, class) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| class_node(dom, child, class))
+    }
+
+    fn text_content(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> String {
+        let own = dom.text(node).unwrap_or_default();
+        let children = dom
+            .dom_children(node)
+            .map(|child| text_content(dom, child))
+            .collect::<String>();
+        format!("{own}{children}")
     }
 
     fn request_native_close(
@@ -642,6 +805,170 @@ mod tests {
                 .unwrap()
                 .contains("changed on disk")
         );
+    }
+
+    #[test]
+    fn compare_captures_disk_and_buffer_without_writing_or_mutating_source() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("compare.djot");
+        std::fs::write(&path, "buffer\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str(" edited");
+        });
+        let buffer_before = host.state().document.snapshot();
+        std::fs::write(&path, "disk\n").unwrap();
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        let comparison = host
+            .state()
+            .comparison
+            .as_ref()
+            .expect("comparison snapshot");
+        assert_eq!(comparison.buffer_text, buffer_before.text);
+        assert_eq!(comparison.disk_text, "disk\n");
+        assert!(comparison.disk_changed_since_baseline);
+        assert_eq!(host.state().document.snapshot().text, buffer_before.text);
+        assert_eq!(
+            host.state().document.snapshot().selection,
+            buffer_before.selection
+        );
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "disk\n");
+
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str(" later");
+        });
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let panel = class_node(&dom, dom.document(), "knot-comparison").expect("comparison panel");
+        assert!(text_content(&dom, panel).contains("Snapshot: stale"));
+        drop(dom);
+        assert!(host.click_on(&Selector::role("button").containing("Refresh comparison")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let panel = class_node(&dom, dom.document(), "knot-comparison").expect("comparison panel");
+        assert!(text_content(&dom, panel).contains("Buffer snapshot matches current source"));
+    }
+
+    #[test]
+    fn comparison_refreshes_explicitly_and_clears_after_new() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("refresh.djot");
+        std::fs::write(&path, "first\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        std::fs::write(&path, "second\n").unwrap();
+        assert_eq!(
+            host.state().comparison.as_ref().unwrap().disk_text,
+            "first\n"
+        );
+        assert!(host.click_on(&Selector::role("button").containing("Refresh comparison")));
+        assert_eq!(
+            host.state().comparison.as_ref().unwrap().disk_text,
+            "second\n"
+        );
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert!(host.state().comparison.is_none());
+        assert!(host.state().comparison_error.is_none());
+    }
+
+    #[test]
+    fn missing_disk_replaces_the_old_comparison_with_an_error() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("missing.djot");
+        std::fs::write(&path, "source\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        std::fs::remove_file(&path).unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        assert!(host.state().comparison.is_none());
+        assert!(
+            host.state()
+                .comparison_error
+                .as_deref()
+                .is_some_and(|error| error.contains("read"))
+        );
+    }
+
+    #[test]
+    fn comparison_renders_markup_as_plain_source_text() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("markup.djot");
+        std::fs::write(&path, "<script>alert(1)</script>\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let pre = named_node(&dom, dom.document(), "pre").expect("comparison pre");
+        assert!(text_content(&dom, pre).contains("<script>alert(1)</script>"));
+        assert!(named_node(&dom, pre, "script").is_none());
+    }
+
+    #[test]
+    fn compare_leaves_a_pending_dirty_close_untouched() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("pending-compare.djot");
+        std::fs::write(&path, "source\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str(" edited");
+        });
+        host.layout_at(900.0, 640.0);
+        request_native_close(&mut host);
+        let before = host.state().document.snapshot();
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        assert_eq!(host.state().pending, Some(PendingAction::Close));
+        assert_eq!(host.state().document.snapshot().text, before.text);
+        assert_eq!(host.state().document.snapshot().selection, before.selection);
+    }
+
+    #[test]
+    fn inner_save_keeps_comparison_disk_text_historical() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("historical.djot");
+        std::fs::write(&path, "original\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str(" edited");
+        });
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        assert!(host.click_on(&Selector::class("knot-document-save")));
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "original\n edited");
+        assert!(!host.state().document.snapshot().dirty);
+        assert_eq!(
+            host.state().comparison.as_ref().unwrap().disk_text,
+            "original\n"
+        );
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let panel = class_node(&dom, dom.document(), "knot-comparison").expect("comparison panel");
+        let rendered = text_content(&dom, panel);
+        assert!(rendered.contains("Disk text was read when compared; refresh to read it again."));
+        assert!(rendered.contains("Buffer snapshot matches current source"));
     }
 
     #[test]

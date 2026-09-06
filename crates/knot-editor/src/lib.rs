@@ -52,7 +52,7 @@ pub use knot_document::{
     KnotDocumentRefusalV1, KnotDocumentSaveFailureV1, KnotDocumentSaveOutcomeV1,
     KnotDocumentSession, KnotDocumentSnapshotV1, KnotDocumentSourceKindV1, KnotDocumentSourceV1,
     KnotDocumentSurfaceState, KnotDocumentView, KnotDocumentWritePostureV1, KnotEditor,
-    knot_document_descriptor, knot_document_surface, knot_document_view,
+    KnotEditorSaveError, knot_document_descriptor, knot_document_surface, knot_document_view,
 };
 pub use mark::{
     MARK_ALPN, MARK_DEFAULT_PORT, MARK_MAX_DOCUMENT_BYTES, MARK_MAX_METADATA_BYTES,

@@ -4738,8 +4738,10 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 name = "knot-desktop"
 version = "0.0.1"
 dependencies = [
+ "cambium",
  "cambium-genet-winit-host",
  "genet-probe",
+ "genet-scripted-dom",
  "knot-document",
  "layout-dom-api",
  "tempfile",
@@ -4755,7 +4757,9 @@ dependencies = [
  "knot-editor-host",
  "mere-surface-api",
  "nematic",
+ "same-file",
  "serde_json",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

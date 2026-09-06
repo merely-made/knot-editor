@@ -126,7 +126,7 @@ pub fn knot_document_surface(
         |state: &KnotDocumentSurfaceState| match state.snapshot().source.kind {
             KnotDocumentSourceKindV1::File | KnotDocumentSourceKindV1::Scratch => {
                 SurfaceAvailability::Available
-            }
+            },
         },
         |_state, _viewport| {},
         |_action: ()| Vec::new(),
@@ -168,8 +168,9 @@ fn refusal_label(refusal: crate::KnotDocumentRefusalV1) -> &'static str {
     match refusal {
         crate::KnotDocumentRefusalV1::ScratchHasNoSaveTarget => {
             "scratch document has no file target"
-        }
+        },
         crate::KnotDocumentRefusalV1::ReadOnly => "document is read-only",
+        crate::KnotDocumentRefusalV1::ExternalChange => "file changed on disk",
     }
 }
 #[cfg(test)]

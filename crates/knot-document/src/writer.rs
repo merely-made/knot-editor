@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use std::fs;
+use std::io::{self, Write};
 use std::path::Path;
 #[cfg(feature = "engine")]
 use std::path::PathBuf;
@@ -64,9 +65,289 @@ pub fn write_if_distinct(path: &Path, before: &[u8], after: &[u8]) -> Result<Sav
     if before == after {
         return Ok(SaveOutcome::Unchanged);
     }
-    fs::write(path, after)
+    #[cfg(windows)]
+    if !path.exists() {
+        return create_bytes_new(path, after).map(|()| SaveOutcome::Written);
+    }
+    replace_bytes_atomically(path, after)
         .map_err(|error| format!("could not write {}: {error}", path.display()))?;
     Ok(SaveOutcome::Written)
+}
+
+/// Replace a Unix file through a fully written sibling temporary file.
+///
+/// The temporary receives the target's basic permissions before `rename`.
+/// Extended ACL, stream, and encryption metadata remain filesystem-specific on
+/// this path; Windows uses `ReplaceFileW` below instead.
+#[cfg(not(windows))]
+fn replace_bytes_atomically(path: &Path, contents: &[u8]) -> io::Result<()> {
+    let (temporary, mut file) = create_sibling_temporary(path)?;
+    let result = (|| {
+        file.write_all(contents)?;
+        file.sync_all()?;
+        drop(file);
+
+        if let Ok(metadata) = fs::metadata(path) {
+            fs::set_permissions(&temporary, metadata.permissions())?;
+        }
+        replace_temporary(path, &temporary, |from, to| fs::rename(from, to))
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result
+}
+
+#[cfg(windows)]
+fn replace_bytes_atomically(path: &Path, contents: &[u8]) -> io::Result<()> {
+    let (temporary, mut file) = create_sibling_temporary(path)?;
+    if let Err(error) = (|| -> io::Result<()> {
+        file.write_all(contents)?;
+        file.sync_all()
+    })() {
+        drop(file);
+        let _ = fs::remove_file(&temporary);
+        return Err(error);
+    }
+    drop(file);
+
+    // ReplaceFileW preserves the replaced file's security descriptor,
+    // alternate streams, and encryption attributes. Its backup records the
+    // recoverable old bytes if the replacement reaches a partial state.
+    // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-replacefilew
+    replace_temporary_windows(path, &temporary)
+}
+
+/// Create an exclusive output target without replacing an existing file.
+pub(crate) fn create_bytes_new(path: &Path, contents: &[u8]) -> Result<(), String> {
+    let (temporary, mut file) = create_sibling_temporary(path)
+        .map_err(|error| format!("could not prepare {}: {error}", path.display()))?;
+    let result = (|| -> io::Result<()> {
+        file.write_all(contents)?;
+        file.sync_all()?;
+        drop(file);
+
+        // A hard link fails if the destination appeared after the picker
+        // returned. That makes Save As a non-clobbering operation without a
+        // check-then-write race.
+        fs::hard_link(&temporary, path)?;
+        // The new target has committed. Retaining an unreachable temporary is
+        // preferable to reporting a failed Save As after that point.
+        let _ = fs::remove_file(&temporary);
+        Ok(())
+    })();
+    if result.is_err() {
+        let _ = fs::remove_file(&temporary);
+    }
+    result.map_err(|error| format!("could not create {}: {error}", path.display()))
+}
+
+fn create_sibling_temporary(path: &Path) -> io::Result<(std::path::PathBuf, fs::File)> {
+    let parent = path.parent().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "document target must have a parent directory",
+        )
+    })?;
+    for nonce in 0..128_u32 {
+        let candidate = parent.join(format!(".knot-write-{}-{nonce}.tmp", std::process::id()));
+        match fs::OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&candidate)
+        {
+            Ok(file) => return Ok((candidate, file)),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "could not reserve a document temporary path",
+    ))
+}
+
+#[cfg(windows)]
+fn create_backup_location(path: &Path) -> io::Result<(std::path::PathBuf, std::path::PathBuf)> {
+    let parent = path.parent().ok_or_else(|| {
+        io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "document target must have a parent directory",
+        )
+    })?;
+    for nonce in 0..128_u32 {
+        let directory = parent.join(format!(
+            ".knot-replace-recovery-{}-{nonce}",
+            std::process::id()
+        ));
+        match fs::create_dir(&directory) {
+            Ok(()) => return Ok((directory.clone(), directory.join("original.bak"))),
+            Err(error) if error.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(error) => return Err(error),
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        "could not reserve a document replacement recovery directory",
+    ))
+}
+
+#[cfg(windows)]
+fn replace_temporary_windows(target: &Path, temporary: &Path) -> io::Result<()> {
+    use std::os::windows::ffi::OsStrExt;
+
+    use windows_sys::Win32::Storage::FileSystem::ReplaceFileW;
+
+    fn wide(path: &Path) -> Vec<u16> {
+        path.as_os_str().encode_wide().chain(Some(0)).collect()
+    }
+
+    let (recovery_directory, backup) = create_backup_location(target)?;
+    let target_wide = wide(target);
+    let temporary_wide = wide(temporary);
+    let backup_wide = wide(&backup);
+    // SAFETY: all three paths are NUL-terminated UTF-16 strings that live for
+    // the duration of this synchronous Win32 call; the optional buffers are null.
+    let replaced = unsafe {
+        ReplaceFileW(
+            target_wide.as_ptr(),
+            temporary_wide.as_ptr(),
+            backup_wide.as_ptr(),
+            0,
+            std::ptr::null(),
+            std::ptr::null(),
+        )
+    };
+    if replaced != 0 {
+        // Success has committed the new source. A leftover backup is safe to
+        // remove later, but failure to clean it cannot turn this save into a
+        // failed one.
+        let _ = fs::remove_file(&backup);
+        let _ = fs::remove_dir(&recovery_directory);
+        return Ok(());
+    }
+
+    let error = io::Error::last_os_error();
+    let recovery = match error.raw_os_error() {
+        Some(1176) => "the original retains its target filename",
+        Some(1177) => "the original may be available at the backup path",
+        _ => "the temporary and backup directory may contain recoverable source",
+    };
+    // Do not delete either artifact here. ReplaceFileW documents partial
+    // failure states, so the caller must retain both paths for recovery.
+    Err(io::Error::new(
+        error.kind(),
+        format!(
+            "ReplaceFileW failed for {}; {recovery}; temporary: {}; backup: {}; recovery directory: {}; {error}",
+            target.display(),
+            temporary.display(),
+            backup.display(),
+            recovery_directory.display(),
+        ),
+    ))
+}
+
+#[cfg(any(not(windows), test))]
+fn replace_temporary(
+    target: &Path,
+    temporary: &Path,
+    rename: impl FnOnce(&Path, &Path) -> io::Result<()>,
+) -> io::Result<()> {
+    rename(temporary, target)
+}
+
+#[cfg(test)]
+mod atomic_tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn failed_replacement_leaves_the_old_document_bytes_intact() {
+        let temp = tempdir().unwrap();
+        let target = temp.path().join("field.djot");
+        let replacement = temp.path().join("replacement.tmp");
+        fs::write(&target, b"old bytes").unwrap();
+        fs::write(&replacement, b"new bytes").unwrap();
+
+        let error = replace_temporary(&target, &replacement, |_from, _to| {
+            Err(io::Error::other("simulated replacement failure"))
+        })
+        .expect_err("replacement fails");
+
+        assert_eq!(error.kind(), io::ErrorKind::Other);
+        assert_eq!(fs::read(&target).unwrap(), b"old bytes");
+        assert_eq!(fs::read(&replacement).unwrap(), b"new bytes");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_replace_file_preserves_an_alternate_data_stream() {
+        let temp = tempdir().unwrap();
+        let target = temp.path().join("field.djot");
+        fs::write(&target, b"old bytes").unwrap();
+        let stream = std::path::PathBuf::from(format!("{}:knot_metadata", target.display()));
+        match fs::write(&stream, b"old metadata") {
+            Ok(()) => {},
+            Err(error) if matches!(error.raw_os_error(), Some(50 | 123)) => {
+                // ERROR_NOT_SUPPORTED / ERROR_INVALID_NAME: this filesystem
+                // does not expose NTFS alternate data streams.
+                return;
+            },
+            Err(error) => panic!("could not write alternate data stream: {error}"),
+        }
+
+        // A real session keeps its open-time identity handle alive through
+        // replacement and backup cleanup.
+        let _held_original = fs::File::open(&target).unwrap();
+
+        assert_eq!(
+            write_if_distinct(&target, b"old bytes", b"new bytes").unwrap(),
+            SaveOutcome::Written
+        );
+        assert_eq!(fs::read(&target).unwrap(), b"new bytes");
+        assert_eq!(fs::read(&stream).unwrap(), b"old metadata");
+        assert!(fs::read_dir(temp.path()).unwrap().all(|entry| {
+            !entry
+                .unwrap()
+                .file_name()
+                .to_string_lossy()
+                .contains("knot-replace-recovery")
+        }));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_replace_file_failure_retains_recovery_artifacts() {
+        use std::os::windows::fs::OpenOptionsExt;
+
+        let temp = tempdir().unwrap();
+        let target = temp.path().join("field.djot");
+        fs::write(&target, b"old bytes").unwrap();
+        let locked = fs::OpenOptions::new()
+            .read(true)
+            .share_mode(0)
+            .open(&target)
+            .unwrap();
+
+        let error = write_if_distinct(&target, b"old bytes", b"new bytes")
+            .expect_err("ReplaceFileW must fail while the target denies sharing");
+        assert!(error.contains("ReplaceFileW failed"));
+        assert!(error.contains("temporary:"));
+        assert!(error.contains("recovery directory:"));
+
+        drop(locked);
+        assert_eq!(fs::read(&target).unwrap(), b"old bytes");
+        let names: Vec<_> = fs::read_dir(temp.path())
+            .unwrap()
+            .map(|entry| entry.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(names.iter().any(|name| name.contains("knot-write")));
+        assert!(
+            names
+                .iter()
+                .any(|name| name.contains("knot-replace-recovery"))
+        );
+    }
 }
 
 pub(crate) fn file_address(path: &Path) -> Result<String, String> {
@@ -135,7 +416,7 @@ mod engine {
                     serde_json::to_string_pretty(document)
                         .map_err(|error| format!("could not encode Knot document JSON: {error}"))?
                         + "\n"
-                }
+                },
             };
             Ok(text.into_bytes())
         }

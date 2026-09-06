@@ -24,7 +24,7 @@ pub use document_view::{
     KNOT_DOCUMENT_CSS, KnotDocumentSurfaceState, KnotDocumentView, knot_document_descriptor,
     knot_document_surface, knot_document_view,
 };
-pub use editor::{EditOutcome, KnotEditor};
+pub use editor::{EditOutcome, KnotEditor, KnotEditorSaveError};
 #[cfg(feature = "engine")]
 pub use writer::AuthoredFile;
 #[doc(hidden)]

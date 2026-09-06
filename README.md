@@ -27,6 +27,9 @@ cargo test -p knot-editor --lib
 cargo test -p knot-desktop
 ```
 
+Launch an untitled document with `cargo run -p knot-desktop`, or append
+`-- path/to/document.djot` to open a file at startup.
+
 The root `Cargo.lock` is committed because this repository ships application
 binaries as well as libraries. `knot-document` is an excluded nested workspace
 so a surface-only consumer can resolve it without paying for the sync and
@@ -37,6 +40,21 @@ publishing graph.
 Hosts mount the `knot.document.v1` surface through Genet's generic retained
 surface contract. The host owns placement, focus, windowing, and shell policy.
 Knot continues to own the document and rechecks every requested effect.
+
+## Application development
+
+The standalone application exposes one document with source editing, New,
+Open, Save, Save As, Reload, and an unsaved-change prompt. Enter a `.djot` or
+`.knot` path in the toolbar for Open or Save As; Save As requires a new target.
+Saving checks the opened file's identity and bytes for external changes.
+Ctrl/Cmd+N creates a document, Ctrl/Cmd+O opens the entered path, Ctrl/Cmd+S
+saves, and Ctrl/Cmd+Shift+S saves to the entered path.
+The broader editor library has capabilities that this surface
+does not yet present. The [application workspace plan](design_docs/2026-09-05_knot_application_workspace_plan.md)
+connects those capabilities to writing, typed document relationships, saved
+graph questions, coordinated presentations, evidence, review, and sharing UI,
+using Cambium's reusable components. Its phases are planned work, not a list of
+features already available in the standalone application.
 
 The source history was extracted from Mere with path-preserving Git history.
 The earlier plans and receipts remain under [`design_docs`](design_docs) and

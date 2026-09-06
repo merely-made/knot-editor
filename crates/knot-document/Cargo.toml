@@ -23,6 +23,7 @@ engine = [
 ]
 
 [dependencies]
+same-file = "1.0.6"
 cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "d82afa17e2cca86da843f07a2d718d2e69eb9f10" }
 mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "d82afa17e2cca86da843f07a2d718d2e69eb9f10" }
 illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "d82afa17e2cca86da843f07a2d718d2e69eb9f10", optional = true }
@@ -30,6 +31,9 @@ inker = { git = "https://github.com/merely-made/mere.git", rev = "d82afa17e2cca8
 knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "d82afa17e2cca86da843f07a2d718d2e69eb9f10", default-features = false }
 nematic = { git = "https://github.com/merely-made/mere.git", rev = "d82afa17e2cca86da843f07a2d718d2e69eb9f10", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
 genet-scripted-dom = { version = "=0.1.0", git = "https://github.com/merely-made/genet.git", rev = "115d348deddc344d949754e63beaece47cf49f34" }

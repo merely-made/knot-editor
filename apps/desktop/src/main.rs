@@ -5,17 +5,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Thin standalone host for the reusable Knot document surface.
-use cambium_genet_winit_host::{
-    CloseDisposition, FocusedTextSlot, HostHooks, HostOptions, Init, Key, KeyPress, Runner,
-    inert_hooks, run,
-};
-use knot_document::{
-    KNOT_DOCUMENT_CSS, KnotDocumentIntentV1, KnotDocumentSession, KnotDocumentSurfaceState,
-    KnotDocumentView, knot_document_view,
-};
-use layout_dom_api::LayoutDom;
+mod workspace;
+
+use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
+use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use std::ffi::OsString;
 use std::path::PathBuf;
+use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 #[derive(Debug, PartialEq, Eq)]
 enum DocumentSelection {
@@ -39,82 +35,46 @@ fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, S
         DocumentSelection::File(path) => KnotDocumentSession::open(path),
     }
 }
-fn is_save_chord(press: &KeyPress) -> bool {
-    press.modifiers.is_command_chord()
-        && matches!(&press.key, Key::Character(key) if key.eq_ignore_ascii_case("s"))
-}
-fn focused_text(
-    runner: &Runner<
-        KnotDocumentSurfaceState,
-        fn(&KnotDocumentSurfaceState) -> KnotDocumentView,
-        KnotDocumentView,
-    >,
-) -> Option<FocusedTextSlot<KnotDocumentSurfaceState>> {
-    let focused = runner.focus()?;
-    if runner.state().snapshot().write_posture
-        == knot_document::KnotDocumentWritePostureV1::ReadOnly
-    {
-        return None;
-    }
-    let dom = runner.dom();
-    let dom_ref = dom.borrow();
-    let textarea = LayoutDom::element_name(&*dom_ref, focused)
-        .is_some_and(|name| name.local.as_ref() == "textarea");
-    drop(dom_ref);
-    textarea.then(|| FocusedTextSlot {
-        node: focused,
-        get: Box::new(|state: &KnotDocumentSurfaceState| state.session().input()),
-        get_mut: Box::new(|state: &mut KnotDocumentSurfaceState| {
-            state
-                .session_mut()
-                .input_mut()
-                .expect("focused textarea requires writable document posture")
-        }),
-    })
-}
-fn host_hooks() -> HostHooks<
-    KnotDocumentSurfaceState,
-    fn(&KnotDocumentSurfaceState) -> KnotDocumentView,
-    KnotDocumentView,
-> {
+fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
     let mut hooks = inert_hooks();
-    hooks.close_request = Box::new(|_, _| CloseDisposition::Exit);
-    hooks.focused_text = Box::new(focused_text);
-    hooks.key_intercept = Box::new(|runner, press| {
-        if !is_save_chord(press) {
-            return false;
-        }
-        runner.update(|state| {
-            let _ = state.apply(KnotDocumentIntentV1::Save);
-        });
-        true
-    });
+    hooks.close_request = Box::new(|ctx, request| workspace::close_request(ctx.runner, request));
+    hooks.focused_text = Box::new(workspace::focused_text);
+    hooks.key_intercept = Box::new(workspace::key_intercept);
     hooks
 }
-fn run_standalone(session: KnotDocumentSession) -> Result<(), String> {
+fn run_standalone(
+    session: KnotDocumentSession,
+    initial_path: Option<PathBuf>,
+) -> Result<(), String> {
     run(
         HostOptions {
             title: "Knot".into(),
             initial_logical_size: (1100.0, 700.0),
             ..HostOptions::default()
         },
-        move |_, _, _| Init {
-            state: KnotDocumentSurfaceState::new(session),
-            logic: knot_document_view as fn(&KnotDocumentSurfaceState) -> KnotDocumentView,
-            sheet: KNOT_DOCUMENT_CSS.into(),
+        move |_, commands, _| Init {
+            state: DesktopState::with_path(session, commands.clone(), initial_path),
+            logic: desktop_view as fn(&DesktopState) -> DesktopView,
+            sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
         },
         host_hooks(),
     )
     .map_err(|error| error.to_string())
 }
 fn main() {
-    let session = select_document(std::env::args_os())
-        .and_then(open_selection)
-        .unwrap_or_else(|error| {
-            eprintln!("knot: {error}");
-            std::process::exit(1)
-        });
-    if let Err(error) = run_standalone(session) {
+    let selection = select_document(std::env::args_os()).unwrap_or_else(|error| {
+        eprintln!("knot: {error}");
+        std::process::exit(1)
+    });
+    let initial_path = match &selection {
+        DocumentSelection::Scratch => None,
+        DocumentSelection::File(path) => Some(path.clone()),
+    };
+    let session = open_selection(selection).unwrap_or_else(|error| {
+        eprintln!("knot: {error}");
+        std::process::exit(1)
+    });
+    if let Err(error) = run_standalone(session, initial_path) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);
     }
@@ -122,7 +82,7 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cambium_genet_winit_host::{CloseRequest, Harness, Modifiers, NamedKey};
+    use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};
     use genet_probe::Selector;
     use tempfile::tempdir;
     #[test]
@@ -131,9 +91,13 @@ mod tests {
         let path = temp.path().join("receipt.djot");
         std::fs::write(&path, "# Receipt\n").unwrap();
         let init = Init {
-            state: KnotDocumentSurfaceState::new(KnotDocumentSession::open(&path).unwrap()),
-            logic: knot_document_view as fn(&KnotDocumentSurfaceState) -> KnotDocumentView,
-            sheet: KNOT_DOCUMENT_CSS.into(),
+            state: DesktopState::with_path(
+                KnotDocumentSession::open(&path).unwrap(),
+                cambium_genet_winit_host::WindowCommands::new(),
+                Some(path.clone()),
+            ),
+            logic: desktop_view as fn(&DesktopState) -> DesktopView,
+            sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
         };
         let mut harness = Harness::with_hooks(init, host_hooks());
         harness.layout_at(900.0, 640.0);
@@ -141,14 +105,15 @@ mod tests {
         assert!(harness.focus().is_some());
         harness.key_injected("Body");
         harness.press_key(&KeyPress::named(NamedKey::Enter));
-        assert!(harness.state().snapshot().dirty);
+        assert!(harness.state().document.snapshot().dirty);
         harness.set_modifiers(Modifiers {
             ctrl: true,
             ..Modifiers::NONE
         });
         harness.key_char("s");
-        assert!(!harness.state().snapshot().dirty);
+        assert!(!harness.state().document.snapshot().dirty);
         harness.request_close(CloseRequest::Native);
+        assert!(harness.close_requested());
         drop(harness);
         assert!(
             KnotDocumentSession::open(&path)

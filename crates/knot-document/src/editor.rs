@@ -136,6 +136,23 @@ impl KnotEditor {
         })
     }
 
+    pub(crate) fn compare_disk(&self) -> Result<(String, bool), String> {
+        let path = self
+            .path
+            .as_deref()
+            .ok_or_else(|| "scratch Knot editor has no disk target".to_owned())?;
+        let baseline = self
+            .baseline
+            .as_ref()
+            .ok_or_else(|| "file document has no disk baseline".to_owned())?;
+        let disk = FileBaseline::observe(path)?;
+        let disk_changed_since_baseline =
+            disk.handle != baseline.handle || disk.bytes != baseline.bytes;
+        let disk_text = String::from_utf8(disk.bytes)
+            .map_err(|error| format!("{} is not UTF-8: {error}", path.display()))?;
+        Ok((disk_text, disk_changed_since_baseline))
+    }
+
     pub fn save(&mut self) -> Result<SaveOutcome, String> {
         self.save_guarded().map_err(|error| match error {
             KnotEditorSaveError::ExternalChange => "file changed on disk since opening".to_owned(),

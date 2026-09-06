@@ -44,9 +44,12 @@ Knot continues to own the document and rechecks every requested effect.
 ## Application development
 
 The standalone application exposes one document with source editing, New,
-Open, Save, Save As, Reload, and an unsaved-change prompt. Enter a `.djot` or
+Open, Save, Save As, Reload, Compare, and an unsaved-change prompt. Enter a `.djot` or
 `.knot` path in the toolbar for Open or Save As; Save As requires a new target.
 Saving checks the opened file's identity and bytes for external changes.
+Compare displays read-only snapshots of your buffer and the disk text. Refresh
+comparison rereads the disk; it does not reload the document or authorize an
+overwrite. A buffer edited after comparison is labelled stale.
 Ctrl/Cmd+N creates a document, Ctrl/Cmd+O opens the entered path, Ctrl/Cmd+S
 saves, and Ctrl/Cmd+Shift+S saves to the entered path.
 The broader editor library has capabilities that this surface

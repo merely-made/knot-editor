@@ -59,6 +59,15 @@ pub struct KnotDocumentSnapshotV1 {
     pub refusal: Option<KnotDocumentRefusalV1>,
     pub last_save_failure: Option<KnotDocumentSaveFailureV1>,
 }
+/// A read-only point-in-time observation of a file-backed session's source.
+/// It does not authorize overwriting the observed file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnotDiskComparisonV1 {
+    pub address: String,
+    pub buffer_text: String,
+    pub disk_text: String,
+    pub disk_changed_since_baseline: bool,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KnotDocumentIntentV1 {
     Edit(TextCommand),
@@ -177,6 +186,20 @@ impl KnotDocumentSession {
             refusal: self.refusal,
             last_save_failure: self.last_save_failure.clone(),
         }
+    }
+    /// Observe the current file without changing this session's source,
+    /// baseline, selection, undo history, dirty state, or save refusal.
+    ///
+    /// The returned external text is a point-in-time snapshot and does not
+    /// authorize overwriting the observed file.
+    pub fn compare_disk(&self) -> Result<KnotDiskComparisonV1, String> {
+        let (disk_text, disk_changed_since_baseline) = self.editor.compare_disk()?;
+        Ok(KnotDiskComparisonV1 {
+            address: self.editor.address().to_owned(),
+            buffer_text: self.editor.source().to_owned(),
+            disk_text,
+            disk_changed_since_baseline,
+        })
     }
     pub fn apply(
         &mut self,
@@ -356,6 +379,90 @@ mod tests {
     }
 
     #[test]
+    fn compare_disk_is_unicode_exact_and_does_not_mutate_a_refusal_or_undo() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "α\n").unwrap();
+        let mut session = KnotDocumentSession::open(&path).unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local\n".into(),
+            )))
+            .unwrap();
+        std::fs::write(&path, "外部\n").unwrap();
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Save),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ExternalChange
+            ))
+        ));
+        let before = session.snapshot();
+
+        let comparison = session.compare_disk().unwrap();
+        assert_eq!(comparison.address, before.source.address);
+        assert_eq!(comparison.buffer_text, "α\nlocal\n");
+        assert_eq!(comparison.disk_text, "外部\n");
+        assert!(comparison.disk_changed_since_baseline);
+        assert_eq!(session.snapshot(), before);
+
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+            .unwrap();
+        assert_eq!(session.snapshot().text, "α\n");
+    }
+
+    #[test]
+    fn compare_disk_reads_each_external_edit_freshly() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "initial\n").unwrap();
+        let session = KnotDocumentSession::open(&path).unwrap();
+
+        std::fs::write(&path, "first\n").unwrap();
+        assert_eq!(session.compare_disk().unwrap().disk_text, "first\n");
+        std::fs::write(&path, "second\n").unwrap();
+        assert_eq!(session.compare_disk().unwrap().disk_text, "second\n");
+    }
+
+    #[test]
+    fn compare_disk_reports_an_identity_only_replacement() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        let replacement = temp.path().join("replacement.djot");
+        std::fs::write(&path, "same\n").unwrap();
+        let session = KnotDocumentSession::open(&path).unwrap();
+        std::fs::write(&replacement, "same\n").unwrap();
+        std::fs::rename(&replacement, &path).unwrap();
+
+        let comparison = session.compare_disk().unwrap();
+        assert_eq!(comparison.buffer_text, "same\n");
+        assert_eq!(comparison.disk_text, "same\n");
+        assert!(comparison.disk_changed_since_baseline);
+    }
+
+    #[test]
+    fn compare_disk_refuses_scratch_and_reports_missing_or_invalid_files_without_mutation() {
+        assert!(
+            KnotDocumentSession::scratch("memory:field", "draft")
+                .compare_disk()
+                .is_err()
+        );
+
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "valid\n").unwrap();
+        let session = KnotDocumentSession::open(&path).unwrap();
+        let before = session.snapshot();
+        std::fs::remove_file(&path).unwrap();
+        assert!(session.compare_disk().is_err());
+        assert_eq!(session.snapshot(), before);
+
+        std::fs::write(&path, [0xff, 0xfe]).unwrap();
+        assert!(session.compare_disk().is_err());
+        assert_eq!(session.snapshot(), before);
+    }
+
+    #[test]
     fn scratch_save_as_creates_a_new_djot_target_and_retains_undo_history() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("field.djot");
@@ -517,6 +624,10 @@ mod tests {
         std::fs::write(&path, "# Field\n").unwrap();
         let mut session = KnotDocumentSession::open_read_only(&path).unwrap();
         let before = session.snapshot();
+        let comparison = session.compare_disk().unwrap();
+        assert_eq!(comparison.disk_text, "# Field\n");
+        assert!(!comparison.disk_changed_since_baseline);
+        assert_eq!(session.snapshot(), before);
 
         assert!(matches!(
             session.apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(

@@ -1127,7 +1127,7 @@ version = "0.3.3"
 source = "git+https://github.com/merely-made/mere.git?rev=d82afa17e2cca86da843f07a2d718d2e69eb9f10#d82afa17e2cca86da843f07a2d718d2e69eb9f10"
 dependencies = [
  "genet-scripted-dom",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "mere-surface-api",
  "meristem",
  "sprigging",
@@ -1149,7 +1149,7 @@ dependencies = [
  "genet-render-host",
  "genet-scripted-dom",
  "genet-winit-host",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "meristem",
  "netrender",
  "objc2-app-kit 0.3.2",
@@ -1174,7 +1174,7 @@ dependencies = [
  "genet-render",
  "genet-render-host",
  "genet-scripted-dom",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "meristem",
  "netrender",
  "paint_list_api",
@@ -1204,7 +1204,7 @@ dependencies = [
  "genet-render",
  "genet-scripted-dom",
  "genet-winit-host",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "sprigging",
  "winit",
 ]
@@ -2533,8 +2533,6 @@ version = "0.5.0"
 source = "git+https://github.com/merely-made/genet.git?rev=9e8f9dc2f3ddc0af1658580bb51964462a03923f#9e8f9dc2f3ddc0af1658580bb51964462a03923f"
 dependencies = [
  "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=9e8f9dc2f3ddc0af1658580bb51964462a03923f)",
- "serde",
- "serde_json",
  "sha2 0.10.9",
  "unicode-bidi",
  "unicode-segmentation",
@@ -2940,7 +2938,7 @@ version = "0.2.0"
 source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "genet-host-api",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
 ]
 
 [[package]]
@@ -2961,7 +2959,7 @@ dependencies = [
  "genet-document-resources",
  "genet-taffy",
  "image",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "livery",
  "paint_list_api",
  "parley",
@@ -2989,7 +2987,7 @@ source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d94975
 dependencies = [
  "genet-livery",
  "genet-scripted-dom",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
 ]
 
 [[package]]
@@ -3001,7 +2999,7 @@ dependencies = [
  "document-session-api",
  "genet-livery",
  "genet-scripted-dom",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "netrender",
  "paint_list_api",
  "paint_list_render",
@@ -3025,7 +3023,7 @@ dependencies = [
  "engine-observables-api",
  "genet-static-dom",
  "html5ever",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "markup5ever",
 ]
 
@@ -3035,7 +3033,7 @@ version = "0.1.0"
 source = "git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34#115d348deddc344d949754e63beaece47cf49f34"
 dependencies = [
  "html5ever",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "xml5ever",
 ]
 
@@ -4745,7 +4743,7 @@ dependencies = [
  "cambium-genet-winit-host",
  "genet-probe",
  "knot-document",
- "layout-dom-api",
+ "layout-dom-api 0.1.0 (git+https://github.com/merely-made/genet.git?rev=115d348deddc344d949754e63beaece47cf49f34)",
  "tempfile",
 ]
 
@@ -4880,7 +4878,6 @@ version = "0.1.0"
 source = "git+https://github.com/merely-made/genet.git?rev=9e8f9dc2f3ddc0af1658580bb51964462a03923f#9e8f9dc2f3ddc0af1658580bb51964462a03923f"
 dependencies = [
  "markup5ever",
- "serde",
 ]
 
 [[package]]

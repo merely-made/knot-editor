@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::{DocumentFormat, KnotEditor, KnotEditorSaveError, SaveOutcome};
+use cambium::{CaretAffinity, CaretPosition};
 use cambium::{CaretSelection, TextCommand, TextInput};
 use std::path::{Path, PathBuf};
 
@@ -67,6 +68,21 @@ pub struct KnotDiskComparisonV1 {
     pub buffer_text: String,
     pub disk_text: String,
     pub disk_changed_since_baseline: bool,
+}
+/// A source-bound outline projection from the committed editor text.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnotOutlineSnapshotV1 {
+    pub address: String,
+    pub source_text: String,
+    pub items: Vec<KnotOutlineItemV1>,
+}
+/// One heading's UTF-8 byte span, including its source heading syntax.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnotOutlineItemV1 {
+    pub label: String,
+    pub level: u8,
+    pub start: usize,
+    pub end: usize,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KnotDocumentIntentV1 {
@@ -200,6 +216,53 @@ impl KnotDocumentSession {
             disk_text,
             disk_changed_since_baseline,
         })
+    }
+    /// Returns a point-in-time outline of committed source without updating session state.
+    pub fn outline_snapshot(&self) -> KnotOutlineSnapshotV1 {
+        KnotOutlineSnapshotV1 {
+            address: self.editor.address().to_owned(),
+            source_text: self.editor.source().to_owned(),
+            items: self.outline_items(),
+        }
+    }
+    /// Selects an item only when its source-bound snapshot still matches this session.
+    pub fn select_outline_item(
+        &mut self,
+        snapshot: &KnotOutlineSnapshotV1,
+        index: usize,
+    ) -> Result<(), String> {
+        let source = self.editor.source();
+        if snapshot.address != self.editor.address() || snapshot.source_text != source {
+            return Err("outline snapshot is stale for this document source".to_owned());
+        }
+        if snapshot.items != self.outline_items() {
+            return Err("outline snapshot items do not match this document source".to_owned());
+        }
+        let item = snapshot
+            .items
+            .get(index)
+            .ok_or_else(|| format!("outline item index {index} is out of range"))?;
+        if item.start > item.end
+            || item.end > source.len()
+            || !source.is_char_boundary(item.start)
+            || !source.is_char_boundary(item.end)
+        {
+            return Err("outline item range is not a valid source span".to_owned());
+        }
+        self.editor.apply_layout_selection(CaretSelection {
+            anchor: CaretPosition {
+                byte: item.start,
+                affinity: CaretAffinity::Downstream,
+            },
+            focus: CaretPosition {
+                byte: item.end,
+                affinity: CaretAffinity::Upstream,
+            },
+        });
+        Ok(())
+    }
+    fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
+        self.editor.outline_items()
     }
     pub fn apply(
         &mut self,
@@ -460,6 +523,170 @@ mod tests {
         std::fs::write(&path, [0xff, 0xfe]).unwrap();
         assert!(session.compare_disk().is_err());
         assert_eq!(session.snapshot(), before);
+    }
+
+    #[test]
+    fn outline_snapshot_uses_committed_unicode_source_and_selects_the_heading_span() {
+        let mut session = KnotDocumentSession::scratch("memory:field", "# α\n\n## 二\n");
+        let snapshot = session.outline_snapshot();
+        assert_eq!(
+            snapshot
+                .items
+                .iter()
+                .map(|item| (item.label.as_str(), item.level))
+                .collect::<Vec<_>>(),
+            vec![("α", 1), ("二", 2)]
+        );
+        let second = &snapshot.items[1];
+        assert_eq!(
+            snapshot.source_text.get(second.start..second.end),
+            Some("## 二\n")
+        );
+
+        session.select_outline_item(&snapshot, 1).unwrap();
+        let item = &snapshot.items[1];
+        assert_eq!(session.snapshot().selection.anchor.byte, item.start);
+        assert_eq!(session.snapshot().selection.focus.byte, item.end);
+
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::SetComposition {
+                text: "仮".into(),
+                selection: Some((0, 0)),
+            }))
+            .unwrap();
+        assert_eq!(session.outline_snapshot(), snapshot);
+    }
+
+    #[test]
+    fn outline_selection_rejects_stale_or_forged_ranges_without_changing_session_state() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.djot");
+        std::fs::write(&path, "# α\n").unwrap();
+        let mut session = KnotDocumentSession::open(&path).unwrap();
+        let stale = session.outline_snapshot();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local\n".into(),
+            )))
+            .unwrap();
+        let current = session.outline_snapshot();
+        std::fs::write(&path, "external\n").unwrap();
+        assert!(matches!(
+            session.apply(KnotDocumentIntentV1::Save),
+            Err(KnotDocumentIntentErrorV1::Refused(
+                KnotDocumentRefusalV1::ExternalChange
+            ))
+        ));
+        let before = session.snapshot();
+
+        assert!(session.select_outline_item(&stale, 0).is_err());
+        assert_eq!(session.snapshot(), before);
+        assert!(session.select_outline_item(&current, 1).is_err());
+        assert_eq!(session.snapshot(), before);
+
+        let mut forged = current.clone();
+        forged.items[0].end -= 1;
+        assert!(session.select_outline_item(&forged, 0).is_err());
+        assert_eq!(session.snapshot(), before);
+
+        session.select_outline_item(&current, 0).unwrap();
+        let after_selection = session.snapshot();
+        assert_eq!(after_selection.text, before.text);
+        assert_eq!(after_selection.dirty, before.dirty);
+        assert_eq!(after_selection.refusal, before.refusal);
+        assert_eq!(after_selection.last_save_outcome, before.last_save_outcome);
+
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+            .unwrap();
+        assert_eq!(session.snapshot().text, "# α\n");
+    }
+
+    #[test]
+    fn read_only_session_allows_view_local_outline_selection() {
+        let mut session = KnotDocumentSession::read_only("memory:field", "# Heading\n");
+        let snapshot = session.outline_snapshot();
+        let before = session.snapshot();
+
+        session.select_outline_item(&snapshot, 0).unwrap();
+        let after = session.snapshot();
+        assert_eq!(after.text, before.text);
+        assert_eq!(after.write_posture, KnotDocumentWritePostureV1::ReadOnly);
+        assert_eq!(after.refusal, before.refusal);
+        assert_ne!(after.selection, before.selection);
+    }
+
+    #[test]
+    #[ignore = "manual A2 outline performance and parser-limit receipt"]
+    fn outline_snapshot_large_unicode_and_atom_fixture_receipt() {
+        use std::time::Instant;
+
+        let mut source = String::new();
+        for index in 0..2_000 {
+            source.push_str(&format!("## α section {index}\n\n"));
+            source.push_str("Unicode prose: 二 trees, élan, and a longer retained source line.\n");
+            source.push_str("- first observation remains attached to this section\n");
+            source.push_str("- second observation keeps the corpus representative\n\n");
+            source.push_str(&format!("### 二 detail {index}\n\n"));
+            source.push_str(
+                "More prose makes source-range traversal exercise a substantial buffer.\n\n",
+            );
+        }
+        let session = KnotDocumentSession::scratch("memory:large-outline", source);
+        let started = Instant::now();
+        let snapshot = session.outline_snapshot();
+        println!(
+            "outline_large source_bytes={} headings={} elapsed_us={}",
+            snapshot.source_text.len(),
+            snapshot.items.len(),
+            started.elapsed().as_micros(),
+        );
+        assert_eq!(snapshot.items.len(), 4_000);
+        assert_eq!(
+            snapshot
+                .source_text
+                .get(snapshot.items[0].start..snapshot.items[0].end),
+            Some("## α section 0\n")
+        );
+        assert_eq!(
+            snapshot
+                .source_text
+                .get(snapshot.items[1].start..snapshot.items[1].end),
+            Some("### 二 detail 0\n")
+        );
+        for item in &snapshot.items {
+            assert!(snapshot.source_text.is_char_boundary(item.start));
+            assert!(snapshot.source_text.is_char_boundary(item.end));
+            let span = snapshot
+                .source_text
+                .get(item.start..item.end)
+                .expect("outline span is UTF-8 bounded");
+            assert!(span.starts_with('#'));
+            assert!(span.ends_with('\n'));
+            assert!(matches!(item.level, 2 | 3));
+        }
+
+        let fixture = KnotDocumentSession::scratch(
+            "memory:outline-fixture",
+            "## α plain\n\n## *emphasis* `code` $x^2$\n\n## soft\\\nwrapped\n\n## :symbol: “smart” … —\n\n## footnote[^one]\n\n[^one]: note\n\n## *unterminated\n",
+        );
+        let fixture_snapshot = fixture.outline_snapshot();
+        for item in &fixture_snapshot.items {
+            let span = fixture_snapshot
+                .source_text
+                .get(item.start..item.end)
+                .expect("fixture span is UTF-8 bounded");
+            println!(
+                "outline_fixture label={:?} level={} range={}..{} span={:?}",
+                item.label, item.level, item.start, item.end, span,
+            );
+        }
+        assert!(fixture_snapshot.items.iter().all(|item| {
+            fixture_snapshot
+                .source_text
+                .get(item.start..item.end)
+                .is_some()
+        }));
     }
 
     #[test]

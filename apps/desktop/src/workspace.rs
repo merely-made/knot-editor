@@ -5,14 +5,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use cambium::{
-    AnyView, GenetCtx, GenetElement, TextInput, button, el, lens, span, text_field_typed,
+    AnyView, GenetCtx, GenetElement, Keyed, TextInput, button, el, lens, span, text_field_typed,
 };
 use cambium_genet_winit_host::{
-    CloseDisposition, CloseRequest, FocusedTextSlot, Key, KeyPress, Runner, WindowCommands,
+    AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, Key, KeyPress, Runner, WindowCommands,
 };
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
-    KnotDocumentSession, KnotDocumentSurfaceState, knot_document_view,
+    KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1, knot_document_view,
 };
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::path::PathBuf;
@@ -41,6 +41,10 @@ pub struct DesktopState {
     pub message: Option<String>,
     comparison: Option<KnotDiskComparisonV1>,
     comparison_error: Option<String>,
+    outline_visible: bool,
+    outline_snapshot: Option<KnotOutlineSnapshotV1>,
+    outline_error: Option<String>,
+    focus_source_requested: bool,
     window: WindowCommands,
     pending: Option<PendingAction>,
     discard_close: bool,
@@ -65,6 +69,10 @@ impl DesktopState {
             message: None,
             comparison: None,
             comparison_error: None,
+            outline_visible: false,
+            outline_snapshot: None,
+            outline_error: None,
+            focus_source_requested: false,
             window,
             pending: None,
             discard_close: false,
@@ -87,6 +95,55 @@ impl DesktopState {
     fn clear_comparison(&mut self) {
         self.comparison = None;
         self.comparison_error = None;
+    }
+
+    fn clear_outline(&mut self) {
+        self.outline_snapshot = None;
+        self.outline_error = None;
+    }
+
+    fn sync_outline_snapshot(&mut self) {
+        if !self.outline_visible {
+            return;
+        }
+        let current = self.document.snapshot();
+        let stale = self.outline_snapshot.as_ref().is_none_or(|snapshot| {
+            snapshot.address != current.source.address || snapshot.source_text != current.text
+        });
+        if stale {
+            self.outline_snapshot = Some(self.document.session().outline_snapshot());
+        }
+    }
+
+    fn toggle_outline(&mut self) {
+        self.outline_visible = !self.outline_visible;
+        if self.outline_visible {
+            self.outline_snapshot = Some(self.document.session().outline_snapshot());
+            self.outline_error = None;
+        } else {
+            self.clear_outline();
+        }
+    }
+
+    fn select_outline_item(&mut self, index: usize) {
+        let Some(snapshot) = self.outline_snapshot.as_ref() else {
+            self.outline_error = Some("Outline is not ready; show it again.".to_owned());
+            return;
+        };
+        let result = self
+            .document
+            .session_mut()
+            .select_outline_item(snapshot, index);
+        match result {
+            Ok(()) => {
+                self.outline_error = None;
+                self.focus_source_requested = true;
+            },
+            Err(error) => {
+                self.outline_error = Some(error.clone());
+                self.message = Some(format!("Outline selection failed: {error}"));
+            },
+        }
     }
 
     fn compare_disk(&mut self) {
@@ -124,6 +181,8 @@ impl DesktopState {
                 ));
                 self.path = TextInput::default();
                 self.clear_comparison();
+                self.clear_outline();
+                self.sync_outline_snapshot();
                 self.message = Some("New untitled Djot document.".to_owned());
             },
             PendingAction::Open(path) => match KnotDocumentSession::open(&path) {
@@ -131,6 +190,8 @@ impl DesktopState {
                     self.path = TextInput::new(path.to_string_lossy().into_owned());
                     self.document = KnotDocumentSurfaceState::new(session);
                     self.clear_comparison();
+                    self.clear_outline();
+                    self.sync_outline_snapshot();
                     self.message = Some(format!("Opened {}.", path.display()));
                 },
                 Err(error) => self.message = Some(format!("Open failed: {error}")),
@@ -138,6 +199,8 @@ impl DesktopState {
             PendingAction::Reload => match self.document.apply(KnotDocumentIntentV1::Reload) {
                 Ok(_) => {
                     self.clear_comparison();
+                    self.clear_outline();
+                    self.sync_outline_snapshot();
                     self.message = Some("Reloaded from disk.".to_owned());
                 },
                 Err(error) => self.message = Some(intent_error_label(error)),
@@ -177,6 +240,8 @@ impl DesktopState {
         {
             Ok(_) => {
                 self.clear_comparison();
+                self.clear_outline();
+                self.sync_outline_snapshot();
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
             },
@@ -282,6 +347,83 @@ fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
 }
 
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
+    let outline_panel: DesktopView = if !state.outline_visible {
+        Box::new(el("div", ()))
+    } else if let Some(snapshot) = &state.outline_snapshot {
+        let rows = snapshot
+            .items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| {
+                let label = item.label.clone();
+                let level = item.level;
+                let key = item.start;
+                let accessible_label = format!("Heading level {level}: {label}");
+                (
+                    key,
+                    button(label, move |state: &mut DesktopState, _| {
+                        state.select_outline_item(index);
+                    })
+                    .attr("class", "knot-outline-row")
+                    .attr("data-outline-index", index.to_string())
+                    .attr("data-outline-level", level.to_string())
+                    .attr("aria-label", accessible_label),
+                )
+            })
+            .collect::<Vec<_>>();
+        let rows_view = if rows.is_empty() {
+            Box::new(span("No headings in this document.")) as DesktopView
+        } else {
+            Box::new(el("div", Keyed::new(rows)).attr("class", "knot-outline-rows")) as DesktopView
+        };
+        let error = state.outline_error.as_ref().map(|error| {
+            span(format!("Outline error: {error}")).attr("class", "knot-outline-error")
+        });
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Outline"),
+                            button("Hide Outline", |state: &mut DesktopState, _| {
+                                state.toggle_outline();
+                            }),
+                        ),
+                    )
+                    .attr("class", "knot-outline-header"),
+                    error,
+                    rows_view,
+                ),
+            )
+            .attr("class", "knot-outline")
+            .attr("role", "region")
+            .attr("aria-label", "Document outline"),
+        )
+    } else {
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Outline"),
+                            button("Hide Outline", |state: &mut DesktopState, _| {
+                                state.toggle_outline();
+                            }),
+                        ),
+                    )
+                    .attr("class", "knot-outline-header"),
+                    span("Outline is updating; try again shortly."),
+                ),
+            )
+            .attr("class", "knot-outline")
+            .attr("role", "region")
+            .attr("aria-label", "Document outline"),
+        )
+    };
     let comparison_panel: DesktopView = if let Some(error) = &state.comparison_error {
         Box::new(
             el(
@@ -419,6 +561,14 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         button("Compare", |state: &mut DesktopState, _| {
                             state.compare_disk();
                         }),
+                        button(
+                            if state.outline_visible {
+                                "Hide Outline"
+                            } else {
+                                "Show Outline"
+                            },
+                            |state: &mut DesktopState, _| state.toggle_outline(),
+                        ),
                         el(
                             "label",
                             (
@@ -435,7 +585,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 )
                 .attr("class", "knot-workspace-toolbar"),
                 message,
-                document,
+                el("div", (document, outline_panel)).attr("class", "knot-writing-area"),
                 comparison_panel,
                 prompt,
             ),
@@ -450,6 +600,17 @@ fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool 
     let mut node = Some(focused);
     while let Some(current) = node {
         if dom.attribute(current, &namespace, &local) == Some(id) {
+            return true;
+        }
+        node = dom.parent(current);
+    }
+    false
+}
+
+fn ancestor_has_class<D: LayoutDom>(dom: &D, focused: D::NodeId, class: &str) -> bool {
+    let mut node = Some(focused);
+    while let Some(current) = node {
+        if dom.has_class(current, class) {
             return true;
         }
         node = dom.parent(current);
@@ -523,6 +684,50 @@ pub fn close_request(runner: &mut DesktopRunner, request: CloseRequest) -> Close
     disposition
 }
 
+/// Complete an outline activation after the click has rebuilt the retained
+/// tree. The click target itself is a button, so focus must be returned to the
+/// existing document textarea before the next key or IME event is routed.
+pub fn after_dispatch(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    let state = ctx.runner.state();
+    let focus_requested = state.focus_source_requested;
+    let outline_needs_sync = if state.outline_visible {
+        let current = state.document.snapshot();
+        state.outline_snapshot.as_ref().is_none_or(|snapshot| {
+            snapshot.address != current.source.address || snapshot.source_text != current.text
+        })
+    } else {
+        false
+    };
+    if !focus_requested && !outline_needs_sync {
+        return;
+    }
+    ctx.runner.update(|state| {
+        if focus_requested {
+            state.focus_source_requested = false;
+        }
+        if outline_needs_sync {
+            state.sync_outline_snapshot();
+        }
+    });
+    if !focus_requested {
+        return;
+    }
+    let target = {
+        let dom = ctx.runner.dom();
+        let dom_ref = dom.borrow();
+        ctx.runner.focusables().into_iter().find(|node| {
+            LayoutDom::element_name(&*dom_ref, *node)
+                .is_some_and(|name| name.local.as_ref() == "textarea")
+                && ancestor_has_class(&*dom_ref, *node, "knot-document-body")
+        })
+    };
+    if let Some(target) = target {
+        ctx.runner.set_focus(Some(target));
+    }
+}
+
 pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
@@ -531,14 +736,25 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace-message { min-height:1.4em; }",
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
-    ".knot-document { flex:1; }",
+    ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
+    ".knot-document { flex:1; min-width:0; }",
     ".knot-document-body textarea { width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
+    ".knot-outline { flex:0 0 280px; width:280px; box-sizing:border-box; max-height:480px; overflow:auto; padding:12px; border:1px solid; }",
+    ".knot-outline-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }",
+    ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
+    ".knot-outline-row { display:block; width:100%; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
+    ".knot-outline-row[data-outline-level=2] { padding-left:16px; }",
+    ".knot-outline-row[data-outline-level=3] { padding-left:32px; }",
+    ".knot-outline-row[data-outline-level=4] { padding-left:48px; }",
+    ".knot-outline-row[data-outline-level=5] { padding-left:64px; }",
+    ".knot-outline-row[data-outline-level=6] { padding-left:80px; }",
+    ".knot-outline-error { color:crimson; }",
     ".knot-comparison { max-height:360px; overflow:auto; padding:12px; border:1px solid; }",
     ".knot-comparison-header { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; }",
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
-    "@media (max-width:700px) { .knot-workspace { padding:12px; } .knot-path-field input { min-width:160px; } }",
+    "@media (max-width:700px) { .knot-workspace { padding:12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } .knot-outline { flex-basis:auto; width:100%; max-height:240px; } }",
 );
 
 #[cfg(test)]
@@ -560,6 +776,7 @@ mod tests {
             },
             {
                 let mut hooks = inert_hooks();
+                hooks.after_dispatch = Box::new(after_dispatch);
                 hooks.close_request = Box::new(|ctx, request| close_request(ctx.runner, request));
                 hooks.focused_text = Box::new(focused_text);
                 hooks.key_intercept = Box::new(key_intercept);
@@ -622,6 +839,18 @@ mod tests {
             .map(|child| text_content(dom, child))
             .collect::<String>();
         format!("{own}{children}")
+    }
+
+    fn count_class(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        class: &str,
+    ) -> usize {
+        usize::from(dom.has_class(node, class))
+            + dom
+                .dom_children(node)
+                .map(|child| count_class(dom, child, class))
+                .sum::<usize>()
     }
 
     fn request_native_close(
@@ -731,6 +960,169 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Cancel")));
         assert_eq!(host.state().document.snapshot().text, "draft edit");
         assert!(host.state().document.snapshot().dirty);
+    }
+
+    #[test]
+    fn outline_rows_select_unicode_source_and_return_focus_for_repeat_clicks() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Café\n\n## Second heading\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        assert!(host.click_on(&Selector::role("button").containing("Café")));
+        let snapshot = host.state().document.session().outline_snapshot();
+        let item = snapshot
+            .items
+            .iter()
+            .find(|item| item.label == "Café")
+            .expect("unicode heading");
+        assert_eq!(
+            host.state().document.snapshot().selection.anchor.byte,
+            item.start
+        );
+        assert_eq!(
+            host.state().document.snapshot().selection.focus.byte,
+            item.end
+        );
+        let textarea = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            named_node(&dom, dom.document(), "textarea").expect("document textarea")
+        };
+        assert_eq!(host.focus(), Some(textarea));
+
+        let path_input = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            input_node(&dom, dom.document()).expect("path input")
+        };
+        let (x, y, width, height) = host.painted_rect(path_input).expect("path layout");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        assert_eq!(host.focus(), Some(path_input));
+        assert!(host.click_on(&Selector::role("button").containing("Second heading")));
+        assert_eq!(host.focus(), Some(textarea));
+        host.key_injected("!");
+        assert_eq!(host.state().path.text(), "");
+        assert_eq!(host.state().document.snapshot().text, "# Café\n\n!");
+    }
+
+    #[test]
+    fn outline_tracks_direct_committed_edits_and_excludes_ime_preedit() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# First\n"));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("\n## Direct edit\n");
+        });
+        host.after_dispatch();
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let outline = class_node(&dom, dom.document(), "knot-outline").expect("outline panel");
+        assert!(text_content(&dom, outline).contains("Direct edit"));
+        drop(dom);
+
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .set_preedit("仮入力");
+        });
+        host.after_dispatch();
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let outline = class_node(&dom, dom.document(), "knot-outline").expect("outline panel");
+        assert!(!text_content(&dom, outline).contains("仮入力"));
+    }
+
+    #[test]
+    fn stale_outline_activation_reports_refusal_without_changing_selection() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# First\n\n## Second\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("changed");
+        });
+        let before = host.state().document.snapshot();
+        // Deliberately omit the normal after-dispatch refresh: this click uses
+        // the old retained row and exercises the exact-source guard.
+        assert!(host.click_on(&Selector::role("button").containing("First")));
+        assert_eq!(host.state().document.snapshot(), before);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
+        assert!(text_content(&dom, workspace).contains("Outline selection failed:"));
+    }
+
+    #[test]
+    fn empty_outline_has_an_accessible_empty_state() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "plain text\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let outline = class_node(&dom, dom.document(), "knot-outline").expect("outline panel");
+        assert!(text_content(&dom, outline).contains("No headings in this document."));
+    }
+
+    #[test]
+    #[ignore = "diagnostic timing receipt; run with --ignored --nocapture"]
+    fn outline_long_document_probe() {
+        use std::time::Instant;
+
+        let mut source = String::new();
+        for index in 0..200 {
+            source.push_str(&format!("# Heading {index}\n\n"));
+            source
+                .push_str(&"A long writing paragraph keeps the layout representative. ".repeat(10));
+            source.push_str("\n\n");
+        }
+        let source_bytes = source.len();
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, source));
+        host.layout_at(1100.0, 700.0);
+        let show_started = Instant::now();
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        host.layout_at(1100.0, 700.0);
+        let show_layout_us = show_started.elapsed().as_micros();
+        let row_count = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            count_class(&dom, dom.document(), "knot-outline-row")
+        };
+        let edit_started = Instant::now();
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("\n## Appended heading\n");
+        });
+        host.after_dispatch();
+        host.layout_at(1100.0, 700.0);
+        let edit_layout_us = edit_started.elapsed().as_micros();
+        println!(
+            "outline_probe source_bytes={source_bytes} heading_rows={row_count} show_layout_us={show_layout_us} edit_layout_us={edit_layout_us}"
+        );
+        assert_eq!(row_count, 200);
     }
 
     #[test]

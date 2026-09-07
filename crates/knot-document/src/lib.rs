@@ -7,7 +7,7 @@
 //! Djot-first document authority and reusable Cambium presentation for Knot.
 //!
 //! The default dependency graph owns a single [`cambium::TextInput`] and native file
-//! writes. Parsing, preview, and conversion are opt-in through [`engine`].
+//! writes. Preview and conversion are opt-in through [`engine`].
 
 mod document_surface;
 mod document_view;
@@ -18,7 +18,7 @@ pub use document_surface::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
     KnotDocumentSaveFailureV1, KnotDocumentSaveOutcomeV1, KnotDocumentSession,
     KnotDocumentSnapshotV1, KnotDocumentSourceKindV1, KnotDocumentSourceV1,
-    KnotDocumentWritePostureV1,
+    KnotDocumentWritePostureV1, KnotOutlineItemV1, KnotOutlineSnapshotV1,
 };
 pub use document_view::{
     KNOT_DOCUMENT_CSS, KnotDocumentSurfaceState, KnotDocumentView, knot_document_descriptor,

@@ -52,8 +52,8 @@ pub use knot_document::{
     KnotDocumentIntentV1, KnotDocumentRefusalV1, KnotDocumentSaveFailureV1,
     KnotDocumentSaveOutcomeV1, KnotDocumentSession, KnotDocumentSnapshotV1,
     KnotDocumentSourceKindV1, KnotDocumentSourceV1, KnotDocumentSurfaceState, KnotDocumentView,
-    KnotDocumentWritePostureV1, KnotEditor, KnotEditorSaveError, knot_document_descriptor,
-    knot_document_surface, knot_document_view,
+    KnotDocumentWritePostureV1, KnotEditor, KnotEditorSaveError, KnotOutlineItemV1,
+    KnotOutlineSnapshotV1, knot_document_descriptor, knot_document_surface, knot_document_view,
 };
 pub use mark::{
     MARK_ALPN, MARK_DEFAULT_PORT, MARK_MAX_DOCUMENT_BYTES, MARK_MAX_METADATA_BYTES,

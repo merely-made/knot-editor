@@ -37,6 +37,7 @@ fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, S
 }
 fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
     let mut hooks = inert_hooks();
+    hooks.after_dispatch = Box::new(workspace::after_dispatch);
     hooks.close_request = Box::new(|ctx, request| workspace::close_request(ctx.runner, request));
     hooks.focused_text = Box::new(workspace::focused_text);
     hooks.key_intercept = Box::new(workspace::key_intercept);

@@ -50,6 +50,9 @@ Saving checks the opened file's identity and bytes for external changes.
 Compare displays read-only snapshots of your buffer and the disk text. Refresh
 comparison rereads the disk; it does not reload the document or authorize an
 overwrite. A buffer edited after comparison is labelled stale.
+The optional Outline lists headings from the current source. Selecting a
+heading selects its source range and, in editable documents, returns keyboard
+focus to the editor. Uncommitted IME text is excluded from the reading.
 Ctrl/Cmd+N creates a document, Ctrl/Cmd+O opens the entered path, Ctrl/Cmd+S
 saves, and Ctrl/Cmd+Shift+S saves to the entered path.
 The broader editor library has capabilities that this surface

@@ -17,7 +17,7 @@ pub use knot_editor_host::EditOutcome;
 use knot_editor_host::KnotEditor as SharedKnotEditor;
 use same_file::Handle;
 
-use crate::{DocumentFormat, SaveOutcome, write_if_distinct};
+use crate::{DocumentFormat, KnotOutlineItemV1, SaveOutcome, write_if_distinct};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KnotEditorSaveError {
@@ -269,6 +269,19 @@ impl KnotEditor {
                     (Some(path), Some(target)) if path == target
                 )
         })
+    }
+
+    pub(crate) fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
+        self.editor
+            .outline()
+            .into_iter()
+            .map(|item| KnotOutlineItemV1 {
+                label: item.text,
+                level: item.level,
+                start: item.range.start,
+                end: item.range.end,
+            })
+            .collect()
     }
 
     #[cfg(feature = "engine")]

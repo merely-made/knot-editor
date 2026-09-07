@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 single-document lifecycle implemented, 2026-09-06; full A1 acceptance and A2-A4/G1-G3 remain open
+**Status:** A1 single-document lifecycle and A2 live outline implemented, 2026-09-06; remaining A1/A2 acceptance and A3-A4/G1-G3 remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -34,7 +34,7 @@ when they have a product-owned snapshot and effect boundary.
 | Concern | Existing Knot authority or API | Current standalone surface | Required application work |
 | --- | --- | --- | --- |
 | Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
-| Derived readings | The optional `engine` feature exposes highlights, outline, folds, and preview from the same source buffer. | Not rendered. The desktop package currently takes the narrow default `knot-document` feature set. | Source decoration, outline navigation and folding, and a source-preserving preview mode. |
+| Derived readings | Outline snapshots use the shared lightweight readout. Existing `engine` APIs expose highlights, folds, and preview from the same source buffer. | Optional live heading outline on the narrow default dependency set. | Source decoration, folding, source-preserving preview, and headed outline acceptance. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
 | Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
 | Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
@@ -157,10 +157,23 @@ endpoint refusal, not as an external local-file change.
 
 ### A2. Source, structure, and preview
 
-Adopt the existing engine-derived readouts without adding another text model.
-Enable `knot-document`'s `engine` feature for the desktop application target
-that presents these readings; retain the narrow default feature set for
-surface-only consumers, rather than widening every embedding dependency.
+The first A2 implementation slice is a live, optional heading outline. It
+derives rows from the current source buffer, and activating a row selects
+the original heading range and returns keyboard focus to the editor. A
+source/address check rejects a row captured from an older document state.
+Preedit text remains local to the input until committed. Outline visibility
+is a view preference; selecting a heading changes neither saved bytes nor
+the dirty baseline. Preview, folding, and source decoration remain separate
+acceptance work within A2.
+Outline row indices are transient positions in one reading, not durable passage
+identities. G1 still needs explicit anchor and revision rules before persisting
+relations to passages.
+
+Adopt existing readouts without adding another text model. Outline uses the
+shared editor's already-available lightweight parser through Knot-owned
+snapshot types. Enable `knot-document`'s `engine` feature when the desktop
+actually adopts preview or another reading requiring it; retain the narrow
+default feature set for consumers that do not need that dependency graph.
 Source is the default mode. Its decoration uses the existing highlights;
 outline rows select source spans; fold controls conceal source ranges in the
 editor view only. Preview is a second reading of the active source in the
@@ -327,6 +340,30 @@ carry document/revision context and an anchor policy; byte offsets alone are
 not durable identity. After edits, resolve or mark the target stale/ambiguous.
 An external evidence selector continues to name the captured artifact, not the
 authored passage that cites it. Backlinks respect access scope.
+
+**Next model slice, grounded 2026-09-06:** extend the authenticated event and
+projection seam in [`sync.rs`](../crates/knot-editor/src/sync.rs) with a distinct
+authored-relation record/event and a relation projection. The existing event
+fold handles document Put/Delete/Resolve by document id; relation changes must
+not enter that replacement path. Preserve independent assertion ids, author/op
+provenance, predicate, scope, endpoints, evidence/qualification, and retractions
+before lowering any reading into Mere's graph representation.
+
+[`VaultDocument.id`](../crates/knot-editor/src/vault.rs) and `document_heads`
+already provide stable document identity and operation context for admitted
+vault documents. Ordinary file sessions still need a durable identity mapping
+with explicit rename/copy behavior; do not derive this identity from a filename
+or the filesystem identity used by the save guard. Decide where that mapping
+lives before enabling persistent authored relations for files-in-place.
+
+The recommended anchor rule is to retain the captured document/head and
+quote/position as the authored fact. Following newer text is then an explicit
+projection policy with resolved, stale, ambiguous, and unavailable results;
+it does not silently rewrite the captured claim. A deliberate re-anchor is a
+new attributable operation. Keep the external-artifact
+[`SpecificResource`](../crates/knot-editor/src/web_annotation.rs) boundary intact.
+The first gate should replay two authors' distinct assertions, retract one,
+and rebuild without collapsing the other or exposing inaccessible backlinks.
 
 *Done when* an essay links to two source documents and selected passages, and
 shows a support and a contradiction as separately inspectable assertions.
@@ -502,6 +539,51 @@ restoration, or a universal dashboard to ship the safe writing cut.
 
 ## Findings and progress
 
+- 2026-09-06 A2 outline: added source-addressed heading snapshots
+  and guarded selection. Row selection checks exact source/address, canonical
+  heading identity within that reading, and UTF-8 byte boundaries. It preserves
+  source, undo, dirty baseline, and save refusal; read-only sessions permit this
+  view-local selection without granting editing authority. Inspection of the
+  pinned shared host showed that outline is available independently of its
+  preview feature. Knot exposes its own plain snapshot types over that existing
+  readout and keeps the desktop on the narrow dependency set. The broader engine
+  opt-in is reserved for preview adoption.
+  The current committed dependency pin is now `b9b0ee13` at repository head
+  `35952af`, so the earlier working-tree-only pin caveat does not apply to this
+  slice's validation.
+  The ignored default-feature probe observed **573,780 source bytes, 4,000 headings,
+  168,311 microseconds** for one snapshot in the Windows debug test build.
+  This measures parsing and snapshot construction, not UI or keystroke latency.
+  These are single diagnostic runs on a machine with concurrent compiles and
+  substantial memory pressure, not a controlled performance baseline.
+  The windowless desktop probe rendered **119,290 source bytes and 200 heading
+  rows**: showing the outline plus layout took **3,057,622 microseconds**;
+  an edit, outline refresh, and layout took **6,294,769 microseconds**.
+  The probe passed its row-count gate, but these multi-second observations do
+  not establish acceptable writing latency. Next performance acceptance needs
+  matched outline-hidden/visible runs on an otherwise quiet machine, separating
+  source layout, readout construction, and retained row updates. Use that evidence
+  to decide whether scheduling, row virtualization, or incremental work is needed.
+  Headed visual and interaction acceptance remains open.
+  Literal source spans were checked. Existing parser labels joined
+  the continued heading words `soft` and `wrapped` into `softwrapped`, omitted
+  `:symbol:` and a footnote marker, and retained the tested styled text and
+  literal smart punctuation. These label limitations remain shared-parser work;
+  the source ranges and authoritative text remain intact.
+  Final validation on Windows/NTFS with Rust 1.97.1 used
+  `CARGO_HOME=C:\Users\mark_\Code\.cargo-knot-a1`,
+  `CARGO_TARGET_DIR=C:\t\knot-a1`, one build job, and one test thread:
+  - `cargo test --manifest-path crates/knot-document/Cargo.toml --offline -j 1`:
+    **27 passed**, one diagnostic ignored, zero doctests.
+  - `cargo test --manifest-path crates/knot-document/Cargo.toml --features engine --offline -j 1`:
+    **33 passed**, one diagnostic ignored, zero doctests.
+  - `cargo test -p knot-desktop --offline --locked -j 1`:
+    **19 passed**, one diagnostic ignored.
+  - The document `outline_snapshot_large_unicode_and_atom_fixture_receipt` and
+    desktop `outline_long_document_probe` each passed when explicitly selected
+    with `-- --ignored --nocapture`; their measurements are recorded above.
+  Focused Rust formatting, Git diff checks, and local documentation links passed.
+  Full workspace and headed application acceptance are not claimed by this gate.
 - 2026-09-06 follow-up: committed the single-document lifecycle and workspace
   plan as `74912aa`, leaving the pre-existing Mere pin edits in the working
   tree. Added immutable `KnotDiskComparisonV1` observations and a standalone

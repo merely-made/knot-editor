@@ -32,6 +32,10 @@ use zeroize::{Zeroize, Zeroizing};
 use crate::{
     KnotVault, VaultDocument,
     djot_merge::{automatic_text_merge, automatic_text_merge_head},
+    relations::{
+        KnotRejectedRelationV1, KnotRelationAssertionV1, KnotRelationEndpointV1,
+        KnotRelationRetractionV1, KnotUnverifiedRelationV1, validate_relation_payload,
+    },
 };
 
 const LOG_ID: u64 = 0;
@@ -79,6 +83,19 @@ pub enum KnotSyncEvent {
         supersedes: Vec<[u8; 32]>,
         document: Option<VaultDocument>,
     },
+    /// An attributable relation assertion between two observed document revisions.
+    AssertRelation {
+        predicate: String,
+        subject: KnotRelationEndpointV1,
+        object: KnotRelationEndpointV1,
+        /// Opaque author-supplied reference; this does not fetch or verify evidence.
+        evidence: Option<String>,
+        qualification: Option<String>,
+    },
+    /// Author-only retraction of one signed relation assertion.
+    RetractRelation {
+        assertion: [u8; 32],
+    },
 }
 
 /// Encryption material used by a Knot replica.
@@ -114,6 +131,8 @@ pub enum KnotSyncError {
     WrongEncryptionProfile,
     #[error("invalid conflict resolution: {0}")]
     InvalidResolution(String),
+    #[error("invalid relation assertion: {0}")]
+    InvalidRelation(String),
     #[error("Knot sync has no durable projection checkpoint")]
     MissingCheckpoint,
     #[error("reviewed Knot epoch proposal is stale")]
@@ -221,6 +240,46 @@ pub struct KnotDocumentProjection {
     /// Consumers use this as an opaque optimistic-concurrency head rather
     /// than reducing a replicated document version to its plaintext digest.
     pub document_heads: BTreeMap<String, [u8; 32]>,
+    /// All valid relation assertions in this space, including retracted history.
+    /// This raw view is privileged; callers must filter it for endpoint admission.
+    pub relations: Vec<KnotRelationAssertionV1>,
+    /// Relation operations that failed replay validation without affecting documents.
+    pub rejected_relations: Vec<KnotRejectedRelationV1>,
+    /// Structurally valid assertions whose source captures could not be verified.
+    pub unverified_relations: Vec<KnotUnverifiedRelationV1>,
+}
+
+impl KnotDocumentProjection {
+    /// Returns active assertions whose two captured documents are admitted to the caller.
+    ///
+    /// The caller supplies its revision-appropriate document admission set; this
+    /// helper filters a projection and does not create an access-control policy.
+    pub fn relations_visible_to(
+        &self,
+        admitted_document_ids: &BTreeSet<String>,
+    ) -> Vec<KnotRelationAssertionV1> {
+        self.relation_history_visible_to(admitted_document_ids)
+            .into_iter()
+            .filter(|relation| relation.retractions.is_empty())
+            .collect()
+    }
+
+    /// Returns assertion history whose two captured documents are admitted to the caller.
+    ///
+    /// Raw, rejected, and unverified relation records remain privileged inspection data.
+    pub fn relation_history_visible_to(
+        &self,
+        admitted_document_ids: &BTreeSet<String>,
+    ) -> Vec<KnotRelationAssertionV1> {
+        self.relations
+            .iter()
+            .filter(|relation| {
+                admitted_document_ids.contains(&relation.subject.document_id)
+                    && admitted_document_ids.contains(&relation.object.document_id)
+            })
+            .cloned()
+            .collect()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -239,6 +298,13 @@ pub struct KnotCheckpointSnapshot {
     #[serde(default)]
     pub automatic_merges: Vec<KnotAutomaticTextMerge>,
     pub document_heads: BTreeMap<String, [u8; 32]>,
+    /// Added after document-only checkpoints; old checkpoint snapshots remain readable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub relations: Vec<KnotRelationAssertionV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rejected_relations: Vec<KnotRejectedRelationV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub unverified_relations: Vec<KnotUnverifiedRelationV1>,
 }
 
 /// Durable projection boundary required before domain-authorized pruning.
@@ -465,6 +531,18 @@ where
         let records = self.load_operations().await?;
         let entries = causal_entries(&records);
         let parents = observed_frontier(&entries)?;
+        let causal = CausalIndex::new(&entries);
+        let closed = causal_projection(&entries)?;
+        validate_local_relation_event(
+            event,
+            *author.as_bytes(),
+            &records,
+            &closed.order,
+            cipher,
+            &causal,
+            &parents,
+            self.policy.space_id,
+        )?;
         let (seq_num, backlink) = author_head(&entries, *author.as_bytes(), &LOG_ID)?;
         let plaintext = Zeroizing::new(
             serde_json::to_vec(event).map_err(|error| KnotSyncError::Payload(error.to_string()))?,
@@ -628,10 +706,24 @@ where
         let records = self.load_operations().await?;
         let entries = causal_entries(&records);
         let projection = causal_projection(&entries)?;
+        let events = projection
+            .order
+            .iter()
+            .map(|&index| {
+                decode_event(cipher, &records[index].operation).map(|event| (index, event))
+            })
+            .collect::<Result<BTreeMap<_, _>, _>>()?;
         // Indexed once for the whole fold: the retain below asks a reachability
         // question per surviving version per operation, and rebuilding the hash
         // index inside each of those made a save cost O(n^2 log n) in history.
         let causal = CausalIndex::new(&entries);
+        let relation_fold = fold_relations(
+            &records,
+            &events,
+            &projection.order,
+            &causal,
+            self.policy.space_id,
+        )?;
         let mut current = BTreeMap::<String, BTreeMap<[u8; 32], KnotDocumentVersion>>::new();
         let mut event_documents = BTreeMap::<[u8; 32], String>::new();
         let mut version_history = Vec::<([u8; 32], String, Option<VaultDocument>)>::new();
@@ -640,7 +732,10 @@ where
             let operation = &records[index].operation;
             let writer = *operation.header.verifying_key.as_bytes();
             let operation_id = *operation.hash.as_bytes();
-            let event = decode_event(cipher, operation)?;
+            let event = events
+                .get(&index)
+                .expect("causal projection order has a decoded event")
+                .clone();
             let (id, document, replaces_observed) = match event {
                 KnotSyncEvent::Put(document) => (document.id.clone(), Some(document), true),
                 KnotSyncEvent::Delete { id } => (id, None, true),
@@ -661,7 +756,10 @@ where
                         versions.retain(|_, version| !targets.contains(&version.operation));
                     }
                     (id, document, false)
-                }
+                },
+                KnotSyncEvent::AssertRelation { .. } | KnotSyncEvent::RetractRelation { .. } => {
+                    continue;
+                },
             };
             if replaces_observed && let Some(versions) = current.get_mut(&id) {
                 versions
@@ -716,6 +814,9 @@ where
             automatic_merges,
             pending: projection.pending,
             document_heads,
+            relations: relation_fold.relations,
+            rejected_relations: relation_fold.rejected,
+            unverified_relations: relation_fold.unverified,
         })
     }
 
@@ -863,6 +964,9 @@ where
             conflicts: projection.conflicts.clone(),
             automatic_merges: projection.automatic_merges.clone(),
             document_heads: projection.document_heads.clone(),
+            relations: projection.relations.clone(),
+            rejected_relations: projection.rejected_relations.clone(),
+            unverified_relations: projection.unverified_relations.clone(),
         };
         Ok(KnotProjectionCheckpoint {
             version: 1,
@@ -964,6 +1068,32 @@ where
 
         let checkpoint = if let Some(checkpoint) = self.load_checkpoint().await? {
             let tail = self.tail_receipt().await?;
+            // Checkpoints retain relation history for inspection but are not yet
+            // executable replay bases. A closed relation event needs its older
+            // document revisions for quote validation, so preserve every closed
+            // operation epoch until snapshot-base replay exists. Pending events
+            // remain covered by the existing tail and pending holds below.
+            let causal_entries = causal_entries(&records);
+            let closed = causal_projection(&causal_entries)?;
+            let mut has_relation_event = false;
+            for &index in &closed.order {
+                if matches!(
+                    decode_event(KnotSyncCipher::CommonsData(keys), &records[index].operation)?,
+                    KnotSyncEvent::AssertRelation { .. } | KnotSyncEvent::RetractRelation { .. }
+                ) {
+                    has_relation_event = true;
+                    break;
+                }
+            }
+            if has_relation_event {
+                for index in closed.order {
+                    let record = &records[index];
+                    holds.push(EpochHold {
+                        epoch: communal_operation_epoch(&record.operation)?,
+                        reason: EpochHoldReason::DecryptionReachability,
+                    });
+                }
+            }
             for operation in &tail.operations {
                 let record = by_operation.get(operation).ok_or_else(|| {
                     KnotSyncError::Payload(
@@ -1248,7 +1378,7 @@ fn seal_event(
         KnotSyncCipher::CommonsData(keys) => {
             let envelope = keys.seal_random(plaintext)?;
             encode_cbor(&envelope).map_err(|error| KnotSyncError::Payload(error.to_string()))
-        }
+        },
     }
 }
 
@@ -1273,10 +1403,352 @@ fn decode_event(
             let envelope: GroupCiphertext = decode_cbor(body.to_bytes().as_slice())
                 .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
             keys.open(&envelope)?
-        }
+        },
     });
     serde_json::from_slice(plaintext.as_slice())
         .map_err(|error| KnotSyncError::Payload(error.to_string()))
+}
+
+#[derive(Default)]
+struct RelationFold {
+    relations: Vec<KnotRelationAssertionV1>,
+    rejected: Vec<KnotRejectedRelationV1>,
+    unverified: Vec<KnotUnverifiedRelationV1>,
+}
+
+#[derive(Clone, Copy)]
+enum RelationLocation {
+    Valid(usize),
+    Unverified(usize),
+}
+
+struct RelationState {
+    author: [u8; 32],
+    location: RelationLocation,
+}
+
+enum RelationCaptureError {
+    Rejected(String),
+    Unverified(String),
+}
+
+fn fold_relations(
+    records: &[StoredKnotOperation],
+    events: &BTreeMap<usize, KnotSyncEvent>,
+    order: &[usize],
+    causal: &CausalIndex<'_, u64>,
+    scope: [u8; 32],
+) -> Result<RelationFold, KnotSyncError> {
+    let mut documents = BTreeMap::<[u8; 32], VaultDocument>::new();
+    let mut assertions = BTreeMap::<[u8; 32], RelationState>::new();
+    let mut fold = RelationFold::default();
+
+    for &index in order {
+        let operation = &records[index].operation;
+        let operation_id = *operation.hash.as_bytes();
+        let author = *operation.header.verifying_key.as_bytes();
+        match events
+            .get(&index)
+            .expect("causal projection order has a decoded relation event")
+            .clone()
+        {
+            KnotSyncEvent::Put(document) => {
+                documents.insert(operation_id, document);
+            },
+            KnotSyncEvent::Resolve {
+                document: Some(document),
+                ..
+            } => {
+                documents.insert(operation_id, document);
+            },
+            KnotSyncEvent::AssertRelation {
+                predicate,
+                subject,
+                object,
+                evidence,
+                qualification,
+            } => {
+                if let Err(reason) = validate_relation_payload(&predicate, &subject, &object) {
+                    fold.rejected.push(KnotRejectedRelationV1 {
+                        operation: operation_id,
+                        author,
+                        reason,
+                    });
+                    continue;
+                }
+                let assertion = KnotRelationAssertionV1 {
+                    id: operation_id,
+                    author,
+                    operation: operation_id,
+                    scope,
+                    predicate,
+                    subject,
+                    object,
+                    evidence,
+                    qualification,
+                    retractions: Vec::new(),
+                };
+                match validate_relation_capture(&assertion, &documents, causal) {
+                    Ok(()) => {
+                        let index = fold.relations.len();
+                        assertions.insert(
+                            operation_id,
+                            RelationState {
+                                author,
+                                location: RelationLocation::Valid(index),
+                            },
+                        );
+                        fold.relations.push(assertion);
+                    },
+                    Err(RelationCaptureError::Unverified(reason)) => {
+                        let index = fold.unverified.len();
+                        assertions.insert(
+                            operation_id,
+                            RelationState {
+                                author,
+                                location: RelationLocation::Unverified(index),
+                            },
+                        );
+                        fold.unverified
+                            .push(KnotUnverifiedRelationV1 { assertion, reason });
+                    },
+                    Err(RelationCaptureError::Rejected(reason)) => {
+                        fold.rejected.push(KnotRejectedRelationV1 {
+                            operation: operation_id,
+                            author,
+                            reason,
+                        });
+                    },
+                }
+            },
+            KnotSyncEvent::RetractRelation { assertion } => {
+                let Some(state) = assertions.get(&assertion) else {
+                    fold.rejected.push(KnotRejectedRelationV1 {
+                        operation: operation_id,
+                        author,
+                        reason: "retraction names no valid or unverified relation assertion".into(),
+                    });
+                    continue;
+                };
+                if state.author != author {
+                    fold.rejected.push(KnotRejectedRelationV1 {
+                        operation: operation_id,
+                        author,
+                        reason: "only the assertion's signed author may retract it".into(),
+                    });
+                    continue;
+                }
+                if !causal.happens_before(assertion, operation_id) {
+                    fold.rejected.push(KnotRejectedRelationV1 {
+                        operation: operation_id,
+                        author,
+                        reason: "retraction does not causally observe its assertion".into(),
+                    });
+                    continue;
+                }
+                let retraction = KnotRelationRetractionV1 {
+                    operation: operation_id,
+                    author,
+                };
+                match state.location {
+                    RelationLocation::Valid(index) => {
+                        fold.relations[index].retractions.push(retraction)
+                    },
+                    RelationLocation::Unverified(index) => {
+                        fold.unverified[index]
+                            .assertion
+                            .retractions
+                            .push(retraction);
+                    },
+                }
+            },
+            KnotSyncEvent::Delete { .. } | KnotSyncEvent::Resolve { document: None, .. } => {},
+        }
+    }
+    Ok(fold)
+}
+
+fn validate_relation_capture(
+    assertion: &KnotRelationAssertionV1,
+    documents: &BTreeMap<[u8; 32], VaultDocument>,
+    causal: &CausalIndex<'_, u64>,
+) -> Result<(), RelationCaptureError> {
+    for (role, endpoint) in [
+        ("subject", &assertion.subject),
+        ("object", &assertion.object),
+    ] {
+        let Some(document) = documents.get(&endpoint.document_head) else {
+            return Err(RelationCaptureError::Unverified(format!(
+                "relation {role} document head is unavailable for capture verification"
+            )));
+        };
+        if document.id != endpoint.document_id {
+            return Err(RelationCaptureError::Rejected(format!(
+                "relation {role} document id does not match its captured head"
+            )));
+        }
+        if !causal.happens_before(endpoint.document_head, assertion.operation) {
+            return Err(RelationCaptureError::Rejected(format!(
+                "relation {role} assertion does not causally observe its document head"
+            )));
+        }
+        validate_endpoint_capture(endpoint, document, role)?;
+    }
+    Ok(())
+}
+
+fn validate_endpoint_capture(
+    endpoint: &KnotRelationEndpointV1,
+    document: &VaultDocument,
+    role: &str,
+) -> Result<(), RelationCaptureError> {
+    let Some(position) = endpoint.position else {
+        return Ok(());
+    };
+    let source = std::str::from_utf8(&document.body).map_err(|_| {
+        RelationCaptureError::Unverified(format!(
+            "relation {role} document source is not UTF-8 for capture verification"
+        ))
+    })?;
+    let start = usize::try_from(position.start).map_err(|_| {
+        RelationCaptureError::Rejected(format!(
+            "relation {role} UTF-8 byte start cannot fit this platform"
+        ))
+    })?;
+    let end = usize::try_from(position.end).map_err(|_| {
+        RelationCaptureError::Rejected(format!(
+            "relation {role} UTF-8 byte end cannot fit this platform"
+        ))
+    })?;
+    let Some(quote) = source.get(start..end) else {
+        return Err(RelationCaptureError::Rejected(format!(
+            "relation {role} position is not a valid UTF-8 source range"
+        )));
+    };
+    if quote != endpoint.quote {
+        return Err(RelationCaptureError::Rejected(format!(
+            "relation {role} quote does not match the captured source range"
+        )));
+    }
+    Ok(())
+}
+
+fn document_versions(
+    records: &[StoredKnotOperation],
+    order: &[usize],
+    cipher: KnotSyncCipher<'_>,
+) -> Result<BTreeMap<[u8; 32], VaultDocument>, KnotSyncError> {
+    let mut documents = BTreeMap::new();
+    for &index in order {
+        let operation = &records[index].operation;
+        let operation_id = *operation.hash.as_bytes();
+        match decode_event(cipher, operation)? {
+            KnotSyncEvent::Put(document) => {
+                documents.insert(operation_id, document);
+            },
+            KnotSyncEvent::Resolve {
+                document: Some(document),
+                ..
+            } => {
+                documents.insert(operation_id, document);
+            },
+            _ => {},
+        }
+    }
+    Ok(documents)
+}
+
+fn frontier_observes(
+    causal: &CausalIndex<'_, u64>,
+    parents: &[[u8; 32]],
+    operation: [u8; 32],
+) -> bool {
+    parents
+        .iter()
+        .any(|parent| *parent == operation || causal.happens_before(operation, *parent))
+}
+
+fn validate_local_relation_event(
+    event: &KnotSyncEvent,
+    author: [u8; 32],
+    records: &[StoredKnotOperation],
+    order: &[usize],
+    cipher: KnotSyncCipher<'_>,
+    causal: &CausalIndex<'_, u64>,
+    parents: &[[u8; 32]],
+    scope: [u8; 32],
+) -> Result<(), KnotSyncError> {
+    match event {
+        KnotSyncEvent::AssertRelation {
+            predicate,
+            subject,
+            object,
+            ..
+        } => {
+            validate_relation_payload(predicate, subject, object)
+                .map_err(KnotSyncError::InvalidRelation)?;
+            let documents = document_versions(records, order, cipher)?;
+            for (role, endpoint) in [("subject", subject), ("object", object)] {
+                let document = documents.get(&endpoint.document_head).ok_or_else(|| {
+                    KnotSyncError::InvalidRelation(format!(
+                        "relation {role} document head is unavailable for capture verification"
+                    ))
+                })?;
+                if document.id != endpoint.document_id {
+                    return Err(KnotSyncError::InvalidRelation(format!(
+                        "relation {role} document id does not match its captured head"
+                    )));
+                }
+                if !frontier_observes(causal, parents, endpoint.document_head) {
+                    return Err(KnotSyncError::InvalidRelation(format!(
+                        "relation {role} assertion does not observe its document head"
+                    )));
+                }
+                validate_endpoint_capture(endpoint, document, role).map_err(|error| {
+                    KnotSyncError::InvalidRelation(match error {
+                        RelationCaptureError::Rejected(message)
+                        | RelationCaptureError::Unverified(message) => message,
+                    })
+                })?;
+            }
+        },
+        KnotSyncEvent::RetractRelation { assertion } => {
+            let events = order
+                .iter()
+                .map(|&index| {
+                    decode_event(cipher, &records[index].operation).map(|event| (index, event))
+                })
+                .collect::<Result<BTreeMap<_, _>, _>>()?;
+            let fold = fold_relations(records, &events, order, causal, scope)?;
+            let target = fold
+                .relations
+                .iter()
+                .map(|relation| (&relation.id, relation.author))
+                .chain(
+                    fold.unverified
+                        .iter()
+                        .map(|relation| (&relation.assertion.id, relation.assertion.author)),
+                )
+                .find(|(id, _)| **id == *assertion)
+                .ok_or_else(|| {
+                    KnotSyncError::InvalidRelation(
+                        "retraction names no valid or unverified relation assertion".into(),
+                    )
+                })?;
+            if target.1 != author {
+                return Err(KnotSyncError::InvalidRelation(
+                    "only the assertion's signed author may retract it".into(),
+                ));
+            }
+            if !frontier_observes(causal, parents, *assertion) {
+                return Err(KnotSyncError::InvalidRelation(
+                    "retraction does not causally observe its assertion".into(),
+                ));
+            }
+        },
+        _ => {},
+    }
+    Ok(())
 }
 
 fn validate_resolution(
@@ -1358,6 +1830,368 @@ mod tests {
             InMemoryProvider::from_seed([0x83; 32]),
             InMemoryProvider::from_seed([0x84; 32]),
         )
+    }
+
+    fn captured_endpoint(
+        document_id: &str,
+        document_head: [u8; 32],
+        source: &str,
+        quote: &str,
+    ) -> KnotRelationEndpointV1 {
+        let start = source.find(quote).expect("fixture quote is present");
+        KnotRelationEndpointV1 {
+            document_id: document_id.into(),
+            document_head,
+            quote: quote.into(),
+            position: Some(crate::relations::KnotRelationPositionV1 {
+                start: start as u64,
+                end: (start + quote.len()) as u64,
+            }),
+        }
+    }
+
+    async fn author_unchecked<B>(
+        store: &KnotSyncStore<B>,
+        signing_seed: [u8; 32],
+        vault: &KnotVault,
+        event: &KnotSyncEvent,
+    ) -> Operation<KnotSyncExt>
+    where
+        B: Backend + Clone + Send + Sync + 'static,
+    {
+        let records = store.load_operations().await.unwrap();
+        let entries = causal_entries(&records);
+        let parents = observed_frontier(&entries).unwrap();
+        author_unchecked_with_parents(store, signing_seed, vault, event, parents).await
+    }
+
+    async fn author_unchecked_with_parents<B>(
+        store: &KnotSyncStore<B>,
+        signing_seed: [u8; 32],
+        vault: &KnotVault,
+        event: &KnotSyncEvent,
+        parents: Vec<[u8; 32]>,
+    ) -> Operation<KnotSyncExt>
+    where
+        B: Backend + Clone + Send + Sync + 'static,
+    {
+        let signing_key = SigningKey::from_bytes(&signing_seed);
+        let author = signing_key.verifying_key();
+        let records = store.load_operations().await.unwrap();
+        let entries = causal_entries(&records);
+        let (seq_num, backlink) = author_head(&entries, *author.as_bytes(), &LOG_ID).unwrap();
+        let plaintext = Zeroizing::new(serde_json::to_vec(event).unwrap());
+        let aad = operation_aad(store.space_id(), author.as_bytes(), seq_num);
+        let ciphertext =
+            seal_event(KnotSyncCipher::Personal(vault), &aad, plaintext.as_slice()).unwrap();
+        let header = Header::builder()
+            .body(&ciphertext)
+            .seq_num(seq_num)
+            .backlink(backlink.map(Hash::from))
+            .build(
+                &signing_key,
+                KnotSyncExt {
+                    space_id: store.space_id(),
+                    encryption: KnotEncryptionProfile::PersonalVaultV1,
+                    parents,
+                },
+            );
+        let operation = Operation {
+            hash: header.hash(),
+            header,
+            body: Some(Body::from_bytes(&ciphertext)),
+        };
+        store.accept(&operation).await.unwrap();
+        operation
+    }
+
+    #[tokio::test]
+    async fn pending_undecipherable_operation_does_not_block_closed_document_projection() {
+        let roots = tempdir().unwrap();
+        let alice = InMemoryProvider::from_seed([0x83; 32]);
+        let writer = alice.master_public_key().to_bytes();
+        let vault = KnotVault::open(roots.path().join("trusted"), VAULT_KEY).unwrap();
+        let foreign_vault = KnotVault::open(roots.path().join("foreign"), [0x85; 32]).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [writer]);
+        store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::Put(doc("closed", "trusted")),
+            )
+            .await
+            .unwrap();
+        author_unchecked_with_parents(
+            &store,
+            alice.master_keypair().to_seed(),
+            &foreign_vault,
+            &KnotSyncEvent::Put(doc("pending", "unreadable")),
+            vec![[0xfe; 32]],
+        )
+        .await;
+
+        let projection = store.projection(&vault).await.unwrap();
+        assert_eq!(projection.documents, vec![doc("closed", "trusted")]);
+        assert_eq!(projection.pending.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn relations_keep_independent_authors_and_retraction_history_across_checkpoint_reopen() {
+        let roots = tempdir().unwrap();
+        let database = roots.path().join("relations.redb");
+        let (alice, bob) = identities();
+        let writers = [
+            alice.master_public_key().to_bytes(),
+            bob.master_public_key().to_bytes(),
+        ];
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncFileStore::open(&database, SPACE, writers).unwrap();
+        let essay = "Essay α";
+        let source = "Source β";
+        let essay_op = store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::Put(doc("essay", essay)),
+            )
+            .await
+            .unwrap();
+        let source_op = store
+            .author(
+                bob.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::Put(doc("source", source)),
+            )
+            .await
+            .unwrap();
+        let relation_event = || KnotSyncEvent::AssertRelation {
+            predicate: "supports".into(),
+            subject: captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α"),
+            object: captured_endpoint("source", *source_op.hash.as_bytes(), source, "β"),
+            evidence: Some("vault:evidence/one".into()),
+            qualification: None,
+        };
+        let alice_relation = store
+            .author(alice.master_keypair().to_seed(), &vault, &relation_event())
+            .await
+            .unwrap();
+        let bob_relation = store
+            .author(bob.master_keypair().to_seed(), &vault, &relation_event())
+            .await
+            .unwrap();
+        let alice_retraction = store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::RetractRelation {
+                    assertion: *alice_relation.hash.as_bytes(),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert!(matches!(
+            store
+                .author(
+                    alice.master_keypair().to_seed(),
+                    &vault,
+                    &KnotSyncEvent::RetractRelation {
+                        assertion: *bob_relation.hash.as_bytes(),
+                    },
+                )
+                .await,
+            Err(KnotSyncError::InvalidRelation(_))
+        ));
+        let foreign_retraction = author_unchecked(
+            &store,
+            alice.master_keypair().to_seed(),
+            &vault,
+            &KnotSyncEvent::RetractRelation {
+                assertion: *bob_relation.hash.as_bytes(),
+            },
+        )
+        .await;
+        let stale_capture = KnotSyncEvent::AssertRelation {
+            predicate: "supports".into(),
+            subject: KnotRelationEndpointV1 {
+                quote: "stale".into(),
+                ..captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α")
+            },
+            object: captured_endpoint("source", *source_op.hash.as_bytes(), source, "β"),
+            evidence: None,
+            qualification: None,
+        };
+        assert!(matches!(
+            store
+                .author(alice.master_keypair().to_seed(), &vault, &stale_capture,)
+                .await,
+            Err(KnotSyncError::InvalidRelation(_))
+        ));
+        let stale_remote = author_unchecked(
+            &store,
+            alice.master_keypair().to_seed(),
+            &vault,
+            &stale_capture,
+        )
+        .await;
+
+        let projection = store.projection(&vault).await.unwrap();
+        assert_eq!(
+            projection.documents,
+            vec![doc("essay", essay), doc("source", source)]
+        );
+        assert_eq!(
+            projection.document_heads,
+            BTreeMap::from([
+                ("essay".into(), *essay_op.hash.as_bytes()),
+                ("source".into(), *source_op.hash.as_bytes()),
+            ])
+        );
+        assert_eq!(projection.relations.len(), 2);
+        let alice_assertion = projection
+            .relations
+            .iter()
+            .find(|relation| relation.id == *alice_relation.hash.as_bytes())
+            .unwrap();
+        assert_eq!(alice_assertion.author, alice.master_public_key().to_bytes());
+        assert_eq!(alice_assertion.scope, SPACE);
+        assert_eq!(alice_assertion.retractions.len(), 1);
+        assert_eq!(
+            alice_assertion.retractions[0].operation,
+            *alice_retraction.hash.as_bytes()
+        );
+        assert!(
+            projection
+                .relations
+                .iter()
+                .any(|relation| relation.id == *bob_relation.hash.as_bytes()
+                    && relation.retractions.is_empty())
+        );
+        assert_eq!(projection.rejected_relations.len(), 2);
+        assert!(
+            projection
+                .rejected_relations
+                .iter()
+                .any(|rejection| rejection.operation == *foreign_retraction.hash.as_bytes())
+        );
+        assert!(
+            projection
+                .rejected_relations
+                .iter()
+                .any(|rejection| rejection.operation == *stale_remote.hash.as_bytes())
+        );
+        assert_eq!(
+            projection
+                .relations_visible_to(&BTreeSet::from(["essay".into(), "source".into()]))
+                .len(),
+            1
+        );
+        assert!(
+            projection
+                .relation_history_visible_to(&BTreeSet::from(["essay".into(), "source".into()]))
+                .len()
+                == 2
+        );
+        assert!(
+            projection
+                .relations_visible_to(&BTreeSet::from(["essay".into()]))
+                .is_empty()
+        );
+
+        let checkpoint = store.save_checkpoint(&vault).await.unwrap();
+        assert_eq!(
+            checkpoint.snapshot.as_ref().unwrap().relations,
+            projection.relations
+        );
+        assert_eq!(
+            checkpoint.snapshot.as_ref().unwrap().rejected_relations,
+            projection.rejected_relations
+        );
+        drop(store);
+
+        let reopened = KnotSyncFileStore::open(&database, SPACE, writers).unwrap();
+        let rebuilt = reopened.projection(&vault).await.unwrap();
+        assert_eq!(rebuilt, projection);
+    }
+
+    #[tokio::test]
+    async fn communal_relation_history_holds_all_relation_epochs_after_a_checkpoint() {
+        let alice = InMemoryProvider::from_seed([0x83; 32]);
+        let writer = alice.master_public_key().to_bytes();
+        let store = KnotSyncStore::in_memory_commons(SPACE, [writer]);
+        let mut keys = DataKeyring::new();
+        let document_epoch = keys.rotate_random().unwrap().id();
+        let essay = "Essay α";
+        let source = "Source β";
+        let essay_op = store
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &keys,
+                &KnotSyncEvent::Put(doc("essay", essay)),
+            )
+            .await
+            .unwrap();
+        let source_op = store
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &keys,
+                &KnotSyncEvent::Put(doc("source", source)),
+            )
+            .await
+            .unwrap();
+        let assertion_epoch = keys.rotate_random().unwrap().id();
+        let assertion = store
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &keys,
+                &KnotSyncEvent::AssertRelation {
+                    predicate: "supports".into(),
+                    subject: captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α"),
+                    object: captured_endpoint("source", *source_op.hash.as_bytes(), source, "β"),
+                    evidence: None,
+                    qualification: None,
+                },
+            )
+            .await
+            .unwrap();
+        let retraction_epoch = keys.rotate_random().unwrap().id();
+        store
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &keys,
+                &KnotSyncEvent::RetractRelation {
+                    assertion: *assertion.hash.as_bytes(),
+                },
+            )
+            .await
+            .unwrap();
+        for _ in 0..7 {
+            keys.rotate_random().unwrap();
+        }
+        let checkpoint = store.save_communal_checkpoint(&keys).await.unwrap();
+        assert!(store.tail_receipt().await.unwrap().operations.is_empty());
+        assert_eq!(
+            checkpoint.snapshot.as_ref().unwrap().relations[0]
+                .retractions
+                .len(),
+            1
+        );
+
+        let revision = Digest::blake3(b"relation epoch holds");
+        let proposal = store
+            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision, &[], &[])
+            .await
+            .unwrap();
+        for epoch in [document_epoch, assertion_epoch, retraction_epoch] {
+            assert!(proposal.retain.iter().any(|retained| {
+                retained.epoch == epoch
+                    && retained
+                        .reasons
+                        .contains(&stickleback::EpochRetentionReason::Domain(
+                            EpochHoldReason::DecryptionReachability,
+                        ))
+            }));
+        }
     }
 
     fn paired_group_keys() -> (DataKeyring, DataKeyring) {

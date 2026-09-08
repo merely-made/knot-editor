@@ -5,7 +5,7 @@ to an independently consumable repository.
 
 Current authority:
 
-- [Application workspace](2026-09-05_knot_application_workspace_plan.md): implemented single-document writing lifecycle, with remaining workspace, connected-document, graph-query, evidence, and review work.
+- [Application workspace](2026-09-05_knot_application_workspace_plan.md): single-document lifecycle and live outline; vault relation model, remaining workspace, graph-query, evidence, and review work.
 - [Repository extraction](2026-09-01_knot_editor_repository_extraction_plan.md)
 - [Publishing protocol](2026-08-07_knot_publishing_protocol_plan.md)
 - [Mark read adapter](2026-08-08_knot_mark_read_adapter.md)

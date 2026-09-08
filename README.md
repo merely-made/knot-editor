@@ -62,6 +62,13 @@ graph questions, coordinated presentations, evidence, review, and sharing UI,
 using Cambium's reusable components. Its phases are planned work, not a list of
 features already available in the standalone application.
 
+The library's first connected-writing model retains signed assertions between
+captured vault document revisions, including optional source passages, predicates,
+and author-only retraction history. These records remain separate from document
+replacement and from graph presentation. Hosts must supply admitted document ids
+for filtered relation reads. The desktop does not yet expose link authoring;
+ordinary-file identity persistence and graph views remain planned work.
+
 The source history was extracted from Mere with path-preserving Git history.
 The earlier plans and receipts remain under [`design_docs`](design_docs) and
 [`crates/knot-editor/docs`](crates/knot-editor/docs).

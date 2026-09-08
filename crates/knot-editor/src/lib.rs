@@ -23,6 +23,7 @@ mod publish_carrier;
 mod publish_client;
 mod publish_host;
 mod publish_wire;
+mod relations;
 mod resident;
 mod rosette;
 mod search;
@@ -88,6 +89,10 @@ pub use publish_wire::{
     HARD_MAX_REQUEST_BYTES, HARD_MAX_RESPONSE_BYTES, PublishRequest, PublishResponse,
     PublishWireError, PublishWireLimits, candidate_fixture_corpus, decode_request, decode_response,
     encode_request, encode_response,
+};
+pub use relations::{
+    KnotRejectedRelationV1, KnotRelationAssertionV1, KnotRelationEndpointV1,
+    KnotRelationPositionV1, KnotRelationRetractionV1, KnotUnverifiedRelationV1,
 };
 pub use resident::{
     KnotEvidenceFetchReceipt, KnotEvidenceFetchStatus, KnotSyncHost, KnotSyncHostConfig,

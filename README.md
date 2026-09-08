@@ -67,7 +67,16 @@ captured vault document revisions, including optional source passages, predicate
 and author-only retraction history. These records remain separate from document
 replacement and from graph presentation. Hosts must supply admitted document ids
 for filtered relation reads. The desktop does not yet expose link authoring;
-ordinary-file identity persistence and graph views remain planned work.
+desktop catalog adoption and graph views remain planned work.
+
+Hosts can opt into durable ordinary-file identities with `KnotFileCatalog` and
+`DirectorySource::with_catalog`, then serve that source through
+`KnotEndpoint::from_directory_source`. The host selects a local catalog outside
+the scanned root. Registered paths retain their ids across saves and restart;
+copies get distinct ids, and moved files require explicit rebind before their
+new paths are registered. The default desktop and directory discovery do not
+automatically create catalogs. Catalog ids do not yet bridge disk files into the
+vault relation log.
 
 The source history was extracted from Mere with path-preserving Git history.
 The earlier plans and receipts remain under [`design_docs`](design_docs) and

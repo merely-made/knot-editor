@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, and first G1 vault relation model implemented, 2026-09-07; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, and G1 vault relation/file catalog models implemented, 2026-09-07; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -384,6 +384,42 @@ cannot decide whether a document is a move, a copy, or a different document.
 Decide catalog storage, portability, duplicate-open handling, and recovery before
 wiring this into ordinary file sessions. The current save guard stays separate.
 
+**File catalog decisions, 2026-09-07:** make adoption explicit at the directory
+source boundary. The host chooses a metadata-only Redb catalog outside the
+scanned root. Catalogs retain a canonical root binding, relative paths, and opaque
+UUID document ids. Opening the catalog against a different root is refused;
+root relocation, portable export/import, and merging catalogs need a later
+explicit migration. A single writable handle owns catalog updates, with each
+change committed before replacing its in-memory state.
+
+An existing canonical path retains its registered id across an atomic save or
+replacement. This is an explicit logical path binding, not evidence that an
+external replacement has the same author or contents. Save custody and source
+revision checks still apply. Canonical path aliases share a binding; distinct
+hardlink paths and copied paths receive distinct ids. Missing paths retain their
+catalog records. Rebinding requires an absent old path and an unbound new regular
+file under the root, and never moves or overwrites source files.
+
+The first host integration remains opt-in. Hosts must arrange explicit rebind
+before scanning a moved destination as a new document; a destination already
+registered under another id is refused rather than silently merging identities.
+The later rename/recovery UI must account for that ordering. This mapping alone
+does not admit disk documents to the vault's authenticated relation log: captured
+revisions and the disk-to-vault relation authority bridge remain separate work.
+
+The first catalog stores a versioned binding list and commits each newly discovered
+path separately. Before making it a default for large trees, measure initial
+registration and unchanged scans with representative directory sizes; consider
+batched registration and indexed lookups from those results. No large-directory
+latency or scaling receipt is claimed by the functional tests.
+
+Catalog rebind and directory refresh are two operations. If the metadata commit
+succeeds but the filesystem scan fails, the source reports that the binding was
+committed and directs the caller to retry refresh; it must not imply the rebind
+was rolled back. Directory discovery continues to skip symlinks through
+`DirEntry::metadata`. Direct catalog binding can canonicalize an explicitly
+provided file alias; discovery does not recursively follow linked directories.
+
 The recommended anchor rule is to retain the captured document/head and
 quote/position as the authored fact. Following newer text is then an explicit
 projection policy with resolved, stale, ambiguous, and unavailable results;
@@ -566,6 +602,35 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-07 G1 file catalog: added an explicit root-bound catalog and directory
+  adoption path, with opaque durable document ids and atomic Redb metadata
+  commits. A second catalog owner is refused. Existing path bindings survive
+  source replacement and restart; copies and distinct hardlink paths receive
+  separate ids. Unavailable bindings remain inspectable, with explicit rebind
+  to an unbound in-root target after the old path is absent. Root changes,
+  malformed/version-mismatched catalogs, duplicate ids/paths, and catalog files
+  inside the scanned root are refused. File bodies are never stored here.
+  `DirectorySource::with_catalog` opts in; the existing default discovery ids
+  remain unchanged. `KnotEndpoint::from_directory_source` lets an admitted host
+  serve that source using the existing read/write custody paths. Catalog adoption
+  does not grant writes or persist host-owned runtime facets.
+  Desktop catalog settings, root relocation/migration, rebind-after-discovery
+  conflict resolution, and the file revision/admission bridge into authored
+  relations remain open. This is not completion of G1's writing UI.
+  Validation on Windows/NTFS, Rust 1.97.1, Mere `2b1ce46e`, and Genet `9e8f9dc2`:
+  `cargo test -p knot-editor --lib --test file_catalog --offline --locked -j 2`
+  passed **103 library tests** and the four non-symlink integration cases.
+  The direct symlink-alias fixture failed to create a link with Windows error
+  1314 (required privilege unavailable). It is explicitly ignored on Windows,
+  remains enabled on Unix, and can be selected with `--ignored` on a Windows
+  host with symbolic-link privileges; it is not a passing local receipt.
+  A final `cargo test -p knot-editor --test file_catalog --offline --locked -j 2`
+  confirms the supported gate after that test annotation. Source replacement
+  includes Knot's actual edit/save path, plus an external remove/rename fixture.
+  The default discovery, copy/hardlink, restart, rebind, malformed catalog,
+  exclusive-owner, and missing-path tests all ran. Focused Rust formatting,
+  Git diff checks, and local documentation links passed. No pins or probes changed.
 
 - 2026-09-07 G1 vault relation model: distinct signed assertion and retraction
   events retain operation-derived identities, author and space attribution,

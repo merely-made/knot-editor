@@ -15,7 +15,10 @@ use std::time::UNIX_EPOCH;
 use chartulary::{CLASS_FACET, Container, FacetId, FacetStore};
 use serde_json::json;
 
-use crate::{FILE_CLASS, FILE_DOCUMENT_FACET, KnotContentClasses, NOTE_CLASS, NOTE_DOCUMENT_FACET};
+use crate::{
+    FILE_CLASS, FILE_DOCUMENT_FACET, KnotContentClasses, KnotFileCatalog, NOTE_CLASS,
+    NOTE_DOCUMENT_FACET,
+};
 
 /// A file disclosed by Knot. Its bytes remain on disk and are not carried here.
 #[derive(Clone, Debug, PartialEq)]
@@ -155,8 +158,10 @@ impl Default for IgnorePolicy {
 pub struct DirectorySource {
     root: PathBuf,
     ignore: IgnorePolicy,
+    catalog: Option<KnotFileCatalog>,
     documents: BTreeMap<String, DiskDocument>,
     observations: BTreeMap<FileIdentity, Observation>,
+    catalog_observations: BTreeMap<PathBuf, Observation>,
     facets: FacetStore<String>,
     classes: KnotContentClasses,
     revision: u64,
@@ -170,6 +175,27 @@ impl DirectorySource {
 
     /// Open with a caller-selected ignore policy.
     pub fn with_ignore(root: impl AsRef<Path>, ignore: IgnorePolicy) -> io::Result<Self> {
+        Self::open_inner(root, ignore, None)
+    }
+
+    /// Open with an explicit persistent document catalog.
+    ///
+    /// The catalog must belong to this exact canonical root. Default
+    /// discovery remains identity based; catalog ids are opt in so callers
+    /// choose when path bindings become durable application state.
+    pub fn with_catalog(
+        root: impl AsRef<Path>,
+        ignore: IgnorePolicy,
+        catalog: KnotFileCatalog,
+    ) -> io::Result<Self> {
+        Self::open_inner(root, ignore, Some(catalog))
+    }
+
+    fn open_inner(
+        root: impl AsRef<Path>,
+        ignore: IgnorePolicy,
+        catalog: Option<KnotFileCatalog>,
+    ) -> io::Result<Self> {
         let root = fs::canonicalize(root)?;
         if !root.is_dir() {
             return Err(io::Error::new(
@@ -177,17 +203,61 @@ impl DirectorySource {
                 format!("{} is not a directory", root.display()),
             ));
         }
+        if let Some(catalog) = &catalog
+            && catalog.root() != root
+        {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidInput,
+                "file catalog root differs from directory source root",
+            ));
+        }
         let mut source = Self {
             root,
             ignore,
+            catalog,
             documents: BTreeMap::new(),
             observations: BTreeMap::new(),
+            catalog_observations: BTreeMap::new(),
             facets: FacetStore::new(),
             classes: KnotContentClasses::new(),
             revision: 0,
         };
         source.refresh()?;
         Ok(source)
+    }
+
+    /// Explicitly bind an indexed document id to a new in-root path.
+    ///
+    /// This is the only source-level operation that changes a durable path
+    /// binding. The subsequent refresh is forced through the catalog state so
+    /// a caller cannot observe the old path after a successful rebind.
+    pub fn rebind_catalog_document(
+        &mut self,
+        id: impl AsRef<str>,
+        new_path: impl AsRef<Path>,
+    ) -> io::Result<()> {
+        let catalog = self.catalog.as_mut().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::Unsupported,
+                "durable rebind requires a catalog-backed directory source",
+            )
+        })?;
+        catalog
+            .rebind(id.as_ref(), new_path.as_ref())
+            .map_err(io::Error::other)?;
+        self.refresh().map(|_| ()).map_err(|error| {
+            io::Error::new(
+                error.kind(),
+                format!(
+                    "catalog binding committed; directory refresh failed: {error}; retry refresh"
+                ),
+            )
+        })
+    }
+
+    /// Whether this source uses durable catalog ids.
+    pub fn has_catalog(&self) -> bool {
+        self.catalog.is_some()
     }
 
     /// Canonical directory being observed.
@@ -260,6 +330,13 @@ impl DirectorySource {
     pub fn refresh(&mut self) -> io::Result<bool> {
         let mut next = Vec::new();
         self.walk(&self.root, &mut next)?;
+        if self.catalog.is_some() {
+            for observation in &mut next {
+                observation.path = fs::canonicalize(&observation.path)?;
+            }
+            next.sort_by(|left, right| left.path.cmp(&right.path));
+            next.dedup_by(|left, right| left.path == right.path);
+        }
         next.sort_by(|left, right| left.path.cmp(&right.path));
 
         let next_observations = next
@@ -267,13 +344,41 @@ impl DirectorySource {
             .cloned()
             .map(|observation| (observation.identity.clone(), observation))
             .collect::<BTreeMap<_, _>>();
-        if next_observations == self.observations {
+        let next_catalog_observations = next
+            .iter()
+            .cloned()
+            .map(|observation| (observation.path.clone(), observation))
+            .collect::<BTreeMap<_, _>>();
+
+        let mut resolved_ids = Vec::with_capacity(next.len());
+        for observation in &next {
+            let id = if let Some(catalog) = self.catalog.as_mut() {
+                catalog.bind(&observation.path).map_err(io::Error::other)?
+            } else {
+                observation.identity.stable_id()
+            };
+            resolved_ids.push(id);
+        }
+        let observations_unchanged = if self.catalog.is_some() {
+            next_catalog_observations == self.catalog_observations
+        } else {
+            next_observations == self.observations
+        };
+        let ids_unchanged = self.catalog.is_none()
+            || (next.len() == self.documents.len()
+                && next.iter().zip(&resolved_ids).all(|(observation, id)| {
+                    self.documents
+                        .get(id)
+                        .is_some_and(|document| document.path == observation.path)
+                }));
+        if observations_unchanged && ids_unchanged {
             return Ok(false);
         }
 
         let live_ids = next
             .iter()
-            .map(|observation| observation.identity.stable_id())
+            .zip(&resolved_ids)
+            .map(|(_, id)| id.clone())
             .collect::<BTreeSet<_>>();
         let retired_ids = self
             .documents
@@ -286,8 +391,7 @@ impl DirectorySource {
         }
 
         let mut documents = BTreeMap::new();
-        for observation in &next {
-            let id = observation.identity.stable_id();
+        for (observation, id) in next.iter().zip(resolved_ids) {
             let address = file_address(&observation.path);
             let extension = observation
                 .path
@@ -361,6 +465,7 @@ impl DirectorySource {
 
         self.documents = documents;
         self.observations = next_observations;
+        self.catalog_observations = next_catalog_observations;
         self.revision = self.revision.saturating_add(1).max(1);
         Ok(true)
     }

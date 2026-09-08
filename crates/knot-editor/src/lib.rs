@@ -17,6 +17,7 @@ mod content_classes;
 mod directory;
 mod djot_merge;
 mod endpoint;
+mod file_catalog;
 mod mark;
 mod publish;
 mod publish_carrier;
@@ -48,6 +49,7 @@ pub use endpoint::{
     KnotEffectAuthority, KnotEffectFetcher, KnotEffectMode, KnotEffectPolicy, KnotEndpoint,
     KnotResidentSource, KnotRosetteConfig, KnotWriteGrant,
 };
+pub use file_catalog::{KnotFileCatalog, KnotFileCatalogAvailability, KnotFileCatalogRecord};
 pub use knot_document::{
     EditOutcome, KNOT_DOCUMENT_CSS, KnotDiskComparisonV1, KnotDocumentIntentErrorV1,
     KnotDocumentIntentV1, KnotDocumentRefusalV1, KnotDocumentSaveFailureV1,

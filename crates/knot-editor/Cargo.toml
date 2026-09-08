@@ -28,6 +28,7 @@ graphshell-stdio.workspace = true
 inker.workspace = true
 jotdown = "0.10"
 knot-document = { workspace = true, features = ["engine"] }
+knot-file-catalog.workspace = true
 muniment = { workspace = true, features = ["redb"] }
 mora.workspace = true
 mora-cmudict.workspace = true

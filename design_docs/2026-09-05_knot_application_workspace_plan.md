@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, and G1 vault relation/file catalog models implemented, 2026-09-07; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, G1 vault relation/file catalog models, and opt-in desktop catalog adoption implemented, 2026-09-08; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -602,6 +602,37 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-08 desktop catalog adoption: extracted the existing V1 catalog and
+  tests into `knot-file-catalog`, preserving the `knot-editor` public reexports.
+  The desktop depends directly on this crate and keeps `knot-document` on its
+  default features. `cargo tree -p knot-desktop -e features -i knot-document`
+  confirms that adopting the catalog does not enable the document engine.
+  Paired `--catalog-root ROOT --catalog PATH` options opt in; malformed options
+  and a catalog that cannot open stop startup explicitly. The ordinary launch
+  still opens one file or an untitled document without a catalog.
+  The workspace reads the actual session source path for its document ID.
+  A path-field edit is only a proposed future target. New clears the current
+  identity; successful Open and Save As bind the resulting file, while ordinary
+  Save preserves identity. Catalog updates complete before a successful save
+  accepts a pending close. Binding failure does not roll back saved source or
+  reopen the save decision. The catalog status and retry action remain distinct
+  from file-save status; unsaved and outside-root files have no catalog ID.
+  Catalog state is updated on lifecycle actions and explicit retry, rather than
+  writing metadata on each edit/focus event. Headed acceptance, in-window catalog
+  configuration, document navigation, rename/rebind controls, and the revision
+  bridge into authored relations remain open.
+  Automated receipt: `cargo test -p knot-file-catalog -p knot-desktop --offline
+  --locked -j 2` passed 24 desktop tests and 6 catalog tests; the existing
+  diagnostic outline timing probe remains ignored. The desktop harness covers
+  actual-source identity, Save As allocating a new binding, dirty-close success
+  despite an outside-root catalog refusal, and explicit retry preserving the
+  document snapshot. These are automated UI receipts, not headed acceptance.
+  Compatibility receipt: `cargo test -p knot-editor --lib --test file_catalog
+  --offline --locked -j 2` passed 97 editor unit tests and 4 catalog integration
+  tests; the existing Windows symlink-privilege case remains ignored. Both gates
+  used Mere `2b1ce46e5a15328b4bf4d350ec4b0252d9b404a1` and Genet
+  `9e8f9dc2f3ddc0af1658580bb51964462a03923f`, with no dependency pin changes.
 
 - 2026-09-07 G1 file catalog: added an explicit root-bound catalog and directory
   adoption path, with opaque durable document ids and atomic Redb metadata

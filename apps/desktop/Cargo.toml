@@ -15,6 +15,7 @@ path = "src/main.rs"
 cambium.workspace = true
 cambium-genet-winit-host.workspace = true
 knot-document.workspace = true
+knot-file-catalog.workspace = true
 layout-dom-api.workspace = true
 
 [dev-dependencies]

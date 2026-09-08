@@ -9,6 +9,7 @@ mod workspace;
 
 use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
+use knot_file_catalog::KnotFileCatalog;
 use std::ffi::OsString;
 use std::path::PathBuf;
 use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
@@ -18,16 +19,69 @@ enum DocumentSelection {
     Scratch,
     File(PathBuf),
 }
-fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<DocumentSelection, String> {
+#[derive(Debug, PartialEq, Eq)]
+struct CatalogOptions {
+    root: PathBuf,
+    path: PathBuf,
+}
+#[derive(Debug, PartialEq, Eq)]
+struct LaunchOptions {
+    document: DocumentSelection,
+    catalog: Option<CatalogOptions>,
+}
+fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOptions, String> {
     let mut args = args.into_iter();
     let _ = args.next();
-    let path = args.next();
-    if args.next().is_some() {
-        return Err("expected zero or one document path".into());
+    let mut path = None;
+    let mut root = None;
+    let mut catalog_path = None;
+    let mut positional_only = false;
+    while let Some(arg) = args.next() {
+        if !positional_only && arg == "--" {
+            positional_only = true;
+        } else if !positional_only && (arg == "--catalog-root" || arg == "--catalog") {
+            let slot = if arg == "--catalog-root" {
+                &mut root
+            } else {
+                &mut catalog_path
+            };
+            if slot.is_some() {
+                return Err(format!(
+                    "{} was supplied more than once",
+                    arg.to_string_lossy()
+                ));
+            }
+            let value = args
+                .next()
+                .ok_or_else(|| format!("{} requires a path", arg.to_string_lossy()))?;
+            if value.is_empty()
+                || value == "--catalog-root"
+                || value == "--catalog"
+                || value == "--"
+            {
+                return Err(format!("{} requires a path", arg.to_string_lossy()));
+            }
+            *slot = Some(PathBuf::from(value));
+        } else if !positional_only && arg.to_string_lossy().starts_with('-') {
+            return Err(format!(
+                "unknown option {}; use -- before a document path starting with -",
+                arg.to_string_lossy()
+            ));
+        } else if path.replace(PathBuf::from(arg)).is_some() {
+            return Err("expected zero or one document path".into());
+        }
     }
-    Ok(path
-        .map(|path| DocumentSelection::File(PathBuf::from(path)))
-        .unwrap_or(DocumentSelection::Scratch))
+    let catalog = match (root, catalog_path) {
+        (None, None) => None,
+        (Some(root), Some(path)) => Some(CatalogOptions { root, path }),
+        _ => return Err("--catalog-root and --catalog must be supplied together".into()),
+    };
+    Ok(LaunchOptions {
+        document: path
+            .map(DocumentSelection::File)
+            .unwrap_or(DocumentSelection::Scratch),
+        catalog,
+    })
 }
 fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, String> {
     match selection {
@@ -46,6 +100,7 @@ fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, Des
 fn run_standalone(
     session: KnotDocumentSession,
     initial_path: Option<PathBuf>,
+    catalog: Option<KnotFileCatalog>,
 ) -> Result<(), String> {
     run(
         HostOptions {
@@ -54,7 +109,7 @@ fn run_standalone(
             ..HostOptions::default()
         },
         move |_, commands, _| Init {
-            state: DesktopState::with_path(session, commands.clone(), initial_path),
+            state: DesktopState::with_catalog(session, commands.clone(), initial_path, catalog),
             logic: desktop_view as fn(&DesktopState) -> DesktopView,
             sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
         },
@@ -63,19 +118,27 @@ fn run_standalone(
     .map_err(|error| error.to_string())
 }
 fn main() {
-    let selection = select_document(std::env::args_os()).unwrap_or_else(|error| {
+    let options = select_document(std::env::args_os()).unwrap_or_else(|error| {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
-    let initial_path = match &selection {
+    let catalog = options
+        .catalog
+        .map(|options| KnotFileCatalog::open(options.root, options.path))
+        .transpose()
+        .unwrap_or_else(|error| {
+            eprintln!("knot: catalog could not be opened: {error}");
+            std::process::exit(1)
+        });
+    let initial_path = match &options.document {
         DocumentSelection::Scratch => None,
         DocumentSelection::File(path) => Some(path.clone()),
     };
-    let session = open_selection(selection).unwrap_or_else(|error| {
+    let session = open_selection(options.document).unwrap_or_else(|error| {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
-    if let Err(error) = run_standalone(session, initial_path) {
+    if let Err(error) = run_standalone(session, initial_path, catalog) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);
     }
@@ -86,6 +149,63 @@ mod tests {
     use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};
     use genet_probe::Selector;
     use tempfile::tempdir;
+    fn launch(args: &[&str]) -> Result<LaunchOptions, String> {
+        select_document(args.iter().map(OsString::from))
+    }
+    #[test]
+    fn launch_options_keep_catalog_explicit_and_preserve_document_paths() {
+        assert_eq!(
+            launch(&["knot"]).unwrap(),
+            LaunchOptions {
+                document: DocumentSelection::Scratch,
+                catalog: None,
+            }
+        );
+        assert_eq!(
+            launch(&["knot", "my essay.djot"]).unwrap().document,
+            DocumentSelection::File(PathBuf::from("my essay.djot"))
+        );
+        let options = launch(&[
+            "knot",
+            "--catalog-root",
+            "notes",
+            "--catalog",
+            "metadata/catalog.redb",
+            "--",
+            "--essay.djot",
+        ])
+        .unwrap();
+        assert_eq!(
+            options.document,
+            DocumentSelection::File(PathBuf::from("--essay.djot"))
+        );
+        assert_eq!(
+            options.catalog,
+            Some(CatalogOptions {
+                root: PathBuf::from("notes"),
+                path: PathBuf::from("metadata/catalog.redb")
+            })
+        );
+    }
+    #[test]
+    fn launch_options_refuse_partial_duplicate_or_ambiguous_configuration() {
+        for args in [
+            vec!["knot", "--catalog"],
+            vec!["knot", "--catalog", "metadata/catalog.redb"],
+            vec!["knot", "--catalog-root", "notes"],
+            vec![
+                "knot",
+                "--catalog-root",
+                "--catalog",
+                "metadata/catalog.redb",
+            ],
+            vec!["knot", "--catalog-root", "notes", "--catalog-root", "other"],
+            vec!["knot", "--unknown"],
+            vec!["knot", "one.djot", "two.djot"],
+        ] {
+            assert!(launch(&args).is_err(), "unexpectedly accepted {args:?}");
+        }
+    }
     #[test]
     fn app_authored_open_edit_save_close_reopen_receipt() {
         let temp = tempdir().unwrap();

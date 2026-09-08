@@ -13,6 +13,8 @@ the document presentation and desktop host.
 
 - `crates/knot-document`: the narrow one-document model and reusable Cambium
   surface.
+- `crates/knot-file-catalog`: durable file identities without the editor's
+  preview, publishing, or replication dependencies.
 - `crates/knot-editor`: file, vault, evidence, sync, publishing, and
   Graphshell-facing authority.
 - `apps/desktop`: the standalone native host for `knot-document`.
@@ -67,7 +69,7 @@ captured vault document revisions, including optional source passages, predicate
 and author-only retraction history. These records remain separate from document
 replacement and from graph presentation. Hosts must supply admitted document ids
 for filtered relation reads. The desktop does not yet expose link authoring;
-desktop catalog adoption and graph views remain planned work.
+graph views remain planned work.
 
 Hosts can opt into durable ordinary-file identities with `KnotFileCatalog` and
 `DirectorySource::with_catalog`, then serve that source through
@@ -77,6 +79,21 @@ copies get distinct ids, and moved files require explicit rebind before their
 new paths are registered. The default desktop and directory discovery do not
 automatically create catalogs. Catalog ids do not yet bridge disk files into the
 vault relation log.
+
+The desktop can explicitly enable a catalog at launch:
+
+```sh
+cargo run -p knot-desktop -- --catalog-root ./notes --catalog ./state/files.redb ./notes/essay.djot
+```
+
+The document path is optional; both catalog options are required together. The
+root and catalog's parent directory must already exist, and the catalog must be
+outside its root. The desktop displays the current document's ID, or why it is
+not catalogued. Save As creates a distinct binding for a new path. Files outside
+the catalog root can still be edited and saved; catalog status does not grant or
+remove file-write authority. A catalog failure never undoes a successful save.
+Use the displayed retry action for catalog errors. Directory navigation, catalog
+configuration within the window, and rename/rebind controls remain future work.
 
 The source history was extracted from Mere with path-preserving Git history.
 The earlier plans and receipts remain under [`design_docs`](design_docs) and

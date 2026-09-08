@@ -4747,6 +4747,7 @@ dependencies = [
  "genet-probe",
  "genet-scripted-dom",
  "knot-document",
+ "knot-file-catalog",
  "layout-dom-api",
  "tempfile",
 ]
@@ -4785,6 +4786,7 @@ dependencies = [
  "inker",
  "jotdown",
  "knot-document",
+ "knot-file-catalog",
  "mere-eidetic",
  "mere-fetch",
  "mere-p2panda-net",
@@ -4835,6 +4837,18 @@ dependencies = [
  "inker",
  "nematic",
  "pulldown-cmark",
+]
+
+[[package]]
+name = "knot-file-catalog"
+version = "0.0.1"
+dependencies = [
+ "muniment",
+ "pollster",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "uuid",
 ]
 
 [[package]]

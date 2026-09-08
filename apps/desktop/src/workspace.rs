@@ -14,8 +14,9 @@ use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
     KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1, knot_document_view,
 };
+use knot_file_catalog::KnotFileCatalog;
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 
@@ -39,6 +40,11 @@ pub struct DesktopState {
     pub document: KnotDocumentSurfaceState,
     pub path: TextInput,
     pub message: Option<String>,
+    catalog: Option<KnotFileCatalog>,
+    catalog_source_path: Option<PathBuf>,
+    catalog_sync_attempted: bool,
+    catalog_id: Option<String>,
+    catalog_error: Option<String>,
     comparison: Option<KnotDiskComparisonV1>,
     comparison_error: Option<String>,
     outline_visible: bool,
@@ -52,7 +58,7 @@ pub struct DesktopState {
 
 impl DesktopState {
     pub fn new(session: KnotDocumentSession, window: WindowCommands) -> Self {
-        Self::with_path(session, window, None)
+        Self::with_catalog(session, window, None, None)
     }
 
     pub fn with_path(
@@ -60,13 +66,27 @@ impl DesktopState {
         window: WindowCommands,
         initial_path: Option<PathBuf>,
     ) -> Self {
+        Self::with_catalog(session, window, initial_path, None)
+    }
+
+    pub fn with_catalog(
+        session: KnotDocumentSession,
+        window: WindowCommands,
+        initial_path: Option<PathBuf>,
+        catalog: Option<KnotFileCatalog>,
+    ) -> Self {
         let path = initial_path.map_or_else(TextInput::default, |path| {
             TextInput::new(path.to_string_lossy())
         });
-        Self {
+        let mut state = Self {
             document: KnotDocumentSurfaceState::new(session),
             path,
             message: None,
+            catalog,
+            catalog_source_path: None,
+            catalog_sync_attempted: false,
+            catalog_id: None,
+            catalog_error: None,
             comparison: None,
             comparison_error: None,
             outline_visible: false,
@@ -76,7 +96,9 @@ impl DesktopState {
             window,
             pending: None,
             discard_close: false,
-        }
+        };
+        state.sync_catalog();
+        state
     }
 
     fn dirty(&self) -> bool {
@@ -90,6 +112,37 @@ impl DesktopState {
         } else {
             Ok(PathBuf::from(value))
         }
+    }
+
+    fn sync_catalog(&mut self) {
+        if self.catalog.is_none() {
+            return;
+        }
+        let source_path = self.document.session().source_path().map(Path::to_path_buf);
+        if self.catalog_sync_attempted && self.catalog_source_path == source_path {
+            return;
+        }
+        self.catalog_sync_attempted = true;
+        self.catalog_source_path = source_path.clone();
+        self.catalog_id = None;
+        self.catalog_error = None;
+        let Some(source_path) = source_path else {
+            return;
+        };
+        if let Some(catalog) = self.catalog.as_mut() {
+            match catalog.bind(source_path) {
+                Ok(id) => self.catalog_id = Some(id),
+                Err(error) => self.catalog_error = Some(error),
+            }
+        }
+    }
+
+    fn retry_catalog_binding(&mut self) {
+        if self.catalog.is_none() {
+            return;
+        }
+        self.catalog_sync_attempted = false;
+        self.sync_catalog();
     }
 
     fn clear_comparison(&mut self) {
@@ -183,6 +236,7 @@ impl DesktopState {
                 self.clear_comparison();
                 self.clear_outline();
                 self.sync_outline_snapshot();
+                self.sync_catalog();
                 self.message = Some("New untitled Djot document.".to_owned());
             },
             PendingAction::Open(path) => match KnotDocumentSession::open(&path) {
@@ -192,6 +246,7 @@ impl DesktopState {
                     self.clear_comparison();
                     self.clear_outline();
                     self.sync_outline_snapshot();
+                    self.sync_catalog();
                     self.message = Some(format!("Opened {}.", path.display()));
                 },
                 Err(error) => self.message = Some(format!("Open failed: {error}")),
@@ -201,6 +256,7 @@ impl DesktopState {
                     self.clear_comparison();
                     self.clear_outline();
                     self.sync_outline_snapshot();
+                    self.sync_catalog();
                     self.message = Some("Reloaded from disk.".to_owned());
                 },
                 Err(error) => self.message = Some(intent_error_label(error)),
@@ -221,7 +277,10 @@ impl DesktopState {
 
     fn save(&mut self) {
         match self.document.apply(KnotDocumentIntentV1::Save) {
-            Ok(_) => self.message = Some("Saved.".to_owned()),
+            Ok(_) => {
+                self.sync_catalog();
+                self.message = Some("Saved.".to_owned());
+            },
             Err(error) => self.message = Some(intent_error_label(error)),
         }
     }
@@ -242,6 +301,7 @@ impl DesktopState {
                 self.clear_comparison();
                 self.clear_outline();
                 self.sync_outline_snapshot();
+                self.sync_catalog();
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
             },
@@ -274,6 +334,7 @@ impl DesktopState {
                     self.message = Some(intent_error_label(error));
                     self.pending = Some(PendingAction::Close);
                 } else {
+                    self.sync_catalog();
                     self.window.close();
                 }
             },
@@ -284,7 +345,10 @@ impl DesktopState {
                     self.save_as()
                 } else {
                     match self.document.apply(KnotDocumentIntentV1::Save) {
-                        Ok(_) => true,
+                        Ok(_) => {
+                            self.sync_catalog();
+                            true
+                        },
                         Err(error) => {
                             self.message = Some(intent_error_label(error));
                             false
@@ -545,6 +609,35 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("class", "knot-workspace-message")
             .attr("aria-live", "polite"),
     );
+    let catalog_status: DesktopView = if state.catalog.is_none() {
+        Box::new(el("div", ()))
+    } else if let Some(id) = &state.catalog_id {
+        Box::new(
+            span(format!("Document ID: {id}"))
+                .attr("class", "knot-catalog-status")
+                .attr("aria-live", "polite"),
+        )
+    } else if let Some(error) = &state.catalog_error {
+        Box::new(
+            el(
+                "div",
+                (
+                    span(format!("Not catalogued: {error}")),
+                    button("Retry catalog", |state: &mut DesktopState, _| {
+                        state.retry_catalog_binding();
+                    }),
+                ),
+            )
+            .attr("class", "knot-catalog-status knot-catalog-error")
+            .attr("role", "status"),
+        )
+    } else {
+        Box::new(
+            span("Not catalogued: unsaved document")
+                .attr("class", "knot-catalog-status")
+                .attr("aria-live", "polite"),
+        )
+    };
     Box::new(
         el(
             "main",
@@ -585,6 +678,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 )
                 .attr("class", "knot-workspace-toolbar"),
                 message,
+                catalog_status,
                 el("div", (document, outline_panel)).attr("class", "knot-writing-area"),
                 comparison_panel,
                 prompt,
@@ -734,6 +828,8 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field input { min-width:280px; flex:1; }",
     ".knot-workspace-message { min-height:1.4em; }",
+    ".knot-catalog-status { min-height:1.4em; overflow-wrap:anywhere; }",
+    ".knot-catalog-error { color:crimson; display:flex; align-items:center; gap:8px; }",
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
@@ -768,9 +864,16 @@ mod tests {
     fn harness(
         session: KnotDocumentSession,
     ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
+        harness_with_catalog(session, None)
+    }
+
+    fn harness_with_catalog(
+        session: KnotDocumentSession,
+        catalog: Option<KnotFileCatalog>,
+    ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
         let mut host = Harness::with_hooks(
             Init {
-                state: DesktopState::new(session, WindowCommands::new()),
+                state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
             },
@@ -1377,5 +1480,123 @@ mod tests {
             knot_document::KnotDocumentWritePostureV1::ReadOnly
         );
         assert!(host.state().message.as_deref().unwrap().contains("refused"));
+    }
+
+    #[test]
+    fn catalog_status_uses_source_path_and_save_as_gets_a_new_id() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("documents");
+        let catalog_root = temp.path().join("catalog");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir(&catalog_root).unwrap();
+        let original = root.join("original.djot");
+        let saved_as = root.join("saved-as.djot");
+        std::fs::write(&original, "source\n").unwrap();
+        let catalog = KnotFileCatalog::open(&root, catalog_root.join("catalog.redb")).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&original).unwrap(), Some(catalog));
+        host.layout_at(900.0, 640.0);
+        let original_id = host.state().catalog_id.clone().expect("initial catalog id");
+
+        host.update(|state| state.path = TextInput::new("path field edit"));
+        host.after_dispatch();
+        assert_eq!(
+            host.state().catalog_id.as_deref(),
+            Some(original_id.as_str())
+        );
+
+        host.update(|state| state.path = TextInput::new(saved_as.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        let saved_id = host.state().catalog_id.clone().expect("Save As catalog id");
+        assert_ne!(saved_id, original_id);
+        assert_eq!(
+            host.state().document.session().source_path(),
+            Some(std::fs::canonicalize(&saved_as).unwrap().as_path())
+        );
+        assert!(saved_as.exists());
+        assert!(
+            host.state().catalog_error.is_none(),
+            "successful in-root Save As must not report a catalog error"
+        );
+
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
+        assert!(text_content(&dom, workspace).contains(&format!("Document ID: {saved_id}")));
+        drop(dom);
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert!(host.state().catalog_id.is_none());
+        assert!(host.state().catalog_error.is_none());
+    }
+
+    #[test]
+    fn catalog_failure_does_not_block_outside_save_or_dirty_close() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("documents");
+        let catalog_root = temp.path().join("catalog");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir(&catalog_root).unwrap();
+        let outside = temp.path().join("outside.djot");
+        let catalog = KnotFileCatalog::open(&root, catalog_root.join("catalog.redb")).unwrap();
+        let mut host = harness_with_catalog(
+            KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""),
+            Some(catalog),
+        );
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("draft");
+            state.path = TextInput::new(outside.to_string_lossy());
+        });
+        assert!(host.state().document.snapshot().dirty);
+        host.layout_at(900.0, 640.0);
+        request_native_close(&mut host);
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
+        assert!(host.close_requested());
+        assert_eq!(std::fs::read_to_string(&outside).unwrap(), "draft");
+        assert!(host.state().catalog_id.is_none());
+        assert!(
+            host.state()
+                .catalog_error
+                .as_deref()
+                .is_some_and(|error| error.contains("outside catalog root"))
+        );
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
+        assert!(text_content(&dom, workspace).contains("Not catalogued:"));
+    }
+
+    #[test]
+    fn retry_catalog_recovers_an_in_root_file_without_mutating_document_state() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("documents");
+        let catalog_root = temp.path().join("catalog");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::create_dir(&catalog_root).unwrap();
+        let path = root.join("recover.djot");
+        std::fs::write(&path, "recover me\n").unwrap();
+        let session = KnotDocumentSession::open(&path).unwrap();
+        std::fs::remove_file(&path).unwrap();
+        let catalog = KnotFileCatalog::open(&root, catalog_root.join("catalog.redb")).unwrap();
+        let mut host = harness_with_catalog(session, Some(catalog));
+        assert!(host.state().catalog_id.is_none());
+        assert!(host.state().catalog_error.is_some());
+        let before = host.state().document.snapshot();
+
+        host.update(|state| state.path = TextInput::new("temporary path edit"));
+        host.after_dispatch();
+        assert!(host.state().catalog_id.is_none());
+        assert_eq!(host.state().document.snapshot(), before);
+
+        std::fs::write(&path, "recover me\n").unwrap();
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Retry catalog")));
+        assert!(host.state().catalog_id.is_some());
+        assert!(host.state().catalog_error.is_none());
+        assert_eq!(host.state().document.snapshot(), before);
     }
 }

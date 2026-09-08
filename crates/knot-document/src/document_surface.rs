@@ -157,6 +157,10 @@ impl KnotDocumentSession {
     pub fn input(&self) -> &TextInput {
         self.editor.input()
     }
+    /// The local file selected for this session, if it has one.
+    pub fn source_path(&self) -> Option<&Path> {
+        self.editor.path()
+    }
     /// Borrows the input only when this session delegated text-write authority.
     ///
     /// Hosts should route document mutations through [`Self::apply`]. This

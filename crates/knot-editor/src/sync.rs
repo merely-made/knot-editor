@@ -30,7 +30,7 @@ use stickleback::{
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
-    KnotVault, VaultDocument,
+    KnotFileRevisionV1, KnotVault, VaultDocument,
     djot_merge::{automatic_text_merge, automatic_text_merge_head},
     relations::{
         KnotRejectedRelationV1, KnotRelationAssertionV1, KnotRelationEndpointV1,
@@ -74,6 +74,11 @@ pub struct KnotSyncExt {
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
 pub enum KnotSyncEvent {
     Put(VaultDocument),
+    /// An immutable, signed observation of a catalog-backed ordinary file.
+    ///
+    /// File revisions are relation-capture material only. They never enter the
+    /// current vault-document projection or its publishing surface.
+    CaptureFileRevision(KnotFileRevisionV1),
     Delete {
         id: String,
     },
@@ -133,6 +138,8 @@ pub enum KnotSyncError {
     InvalidResolution(String),
     #[error("invalid relation assertion: {0}")]
     InvalidRelation(String),
+    #[error("invalid file revision capture: {0}")]
+    InvalidFileRevision(String),
     #[error("Knot sync has no durable projection checkpoint")]
     MissingCheckpoint,
     #[error("reviewed Knot epoch proposal is stale")]
@@ -757,7 +764,9 @@ where
                     }
                     (id, document, false)
                 },
-                KnotSyncEvent::AssertRelation { .. } | KnotSyncEvent::RetractRelation { .. } => {
+                KnotSyncEvent::CaptureFileRevision(_)
+                | KnotSyncEvent::AssertRelation { .. }
+                | KnotSyncEvent::RetractRelation { .. } => {
                     continue;
                 },
             };
@@ -865,6 +874,51 @@ where
                     document: Some(document),
                     ..
                 } if id == document_id && document.id == id => Some(document),
+                _ => None,
+            });
+        }
+        Ok(None)
+    }
+
+    /// Materialize one exact retained file-revision capture.
+    ///
+    /// Captures are deliberately distinct from vault documents: this getter
+    /// never makes an ordinary file available through the document or publish
+    /// projections.
+    pub async fn file_revision(
+        &self,
+        vault: &KnotVault,
+        document_id: &str,
+        operation_id: [u8; 32],
+    ) -> Result<Option<KnotFileRevisionV1>, KnotSyncError> {
+        self.file_revision_with_cipher(KnotSyncCipher::Personal(vault), document_id, operation_id)
+            .await
+    }
+
+    /// Cipher-generic form of [`Self::file_revision`].
+    pub async fn file_revision_with_cipher(
+        &self,
+        cipher: KnotSyncCipher<'_>,
+        document_id: &str,
+        operation_id: [u8; 32],
+    ) -> Result<Option<KnotFileRevisionV1>, KnotSyncError> {
+        self.require_cipher(cipher)?;
+        let records = self.load_operations().await?;
+        let entries = causal_entries(&records);
+        let projection = causal_projection(&entries)?;
+
+        for index in projection.order {
+            let operation = &records[index].operation;
+            if *operation.hash.as_bytes() != operation_id {
+                continue;
+            }
+            let event = decode_event(cipher, operation)?;
+            return Ok(match event {
+                KnotSyncEvent::CaptureFileRevision(revision)
+                    if revision.document_id == document_id && revision.validate().is_ok() =>
+                {
+                    Some(revision)
+                },
                 _ => None,
             });
         }
@@ -1069,23 +1123,26 @@ where
         let checkpoint = if let Some(checkpoint) = self.load_checkpoint().await? {
             let tail = self.tail_receipt().await?;
             // Checkpoints retain relation history for inspection but are not yet
-            // executable replay bases. A closed relation event needs its older
-            // document revisions for quote validation, so preserve every closed
-            // operation epoch until snapshot-base replay exists. Pending events
-            // remain covered by the existing tail and pending holds below.
+            // executable replay bases. A closed relation or file capture needs
+            // its older source revision for quote validation, so preserve every
+            // closed operation epoch until snapshot-base replay includes those
+            // captures. Pending events remain covered by the existing tail and
+            // pending holds below.
             let causal_entries = causal_entries(&records);
             let closed = causal_projection(&causal_entries)?;
-            let mut has_relation_event = false;
+            let mut has_capture_material = false;
             for &index in &closed.order {
                 if matches!(
                     decode_event(KnotSyncCipher::CommonsData(keys), &records[index].operation)?,
-                    KnotSyncEvent::AssertRelation { .. } | KnotSyncEvent::RetractRelation { .. }
+                    KnotSyncEvent::CaptureFileRevision(_)
+                        | KnotSyncEvent::AssertRelation { .. }
+                        | KnotSyncEvent::RetractRelation { .. }
                 ) {
-                    has_relation_event = true;
+                    has_capture_material = true;
                     break;
                 }
             }
-            if has_relation_event {
+            if has_capture_material {
                 for index in closed.order {
                     let record = &records[index];
                     holds.push(EpochHold {
@@ -1461,6 +1518,11 @@ fn fold_relations(
             } => {
                 documents.insert(operation_id, document);
             },
+            KnotSyncEvent::CaptureFileRevision(revision) => {
+                if revision.validate().is_ok() {
+                    documents.insert(operation_id, revision.as_vault_document());
+                }
+            },
             KnotSyncEvent::AssertRelation {
                 predicate,
                 subject,
@@ -1652,6 +1714,11 @@ fn document_versions(
             } => {
                 documents.insert(operation_id, document);
             },
+            KnotSyncEvent::CaptureFileRevision(revision) => {
+                if revision.validate().is_ok() {
+                    documents.insert(operation_id, revision.as_vault_document());
+                }
+            },
             _ => {},
         }
     }
@@ -1679,6 +1746,11 @@ fn validate_local_relation_event(
     scope: [u8; 32],
 ) -> Result<(), KnotSyncError> {
     match event {
+        KnotSyncEvent::CaptureFileRevision(revision) => {
+            revision
+                .validate()
+                .map_err(KnotSyncError::InvalidFileRevision)?;
+        },
         KnotSyncEvent::AssertRelation {
             predicate,
             subject,
@@ -1822,6 +1894,15 @@ mod tests {
             title: id.into(),
             body: body.as_bytes().to_vec(),
             media_type: "text/vnd.knot".into(),
+        }
+    }
+
+    fn file_revision(id: &str, body: &str) -> KnotFileRevisionV1 {
+        KnotFileRevisionV1 {
+            document_id: id.into(),
+            title: "Catalog file".into(),
+            media_type: "text/plain".into(),
+            body: body.as_bytes().to_vec(),
         }
     }
 
@@ -2192,6 +2273,163 @@ mod tests {
                         ))
             }));
         }
+    }
+
+    #[tokio::test]
+    async fn communal_capture_before_any_relation_holds_its_epoch_after_checkpoint() {
+        let alice = InMemoryProvider::from_seed([0x95; 32]);
+        let writer = alice.master_public_key().to_bytes();
+        let store = KnotSyncStore::in_memory_commons(SPACE, [writer]);
+        let mut keys = DataKeyring::new();
+        let capture_epoch = keys.rotate_random().unwrap().id();
+        store
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &keys,
+                &KnotSyncEvent::CaptureFileRevision(file_revision("knot:document:capture", "old")),
+            )
+            .await
+            .unwrap();
+        for _ in 0..7 {
+            keys.rotate_random().unwrap();
+        }
+        store.save_communal_checkpoint(&keys).await.unwrap();
+        let revision = Digest::blake3(b"capture epoch holds");
+        let proposal = store
+            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision, &[], &[])
+            .await
+            .unwrap();
+        assert!(proposal.retain.iter().any(|retained| {
+            retained.epoch == capture_epoch
+                && retained
+                    .reasons
+                    .contains(&stickleback::EpochRetentionReason::Domain(
+                        EpochHoldReason::DecryptionReachability,
+                    ))
+        }));
+    }
+
+    #[tokio::test]
+    async fn malformed_and_unadmitted_file_captures_cannot_be_relation_targets() {
+        let roots = tempdir().unwrap();
+        let (alice, bob) = identities();
+        let alice_writer = alice.master_public_key().to_bytes();
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [alice_writer]);
+        let malformed = KnotFileRevisionV1 {
+            document_id: "knot:document:malformed".into(),
+            title: "Catalog file".into(),
+            media_type: "text/plain\0".into(),
+            body: b"quoted".to_vec(),
+        };
+        assert!(matches!(
+            store
+                .author(
+                    alice.master_keypair().to_seed(),
+                    &vault,
+                    &KnotSyncEvent::CaptureFileRevision(malformed.clone()),
+                )
+                .await,
+            Err(KnotSyncError::InvalidFileRevision(_))
+        ));
+        let unchecked = author_unchecked(
+            &store,
+            alice.master_keypair().to_seed(),
+            &vault,
+            &KnotSyncEvent::CaptureFileRevision(malformed),
+        )
+        .await;
+        assert!(
+            store
+                .file_revision(
+                    &vault,
+                    "knot:document:malformed",
+                    *unchecked.hash.as_bytes()
+                )
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(matches!(
+            store
+                .author(
+                    alice.master_keypair().to_seed(),
+                    &vault,
+                    &KnotSyncEvent::AssertRelation {
+                        predicate: "supports".into(),
+                        subject: KnotRelationEndpointV1 {
+                            document_id: "knot:document:malformed".into(),
+                            document_head: *unchecked.hash.as_bytes(),
+                            quote: String::new(),
+                            position: None,
+                        },
+                        object: KnotRelationEndpointV1 {
+                            document_id: "knot:document:malformed".into(),
+                            document_head: *unchecked.hash.as_bytes(),
+                            quote: String::new(),
+                            position: None,
+                        },
+                        evidence: None,
+                        qualification: None,
+                    },
+                )
+                .await,
+            Err(KnotSyncError::InvalidRelation(_))
+        ));
+        assert!(
+            store
+                .author(
+                    bob.master_keypair().to_seed(),
+                    &vault,
+                    &KnotSyncEvent::CaptureFileRevision(file_revision(
+                        "knot:document:other",
+                        "body"
+                    )),
+                )
+                .await
+                .is_err()
+        );
+
+        let valid = store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::CaptureFileRevision(file_revision("knot:document:valid", "body")),
+            )
+            .await
+            .unwrap();
+        assert!(matches!(
+            store
+                .author(
+                    alice.master_keypair().to_seed(),
+                    &vault,
+                    &KnotSyncEvent::AssertRelation {
+                        predicate: "supports".into(),
+                        subject: KnotRelationEndpointV1 {
+                            document_id: "knot:document:valid".into(),
+                            document_head: *valid.hash.as_bytes(),
+                            quote: "wrong".into(),
+                            position: Some(crate::relations::KnotRelationPositionV1 {
+                                start: 0,
+                                end: 4,
+                            }),
+                        },
+                        object: KnotRelationEndpointV1 {
+                            document_id: "knot:document:valid".into(),
+                            document_head: *valid.hash.as_bytes(),
+                            quote: "body".into(),
+                            position: Some(crate::relations::KnotRelationPositionV1 {
+                                start: 0,
+                                end: 4,
+                            }),
+                        },
+                        evidence: None,
+                        qualification: None,
+                    },
+                )
+                .await,
+            Err(KnotSyncError::InvalidRelation(_))
+        ));
     }
 
     fn paired_group_keys() -> (DataKeyring, DataKeyring) {
@@ -3057,5 +3295,94 @@ mod tests {
         );
         assert!(alice_joined.ops_received() >= 1);
         assert!(bob_joined.ops_received() >= 1);
+    }
+
+    #[tokio::test]
+    async fn file_captures_verify_relations_without_replacing_same_id_vault_documents() {
+        let roots = tempdir().unwrap();
+        let alice = InMemoryProvider::from_seed([0x94; 32]);
+        let writer = alice.master_public_key().to_bytes();
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [writer]);
+        let authored = doc("knot:document:catalog-file", "vault source");
+        store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::Put(authored.clone()),
+            )
+            .await
+            .unwrap();
+        let first = store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::CaptureFileRevision(file_revision(
+                    "knot:document:catalog-file",
+                    "old file quote",
+                )),
+            )
+            .await
+            .unwrap();
+        let second = store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::CaptureFileRevision(file_revision(
+                    "knot:document:catalog-file",
+                    "new file quote",
+                )),
+            )
+            .await
+            .unwrap();
+
+        let old = "old file quote";
+        store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::AssertRelation {
+                    predicate: "supports".into(),
+                    subject: captured_endpoint(
+                        "knot:document:catalog-file",
+                        *first.hash.as_bytes(),
+                        old,
+                        "quote",
+                    ),
+                    object: captured_endpoint(
+                        "knot:document:catalog-file",
+                        *first.hash.as_bytes(),
+                        old,
+                        "old",
+                    ),
+                    evidence: None,
+                    qualification: None,
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store
+                .file_revision(&vault, "knot:document:catalog-file", *first.hash.as_bytes(),)
+                .await
+                .unwrap(),
+            Some(file_revision("knot:document:catalog-file", old))
+        );
+        assert!(
+            store
+                .file_revision(
+                    &vault,
+                    "knot:document:catalog-file",
+                    *second.hash.as_bytes(),
+                )
+                .await
+                .unwrap()
+                .is_some()
+        );
+        let projection = store.projection(&vault).await.unwrap();
+        assert_eq!(projection.documents, vec![authored]);
+        assert!(projection.conflicts.is_empty());
+        assert_eq!(projection.relations.len(), 1);
     }
 }

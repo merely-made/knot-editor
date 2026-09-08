@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, G1 vault relation/file catalog models, and opt-in desktop catalog adoption implemented, 2026-09-08; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, G1 relation/file catalog models, opt-in desktop catalog adoption, and the signed file-revision bridge implemented, 2026-09-08; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -407,6 +407,40 @@ The later rename/recovery UI must account for that ordering. This mapping alone
 does not admit disk documents to the vault's authenticated relation log: captured
 revisions and the disk-to-vault relation authority bridge remain separate work.
 
+**File revision bridge decisions, 2026-09-08:** a catalog-backed directory may
+explicitly prepare a bounded observation of one indexed file's bytes. Preparation
+returns the catalog document ID, display title, media type, and exact bytes; it
+does not save the editor buffer or author an operation. A caller separately
+admits that observation to a chosen signed/encrypted space as
+`CaptureFileRevision`. The signature attributes the capture to its writer; it
+does not prove that writer originally authored the disk contents or owns the
+catalog identity. Catalog adoption alone grants no replication or disclosure
+authority.
+
+A capture operation is an immutable revision target for relations. It stays
+outside document Put/Delete/Resolve folding, editable vault documents, and the
+publication document-version API. Its exact signed operation hash supplies the
+revision identity. A later capture of the same file ID does not replace older
+captures or move an existing passage reference. Relations validate quotes against
+the retained revision, including UTF-8 byte boundaries. File deletion or later
+editing does not retract a signed historical capture.
+
+Preparation reads disk, so unsaved editor changes are excluded. It bounds the
+read using the caller's byte limit and checks the current indexed path under the
+configured root. Filesystem checks remain observations rather than a transaction
+with external writers. Prepared bytes can be reviewed and authored later even
+if the disk changes; the operation attests to those prepared bytes, not to the
+file being current at signing time. Desktop capture controls must make this
+distinction visible before adoption.
+
+The capture getter requires both document ID and exact operation hash under the
+admitted space cipher. Host admission still governs access to retained bytes and
+relation endpoints. Captures introduce a new event variant: older readers need
+upgrading before joining a space that authors them. Checkpoint serialization is
+unchanged; captures are recovered from the retained operation log. Until verified
+checkpoint-base replay exists, any closed capture also holds closed-history
+encryption epochs, including captures created before their first relation.
+
 The first catalog stores a versioned binding list and commits each newly discovered
 path separately. Before making it a default for large trees, measure initial
 registration and unchanged scans with representative directory sizes; consider
@@ -602,6 +636,32 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-08 signed file-revision bridge: `KnotFileRevisionV1` and catalog-only
+  `DirectorySource::capture_file_revision` prepare bounded disk observations.
+  The signed `CaptureFileRevision` event stores those exact bytes separately
+  from current vault documents. Both local relation authoring and replay may
+  validate endpoints against these retained captures; exact `file_revision`
+  reads remain separate from the publication-facing `document_version` API.
+  Later captures preserve older operation identities and passage references.
+  Structurally invalid captures are refused locally and excluded from replay's
+  verified source map. A capture triggers conservative closed-history epoch
+  retention even before an assertion references it. This slice adds no desktop
+  capture action, automatic replication, passage re-anchoring, or graph view.
+  Validation: `cargo test -p knot-editor --lib --test file_relations --test
+  authored_relations --test file_catalog --offline --locked -j 2` passed
+  **104 library tests and 7 integration tests**. The existing Windows
+  symlink-privilege case remains ignored. The public API receipt prepares disk
+  bytes, changes the file, signs the prepared observation, authors UTF-8 passage
+  relations, captures the newer contents, and reopens the signed store with the
+  historical relation intact. Current vault documents and publication-version
+  reads remain isolated. Other new tests cover size bounds, arbitrary source
+  bytes, invalid captures/quotes, writer admission, and capture-only epoch holds.
+  Existing authored-relation and legacy-checkpoint receipts pass. Validation
+  used Windows, Rust 1.97.1, and `RUST_TEST_THREADS=1`; Mere remains at
+  `2b1ce46e5a15328b4bf4d350ec4b0252d9b404a1`, Genet at
+  `9e8f9dc2f3ddc0af1658580bb51964462a03923f`. Formatting, diff checks, and local
+  documentation links pass. No headed UI receipt or dependency pin change.
 
 - 2026-09-08 desktop catalog adoption: extracted the existing V1 catalog and
   tests into `knot-file-catalog`, preserving the `knot-editor` public reexports.

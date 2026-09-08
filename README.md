@@ -77,8 +77,18 @@ Hosts can opt into durable ordinary-file identities with `KnotFileCatalog` and
 the scanned root. Registered paths retain their ids across saves and restart;
 copies get distinct ids, and moved files require explicit rebind before their
 new paths are registered. The default desktop and directory discovery do not
-automatically create catalogs. Catalog ids do not yet bridge disk files into the
-vault relation log.
+automatically create catalogs.
+
+For file relations, `DirectorySource::capture_file_revision(id, max_bytes)`
+prepares a bounded snapshot of disk bytes under a catalog ID. A host can then
+explicitly sign and seal `KnotSyncEvent::CaptureFileRevision` in an admitted space
+and use its operation hash in a relation endpoint. Captures stay outside editable
+vault documents and publication reads; `KnotSyncStore::file_revision` reads an
+exact retained capture. Later disk edits leave earlier relation targets intact.
+Preparation excludes unsaved editor changes and does not replicate anything.
+The host must authorize storage and disclosure of captured bytes separately.
+Desktop capture/link controls remain open; older replicas need upgrading before
+reading spaces containing the new capture event.
 
 The desktop can explicitly enable a catalog at launch:
 

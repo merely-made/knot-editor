@@ -20,8 +20,9 @@ pub struct KnotRelationPositionV1 {
 
 /// One document endpoint captured by an authored relation assertion.
 ///
-/// `document_head` is the hash of an immutable, signed document-producing
-/// operation observed by the assertion. It never names a derived merge head.
+/// `document_head` is the hash of an immutable, signed document-producing or
+/// file-capture operation observed by the assertion. It never names a derived
+/// merge head or an uncaptured reading of current disk bytes.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, Zeroize)]
 pub struct KnotRelationEndpointV1 {
     pub document_id: String,

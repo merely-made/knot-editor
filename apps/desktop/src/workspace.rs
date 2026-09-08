@@ -14,11 +14,13 @@ use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
     KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1, knot_document_view,
 };
-use knot_file_catalog::KnotFileCatalog;
+use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::path::{Path, PathBuf};
 
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
+
+pub const DEFAULT_CAPTURE_MAX_BYTES: usize = 1_048_576;
 
 pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>>;
 pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
@@ -45,6 +47,10 @@ pub struct DesktopState {
     catalog_sync_attempted: bool,
     catalog_id: Option<String>,
     catalog_error: Option<String>,
+    prepared_capture: Option<KnotFileRevisionV1>,
+    prepared_capture_source_path: Option<PathBuf>,
+    prepared_capture_error: Option<String>,
+    capture_limit: usize,
     comparison: Option<KnotDiskComparisonV1>,
     comparison_error: Option<String>,
     outline_visible: bool,
@@ -87,6 +93,10 @@ impl DesktopState {
             catalog_sync_attempted: false,
             catalog_id: None,
             catalog_error: None,
+            prepared_capture: None,
+            prepared_capture_source_path: None,
+            prepared_capture_error: None,
+            capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
             comparison: None,
             comparison_error: None,
             outline_visible: false,
@@ -103,6 +113,77 @@ impl DesktopState {
 
     fn dirty(&self) -> bool {
         self.document.snapshot().dirty
+    }
+
+    /// Set the maximum number of source bytes prepared by the saved revision
+    /// review control. This only affects the next explicit preparation.
+    pub fn set_capture_limit(&mut self, max_bytes: usize) {
+        self.capture_limit = max_bytes;
+    }
+
+    fn clear_prepared_capture(&mut self) {
+        self.prepared_capture = None;
+        self.prepared_capture_source_path = None;
+        self.prepared_capture_error = None;
+    }
+
+    fn prepare_capture(&mut self) {
+        self.clear_prepared_capture();
+        let Some(id) = self.catalog_id.clone() else {
+            self.prepared_capture_error = Some(
+                self.catalog_error
+                    .clone()
+                    .unwrap_or_else(|| "Current document is not catalogued.".to_owned()),
+            );
+            return;
+        };
+        let Some(source_path) = self.document.session().source_path().map(Path::to_path_buf) else {
+            self.prepared_capture_error =
+                Some("Current document has no saved source path.".to_owned());
+            return;
+        };
+        if !source_path.is_file() {
+            self.prepared_capture_error =
+                Some("Current saved source path is unavailable.".to_owned());
+            return;
+        }
+        let Some(catalog) = self.catalog.as_ref() else {
+            return;
+        };
+        match catalog.lookup(&source_path) {
+            Ok(Some(record)) if record.id == id => {},
+            Ok(_) => {
+                self.prepared_capture_error = Some(
+                    "Current source no longer matches its catalog binding. Retry catalog registration."
+                        .to_owned(),
+                );
+                return;
+            },
+            Err(error) => {
+                self.prepared_capture_error = Some(format!("Catalog lookup failed: {error}"));
+                return;
+            },
+        }
+        match catalog.capture_file_revision(&id, self.capture_limit) {
+            Ok(revision) => match std::str::from_utf8(&revision.body) {
+                Ok(_) => {
+                    self.prepared_capture_source_path = Some(source_path);
+                    self.prepared_capture = Some(revision);
+                },
+                Err(_) => {
+                    self.prepared_capture_error = Some(
+                        "Saved revision is not valid UTF-8; source text is unavailable.".to_owned(),
+                    );
+                },
+            },
+            Err(error) => {
+                self.prepared_capture_error = Some(format!("Preparation failed: {error}"))
+            },
+        }
+    }
+
+    fn discard_prepared_capture(&mut self) {
+        self.clear_prepared_capture();
     }
 
     fn path_value(&self) -> Result<PathBuf, String> {
@@ -234,6 +315,7 @@ impl DesktopState {
                 ));
                 self.path = TextInput::default();
                 self.clear_comparison();
+                self.clear_prepared_capture();
                 self.clear_outline();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
@@ -244,6 +326,7 @@ impl DesktopState {
                     self.path = TextInput::new(path.to_string_lossy().into_owned());
                     self.document = KnotDocumentSurfaceState::new(session);
                     self.clear_comparison();
+                    self.clear_prepared_capture();
                     self.clear_outline();
                     self.sync_outline_snapshot();
                     self.sync_catalog();
@@ -254,6 +337,7 @@ impl DesktopState {
             PendingAction::Reload => match self.document.apply(KnotDocumentIntentV1::Reload) {
                 Ok(_) => {
                     self.clear_comparison();
+                    self.clear_prepared_capture();
                     self.clear_outline();
                     self.sync_outline_snapshot();
                     self.sync_catalog();
@@ -299,6 +383,7 @@ impl DesktopState {
         {
             Ok(_) => {
                 self.clear_comparison();
+                self.clear_prepared_capture();
                 self.clear_outline();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
@@ -570,6 +655,106 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", ()))
     };
+    let review_panel: DesktopView = if state.catalog.is_none() {
+        Box::new(el("div", ()))
+    } else if let Some(error) = &state.prepared_capture_error {
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Saved revision review"),
+                            span(format!("Limit: {} bytes", state.capture_limit)),
+                        ),
+                    )
+                    .attr("class", "knot-review-header"),
+                    span(format!("Review unavailable: {error}")).attr("class", "knot-review-error"),
+                    state.catalog_id.as_ref().map(|_| {
+                        button("Refresh saved revision", |state: &mut DesktopState, _| {
+                            state.prepare_capture()
+                        })
+                    }),
+                    button("Discard saved revision", |state: &mut DesktopState, _| {
+                        state.discard_prepared_capture()
+                    }),
+                ),
+            )
+            .attr("class", "knot-review knot-review-error-panel")
+            .attr("role", "region")
+            .attr("aria-label", "Saved revision review error"),
+        )
+    } else if let Some(revision) = &state.prepared_capture {
+        let source_path = state.prepared_capture_source_path.as_ref().map_or_else(
+            || "(source path unavailable)".to_owned(),
+            |path| path.display().to_string(),
+        );
+        let current = state.document.snapshot();
+        let differs = current.text.as_bytes() != revision.body.as_slice();
+        let status = if differs {
+            "Editor differs from prepared revision; refresh to read disk again"
+        } else {
+            "Prepared snapshot; refresh to read disk again"
+        };
+        let body = String::from_utf8(revision.body.clone()).expect("validated review body");
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Saved revision review"),
+                            span(format!("Limit: {} bytes", state.capture_limit)),
+                        ),
+                    )
+                    .attr("class", "knot-review-header"),
+                    span(format!("Document ID: {}", revision.document_id)),
+                    span(format!("Title: {}", revision.title)),
+                    span(format!("Media type: {}", revision.media_type)),
+                    span(format!("Source path: {source_path}")),
+                    span(format!("Prepared bytes: {}", revision.body.len())),
+                    span("Unsaved changes are excluded."),
+                    span("Prepared only; not stored or shared."),
+                    span(status).attr("class", "knot-review-status"),
+                    button("Refresh saved revision", |state: &mut DesktopState, _| {
+                        state.prepare_capture()
+                    }),
+                    button("Discard saved revision", |state: &mut DesktopState, _| {
+                        state.discard_prepared_capture()
+                    }),
+                    el("pre", body).attr("class", "knot-review-source"),
+                ),
+            )
+            .attr("class", "knot-review")
+            .attr("role", "region")
+            .attr("aria-label", "Saved revision review"),
+        )
+    } else if let Some(id) = &state.catalog_id {
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Saved revision review"),
+                            span(format!("Limit: {} bytes", state.capture_limit)),
+                        ),
+                    )
+                    .attr("class", "knot-review-header"),
+                    button("Review saved revision", |state: &mut DesktopState, _| {
+                        state.prepare_capture()
+                    }),
+                ),
+            )
+            .attr("class", "knot-review")
+            .attr("aria-label", format!("Saved revision review for {id}")),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
     let document: DesktopView = Box::new(lens(
         |state: &mut KnotDocumentSurfaceState| knot_document_view(state),
         |state: &mut DesktopState| &mut state.document,
@@ -679,6 +864,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .attr("class", "knot-workspace-toolbar"),
                 message,
                 catalog_status,
+                review_panel,
                 el("div", (document, outline_panel)).attr("class", "knot-writing-area"),
                 comparison_panel,
                 prompt,
@@ -830,6 +1016,10 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace-message { min-height:1.4em; }",
     ".knot-catalog-status { min-height:1.4em; overflow-wrap:anywhere; }",
     ".knot-catalog-error { color:crimson; display:flex; align-items:center; gap:8px; }",
+    ".knot-review { max-height:420px; overflow:auto; padding:12px; border:1px solid; display:flex; flex-direction:column; gap:6px; }",
+    ".knot-review-header { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; }",
+    ".knot-review-error { color:crimson; }",
+    ".knot-review-source { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
@@ -1598,5 +1788,157 @@ mod tests {
         assert!(host.state().catalog_id.is_some());
         assert!(host.state().catalog_error.is_none());
         assert_eq!(host.state().document.snapshot(), before);
+    }
+
+    type ReviewHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
+
+    fn review_fixture(source: &str) -> (tempfile::TempDir, PathBuf, ReviewHarness) {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("notes");
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("review.djot");
+        std::fs::write(&path, source).unwrap();
+        let catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
+        host.layout_at(1000.0, 800.0);
+        (temp, path, host)
+    }
+
+    fn review_text(host: &ReviewHarness) -> String {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let panel = class_node(&dom, dom.document(), "knot-review").expect("review panel");
+        text_content(&dom, panel)
+    }
+
+    #[test]
+    fn saved_revision_review_excludes_dirty_edits_and_survives_inner_save_until_refresh() {
+        let source = "<script>saved α</script>\n";
+        let (_temp, path, mut host) = review_fixture(source);
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("UNSAVED");
+            state.path = TextInput::new("unrelated future target");
+        });
+        let before = host.state().document.snapshot();
+        assert!(before.dirty);
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        assert_eq!(
+            host.state().prepared_capture.as_ref().unwrap().body,
+            source.as_bytes()
+        );
+        assert_eq!(
+            host.state().prepared_capture_source_path.as_deref(),
+            Some(std::fs::canonicalize(&path).unwrap().as_path())
+        );
+        assert_eq!(host.state().document.snapshot(), before);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+        let rendered = review_text(&host);
+        assert!(rendered.contains(source));
+        assert!(!rendered.contains("UNSAVED"));
+        assert!(rendered.contains("Unsaved changes are excluded"));
+        assert!(rendered.contains("not stored or shared"));
+        host.update(|state| {
+            state.document.apply(KnotDocumentIntentV1::Save).unwrap();
+        });
+        host.after_dispatch();
+        assert_eq!(
+            host.state().prepared_capture.as_ref().unwrap().body,
+            source.as_bytes()
+        );
+        assert!(review_text(&host).contains("Editor differs"));
+        assert!(host.click_on(&Selector::role("button").containing("Refresh saved revision")));
+        assert_eq!(
+            host.state().prepared_capture.as_ref().unwrap().body,
+            std::fs::read(&path).unwrap()
+        );
+        assert!(review_text(&host).contains("UNSAVED"));
+        assert!(host.click_on(&Selector::role("button").containing("Discard saved revision")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().prepared_capture_error.is_none());
+    }
+
+    #[test]
+    fn saved_revision_failed_refresh_replaces_old_bytes_and_preserves_document() {
+        let (_temp, path, mut host) = review_fixture("old reading");
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        let before = host.state().document.snapshot();
+        for bytes in [vec![0xff, 0xfe], b"larger than the cap".to_vec()] {
+            std::fs::write(&path, &bytes).unwrap();
+            host.update(|state| state.set_capture_limit(4));
+            assert!(host.click_on(&Selector::role("button").containing("Refresh saved revision")));
+            assert!(host.state().prepared_capture.is_none());
+            assert!(host.state().prepared_capture_source_path.is_none());
+            assert!(host.state().prepared_capture_error.is_some());
+            assert!(!review_text(&host).contains("old reading"));
+            assert_eq!(host.state().document.snapshot(), before);
+            assert_eq!(std::fs::read(&path).unwrap(), bytes);
+        }
+        std::fs::remove_file(&path).unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Refresh saved revision")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(
+            host.state()
+                .prepared_capture_error
+                .as_deref()
+                .unwrap()
+                .contains("unavailable")
+        );
+        assert_eq!(host.state().document.snapshot(), before);
+    }
+
+    #[test]
+    fn saved_revision_clears_only_after_successful_source_transitions() {
+        let (_temp, path, mut host) = review_fixture("saved");
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        let saved_as = path.with_file_name("copy.djot");
+        host.update(|state| state.path = TextInput::new(saved_as.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        host.update(|state| {
+            state.path = TextInput::new(path.with_file_name("absent.djot").to_string_lossy())
+        });
+        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        assert!(host.state().prepared_capture.is_some());
+        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        assert!(host.click_on(&Selector::role("button").containing("Reload")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(!host.click_on(&Selector::role("button").containing("Review saved revision")));
+    }
+
+    #[test]
+    fn saved_revision_refuses_a_binding_rebound_away_from_the_session_source() {
+        let (_temp, path, mut host) = review_fixture("original");
+        let moved = path.with_file_name("moved.djot");
+        std::fs::rename(&path, &moved).unwrap();
+        host.update(|state| {
+            let id = state.catalog_id.clone().unwrap();
+            state.catalog.as_mut().unwrap().rebind(&id, &moved).unwrap();
+        });
+        std::fs::write(&path, "replacement").unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        assert!(host.state().prepared_capture.is_none());
+        assert!(
+            host.state()
+                .prepared_capture_error
+                .as_deref()
+                .unwrap()
+                .contains("no longer matches")
+        );
+        assert_eq!(host.state().catalog.as_ref().unwrap().records().len(), 1);
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "replacement");
+        assert_eq!(std::fs::read_to_string(&moved).unwrap(), "original");
     }
 }

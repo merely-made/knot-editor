@@ -8,11 +8,13 @@
 
 use std::collections::BTreeSet;
 use std::fs;
+use std::io::{self, Read};
 use std::path::{Component, Path, PathBuf};
 
 use muniment::{Backend, RedbBackend};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use zeroize::Zeroize;
 
 const CATALOG_KEY: &str = "knot/file-catalog/v1";
 const CATALOG_VERSION: u16 = 1;
@@ -23,6 +25,50 @@ const DOCUMENT_ID_PREFIX: &str = "knot:document:";
 pub enum KnotFileCatalogAvailability {
     Available,
     Unavailable,
+}
+
+/// A bounded observation of a catalog-bound ordinary file.
+///
+/// This value is portable capture material. Preparing it never changes the
+/// catalog, its source file, or another caller's index state.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
+pub struct KnotFileRevisionV1 {
+    /// Stable document identity from the caller's file catalog.
+    pub document_id: String,
+    /// Deterministic title derived from the bound file's name.
+    pub title: String,
+    /// Deterministic media type derived from the bound file's extension.
+    pub media_type: String,
+    /// Captured source bytes.
+    pub body: Vec<u8>,
+}
+
+impl KnotFileRevisionV1 {
+    /// Validate fields accepted by the signed capture event format.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.document_id.trim().is_empty() {
+            return Err("file revision document id must not be empty".into());
+        }
+        if self.document_id != self.document_id.trim() {
+            return Err("file revision document id must not have surrounding whitespace".into());
+        }
+        if self.document_id.contains('\0') {
+            return Err("file revision document id must not contain NUL".into());
+        }
+        if self.title.contains('\0') {
+            return Err("file revision title must not contain NUL".into());
+        }
+        if self.media_type.trim().is_empty() {
+            return Err("file revision media type must not be empty".into());
+        }
+        if self.media_type != self.media_type.trim() {
+            return Err("file revision media type must not have surrounding whitespace".into());
+        }
+        if self.media_type.contains('\0') {
+            return Err("file revision media type must not contain NUL".into());
+        }
+        Ok(())
+    }
 }
 
 /// One durable ordinary-file binding retained by a [`KnotFileCatalog`].
@@ -203,6 +249,51 @@ impl KnotFileCatalog {
             .collect()
     }
 
+    /// Capture one available, exact canonical binding into a bounded revision.
+    ///
+    /// The binding must still resolve directly to its stored canonical path
+    /// below this catalog's root. A redirected symlink, missing path, or
+    /// non-file is rejected; ordinary replacement at the same bound path is
+    /// allowed. The reader consumes at most `max_bytes + 1` bytes and does
+    /// not preallocate from that caller-controlled limit.
+    /// These checks precede the read; they do not exclude concurrent filesystem
+    /// changes between checking the path and opening or reading the file.
+    pub fn capture_file_revision(
+        &self,
+        id: &str,
+        max_bytes: usize,
+    ) -> io::Result<KnotFileRevisionV1> {
+        let binding = self
+            .state
+            .bindings
+            .iter()
+            .find(|binding| binding.id == id)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "file catalog id is unknown"))?;
+        let path = self.root.join(&binding.relative_path);
+        let canonical = fs::canonicalize(&path)?;
+        if canonical != path || !canonical.starts_with(&self.root) {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "file catalog binding is unavailable",
+            ));
+        }
+        if !fs::metadata(&canonical)?.is_file() {
+            return Err(io::Error::new(
+                io::ErrorKind::NotFound,
+                "file catalog binding is not a regular file",
+            ));
+        }
+        let (title, media_type) = file_revision_metadata(&canonical);
+        let revision = KnotFileRevisionV1 {
+            document_id: binding.id.clone(),
+            title,
+            media_type,
+            body: read_file_bounded(&canonical, max_bytes)?,
+        };
+        revision.validate().map_err(io::Error::other)?;
+        Ok(revision)
+    }
+
     fn persist(&mut self, next: StoredCatalog) -> Result<(), String> {
         persist_state(&self.backend, &next)?;
         self.state = next;
@@ -275,6 +366,66 @@ impl KnotFileCatalog {
             Ok(metadata) if metadata.is_file() => KnotFileCatalogAvailability::Available,
             _ => KnotFileCatalogAvailability::Unavailable,
         }
+    }
+}
+
+/// Read one caller-admitted file without allocating from the requested maximum.
+///
+/// This helper does not check catalog membership, root containment, or file
+/// type. The returned bytes have length at most `max_bytes`; an additional byte
+/// is read solely to distinguish an exact limit from an oversized file.
+pub fn read_file_bounded(path: &Path, max_bytes: usize) -> io::Result<Vec<u8>> {
+    let mut file = fs::File::open(path)?;
+    let mut body = Vec::new();
+    let mut chunk = [0_u8; 8192];
+    loop {
+        if body.len() == max_bytes {
+            if file.read(&mut chunk[..1])? != 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::FileTooLarge,
+                    "file exceeds the capture byte limit",
+                ));
+            }
+            return Ok(body);
+        }
+        let remaining = max_bytes - body.len();
+        let read_limit = remaining.min(chunk.len());
+        let read = file.read(&mut chunk[..read_limit])?;
+        if read == 0 {
+            return Ok(body);
+        }
+        body.extend_from_slice(&chunk[..read]);
+    }
+}
+
+/// Title and media type used by catalog captures and directory discovery.
+pub fn file_revision_metadata(path: &Path) -> (String, String) {
+    let title = path
+        .file_stem()
+        .or_else(|| path.file_name())
+        .and_then(|name| name.to_str())
+        .unwrap_or("Untitled")
+        .to_string();
+    let media_type = path
+        .extension()
+        .and_then(|extension| extension.to_str())
+        .map(str::to_ascii_lowercase)
+        .as_deref()
+        .map(media_type_for_extension)
+        .unwrap_or("application/octet-stream")
+        .to_string();
+    (title, media_type)
+}
+
+/// Media type used for a lowercase filename extension.
+pub fn media_type_for_extension(extension: &str) -> &'static str {
+    match extension {
+        "knot" => "text/vnd.knot",
+        "djot" => "text/djot",
+        "md" | "markdown" => "text/markdown",
+        "txt" => "text/plain",
+        "json" => "application/json",
+        _ => "application/octet-stream",
     }
 }
 
@@ -489,6 +640,89 @@ mod tests {
         let catalog = KnotFileCatalog::open(&root, &catalog_path).unwrap();
         assert_eq!(catalog.lookup(&path).unwrap().unwrap().id, id);
         assert_eq!(fs::read(path).unwrap(), original);
+    }
+
+    #[test]
+    fn capture_uses_only_a_registered_available_binding_without_mutating_catalog() {
+        let (_temp, root, catalog_path) = setup();
+        let path = root.join("note.txt");
+        fs::write(&path, [0, 159, 255]).unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, &catalog_path).unwrap();
+        let id = catalog.bind(&path).unwrap();
+        let records = catalog.records();
+
+        let revision = catalog.capture_file_revision(&id, 3).unwrap();
+        assert_eq!(revision.document_id, id);
+        assert_eq!(revision.title, "note");
+        assert_eq!(revision.media_type, "text/plain");
+        assert_eq!(revision.body, [0, 159, 255]);
+        assert_eq!(catalog.records(), records);
+        assert_eq!(fs::read(&path).unwrap(), [0, 159, 255]);
+        assert_eq!(
+            catalog
+                .capture_file_revision("knot:document:missing", 3)
+                .unwrap_err()
+                .kind(),
+            io::ErrorKind::NotFound
+        );
+    }
+
+    #[test]
+    fn capture_enforces_byte_bounds_without_a_limit_sized_allocation() {
+        let (_temp, root, catalog_path) = setup();
+        let path = root.join("note.txt");
+        fs::write(&path, b"abc").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, &catalog_path).unwrap();
+        let id = catalog.bind(&path).unwrap();
+        assert_eq!(
+            catalog.capture_file_revision(&id, 2).unwrap_err().kind(),
+            io::ErrorKind::FileTooLarge
+        );
+        assert_eq!(
+            catalog.capture_file_revision(&id, 0).unwrap_err().kind(),
+            io::ErrorKind::FileTooLarge
+        );
+        fs::write(&path, []).unwrap();
+        assert!(
+            catalog
+                .capture_file_revision(&id, 0)
+                .unwrap()
+                .body
+                .is_empty()
+        );
+        fs::write(&path, b"small").unwrap();
+        assert_eq!(
+            catalog.capture_file_revision(&id, usize::MAX).unwrap().body,
+            b"small"
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn capture_accepts_canonical_aliases_but_refuses_a_replaced_symlink_binding() {
+        use std::os::unix::fs::symlink;
+
+        let (_temp, root, catalog_path) = setup();
+        let path = root.join("note.txt");
+        let alias = root.join("alias.txt");
+        let outside = root.parent().unwrap().join("outside.txt");
+        fs::write(&path, b"bound").unwrap();
+        symlink("note.txt", &alias).unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, &catalog_path).unwrap();
+        let id = catalog.bind(&alias).unwrap();
+        assert_eq!(catalog.bind(&path).unwrap(), id);
+        assert_eq!(
+            catalog.capture_file_revision(&id, 16).unwrap().body,
+            b"bound"
+        );
+
+        fs::remove_file(&path).unwrap();
+        fs::write(&outside, b"outside").unwrap();
+        symlink(&outside, &path).unwrap();
+        assert_eq!(
+            catalog.capture_file_revision(&id, 16).unwrap_err().kind(),
+            io::ErrorKind::NotFound
+        );
     }
 
     #[test]

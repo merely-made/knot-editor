@@ -13,6 +13,7 @@ use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
 use chartulary::{CLASS_FACET, Container, FacetId, FacetStore};
+use knot_file_catalog::media_type_for_extension;
 use serde_json::json;
 
 use crate::{
@@ -501,17 +502,6 @@ impl DirectorySource {
 
 fn is_note_extension(extension: &str) -> bool {
     matches!(extension, "knot" | "djot" | "md" | "markdown" | "txt")
-}
-
-fn media_type_for_extension(extension: &str) -> &'static str {
-    match extension {
-        "knot" => "text/vnd.knot",
-        "djot" => "text/djot",
-        "md" | "markdown" => "text/markdown",
-        "txt" => "text/plain",
-        "json" => "application/json",
-        _ => "application/octet-stream",
-    }
 }
 
 fn file_address(path: &Path) -> String {

@@ -45,6 +45,15 @@ const KNOT_CAUSAL_LIMITS: CausalLimits = CausalLimits {
     max_payload_bytes: 16 * 1024 * 1024,
 };
 
+fn file_revision_as_vault_document(revision: &KnotFileRevisionV1) -> VaultDocument {
+    VaultDocument {
+        id: revision.document_id.clone(),
+        title: revision.title.clone(),
+        body: revision.body.clone(),
+        media_type: revision.media_type.clone(),
+    }
+}
+
 /// Communal Knot uses the same retained-data floor as Commons chat.
 pub const KNOT_COMMONS_ENCRYPTION_PROFILE: GroupEncryptionProfile =
     GroupEncryptionProfile::durable_data(8);
@@ -1520,7 +1529,7 @@ fn fold_relations(
             },
             KnotSyncEvent::CaptureFileRevision(revision) => {
                 if revision.validate().is_ok() {
-                    documents.insert(operation_id, revision.as_vault_document());
+                    documents.insert(operation_id, file_revision_as_vault_document(&revision));
                 }
             },
             KnotSyncEvent::AssertRelation {
@@ -1716,7 +1725,7 @@ fn document_versions(
             },
             KnotSyncEvent::CaptureFileRevision(revision) => {
                 if revision.validate().is_ok() {
-                    documents.insert(operation_id, revision.as_vault_document());
+                    documents.insert(operation_id, file_revision_as_vault_document(&revision));
                 }
             },
             _ => {},

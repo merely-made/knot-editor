@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, G1 relation/file catalog models, opt-in desktop catalog adoption, and the signed file-revision bridge implemented, 2026-09-08; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, G1 relation/file catalog models, desktop catalog and saved-revision review, and the signed file-revision bridge implemented, 2026-09-08; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -441,6 +441,33 @@ unchanged; captures are recovered from the retained operation log. Until verifie
 checkpoint-base replay exists, any closed capture also holds closed-history
 encryption epochs, including captures created before their first relation.
 
+**Desktop review and storage authority, 2026-09-08:** the first desktop capture
+control prepares and displays a saved-file revision in memory. It shows the
+catalog ID, observed path, media type, exact source text, byte count, and configured
+read limit. Dirty editor changes are explicitly excluded; editing and ordinary
+Save leave this historical observation intact until Refresh. New, Open, Reload,
+and Save As clear it after a successful transition. A failed refresh replaces the
+old reading with an error. Discard releases the prepared reading. Non-UTF-8 bytes
+remain valid library captures, but this source-text panel refuses them rather
+than displaying a lossy substitute for review.
+
+The shared capture type and bounded reader belong in `knot-file-catalog`, so the
+desktop keeps its narrow dependency graph and `knot-editor` preserves its public
+capture API through a reexport/adapter. Reviewing is neither a signed event nor
+permission to store or share the bytes. The desktop exposes no retention action
+until a destination authority can be selected explicitly.
+
+The next storage gate is a dedicated non-migrating adapter to a resident-owned
+persona authority. It must expose the selected persona/space and writer, admit
+exact prepared bytes, report the resulting signed operation ID, and handle lock,
+ownership, and failed-write states without repeating a successful operation.
+`StartupUnlockedPersonalVault::open` currently migrates unsynced vault documents,
+and `local_device_root` may create a device identity; neither is a neutral
+implementation of a desktop destination picker. Establish that adapter before
+adding Retain and relation-authoring controls. It must preserve the existing
+default document feature set and avoid opening a second writer for an active
+resident. Replication remains a separately selected authority.
+
 The first catalog stores a versioned binding list and commits each newly discovered
 path separately. Before making it a default for large trees, measure initial
 registration and unchanged scans with representative directory sizes; consider
@@ -636,6 +663,44 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-08 desktop saved-revision review: added an explicit Review/Refresh/
+  Discard surface for catalogued files with source text, path, ID, media type,
+  byte count, and a configurable capture limit (default 1,048,576 bytes;
+  `--capture-max-bytes` requires the paired catalog options). The review reads
+  saved disk bytes and labels unsaved changes as excluded. It survives ordinary
+  Save as a historical reading; successful source transitions clear it. Failed
+  refresh removes the old payload, and non-UTF-8 text is refused by this panel.
+  A source-path/catalog-ID agreement check refuses a rebound-away binding.
+  The capture type and bounded reader moved to `knot-file-catalog`; the editor's
+  public API and signed event shape are preserved. Capture validation remains
+  separate from destination/storage authorization. No persona is unlocked and
+  no source bytes are persisted by this surface.
+  `cargo test -p knot-file-catalog -p knot-desktop --offline --locked -j 2`
+  passed **29 desktop tests and 8 catalog tests**; the existing diagnostic
+  outline probe remains ignored. New harness receipts cover dirty-buffer
+  exclusion, literal source display, historical inner Save, explicit refresh,
+  missing/non-UTF-8/over-limit refresh failures, successful-only transition
+  clearing, and a rebind mismatch. A Unix-only symlink capture case is present
+  but was not run on Windows. `cargo tree -p knot-desktop --offline --locked
+  -e features -i knot-document` confirms default document features only.
+  These are automated receipts; headed review usability and rendering at the
+  maximum configured byte limit remain unmeasured. Probe cleanup stays deferred.
+  Editor compatibility: the initial `cargo test -p knot-editor --lib --test
+  file_relations --test authored_relations --test file_catalog --offline --locked
+  -j 2` run passed 103 of 104 library tests and stopped on the existing
+  publishing loopback's `ConnectionLost(TimedOut)` server outcome. The isolated
+  `cargo test -p knot-editor --lib
+  publish_host::tests::p2panda_loopback_uses_the_real_noise_and_notochord_path
+  --offline --locked -j 2 -- --exact --nocapture` retry passed. Running the same
+  three integration targets separately passed all 7 tests, including historical
+  file relations and legacy checkpoint decoding; the existing Windows symlink
+  privilege case remains ignored. This records 148 distinct passing tests across
+  the focused runs, with the initial network timeout retained as a test
+  reliability follow-up. Windows/Rust 1.97.1 and `RUST_TEST_THREADS=1` were used;
+  Mere remains `2b1ce46e5a15328b4bf4d350ec4b0252d9b404a1`, Genet remains
+  `9e8f9dc2f3ddc0af1658580bb51964462a03923f`. The lockfile adds only the catalog's
+  `zeroize` dependency. Formatting, diff checks, and documentation links pass.
 
 - 2026-09-08 signed file-revision bridge: `KnotFileRevisionV1` and catalog-only
   `DirectorySource::capture_file_revision` prepare bounded disk observations.

@@ -87,7 +87,7 @@ vault documents and publication reads; `KnotSyncStore::file_revision` reads an
 exact retained capture. Later disk edits leave earlier relation targets intact.
 Preparation excludes unsaved editor changes and does not replicate anything.
 The host must authorize storage and disclosure of captured bytes separately.
-Desktop capture/link controls remain open; older replicas need upgrading before
+Desktop signing/link controls remain open; older replicas need upgrading before
 reading spaces containing the new capture event.
 
 The desktop can explicitly enable a catalog at launch:
@@ -104,6 +104,19 @@ the catalog root can still be edited and saved; catalog status does not grant or
 remove file-write authority. A catalog failure never undoes a successful save.
 Use the displayed retry action for catalog errors. Directory navigation, catalog
 configuration within the window, and rename/rebind controls remain future work.
+
+With a catalog enabled, **Review saved revision** prepares the current file's
+saved bytes for inspection. The panel shows the document ID, path, media type,
+size, and source text. Unsaved editor changes are excluded. The reading stays
+historical through editing and ordinary Save; **Refresh saved revision** reads
+disk again, and **Discard saved revision** clears it. Successful New, Open,
+Reload, or Save As also clears the reading. Read failures replace the old
+reading with an error; non-UTF-8 files are refused by this text-review panel.
+
+The default capture limit is 1,048,576 bytes. Add `--capture-max-bytes N` alongside
+the catalog options to choose another limit, including zero for empty files
+only. Review keeps bytes in memory and does not sign, persist, or share them.
+An explicit persona/space storage adapter is the next gate for retention controls.
 
 The source history was extracted from Mere with path-preserving Git history.
 The earlier plans and receipts remain under [`design_docs`](design_docs) and

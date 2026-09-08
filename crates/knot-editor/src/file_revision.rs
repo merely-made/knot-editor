@@ -6,67 +6,11 @@
 
 //! Bounded preparation of immutable files-in-place capture revisions.
 
-use std::fs::File;
-use std::io::{self, Read};
+use std::io;
 
-use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
+use knot_file_catalog::read_file_bounded;
 
-use crate::{DirectorySource, VaultDocument};
-
-/// File bytes captured from an indexed directory document.
-///
-/// This is a prepared value for a signed `CaptureFileRevision` event. Once
-/// included in that event it represents the captured contents, rather than
-/// the current contents of a vault document. Preparing one never changes the
-/// directory, catalog, or editor state.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
-pub struct KnotFileRevisionV1 {
-    /// Stable document identity from the caller's file catalog.
-    pub document_id: String,
-    /// Title from the indexed file container.
-    pub title: String,
-    /// Media type from the indexed file container.
-    pub media_type: String,
-    /// Captured source bytes.
-    pub body: Vec<u8>,
-}
-
-impl KnotFileRevisionV1 {
-    pub(crate) fn validate(&self) -> Result<(), String> {
-        if self.document_id.trim().is_empty() {
-            return Err("file revision document id must not be empty".into());
-        }
-        if self.document_id != self.document_id.trim() {
-            return Err("file revision document id must not have surrounding whitespace".into());
-        }
-        if self.document_id.contains('\0') {
-            return Err("file revision document id must not contain NUL".into());
-        }
-        if self.title.contains('\0') {
-            return Err("file revision title must not contain NUL".into());
-        }
-        if self.media_type.trim().is_empty() {
-            return Err("file revision media type must not be empty".into());
-        }
-        if self.media_type != self.media_type.trim() {
-            return Err("file revision media type must not have surrounding whitespace".into());
-        }
-        if self.media_type.contains('\0') {
-            return Err("file revision media type must not contain NUL".into());
-        }
-        Ok(())
-    }
-
-    pub(crate) fn as_vault_document(&self) -> VaultDocument {
-        VaultDocument {
-            id: self.document_id.clone(),
-            title: self.title.clone(),
-            body: self.body.clone(),
-            media_type: self.media_type.clone(),
-        }
-    }
-}
+use crate::{DirectorySource, KnotFileRevisionV1};
 
 impl DirectorySource {
     /// Capture an indexed catalog file into a bounded in-memory revision.
@@ -92,32 +36,8 @@ impl DirectorySource {
             .document(document_id)
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "document is not indexed"))?;
         let path = self.readable_document_path(document_id)?;
-        let mut file = File::open(path)?;
-        let mut body = Vec::new();
-        let mut chunk = [0_u8; 8192];
-
-        loop {
-            if body.len() == max_bytes {
-                let read = file.read(&mut chunk[..1])?;
-                if read != 0 {
-                    return Err(io::Error::new(
-                        io::ErrorKind::FileTooLarge,
-                        "file exceeds the capture byte limit",
-                    ));
-                }
-                break;
-            }
-
-            let remaining = max_bytes - body.len();
-            let read_limit = remaining.min(chunk.len());
-            let read = file.read(&mut chunk[..read_limit])?;
-            if read == 0 {
-                break;
-            }
-            body.extend_from_slice(&chunk[..read]);
-        }
-
-        let revision = KnotFileRevisionV1 {
+        let body = read_file_bounded(&path, max_bytes)?;
+        let revision = knot_file_catalog::KnotFileRevisionV1 {
             document_id: document.id.clone(),
             title: document.container.title.clone(),
             media_type: document

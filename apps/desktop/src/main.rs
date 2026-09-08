@@ -12,7 +12,7 @@ use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use knot_file_catalog::KnotFileCatalog;
 use std::ffi::OsString;
 use std::path::PathBuf;
-use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
+use workspace::{DEFAULT_CAPTURE_MAX_BYTES, DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 #[derive(Debug, PartialEq, Eq)]
 enum DocumentSelection {
@@ -28,6 +28,7 @@ struct CatalogOptions {
 struct LaunchOptions {
     document: DocumentSelection,
     catalog: Option<CatalogOptions>,
+    capture_max_bytes: usize,
 }
 fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOptions, String> {
     let mut args = args.into_iter();
@@ -35,10 +36,29 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
     let mut path = None;
     let mut root = None;
     let mut catalog_path = None;
+    let mut capture_max_bytes = None;
     let mut positional_only = false;
     while let Some(arg) = args.next() {
         if !positional_only && arg == "--" {
             positional_only = true;
+        } else if !positional_only && arg == "--capture-max-bytes" {
+            if capture_max_bytes.is_some() {
+                return Err("--capture-max-bytes was supplied more than once".into());
+            }
+            let value = args
+                .next()
+                .ok_or("--capture-max-bytes requires a byte count")?;
+            let value = value
+                .to_str()
+                .filter(|value| {
+                    !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
+                })
+                .ok_or("--capture-max-bytes requires a non-negative integer byte count")?;
+            capture_max_bytes = Some(
+                value
+                    .parse::<usize>()
+                    .map_err(|_| "--capture-max-bytes exceeds the supported byte count")?,
+            );
         } else if !positional_only && (arg == "--catalog-root" || arg == "--catalog") {
             let slot = if arg == "--catalog-root" {
                 &mut root
@@ -57,6 +77,7 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
             if value.is_empty()
                 || value == "--catalog-root"
                 || value == "--catalog"
+                || value == "--capture-max-bytes"
                 || value == "--"
             {
                 return Err(format!("{} requires a path", arg.to_string_lossy()));
@@ -76,11 +97,15 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
         (Some(root), Some(path)) => Some(CatalogOptions { root, path }),
         _ => return Err("--catalog-root and --catalog must be supplied together".into()),
     };
+    if capture_max_bytes.is_some() && catalog.is_none() {
+        return Err("--capture-max-bytes requires --catalog-root and --catalog".into());
+    }
     Ok(LaunchOptions {
         document: path
             .map(DocumentSelection::File)
             .unwrap_or(DocumentSelection::Scratch),
         catalog,
+        capture_max_bytes: capture_max_bytes.unwrap_or(DEFAULT_CAPTURE_MAX_BYTES),
     })
 }
 fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, String> {
@@ -101,6 +126,7 @@ fn run_standalone(
     session: KnotDocumentSession,
     initial_path: Option<PathBuf>,
     catalog: Option<KnotFileCatalog>,
+    capture_max_bytes: usize,
 ) -> Result<(), String> {
     run(
         HostOptions {
@@ -108,10 +134,15 @@ fn run_standalone(
             initial_logical_size: (1100.0, 700.0),
             ..HostOptions::default()
         },
-        move |_, commands, _| Init {
-            state: DesktopState::with_catalog(session, commands.clone(), initial_path, catalog),
-            logic: desktop_view as fn(&DesktopState) -> DesktopView,
-            sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
+        move |_, commands, _| {
+            let mut state =
+                DesktopState::with_catalog(session, commands.clone(), initial_path, catalog);
+            state.set_capture_limit(capture_max_bytes);
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
+            }
         },
         host_hooks(),
     )
@@ -138,7 +169,7 @@ fn main() {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
-    if let Err(error) = run_standalone(session, initial_path, catalog) {
+    if let Err(error) = run_standalone(session, initial_path, catalog, options.capture_max_bytes) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);
     }
@@ -159,6 +190,7 @@ mod tests {
             LaunchOptions {
                 document: DocumentSelection::Scratch,
                 catalog: None,
+                capture_max_bytes: DEFAULT_CAPTURE_MAX_BYTES,
             }
         );
         assert_eq!(
@@ -205,6 +237,52 @@ mod tests {
         ] {
             assert!(launch(&args).is_err(), "unexpectedly accepted {args:?}");
         }
+    }
+    #[test]
+    fn capture_byte_limit_is_explicit_bounded_and_requires_a_catalog() {
+        let base = [
+            "knot",
+            "--catalog-root",
+            "notes",
+            "--catalog",
+            "metadata/catalog.redb",
+        ];
+        assert_eq!(
+            launch(&base).unwrap().capture_max_bytes,
+            DEFAULT_CAPTURE_MAX_BYTES
+        );
+        for (value, expected) in [("0", 0), ("4096", 4096)] {
+            let args = base
+                .into_iter()
+                .chain(["--capture-max-bytes", value])
+                .collect::<Vec<_>>();
+            assert_eq!(launch(&args).unwrap().capture_max_bytes, expected);
+        }
+        for value in ["", "-1", "+1", "1.5", " 10", "184467440737095516160"] {
+            let args = base
+                .into_iter()
+                .chain(["--capture-max-bytes", value])
+                .collect::<Vec<_>>();
+            assert!(launch(&args).is_err(), "accepted invalid count {value:?}");
+        }
+        let repeated = base
+            .into_iter()
+            .chain(["--capture-max-bytes", "1", "--capture-max-bytes", "2"])
+            .collect::<Vec<_>>();
+        assert!(launch(&repeated).is_err());
+        let missing = base
+            .into_iter()
+            .chain(["--capture-max-bytes"])
+            .collect::<Vec<_>>();
+        assert!(launch(&missing).is_err());
+        assert!(launch(&["knot", "--capture-max-bytes", "1"]).is_err());
+        assert!(launch(&["knot", "--catalog", "--capture-max-bytes", "1"]).is_err());
+        assert_eq!(
+            launch(&["knot", "--", "--capture-max-bytes"])
+                .unwrap()
+                .document,
+            DocumentSelection::File(PathBuf::from("--capture-max-bytes"))
+        );
     }
     #[test]
     fn app_authored_open_edit_save_close_reopen_receipt() {

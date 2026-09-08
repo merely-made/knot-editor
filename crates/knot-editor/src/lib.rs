@@ -49,7 +49,6 @@ pub use endpoint::{
     KnotEffectAuthority, KnotEffectFetcher, KnotEffectMode, KnotEffectPolicy, KnotEndpoint,
     KnotResidentSource, KnotRosetteConfig, KnotWriteGrant,
 };
-pub use file_revision::KnotFileRevisionV1;
 pub use knot_document::{
     EditOutcome, KNOT_DOCUMENT_CSS, KnotDiskComparisonV1, KnotDocumentIntentErrorV1,
     KnotDocumentIntentV1, KnotDocumentRefusalV1, KnotDocumentSaveFailureV1,
@@ -58,6 +57,7 @@ pub use knot_document::{
     KnotDocumentWritePostureV1, KnotEditor, KnotEditorSaveError, KnotOutlineItemV1,
     KnotOutlineSnapshotV1, knot_document_descriptor, knot_document_surface, knot_document_view,
 };
+pub use knot_file_catalog::KnotFileRevisionV1;
 pub use knot_file_catalog::{KnotFileCatalog, KnotFileCatalogAvailability, KnotFileCatalogRecord};
 pub use mark::{
     MARK_ALPN, MARK_DEFAULT_PORT, MARK_MAX_DOCUMENT_BYTES, MARK_MAX_METADATA_BYTES,

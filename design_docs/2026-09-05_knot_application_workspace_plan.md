@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 single-document lifecycle and A2 live outline implemented, 2026-09-06; remaining A1/A2 acceptance and A3-A4/G1-G3 remain open
+**Status:** A1 lifecycle, A2 live outline, and first G1 vault relation model implemented, 2026-09-07; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -341,7 +341,7 @@ not durable identity. After edits, resolve or mark the target stale/ambiguous.
 An external evidence selector continues to name the captured artifact, not the
 authored passage that cites it. Backlinks respect access scope.
 
-**Next model slice, grounded 2026-09-06:** extend the authenticated event and
+**Model seam, grounded 2026-09-06:** extend the authenticated event and
 projection seam in [`sync.rs`](../crates/knot-editor/src/sync.rs) with a distinct
 authored-relation record/event and a relation projection. The existing event
 fold handles document Put/Delete/Resolve by document id; relation changes must
@@ -355,6 +355,34 @@ vault documents. Ordinary file sessions still need a durable identity mapping
 with explicit rename/copy behavior; do not derive this identity from a filename
 or the filesystem identity used by the save guard. Decide where that mapping
 lives before enabling persistent authored relations for files-in-place.
+
+**Vault-first implementation boundary, 2026-09-07:** use existing admitted vault
+ids for the first authored-relation model. Assertion identity comes from the
+signed operation hash; the signed writer and space supply attribution and scope.
+A retraction names one assertion, causally observes it, and belongs to the same
+author. Independent assertions about the same endpoints remain independent.
+Keep rejected relation operations inspectable without allowing them to erase
+valid relations or interrupt the document projection. Retained checkpoint state
+must include relation history, and older document-only checkpoints must remain
+readable without changing their receipt identity merely by reserialization.
+
+The existing checkpoint is a persisted observation, not yet a replay base:
+`projection_with_cipher` decrypts the full retained operation log. Snapshot
+persistence and full-log replay therefore do not prove recovery after old keys
+are forgotten. A separate recovery gate must load a verified checkpoint base,
+apply its retained tail, and prove that document and relation reads work when
+base-operation keys are unavailable. When closed history contains relation events,
+pruning must retain every closed-history epoch needed by the current full-log
+reader, including captured source documents, until that gate passes.
+
+This model does not add desktop link gestures or file identity persistence.
+The next files-in-place design gate is a Knot-owned catalog with opaque document
+ids and explicit path bindings: an application-mediated rename preserves an id;
+a copy receives a fresh id; an externally moved file requires an explicit rebind
+when identity cannot be established. A matching filename or content digest alone
+cannot decide whether a document is a move, a copy, or a different document.
+Decide catalog storage, portability, duplicate-open handling, and recovery before
+wiring this into ordinary file sessions. The current save guard stays separate.
 
 The recommended anchor rule is to retain the captured document/head and
 quote/position as the authored fact. Following newer text is then an explicit
@@ -538,6 +566,37 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-07 G1 vault relation model: distinct signed assertion and retraction
+  events retain operation-derived identities, author and space attribution,
+  predicate, captured document/head endpoints, and optional quote/UTF-8 byte
+  position, evidence reference, and qualification. Local authoring validates
+  captures before signing. Replay isolates invalid relation events from the
+  document fold and retains unverified captures separately. Evidence strings
+  remain opaque author-supplied references, not fetched or verified artifacts.
+  Active relation reads and history reads are separate, both filtered by the
+  caller's admitted endpoint ids. This filter is not a new authorization system;
+  the host must supply admission appropriate to the captured revision and quotes.
+  The raw projection and checkpoint are privileged observations.
+  Checkpoints retain assertion/retraction and rejected/unverified history.
+  Empty new fields preserve existing document-only snapshot serialization.
+  Full-log replay and checkpoint persistence are the implemented recovery seam;
+  bootstrap from a checkpoint after historical key erasure remains open.
+  When a closed relation event exists, communal pruning retains all closed-log
+  epochs needed by the current reader, including referenced document versions.
+  Pending ciphertext is excluded from projection decoding and remains protected
+  by the existing pending/tail retention rules.
+  Desktop link gestures, ordinary-file identity mapping, automatic re-anchoring,
+  cross-space relations, saved graph queries, and Mere graph lowering remain open.
+  Validation: `cargo test -p knot-editor --lib --test authored_relations --offline --locked -j 2`
+  passed **97 library tests and 2 integration tests**, zero failures or ignored
+  tests, with `RUST_TEST_THREADS=1` on Windows and Rust 1.97.1. Final dependency
+  identities were Mere `2b1ce46e5a15328b4bf4d350ec4b0252d9b404a1` and Genet
+  `9e8f9dc2f3ddc0af1658580bb51964462a03923f`; the concurrent dependency update
+  was committed separately as `54fd2b9`. This slice changes no dependency pins.
+  Focused Rust formatting, Git diff checks, and local documentation links passed.
+  This is a library-model receipt; no desktop graph UI or headed acceptance is
+  claimed. Existing outline diagnostics were left untouched.
 
 - 2026-09-06 A2 outline: added source-addressed heading snapshots
   and guarded selection. Row selection checks exact source/address, canonical

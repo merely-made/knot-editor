@@ -525,7 +525,16 @@ impl KnotEndpoint {
         identity: &impl IdentityProvider,
         write_grant: Option<KnotWriteGrant>,
     ) -> io::Result<Self> {
-        let source = DirectorySource::open(root)?;
+        Self::from_directory_source(DirectorySource::open(root)?, identity, write_grant)
+    }
+
+    /// Serve an explicitly configured directory source, including an opt-in
+    /// durable file catalog. The caller still supplies any write authority.
+    pub fn from_directory_source(
+        source: DirectorySource,
+        identity: &impl IdentityProvider,
+        write_grant: Option<KnotWriteGrant>,
+    ) -> io::Result<Self> {
         let watcher = DirectoryWatcher::new(source.root(), identity).map_err(io::Error::other)?;
         let digest = blake3::hash(source.root().to_string_lossy().as_bytes());
         Ok(Self {

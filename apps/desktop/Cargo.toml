@@ -12,6 +12,9 @@ name = "knot"
 path = "src/main.rs"
 
 [dependencies]
+knot-editor = { path = "../../crates/knot-editor", optional = true }
+personae = { workspace = true, optional = true }
+knot-capture.workspace = true
 cambium.workspace = true
 cambium-genet-winit-host.workspace = true
 knot-document.workspace = true
@@ -19,9 +22,13 @@ knot-file-catalog.workspace = true
 layout-dom-api.workspace = true
 
 [dev-dependencies]
+pollster = "0.4"
 genet-scripted-dom.workspace = true
 genet-probe.workspace = true
 tempfile = "3"
 
 [lints]
 workspace = true
+
+[features]
+resident-retention-tests = ["dep:knot-editor", "dep:personae"]

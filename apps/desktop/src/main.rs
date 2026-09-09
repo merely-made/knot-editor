@@ -5,14 +5,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Thin standalone host for the reusable Knot document surface.
-mod workspace;
+use knot_desktop::{run_desktop_with_targets, workspace};
 
-use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
-use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
+use knot_document::KnotDocumentSession;
 use knot_file_catalog::KnotFileCatalog;
 use std::ffi::OsString;
 use std::path::PathBuf;
-use workspace::{DEFAULT_CAPTURE_MAX_BYTES, DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
+use workspace::DEFAULT_CAPTURE_MAX_BYTES;
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 #[derive(Debug, PartialEq, Eq)]
 enum DocumentSelection {
@@ -114,40 +113,6 @@ fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, S
         DocumentSelection::File(path) => KnotDocumentSession::open(path),
     }
 }
-fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
-    let mut hooks = inert_hooks();
-    hooks.after_dispatch = Box::new(workspace::after_dispatch);
-    hooks.close_request = Box::new(|ctx, request| workspace::close_request(ctx.runner, request));
-    hooks.focused_text = Box::new(workspace::focused_text);
-    hooks.key_intercept = Box::new(workspace::key_intercept);
-    hooks
-}
-fn run_standalone(
-    session: KnotDocumentSession,
-    initial_path: Option<PathBuf>,
-    catalog: Option<KnotFileCatalog>,
-    capture_max_bytes: usize,
-) -> Result<(), String> {
-    run(
-        HostOptions {
-            title: "Knot".into(),
-            initial_logical_size: (1100.0, 700.0),
-            ..HostOptions::default()
-        },
-        move |_, commands, _| {
-            let mut state =
-                DesktopState::with_catalog(session, commands.clone(), initial_path, catalog);
-            state.set_capture_limit(capture_max_bytes);
-            Init {
-                state,
-                logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
-            }
-        },
-        host_hooks(),
-    )
-    .map_err(|error| error.to_string())
-}
 fn main() {
     let options = select_document(std::env::args_os()).unwrap_or_else(|error| {
         eprintln!("knot: {error}");
@@ -169,7 +134,13 @@ fn main() {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
-    if let Err(error) = run_standalone(session, initial_path, catalog, options.capture_max_bytes) {
+    if let Err(error) = run_desktop_with_targets(
+        session,
+        initial_path,
+        catalog,
+        options.capture_max_bytes,
+        vec![],
+    ) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);
     }
@@ -177,9 +148,13 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use cambium_genet_winit_host::Init;
     use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};
     use genet_probe::Selector;
+    use knot_desktop::host_hooks;
+    use knot_document::KNOT_DOCUMENT_CSS;
     use tempfile::tempdir;
+    use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
     fn launch(args: &[&str]) -> Result<LaunchOptions, String> {
         select_document(args.iter().map(OsString::from))
     }

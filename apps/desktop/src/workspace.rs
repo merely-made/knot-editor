@@ -8,8 +8,10 @@ use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, TextInput, button, el, lens, span, text_field_typed,
 };
 use cambium_genet_winit_host::{
-    AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, Key, KeyPress, Runner, WindowCommands,
+    AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
+    WindowCommands,
 };
+use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
     KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1, knot_document_view,
@@ -17,9 +19,23 @@ use knot_document::{
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::path::{Path, PathBuf};
+use std::sync::{
+    Arc,
+    mpsc::{self, Receiver, TryRecvError},
+};
 
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 
+fn hex32(bytes: &[u8; 32]) -> String {
+    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
+}
+
+fn encryption_label(profile: knot_capture::KnotRetainEncryptionV1) -> &'static str {
+    match profile {
+        knot_capture::KnotRetainEncryptionV1::PersonalVaultV1 => "Personal vault encryption",
+        knot_capture::KnotRetainEncryptionV1::CommonsDataV1 => "Shared space encryption",
+    }
+}
 pub const DEFAULT_CAPTURE_MAX_BYTES: usize = 1_048_576;
 
 pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>>;
@@ -60,6 +76,26 @@ pub struct DesktopState {
     window: WindowCommands,
     pending: Option<PendingAction>,
     discard_close: bool,
+    retention_targets: Vec<Arc<dyn KnotRetainPort>>,
+    retention_wake: Option<HostWake>,
+    retention_selected: Option<usize>,
+    retention_receiver: Option<Receiver<RetentionUpdate>>,
+    retention_busy: Option<RetentionRequest>,
+    retention_receipt: Option<KnotRetainReceiptV1>,
+    retention_error: Option<String>,
+}
+
+#[derive(Clone)]
+struct RetentionRequest {
+    target: KnotRetainTargetV1,
+    document_id: String,
+}
+
+enum RetentionUpdate {
+    Completed {
+        request: RetentionRequest,
+        result: Result<KnotRetainReceiptV1, KnotRetainError>,
+    },
 }
 
 impl DesktopState {
@@ -106,9 +142,128 @@ impl DesktopState {
             window,
             pending: None,
             discard_close: false,
+            retention_targets: Vec::new(),
+            retention_wake: None,
+            retention_selected: None,
+            retention_receiver: None,
+            retention_busy: None,
+            retention_receipt: None,
+            retention_error: None,
         };
         state.sync_catalog();
         state
+    }
+
+    pub fn set_retention_targets(&mut self, targets: Vec<Arc<dyn KnotRetainPort>>, wake: HostWake) {
+        self.retention_targets = targets;
+        self.retention_wake = Some(wake);
+        self.retention_selected = None;
+        self.retention_error = None;
+    }
+
+    fn select_retention_target(&mut self, index: usize) {
+        if index < self.retention_targets.len() {
+            self.retention_selected = Some(index);
+            self.retention_error = None;
+        }
+    }
+
+    fn retain_reviewed(&mut self, wake: HostWake) {
+        if self.retention_busy.is_some() {
+            self.retention_error =
+                Some("Retention is already in progress for the reviewed request.".to_owned());
+            return;
+        }
+        let Some(revision) = self.prepared_capture.clone() else {
+            self.retention_error = Some("Review a saved revision before retaining it.".to_owned());
+            return;
+        };
+        let Some(index) = self.retention_selected else {
+            self.retention_error = Some("Choose a persona and space before retaining.".to_owned());
+            return;
+        };
+        let Some(port) = self.retention_targets.get(index).cloned() else {
+            self.retention_error =
+                Some("The selected retention destination is unavailable.".to_owned());
+            return;
+        };
+        let target = port.target().clone();
+        let request = RetentionRequest {
+            target: target.clone(),
+            document_id: revision.document_id.clone(),
+        };
+        let (sender, receiver) = mpsc::channel();
+        self.retention_receiver = Some(receiver);
+        self.retention_busy = Some(request.clone());
+        self.retention_error = None;
+        let wake_for_worker = wake.clone();
+        let spawned = std::thread::Builder::new()
+            .name("knot-retain".to_owned())
+            .spawn(move || {
+                let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    port.retain_reviewed(&target, revision)
+                }))
+                .map_err(|_| KnotRetainError("Retention could not be confirmed.".to_owned()))
+                .and_then(|result| result);
+                let _ = sender.send(RetentionUpdate::Completed { request, result });
+                wake_for_worker.wake();
+            });
+        if spawned.is_err() {
+            self.retention_receiver = None;
+            self.retention_busy = None;
+            self.retention_error =
+                Some("Retention could not be confirmed: worker could not start.".to_owned());
+        }
+    }
+
+    fn drain_retention(&mut self) {
+        let Some(receiver) = self.retention_receiver.as_ref() else {
+            return;
+        };
+        let mut update = None;
+        let mut disconnected = false;
+        loop {
+            match receiver.try_recv() {
+                Ok(value) => update = Some(value),
+                Err(TryRecvError::Empty) => break,
+                Err(TryRecvError::Disconnected) => {
+                    disconnected = true;
+                    break;
+                },
+            }
+        }
+        if disconnected && update.is_none() {
+            self.retention_receiver = None;
+            self.retention_busy = None;
+            self.retention_error = Some("Retention could not be confirmed; outcome is uncertain. Retry only after checking the destination.".to_owned());
+        }
+        if let Some(RetentionUpdate::Completed { request, result }) = update {
+            self.retention_receiver = None;
+            self.retention_busy = None;
+            match result {
+                Ok(receipt)
+                    if receipt.target == request.target
+                        && receipt.document_id == request.document_id =>
+                {
+                    self.retention_receipt = Some(receipt);
+                    self.retention_error = None;
+                },
+                Ok(_) => self.retention_error = Some(
+                    "Retention could not be confirmed: destination or document identity changed."
+                        .to_owned(),
+                ),
+                Err(error) => {
+                    self.retention_error = Some(format!(
+                        "Retention of {} in {} ({}, space {}, writer {}) could not be confirmed: {error}",
+                        request.document_id,
+                        request.target.persona.label,
+                        request.target.persona.stable_id,
+                        hex32(&request.target.space_id),
+                        hex32(&request.target.writer)
+                    ))
+                },
+            }
+        }
     }
 
     fn dirty(&self) -> bool {
@@ -466,6 +621,11 @@ impl DesktopState {
     }
 
     fn close_request(&mut self, request: CloseRequest) -> CloseDisposition {
+        if self.retention_busy.is_some() {
+            self.message = Some("Wait for retention to finish before closing.".to_owned());
+            self.discard_close = false;
+            return CloseDisposition::KeepVisible;
+        }
         if self.discard_close {
             self.discard_close = false;
             return CloseDisposition::Exit;
@@ -655,6 +815,112 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", ()))
     };
+    let retention_panel: DesktopView = {
+        let destinations = if state.retention_targets.is_empty() {
+            Box::new(span("No storage destinations available.")) as DesktopView
+        } else {
+            let rows = state
+                .retention_targets
+                .iter()
+                .enumerate()
+                .map(|(index, port)| {
+                    let target = port.target();
+                    let selected = state.retention_selected == Some(index);
+                    let label = format!(
+                        "{} ({}) · space {} · writer {}",
+                        target.persona.label,
+                        target.persona.stable_id,
+                        hex32(&target.space_id),
+                        hex32(&target.writer)
+                    );
+                    let encryption = encryption_label(target.encryption);
+                    (
+                        index,
+                        button(
+                            format!(
+                                "{} · {}{}",
+                                label,
+                                encryption,
+                                if selected { " · selected" } else { "" }
+                            ),
+                            move |state: &mut DesktopState, _| state.select_retention_target(index),
+                        )
+                        .attr("data-retention-target", index.to_string()),
+                    )
+                })
+                .collect::<Vec<_>>();
+            Box::new(el("div", Keyed::new(rows)).attr("class", "knot-retention-targets"))
+                as DesktopView
+        };
+        let busy = state.retention_busy.as_ref().map(|request| {
+            span(format!(
+                "Retaining {} in {} ({}, space {}, writer {})…",
+                request.document_id,
+                request.target.persona.label,
+                request.target.persona.stable_id,
+                hex32(&request.target.space_id),
+                hex32(&request.target.writer)
+            ))
+            .attr("class", "knot-retention-busy")
+        });
+        let error = state
+            .retention_error
+            .as_ref()
+            .map(|error| span(error.clone()).attr("class", "knot-retention-error"));
+        let receipt = state.retention_receipt.as_ref().map(|receipt| {
+            span(format!(
+                "Last confirmed retention: {} in {} ({}, {}, space {}, writer {}, operation {}){}",
+                receipt.document_id,
+                receipt.target.persona.label,
+                receipt.target.persona.stable_id,
+                encryption_label(receipt.target.encryption),
+                hex32(&receipt.target.space_id),
+                hex32(&receipt.target.writer),
+                hex32(&receipt.operation),
+                if receipt.already_retained {
+                    "; already retained"
+                } else {
+                    ""
+                }
+            ))
+            .attr("class", "knot-retention-receipt")
+        });
+        let retain_button = if state.retention_busy.is_none()
+            && state.prepared_capture.is_some()
+            && state.retention_selected.is_some()
+        {
+            state.retention_wake.clone().map(|wake| {
+                button(
+                    "Retain reviewed revision",
+                    move |state: &mut DesktopState, _| state.retain_reviewed(wake.clone()),
+                )
+            })
+        } else {
+            None
+        };
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Retain reviewed revision"),
+                            span("Choose a persona and space"),
+                        ),
+                    ),
+                    destinations,
+                    retain_button,
+                    busy,
+                    error,
+                    receipt,
+                ),
+            )
+            .attr("class", "knot-retention")
+            .attr("role", "region")
+            .attr("aria-label", "Retain reviewed revision"),
+        )
+    };
     let review_panel: DesktopView = if state.catalog.is_none() {
         Box::new(el("div", ()))
     } else if let Some(error) = &state.prepared_capture_error {
@@ -716,7 +982,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     span(format!("Source path: {source_path}")),
                     span(format!("Prepared bytes: {}", revision.body.len())),
                     span("Unsaved changes are excluded."),
-                    span("Prepared only; not stored or shared."),
+                    span("Reviewing does not store or share bytes. Retain uses the selected destination."),
                     span(status).attr("class", "knot-review-status"),
                     button("Refresh saved revision", |state: &mut DesktopState, _| {
                         state.prepare_capture()
@@ -865,6 +1131,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 message,
                 catalog_status,
                 review_panel,
+                retention_panel,
                 el("div", (document, outline_panel)).attr("class", "knot-writing-area"),
                 comparison_panel,
                 prompt,
@@ -970,6 +1237,9 @@ pub fn close_request(runner: &mut DesktopRunner, request: CloseRequest) -> Close
 pub fn after_dispatch(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
+    if ctx.runner.state().retention_receiver.is_some() {
+        ctx.runner.update(|state| state.drain_retention());
+    }
     let state = ctx.runner.state();
     let focus_requested = state.focus_source_requested;
     let outline_needs_sync = if state.outline_visible {
@@ -1008,6 +1278,15 @@ pub fn after_dispatch(
     }
 }
 
+/// Drain worker completions after a host wake and rebuild the retained view.
+pub fn after_wake(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if ctx.runner.state().retention_receiver.is_some() {
+        ctx.runner.update(|state| state.drain_retention());
+    }
+}
+
 pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
@@ -1020,6 +1299,11 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-review-header { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; }",
     ".knot-review-error { color:crimson; }",
     ".knot-review-source { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
+    ".knot-retention { padding:12px; border:1px solid; display:flex; flex-direction:column; gap:8px; }",
+    ".knot-retention header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; }",
+    ".knot-retention-targets { display:flex; flex-wrap:wrap; gap:6px; }",
+    ".knot-retention-error { color:crimson; }",
+    ".knot-retention-receipt, .knot-retention-busy, .knot-retention-error, .knot-retention-targets button { overflow-wrap:anywhere; max-width:100%; }",
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
@@ -1049,6 +1333,8 @@ mod tests {
     use cambium_genet_winit_host::{Harness, Init, Modifiers, inert_hooks};
     use genet_probe::Selector;
     use knot_document::KNOT_DOCUMENT_CSS;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::{Arc, Mutex, mpsc};
     use tempfile::tempdir;
 
     fn harness(
@@ -1070,6 +1356,7 @@ mod tests {
             {
                 let mut hooks = inert_hooks();
                 hooks.after_dispatch = Box::new(after_dispatch);
+                hooks.after_wake = Box::new(after_wake);
                 hooks.close_request = Box::new(|ctx, request| close_request(ctx.runner, request));
                 hooks.focused_text = Box::new(focused_text);
                 hooks.key_intercept = Box::new(key_intercept);
@@ -1842,7 +2129,7 @@ mod tests {
         assert!(rendered.contains(source));
         assert!(!rendered.contains("UNSAVED"));
         assert!(rendered.contains("Unsaved changes are excluded"));
-        assert!(rendered.contains("not stored or shared"));
+        assert!(rendered.contains("Reviewing does not store or share bytes."));
         host.update(|state| {
             state.document.apply(KnotDocumentIntentV1::Save).unwrap();
         });
@@ -1940,5 +2227,312 @@ mod tests {
         assert_eq!(host.state().catalog.as_ref().unwrap().records().len(), 1);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "replacement");
         assert_eq!(std::fs::read_to_string(&moved).unwrap(), "original");
+    }
+
+    struct GatePort {
+        target: KnotRetainTargetV1,
+        calls: AtomicUsize,
+        entered: mpsc::Sender<()>,
+        replies: Mutex<mpsc::Receiver<Result<KnotRetainReceiptV1, KnotRetainError>>>,
+        seen: Mutex<Vec<KnotFileRevisionV1>>,
+    }
+
+    impl KnotRetainPort for GatePort {
+        fn target(&self) -> &KnotRetainTargetV1 {
+            &self.target
+        }
+
+        fn retain_reviewed(
+            &self,
+            expected_target: &KnotRetainTargetV1,
+            revision: KnotFileRevisionV1,
+        ) -> Result<KnotRetainReceiptV1, KnotRetainError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            if expected_target != &self.target {
+                return Err(KnotRetainError("wrong target".into()));
+            }
+            self.seen.lock().unwrap().push(revision);
+            let _ = self.entered.send(());
+            self.replies
+                .lock()
+                .unwrap()
+                .recv()
+                .unwrap_or_else(|_| Err(KnotRetainError("reply channel disconnected".into())))
+        }
+    }
+
+    fn target(label: &str, byte: u8) -> KnotRetainTargetV1 {
+        KnotRetainTargetV1 {
+            persona: knot_capture::KnotPersonaDisplayV1 {
+                stable_id: format!("persona:{byte}"),
+                label: label.into(),
+            },
+            space_id: [byte; 32],
+            writer: [byte + 1; 32],
+            encryption: knot_capture::KnotRetainEncryptionV1::PersonalVaultV1,
+        }
+    }
+
+    fn revision(id: &str, body: &[u8]) -> KnotFileRevisionV1 {
+        KnotFileRevisionV1 {
+            document_id: id.into(),
+            title: id.into(),
+            media_type: "text/x-djot".into(),
+            body: body.to_vec(),
+        }
+    }
+
+    fn gated_port(
+        target: KnotRetainTargetV1,
+    ) -> (
+        Arc<GatePort>,
+        mpsc::Receiver<()>,
+        mpsc::Sender<Result<KnotRetainReceiptV1, KnotRetainError>>,
+    ) {
+        let (entered_send, entered) = mpsc::channel();
+        let (reply, replies) = mpsc::channel();
+        (
+            Arc::new(GatePort {
+                target,
+                calls: AtomicUsize::new(0),
+                entered: entered_send,
+                replies: Mutex::new(replies),
+                seen: Mutex::new(Vec::new()),
+            }),
+            entered,
+            reply,
+        )
+    }
+
+    fn retention_harness(
+        ports: Vec<Arc<dyn KnotRetainPort>>,
+        reviewed: KnotFileRevisionV1,
+    ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_retention_targets(ports, wake);
+            state.prepared_capture = Some(reviewed);
+            state.retention_selected = Some(0);
+        });
+        host
+    }
+
+    fn drain_wake(host: &mut Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>) {
+        for _ in 0..1_000 {
+            if host.process_wake() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        panic!("retention worker did not wake the harness");
+    }
+
+    #[test]
+    fn retention_worker_freezes_the_review_refuses_duplicates_and_preserves_original_receipts() {
+        let original = revision("file:original", b"saved bytes");
+        let first_target = target("First", 1);
+        let second_target = target("Second", 3);
+        let (first, entered, reply) = gated_port(first_target.clone());
+        let (second, _, _) = gated_port(second_target.clone());
+        let mut host = retention_harness(vec![first.clone(), second], original.clone());
+        let wake = host.wake();
+
+        host.update(|state| state.retain_reviewed(wake));
+        entered
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap();
+        let duplicate_wake = host.wake();
+        host.update(|state| {
+            state.retain_reviewed(duplicate_wake);
+            state.retention_selected = Some(1);
+            state.prepared_capture = Some(revision("file:replacement", b"new review"));
+        });
+        assert_eq!(first.calls.load(Ordering::SeqCst), 1);
+        assert!(
+            host.state()
+                .retention_error
+                .as_deref()
+                .unwrap()
+                .contains("already")
+        );
+        assert_eq!(first.seen.lock().unwrap().as_slice(), &[original.clone()]);
+
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("unsaved");
+            state.discard_close = true;
+        });
+        host.request_close(CloseRequest::Native);
+        assert!(!host.state().discard_close);
+        assert!(!host.hidden());
+        assert!(!host.close_requested());
+        assert!(
+            host.state()
+                .message
+                .as_deref()
+                .unwrap()
+                .contains("retention")
+        );
+
+        reply
+            .send(Ok(KnotRetainReceiptV1 {
+                target: first_target.clone(),
+                document_id: original.document_id.clone(),
+                operation: [9; 32],
+                already_retained: false,
+            }))
+            .unwrap();
+        drain_wake(&mut host);
+        assert_eq!(host.state().retention_selected, Some(1));
+        assert_eq!(
+            host.state().prepared_capture.as_ref().unwrap().document_id,
+            "file:replacement"
+        );
+        assert_eq!(
+            host.state().retention_receipt.as_ref().unwrap().target,
+            first_target
+        );
+        assert_eq!(
+            host.state().retention_receipt.as_ref().unwrap().document_id,
+            "file:original"
+        );
+        host.request_close(CloseRequest::Native);
+        assert!(!host.close_requested());
+        assert!(matches!(host.state().pending, Some(PendingAction::Close)));
+    }
+
+    #[test]
+    fn retention_failure_and_disconnect_clear_busy_state_for_an_explicit_retry() {
+        let reviewed = revision("file:retry", b"exact bytes");
+        let selected = target("Retry", 5);
+        let (port, entered, reply) = gated_port(selected);
+        let mut host = retention_harness(vec![port.clone()], reviewed);
+        let wake = host.wake();
+
+        host.update(|state| state.retain_reviewed(wake));
+        entered
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap();
+        reply.send(Err(KnotRetainError("denied".into()))).unwrap();
+        drain_wake(&mut host);
+        assert!(host.state().retention_busy.is_none());
+        assert!(
+            host.state()
+                .retention_error
+                .as_deref()
+                .unwrap()
+                .contains("denied")
+        );
+
+        let wake = host.wake();
+        host.update(|state| state.retain_reviewed(wake));
+        entered
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap();
+        drop(reply);
+        drain_wake(&mut host);
+        assert!(host.state().retention_busy.is_none());
+        assert!(
+            host.state()
+                .retention_error
+                .as_deref()
+                .unwrap()
+                .contains("could not be confirmed")
+        );
+        assert_eq!(port.calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn retention_rejects_a_mismatched_receipt_without_creating_a_confirmed_result() {
+        let reviewed = revision("file:expected", b"exact bytes");
+        let selected = target("Expected", 7);
+        let (port, entered, reply) = gated_port(selected);
+        let mut host = retention_harness(vec![port], reviewed);
+        let wake = host.wake();
+        host.update(|state| state.retain_reviewed(wake));
+        entered
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .unwrap();
+        reply
+            .send(Ok(KnotRetainReceiptV1 {
+                target: target("Wrong", 8),
+                document_id: "file:other".into(),
+                operation: [8; 32],
+                already_retained: false,
+            }))
+            .unwrap();
+        drain_wake(&mut host);
+        assert!(host.state().retention_receipt.is_none());
+        assert!(
+            host.state()
+                .retention_error
+                .as_deref()
+                .unwrap()
+                .contains("identity changed")
+        );
+    }
+
+    #[test]
+    fn retention_never_auto_selects_or_starts_a_write() {
+        let reviewed = revision("file:manual", b"exact bytes");
+        let (port, _entered, _reply) = gated_port(target("Manual", 11));
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_retention_targets(vec![port.clone()], wake.clone());
+            state.prepared_capture = Some(reviewed);
+            state.retain_reviewed(wake);
+        });
+        assert!(host.state().retention_selected.is_none());
+        assert!(
+            host.state()
+                .retention_error
+                .as_deref()
+                .unwrap()
+                .contains("Choose a persona")
+        );
+        assert_eq!(port.calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn retention_without_destinations_offers_no_action() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_retention_targets(vec![], wake);
+            state.prepared_capture = Some(revision("file:manual", b"saved"));
+        });
+        assert!(!host.click_on(&Selector::role("button").containing("Retain reviewed revision")));
+        assert!(host.state().retention_busy.is_none());
+    }
+
+    #[test]
+    fn disconnected_worker_completion_releases_the_close_guard() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let (sender, receiver) = mpsc::channel();
+        drop(sender);
+        host.update(|state| {
+            state.retention_receiver = Some(receiver);
+            state.retention_busy = Some(RetentionRequest {
+                target: target("Disconnected", 12),
+                document_id: "file:manual".into(),
+            });
+            state.drain_retention();
+        });
+        assert!(host.state().retention_busy.is_none());
+        assert!(
+            host.state()
+                .retention_error
+                .as_ref()
+                .unwrap()
+                .contains("uncertain")
+        );
+        host.request_close(CloseRequest::Native);
+        assert!(host.close_requested());
     }
 }

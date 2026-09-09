@@ -26,6 +26,7 @@ mod publish_host;
 mod publish_wire;
 mod relations;
 mod resident;
+mod retain_host;
 mod rosette;
 mod search;
 mod settings;
@@ -37,6 +38,7 @@ mod web_annotation;
 mod writer;
 
 pub use authority::{KnotAuthoritySource, KnotSpaceAuthoritySnapshot};
+pub use retain_host::KnotResidentRetainPort;
 pub use clip_evidence::{
     BlobClipEvidenceStore, FileClipEvidenceStore, KnotClipEvidenceRef, KnotClipEvidenceStore,
     KnotContentRetentionPort, clip_evidence_references,

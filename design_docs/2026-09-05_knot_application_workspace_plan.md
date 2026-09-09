@@ -454,8 +454,7 @@ than displaying a lossy substitute for review.
 The shared capture type and bounded reader belong in `knot-file-catalog`, so the
 desktop keeps its narrow dependency graph and `knot-editor` preserves its public
 capture API through a reexport/adapter. Reviewing is neither a signed event nor
-permission to store or share the bytes. The desktop exposes no retention action
-until a destination authority can be selected explicitly.
+permission to store or share the bytes. The desktop requires explicit selection of a host-issued destination before retention.
 
 The resident-owned retention adapter accepts an explicit document-ID and byte
 limit grant, binds immutable prepared bytes to a space, writer, and encryption
@@ -472,16 +471,36 @@ Muniment handle returned by `sync_store()` remain outside this contract; hosts
 must use the Knot mutation APIs. This is in-process coordination among clones,
 not a transaction across independently constructed store owners.
 
-The next storage gate is host selection and injection of that existing resident
-authority. A persona label must come from the host's authoritative selection;
-the adapter does not infer persona identity from a vault path. The desktop still
-needs explicit Retain controls, destination display, and failure/retry handling.
-`StartupUnlockedPersonalVault::open` currently migrates unsynced vault documents,
-and `local_device_root` may create a device identity; neither is a neutral
-implementation of a desktop destination picker. Retain and relation-authoring
-controls must preserve the existing
-default document feature set and avoid opening a second writer for an active
-resident. Replication remains a separately selected authority.
+The desktop now accepts host-issued destinations through the lightweight
+`knot-capture` contract and `run_desktop_with_targets` library entrypoint.
+`KnotResidentRetainPort` snapshots an existing granted resident capability and
+rechecks its destination and authorization on the worker. Persona labels and
+stable IDs come from the owning host; the adapter cannot attest a display
+identity independently of that binding.
+
+The workspace requires explicit destination selection, retains the immutable
+reviewed revision on a worker, and reports the original document, destination,
+and signed operation separately from the current review. Selection and review
+never authorize a write. Only one request runs at once. Switching or discarding
+a review does not cancel an issued write; failures permit an exact retry without
+claiming rollback. The host wake hook delivers completion without further input.
+
+The remaining storage gate is real persona/resident selection in the standalone
+launcher, which still injects an empty destination list. An owning application
+must supply an already-open resident and grant. `StartupUnlockedPersonalVault::open`
+may migrate documents and `local_device_root` may create an identity; neither is
+a neutral destination picker. Default document and desktop builds keep their
+narrow feature set; the real resident test fixture is opt-in. Replication remains
+a separately selected authority. Headed acceptance and long-history latency
+remain unverified.
+
+The next owner-integration receipt should select an existing persona and space,
+issue an explicit document/byte grant, retain through these controls, revoke
+the grant, and visibly refuse a retry. Exercise that same destination after
+restart while proving a second owner was not opened. The next presentation
+receipt should verify input, scrolling, destination identity readability, and
+close behavior in a headed window. Long-history measurements should bound the
+worker scan and storage-lock wait before promoting a lookup-index design.
 
 Retention currently scans retained operations synchronously while holding the
 resident lock. Run it on a worker so the input/render thread and the executor
@@ -685,6 +704,35 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-09-09: added the lightweight `knot-capture` host contract, existing-resident
+  adapter, reusable desktop entrypoint, and explicit worker Retain controls.
+  Reviews and destination selection do not write. Tests cover duplicate refusal,
+  wake-only completion, target/review changes during retention, mismatched
+  receipts, failure/retry, disconnected workers, and close deferral. A deferred
+  close clears any earlier Discard flag. The adapter checks both the live and
+  prepared destination before retaining.
+- 2026-09-09 validation: Windows, Rust 1.97.1, isolated worktree based on `b303527`.
+  With `CARGO_HOME=C:\Users\mark_\.cargo`, `RUST_TEST_THREADS=1`, and
+  `--target-dir C:/Users/mark_/Code/repos/knot-editor/target`:
+
+  ```powershell
+  cargo test -p knot-editor --test retain_host --offline --locked -j 2 --no-fail-fast
+  # 4 passed: signed readback, reopen/dedup, live authority refusals, shared capability.
+  cargo test -p knot-desktop --offline --locked -j 2 --no-fail-fast
+  # 31 library + 4 launcher tests passed; 1 existing timing probe ignored.
+  cargo test -p knot-desktop --features resident-retention-tests --offline --locked -j 2 --no-fail-fast
+  # 31 library + 4 launcher + 1 real resident integration test passed; 1 ignored.
+  ```
+
+  The real resident fixture is enabled with `--features resident-retention-tests`.
+  It drives Review, destination selection, and Retain through the public desktop
+  harness; after review it changes disk bytes and the unsaved buffer, then checks
+  that the signed operation contains the earlier review and leaves the later
+  source untouched. Receipt text includes the original document and full
+  operation ID. This is windowless acceptance. The default normal dependency
+  tree excludes `knot-editor`; Mere and Genet pins are unchanged. Focused Rust
+  formatting and diff checks passed. Shared Cargo cache/build contention slowed
+  verification. The existing Windows replacement unsafe-code warning remains.
 
 - 2026-09-09 public revision boundary: synced vault editable resources now
   disclose their exact signed document-head operation as

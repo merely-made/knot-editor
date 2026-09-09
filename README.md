@@ -15,6 +15,7 @@ the document presentation and desktop host.
   surface.
 - `crates/knot-file-catalog`: durable file identities without the editor's
   preview, publishing, or replication dependencies.
+- `crates/knot-capture`: lightweight host-issued retention targets and receipts.
 - `crates/knot-editor`: file, vault, evidence, sync, publishing, and
   Graphshell-facing authority.
 - `apps/desktop`: the standalone native host for `knot-document`.
@@ -125,7 +126,20 @@ reading with an error; non-UTF-8 files are refused by this text-review panel.
 The default capture limit is 1,048,576 bytes. Add `--capture-max-bytes N` alongside
 the catalog options to choose another limit, including zero for empty files
 only. Review keeps bytes in memory and does not sign, persist, or share them.
-An explicit persona/space storage adapter is the next gate for retention controls.
+An owning host can launch `knot_desktop::run_desktop_with_targets` with granted
+`KnotRetainPort` capabilities. `KnotResidentRetainPort::new` binds a host-selected
+persona display identity to an existing resident's `KnotFileCapturePort`.
+Choose a destination, then **Retain reviewed revision** to store the exact reviewed
+snapshot. Retention runs on a worker and rechecks current authorization. Its
+receipt identifies the original document, destination, and signed operation;
+switching documents does not redirect an in-flight write. Retry reuses an exact
+same-writer capture. Retaining a revision does not save the editor buffer or
+select a replication authority.
+
+The default executable supplies no destinations. Persona bootstrap and resident
+selection in that launcher remain open work. The `resident-retention-tests`
+feature enables the real resident integration fixture; default desktop builds
+keep the editor runtime dependency disabled.
 
 The source history was extracted from Mere with path-preserving Git history.
 The earlier plans and receipts remain under [`design_docs`](design_docs) and

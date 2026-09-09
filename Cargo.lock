@@ -4740,6 +4740,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
+name = "knot-capture"
+version = "0.0.1"
+dependencies = [
+ "knot-file-catalog",
+]
+
+[[package]]
 name = "knot-desktop"
 version = "0.0.1"
 dependencies = [
@@ -4747,9 +4754,13 @@ dependencies = [
  "cambium-genet-winit-host",
  "genet-probe",
  "genet-scripted-dom",
+ "knot-capture",
  "knot-document",
+ "knot-editor",
  "knot-file-catalog",
  "layout-dom-api",
+ "personae",
+ "pollster",
  "tempfile",
 ]
 
@@ -4786,6 +4797,7 @@ dependencies = [
  "graphshell-stdio",
  "inker",
  "jotdown",
+ "knot-capture",
  "knot-document",
  "knot-file-catalog",
  "mere-eidetic",

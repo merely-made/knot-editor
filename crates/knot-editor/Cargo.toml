@@ -16,6 +16,7 @@ name = "knot_sync_host"
 path = "src/bin/knot_sync_host.rs"
 
 [dependencies]
+knot-capture.workspace = true
 base64.workspace = true
 blake3.workspace = true
 chartulary.workspace = true

@@ -30,6 +30,53 @@ fn hex32(bytes: &[u8; 32]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
+fn abbreviated_id(value: &[u8; 32], other_ids: impl Iterator<Item = [u8; 32]>) -> String {
+    let full = hex32(value);
+    let mut length = 8;
+    let others = other_ids
+        .filter(|other| other != value)
+        .map(|other| hex32(&other))
+        .collect::<Vec<_>>();
+    while length < full.len()
+        && others
+            .iter()
+            .any(|other| other.starts_with(&full[..length]))
+    {
+        length += 1;
+    }
+    full[..length].to_owned()
+}
+
+fn retention_target_label(
+    target: &KnotRetainTargetV1,
+    targets: &[Arc<dyn KnotRetainPort>],
+) -> String {
+    let space = abbreviated_id(
+        &target.space_id,
+        targets.iter().map(|port| port.target().space_id),
+    );
+    let same_space_writers = targets.iter().filter_map(|port| {
+        let other = port.target();
+        (other.persona.stable_id == target.persona.stable_id && other.space_id == target.space_id)
+            .then_some(other.writer)
+    });
+    let writer = abbreviated_id(&target.writer, same_space_writers);
+    let writer_needed = targets.iter().any(|port| {
+        let other = port.target();
+        other.persona.stable_id == target.persona.stable_id
+            && other.space_id == target.space_id
+            && other.writer != target.writer
+    });
+    if writer_needed {
+        format!(
+            "{} · space {} · writer {}",
+            target.persona.label, space, writer
+        )
+    } else {
+        format!("{} · space {}", target.persona.label, space)
+    }
+}
+
 fn encryption_label(profile: knot_capture::KnotRetainEncryptionV1) -> &'static str {
     match profile {
         knot_capture::KnotRetainEncryptionV1::PersonalVaultV1 => "Personal vault encryption",
@@ -201,7 +248,11 @@ impl DesktopState {
             .name("knot-retain".to_owned())
             .spawn(move || {
                 let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    port.retain_reviewed(&target, revision)
+                    let retained = port.retain_reviewed(&target, revision);
+                    // Completion permits close/reopen. Release the worker's
+                    // owner capability before notifying the host.
+                    drop(port);
+                    retained
                 }))
                 .map_err(|_| KnotRetainError("Retention could not be confirmed.".to_owned()))
                 .and_then(|result| result);
@@ -826,31 +877,52 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .map(|(index, port)| {
                     let target = port.target();
                     let selected = state.retention_selected == Some(index);
-                    let label = format!(
-                        "{} ({}) · space {} · writer {}",
-                        target.persona.label,
-                        target.persona.stable_id,
-                        hex32(&target.space_id),
-                        hex32(&target.writer)
-                    );
-                    let encryption = encryption_label(target.encryption);
+                    let label = retention_target_label(target, &state.retention_targets);
                     (
                         index,
-                        button(
-                            format!(
-                                "{} · {}{}",
-                                label,
-                                encryption,
-                                if selected { " · selected" } else { "" }
-                            ),
-                            move |state: &mut DesktopState, _| state.select_retention_target(index),
-                        )
-                        .attr("data-retention-target", index.to_string()),
+                        button(label, move |state: &mut DesktopState, _| {
+                            state.select_retention_target(index)
+                        })
+                        .attr("data-retention-target", index.to_string())
+                        .attr("aria-pressed", selected.to_string()),
                     )
                 })
                 .collect::<Vec<_>>();
             Box::new(el("div", Keyed::new(rows)).attr("class", "knot-retention-targets"))
                 as DesktopView
+        };
+        let selected_detail: DesktopView = if let Some(port) = state
+            .retention_selected
+            .and_then(|index| state.retention_targets.get(index))
+        {
+            let target = port.target();
+            Box::new(
+                el(
+                    "div",
+                    (
+                        span(format!("Persona: {}", target.persona.label)),
+                        span(format!("Persona stable ID: {}", target.persona.stable_id)),
+                        span(format!("Space ID: {}", hex32(&target.space_id))),
+                        span(format!("Writer ID: {}", hex32(&target.writer))),
+                        span(format!(
+                            "Encryption: {}",
+                            encryption_label(target.encryption)
+                        )),
+                    ),
+                )
+                .attr("class", "knot-retention-selected")
+                .attr("role", "region")
+                .attr("aria-label", "Selected retention destination")
+                .attr("aria-live", "polite"),
+            )
+        } else {
+            Box::new(
+                el("div", span("No destination selected."))
+                    .attr("class", "knot-retention-selected")
+                    .attr("role", "region")
+                    .attr("aria-label", "Selected retention destination")
+                    .attr("aria-live", "polite"),
+            )
         };
         let busy = state.retention_busy.as_ref().map(|request| {
             span(format!(
@@ -910,6 +982,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         ),
                     ),
                     destinations,
+                    selected_detail,
                     retain_button,
                     busy,
                     error,
@@ -1302,6 +1375,10 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-retention { padding:12px; border:1px solid; display:flex; flex-direction:column; gap:8px; }",
     ".knot-retention header { display:flex; flex-wrap:wrap; justify-content:space-between; gap:8px; }",
     ".knot-retention-targets { display:flex; flex-wrap:wrap; gap:6px; }",
+    ".knot-retention-targets button { flex:1 1 180px; min-width:0; text-align:left; }",
+    ".knot-retention-targets button[aria-pressed=true] { outline:2px solid currentColor; outline-offset:1px; }",
+    ".knot-retention-selected { display:flex; flex-wrap:wrap; gap:4px 12px; padding:8px; border:1px solid; overflow-wrap:anywhere; }",
+    ".knot-retention-selected span { min-width:0; }",
     ".knot-retention-error { color:crimson; }",
     ".knot-retention-receipt, .knot-retention-busy, .knot-retention-error, .knot-retention-targets button { overflow-wrap:anywhere; max-width:100%; }",
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
@@ -1395,6 +1472,21 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| named_node(dom, child, name))
+    }
+
+    fn attr_node(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        name: &str,
+        expected: &str,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        let namespace = Namespace::from("");
+        let local = LocalName::from(name);
+        if dom.attribute(node, &namespace, &local).as_deref() == Some(expected) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| attr_node(dom, child, name, expected))
     }
 
     fn class_node(
@@ -2388,6 +2480,11 @@ mod tests {
             }))
             .unwrap();
         drain_wake(&mut host);
+        assert_eq!(
+            Arc::strong_count(&first),
+            2,
+            "worker released its owner handle"
+        );
         assert_eq!(host.state().retention_selected, Some(1));
         assert_eq!(
             host.state().prepared_capture.as_ref().unwrap().document_id,
@@ -2500,6 +2597,56 @@ mod tests {
     }
 
     #[test]
+    fn retention_target_rows_select_the_matching_same_persona_space_and_show_full_detail() {
+        let reviewed = revision("file:targets", b"exact bytes");
+        let first_target = target("Shared persona", 1);
+        let mut second_target = target("Shared persona", 3);
+        second_target.persona.stable_id = first_target.persona.stable_id.clone();
+        let mut third_target = target("Shared persona", 9);
+        third_target.persona.stable_id = first_target.persona.stable_id.clone();
+        third_target.space_id = second_target.space_id;
+        third_target.writer = [5; 32];
+        let (first, _, _) = gated_port(first_target);
+        let (second, _, _) = gated_port(second_target.clone());
+        let (third, _, _) = gated_port(third_target);
+        let mut host = retention_harness(vec![first, second, third], reviewed);
+        host.update(|state| state.retention_selected = None);
+        host.layout_at(900.0, 640.0);
+
+        assert!(host.click_on(&Selector::role("button").with_attr("data-retention-target", "1")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let detail = class_node(&dom, dom.document(), "knot-retention-selected").unwrap();
+        let detail_text = text_content(&dom, detail);
+        assert!(detail_text.contains("Persona stable ID: persona:1"));
+        assert!(detail_text.contains(&format!("Space ID: {}", hex32(&second_target.space_id))));
+        assert!(detail_text.contains(&format!("Writer ID: {}", hex32(&second_target.writer))));
+        assert!(detail_text.contains("Encryption: Personal vault encryption"));
+        let selected = attr_node(&dom, dom.document(), "data-retention-target", "1").unwrap();
+        assert_eq!(
+            dom.attribute(
+                selected,
+                &Namespace::from(""),
+                &LocalName::from("aria-pressed")
+            ),
+            Some("true".into())
+        );
+        let unselected = attr_node(&dom, dom.document(), "data-retention-target", "0").unwrap();
+        assert_eq!(
+            dom.attribute(
+                unselected,
+                &Namespace::from(""),
+                &LocalName::from("aria-pressed")
+            ),
+            Some("false".into())
+        );
+        let targets = class_node(&dom, dom.document(), "knot-retention-targets").unwrap();
+        let targets_text = text_content(&dom, targets);
+        assert!(targets_text.contains("writer 04040404"));
+        assert!(targets_text.contains("writer 05050505"));
+    }
+
+    #[test]
     fn retention_without_destinations_offers_no_action() {
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
         let wake = host.wake();
@@ -2509,6 +2656,12 @@ mod tests {
         });
         assert!(!host.click_on(&Selector::role("button").containing("Retain reviewed revision")));
         assert!(host.state().retention_busy.is_none());
+        assert!(host.state().retention_selected.is_none());
+        host.layout_at(900.0, 640.0);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let detail = class_node(&dom, dom.document(), "knot-retention-selected").unwrap();
+        assert!(text_content(&dom, detail).contains("No destination selected."));
     }
 
     #[test]

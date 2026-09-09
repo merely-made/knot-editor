@@ -304,6 +304,25 @@ impl KnotResidentSource {
         }
     }
 
+    /// Return the authority-issued public revision for one synced document.
+    ///
+    /// The value is the exact signed operation hash retained as the document's
+    /// current head. It is safe to place in provenance or a durable source
+    /// binding because it identifies an accepted Knot operation rather than
+    /// exposing the endpoint's private optimistic-concurrency capability.
+    /// Files-in-place, fixtures, conflicts, and unsynced vaults have no such
+    /// revision and return `None`.
+    pub fn public_document_revision(&self, document_id: &str) -> Option<[u8; 32]> {
+        let state = self.state();
+        let id = document_id
+            .strip_prefix("knot:vault:")
+            .unwrap_or(document_id);
+        if state.sync.is_none() || state.pending_history || state.conflicts.contains(id) {
+            return None;
+        }
+        state.document_heads.get(id).copied()
+    }
+
     /// Install the one source-owned evidence service cloned into later
     /// sessions and shared with the resident sync host.
     pub fn grant_content_retention(&self, port: KnotContentRetentionPort) {
@@ -697,6 +716,20 @@ impl KnotEndpoint {
         &self.session
     }
 
+    /// Return the authority-issued public revision for one synced document.
+    ///
+    /// This is the signed operation hash of the current document head. It is
+    /// distinct from the private `base_token` disclosed in an editable
+    /// resource and may be retained as source provenance. Directory and
+    /// fixture endpoints return `None` because their observations are not
+    /// signed durable document operations.
+    pub fn public_document_revision(&self, document_id: &str) -> Option<[u8; 32]> {
+        let Source::Vault(source) = &self.source else {
+            return None;
+        };
+        source.public_document_revision(document_id)
+    }
+
     /// Configure the Rosette scene before serving projection requests.
     pub fn with_rosette_config(mut self, config: KnotRosetteConfig) -> Self {
         self.rosette_config = config;
@@ -1085,12 +1118,13 @@ impl KnotEndpoint {
                     media_type,
                     encoding: TextEncoding::Utf8,
                     source,
+                    public_revision: None,
                     derived: self.derived_text(&document.id, &base_token),
                     base_token,
                 })
             }
             Source::Vault(source) => {
-                let (text, base_token) = {
+                let (text, base_token, public_revision) = {
                     let source = source.state();
                     let id = document
                         .id
@@ -1108,13 +1142,14 @@ impl KnotEndpoint {
                     }
                     let text = String::from_utf8(body.to_vec()).ok()?;
                     let head = source.document_heads.get(id)?;
-                    (text, vault_base_token(id, head))
+                    (text, vault_base_token(id, head), Some(*head))
                 };
                 Some(EditableTextV1 {
                     address,
                     media_type,
                     encoding: TextEncoding::Utf8,
                     source: text,
+                    public_revision,
                     derived: self.derived_text(&document.id, &base_token),
                     base_token,
                 })
@@ -2856,6 +2891,12 @@ mod tests {
         let snapshot = endpoint.snapshot(request).unwrap();
         let (_, editable, action) = editable_resource(&mut endpoint, &snapshot, "field.knot");
         assert_eq!(editable.source, "# Field\n");
+        assert_eq!(editable.public_revision, None);
+        assert_eq!(
+            endpoint.public_document_revision("field.knot"),
+            None,
+            "files-in-place have no authority-issued durable operation head"
+        );
         assert_eq!(action.intent.0, EDITABLE_TEXT_SAVE_INTENT);
         assert_eq!(action.payload_schema, EDITABLE_TEXT_SAVE_SCHEMA);
         let clip_action = action_for(&snapshot, InstanceId(0), KNOT_CLIP_INSERT_INTENT);
@@ -3671,6 +3712,15 @@ Fallback.
             .unwrap()
             .resource;
         assert_eq!(editable.source, "# Private\n");
+        assert_eq!(editable.public_revision, Some(initial_head));
+        assert_eq!(
+            endpoint.public_document_revision("field-note"),
+            Some(initial_head)
+        );
+        assert_eq!(
+            endpoint.public_document_revision("knot:vault:field-note"),
+            Some(initial_head)
+        );
         assert_eq!(
             endpoint
                 .invoke(save_invocation(
@@ -3695,6 +3745,10 @@ Fallback.
                 pollster::block_on(inspection_store.projection(&source.vault)).unwrap();
             assert_eq!(projection.documents[0].body, b"# Private revised\n");
             assert_ne!(projection.document_heads["field-note"], initial_head);
+            assert_eq!(
+                endpoint.public_document_revision("field-note"),
+                Some(projection.document_heads["field-note"])
+            );
             assert_eq!(
                 source.vault.body("field-note"),
                 Some(&b"# Private revised\n"[..])

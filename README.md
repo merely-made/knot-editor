@@ -129,6 +129,8 @@ only. Review keeps bytes in memory and does not sign, persist, or share them.
 An owning host can launch `knot_desktop::run_desktop_with_targets` with granted
 `KnotRetainPort` capabilities. `KnotResidentRetainPort::new` binds a host-selected
 persona display identity to an existing resident's `KnotFileCapturePort`.
+Destination choices use short labels; the selected detail shows the full persona,
+space, writer, and encryption identity before Retain.
 Choose a destination, then **Retain reviewed revision** to store the exact reviewed
 snapshot. Retention runs on a worker and rechecks current authorization. Its
 receipt identifies the original document, destination, and signed operation;

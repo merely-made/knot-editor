@@ -494,13 +494,54 @@ narrow feature set; the real resident test fixture is opt-in. Replication remain
 a separately selected authority. Headed acceptance and long-history latency
 remain unverified.
 
-The next owner-integration receipt should select an existing persona and space,
-issue an explicit document/byte grant, retain through these controls, revoke
-the grant, and visibly refuse a retry. Exercise that same destination after
-restart while proving a second owner was not opened. The next presentation
-receipt should verify input, scrolling, destination identity readability, and
-close behavior in a headed window. Long-history measurements should bound the
-worker scan and storage-lock wait before promoting a lookup-index design.
+Destination rows now use short labels with distinct space/writer prefixes; the
+selected detail keeps full persona, space, writer, and encryption identities
+visible before Retain. Selection has an accessible pressed state and never starts
+a write. The worker releases its capability before announcing completion, so
+closing or reopening cannot race its final owner-handle drop.
+
+The in-process owner lifecycle gate exercises host-selected destinations, explicit
+document/byte grants, live revocation, and explicit re-grant and reselection. It
+must refuse a revoked request without extending the signed tail, then deduplicate
+an exact retry after renewed authority. This remains a supplied-host fixture,
+not standalone attachment to a running process.
+
+**Standalone attachment boundary:** the default launcher cannot attach to the
+running `knot_sync_host`. Its current process exposes replication and pairing,
+not a desktop capture service; an in-memory `KnotFileCapturePort` cannot be passed
+across processes. Do not reopen that owner's vault from the desktop.
+
+Reuse Graphshell's existing admitted application route. At Mere `33287b0`,
+`serve_app_broker` applies `AllowedAppRoutes`, binds the application to a local
+link, and creates an `AdmittedEndpointContext` before the host's endpoint factory
+runs. `ResidentEndpoint` accepts an `IntentSink` and routes `IntentInvocation`
+separately from projection/resource reads. The relevant Mere sources are
+`ports/graphshell/src/native/app_broker.rs`, `app_admission.rs`,
+`endpoint_catalog.rs`, `app_client.rs`, and `crates/chirograph/src/lib.rs`.
+The next storage implementation should
+add a bounded Knot capture intent to that admitted route, with a host-issued
+capture grant tied to the same existing resident. The caller must never supply
+its own grant or infer authority from a persona label.
+
+Before writing the remote client, settle the signed-receipt return contract.
+At this pin `chirograph::IntentResult` has only `Accepted`, `Rejected`, and
+`Stale`; it has no result payload. Either evolve that shared contract with
+consumer/version negotiation, or specify a bounded, session-owned receipt
+resource associated with the request. The existing Knot resource implementation
+only returns resources disclosed to that session, so this also needs explicit
+receipt disclosure and revocation semantics. Do not use projection state as an
+operation acknowledgement. The broker composition must select an existing
+resident, authenticate the app, revoke the capture grant with its session, bound
+request bytes before decoding, and distinguish refusal from an uncertain write
+outcome after disconnect. Keep this in the current broker rather than adding a
+parallel local socket/authentication system. Done when an admitted desktop
+retains and retries through that route, a revoked/unadmitted client cannot write,
+and reconnect/restart preserves one store owner and the signed receipt.
+
+The next presentation receipt should verify input, scrolling, destination identity
+readability, and close behavior in a headed window. Long-history measurements
+should bound the worker scan and storage-lock wait before promoting a lookup-index
+design.
 
 Retention currently scans retained operations synchronously while holding the
 resident lock. Run it on a worker so the input/render thread and the executor
@@ -704,6 +745,29 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-09-09 main integration and destination refinement: `0a46ebd` brings the
+  earlier Retain implementation onto `main`, preserving the public revision work
+  and Mere `33287b0` pin from `e312458`. Luna refined concise destination choices,
+  full selected identity details, and pressed state. Terra expanded the real
+  resident fixture through revocation, visible refusal, explicit re-grant and
+  reselection, and owner reopen with the same signed operation. Worker completion
+  now releases its resident capability before waking the UI. The source file and
+  dirty buffer remain independent of the reviewed snapshot throughout.
+- 2026-09-09 integrated validation: Windows, Rust 1.97.1, Mere
+  `33287b0efbe0bd45bd46b87a598d5f4fc62414e2`, Genet unchanged at
+  `9e8f9dc2f3ddc0af1658580bb51964462a03923f`. From the repository with
+  `CARGO_HOME=C:\Users\mark_\.cargo` and `RUST_TEST_THREADS=1`:
+
+  ```powershell
+  cargo test -p knot-editor --test retain_host --offline --locked -j 2 --no-fail-fast
+  # 4 passed.
+  cargo test -p knot-desktop --features resident-retention-tests --offline --locked -j 2 --no-fail-fast
+  # 32 library + 4 launcher + 1 real resident test passed; 1 existing timing probe ignored.
+  ```
+
+  Focused formatting and diff checks passed. The default normal dependency tree
+  still excludes the editor runtime. These receipts are windowless; standalone
+  broker attachment and headed acceptance remain open. Probe cleanup is deferred.
 - 2026-09-09: added the lightweight `knot-capture` host contract, existing-resident
   adapter, reusable desktop entrypoint, and explicit worker Retain controls.
   Reviews and destination selection do not write. Tests cover duplicate refusal,

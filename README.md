@@ -93,6 +93,9 @@ revision to its space and writer; `retain` rechecks authority and returns a sign
 operation receipt. Exact same-writer retries reuse the retained operation,
 including after reopening the resident. The port does not open a vault, migrate
 documents, or select a persona. Host destination selection remains required.
+Capture lookup and signing share an async store gate with ordinary Knot writes
+and incoming replication. Run the blocking retention port on a worker; direct
+writes through the underlying Muniment handle bypass this coordination.
 Desktop signing/link controls remain open; older replicas need upgrading before
 reading spaces containing the new capture event.
 

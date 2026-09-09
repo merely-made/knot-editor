@@ -463,13 +463,14 @@ profile, and returns the signed operation ID. It rechecks lock, writer admission
 destination, and grant at retention. Revocation applies to all clones of a port.
 An exact same-writer capture is reused across retries and resident reopen;
 changed metadata or bytes remain distinct observations. Lookup refuses incomplete
-causal history. The resident mutex serializes lookup and authoring for this port;
-direct store authors and replication ingestion outside the resident lock are
-outside that concurrency guarantee. Host integration must coordinate those
-mutation paths before claiming atomic retention against simultaneous ingress.
-The current `KnotSyncStore::join` LogSync callback calls `store.accept` directly;
-an async mutation coordinator shared by ingress and retention is a candidate
-next seam. Existing authored-document mutations must join that coordination too.
+causal history. A clone-shared async gate in `KnotSyncStore` now serializes capture
+lookup and authoring with ordinary Knot authoring and operation acceptance.
+The `KnotSyncStore::join` LogSync callback uses that same acceptance path.
+The resident lock continues to protect the port's live vault authority while
+the store gate protects operation history. Direct writes through the low-level
+Muniment handle returned by `sync_store()` remain outside this contract; hosts
+must use the Knot mutation APIs. This is in-process coordination among clones,
+not a transaction across independently constructed store owners.
 
 The next storage gate is host selection and injection of that existing resident
 authority. A persona label must come from the host's authoritative selection;
@@ -483,9 +484,10 @@ default document feature set and avoid opening a second writer for an active
 resident. Replication remains a separately selected authority.
 
 Retention currently scans retained operations synchronously while holding the
-resident lock. Host integration must schedule it away from the input/render
-thread and measure representative long histories before claiming interactive
-latency. Any future lookup index remains rebuildable from signed captures;
+resident lock. Run it on a worker so the input/render thread and the executor
+handling queued ingress remain free to make progress. Measure representative
+long histories before claiming interactive latency. Any future lookup index
+remains rebuildable from signed captures;
 it cannot become a second source of revision identity or authorization.
 
 The first catalog stores a versioned binding list and commits each newly discovered
@@ -683,6 +685,43 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-09 coordinated mutations: Terra added one async gate shared by clones
+  of `KnotSyncStore`; Luna supplied coordination tests, with root review and
+  cancellation/checkpoint assertions. Capture lookup and signing now share the
+  gate with ordinary authoring, LogSync acceptance, checkpoint creation, and
+  epoch-pruning revalidation/commit. Internal authoring accepts its own operation
+  without reacquiring the gate. Revoked writers are rechecked after waiting,
+  including when a matching capture already exists. This closes the previously
+  recorded simultaneous-ingress gap for Knot mutation APIs. Raw Muniment writes
+  and independently constructed owners remain outside the guarantee. Host
+  selection, worker scheduling, and desktop Retain controls remain next.
+
+- 2026-09-09 validation: the shared checkout acquired concurrent `endpoint.rs`
+  work, so verification used `C:\Users\mark_\Code\worktrees\knot-editor-coordination-20260909`
+  at `c0df2f9` plus only this slice's patch. All three changed Rust files were
+  hash-compared with the shared checkout. Dependency pins remained unchanged.
+  On Windows with Rust 1.97.1, `CARGO_HOME=C:\Users\mark_\.cargo` and
+  `RUST_TEST_THREADS=1`, the following command ran from that isolated checkout:
+
+  ```powershell
+  cargo test -p knot-editor --lib --test capture_retention --test file_relations --test authored_relations --test file_catalog --no-fail-fast --offline --locked -j 2 --target-dir C:/Users/mark_/Code/repos/knot-editor/target
+  ```
+
+  The library passed 109 of 110 tests, including all four new coordination tests.
+  All 12 integration tests passed; the existing Windows symlink test remained
+  ignored. The existing publishing loopback test again timed out at
+  `publish_host.rs:730` with `ConnectionLost(TimedOut)`. The isolated retry below
+  passed in 2.67 seconds:
+
+  ```powershell
+  cargo test -p knot-editor --lib publish_host::tests::p2panda_loopback_uses_the_real_noise_and_notochord_path --offline --locked -j 2 --target-dir C:/Users/mark_/Code/repos/knot-editor/target -- --exact --nocapture
+  ```
+
+  This gives 122 distinct passing tests across runs, not an uninterrupted green
+  aggregate gate. The recurring aggregate loopback timeout remains open. Focused
+  formatting and diff checks passed. Concurrent endpoint edits were excluded
+  from this receipt and commit; no headed UI or non-Windows claim is made.
 
 - 2026-09-08 resident capture retention: Luna implemented the resident-owned
   port and Terra implemented and reviewed the closed-history lookup. The port

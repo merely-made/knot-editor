@@ -27,6 +27,7 @@ use stickleback::{
     author_head, causal_projection, observed_frontier, propose_epoch_pruning,
     validate_causal_metadata,
 };
+use tokio::sync::Mutex;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
@@ -382,6 +383,9 @@ struct StoredKnotOperation {
 pub struct KnotSyncStore<B> {
     store: MunimentStore<B, KnotSyncExt>,
     policy: KnotSyncPolicy,
+    /// Coordinates Knot-managed mutations. Direct writes through [`Self::sync_store`]
+    /// remain outside this guarantee.
+    mutation_gate: Arc<Mutex<()>>,
 }
 
 pub type KnotSyncFileStore = KnotSyncStore<RedbBackend>;
@@ -410,6 +414,7 @@ impl KnotSyncStore<MemoryBackend> {
                 writers: Arc::new(RwLock::new(writers.into_iter().collect())),
                 encryption,
             },
+            mutation_gate: Arc::new(Mutex::new(())),
         }
     }
 }
@@ -454,6 +459,7 @@ impl KnotSyncStore<RedbBackend> {
                 writers: Arc::new(RwLock::new(writers.into_iter().collect())),
                 encryption,
             },
+            mutation_gate: Arc::new(Mutex::new(())),
         })
     }
 }
@@ -541,6 +547,16 @@ where
         cipher: KnotSyncCipher<'_>,
         event: &KnotSyncEvent,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
+        self.author_under_gate(signing_seed, cipher, event).await
+    }
+
+    async fn author_under_gate(
+        &self,
+        signing_seed: [u8; 32],
+        cipher: KnotSyncCipher<'_>,
+        event: &KnotSyncEvent,
+    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
         self.require_cipher(cipher)?;
         let signing_key = SigningKey::from_bytes(&signing_seed);
         let author = signing_key.verifying_key();
@@ -588,7 +604,7 @@ where
             header,
             body: Some(body),
         };
-        self.accept(&operation).await?;
+        self.accept_under_gate(&operation).await?;
         Ok(operation)
     }
 
@@ -665,8 +681,30 @@ where
         Ok(())
     }
 
+    fn require_admitted_writer(&self, writer: [u8; 32]) -> Result<(), KnotSyncError> {
+        if self
+            .policy
+            .writers
+            .read()
+            .is_ok_and(|writers| writers.contains(&writer))
+        {
+            return Ok(());
+        }
+        Err(KnotSyncError::Payload(
+            "signing writer is not admitted to this Knot vault".into(),
+        ))
+    }
+
     /// The Knot-specific `accept` closure target used by Stickleback.
     pub async fn accept(&self, operation: &Operation<KnotSyncExt>) -> Result<bool, KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
+        self.accept_under_gate(operation).await
+    }
+
+    async fn accept_under_gate(
+        &self,
+        operation: &Operation<KnotSyncExt>,
+    ) -> Result<bool, KnotSyncError> {
         let processor = OperationProcessor::new(self.store.clone(), self.policy.clone());
         Ok(processor.process(operation).await?.inserted())
     }
@@ -981,6 +1019,35 @@ where
         Ok(matching)
     }
 
+    /// Retain one exact file revision, returning its operation id and whether
+    /// the revision was already present for this writer.
+    pub(crate) async fn retain_file_revision_with_cipher(
+        &self,
+        signing_seed: [u8; 32],
+        cipher: KnotSyncCipher<'_>,
+        revision: &KnotFileRevisionV1,
+    ) -> Result<([u8; 32], bool), KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
+        self.require_cipher(cipher)?;
+        let signing_key = SigningKey::from_bytes(&signing_seed);
+        let writer = *signing_key.verifying_key().as_bytes();
+        self.require_admitted_writer(writer)?;
+        if let Some(operation) = self
+            .find_file_revision_with_cipher(cipher, writer, revision)
+            .await?
+        {
+            return Ok((operation, true));
+        }
+        let operation = self
+            .author_under_gate(
+                signing_seed,
+                cipher,
+                &KnotSyncEvent::CaptureFileRevision(revision.clone()),
+            )
+            .await?;
+        Ok((*operation.hash.as_bytes(), false))
+    }
+
     /// Compatibility view for existing callers. New consumers should use
     /// [`Self::projection`] so unrelated documents remain available beside an
     /// explicit conflict.
@@ -1030,6 +1097,7 @@ where
         &self,
         cipher: KnotSyncCipher<'_>,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
         let checkpoint = self.build_checkpoint_with_cipher(cipher).await?;
         let bytes = serde_json::to_vec(&checkpoint)
             .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
@@ -1283,6 +1351,7 @@ where
         authority_reevaluation_epochs: &[GroupSecretId],
         offline_members: &[KnotOfflineMemberEpochHold],
     ) -> Result<KnotEpochExecutionReceipt, KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
         let current = self
             .communal_epoch_pruning_proposal(
                 keys,
@@ -1397,6 +1466,10 @@ where
         Ok(KnotOfflineMemberRecovery::BootstrapRequired { checkpoint })
     }
 
+    /// Return the raw replication store for read and transport plumbing.
+    ///
+    /// Direct writes through this handle bypass Knot's mutation gate. Normal
+    /// replication must submit accepted operations through [`Self::accept`].
     pub fn sync_store(&self) -> MunimentStore<B, KnotSyncExt> {
         self.store.clone()
     }
@@ -1929,6 +2002,10 @@ fn validate_resolution(
     }
     Ok(targets)
 }
+
+#[cfg(test)]
+#[path = "sync_coordination_tests.rs"]
+mod coordination_tests;
 
 #[cfg(test)]
 mod tests {

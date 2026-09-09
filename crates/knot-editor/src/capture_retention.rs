@@ -153,10 +153,13 @@ impl KnotFileCapturePort {
     ///
     /// The grant mutex is acquired before the resident state mutex and both
     /// remain held through lookup and authoring. This serializes capture ports
-    /// sharing a resident; callers that author directly through a cloned sync
-    /// store remain outside this resident-owned serialization boundary.
+    /// sharing a resident. The store's async mutation gate also coordinates
+    /// lookup and authoring with Knot authors and replication acceptance.
+    /// Direct writes through the low-level Muniment handle remain outside it.
     /// Exact document metadata and body bytes are used for retry lookup, so a
     /// matching same-writer operation is returned across reopen.
+    /// This is a blocking API. Run it on a worker, not on an input/render thread
+    /// or an async executor thread needed to complete an existing store write.
     pub fn retain(
         &self,
         prepared: &KnotPreparedFileCaptureV1,
@@ -193,19 +196,9 @@ impl KnotFileCapturePort {
             }) => (store, **signing_seed, KnotSyncCipher::CommonsData(keys)),
             None => return Err(KnotCaptureError::SyncUnavailable),
         };
-        let existing = pollster::block_on(store.find_file_revision_with_cipher(
-            cipher,
-            destination.writer,
-            &prepared.revision,
-        ))?;
-        let (operation, already_retained) = match existing {
-            Some(operation) => (operation, true),
-            None => {
-                let event = crate::KnotSyncEvent::CaptureFileRevision(prepared.revision.clone());
-                let operation = pollster::block_on(store.author_with_cipher(seed, cipher, &event))?;
-                (*operation.hash.as_bytes(), false)
-            },
-        };
+        let (operation, already_retained) = pollster::block_on(
+            store.retain_file_revision_with_cipher(seed, cipher, &prepared.revision),
+        )?;
         Ok(KnotCaptureReceipt {
             destination,
             document_id: prepared.revision.document_id.clone(),

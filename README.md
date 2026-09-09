@@ -87,6 +87,12 @@ vault documents and publication reads; `KnotSyncStore::file_revision` reads an
 exact retained capture. Later disk edits leave earlier relation targets intact.
 Preparation excludes unsaved editor changes and does not replicate anything.
 The host must authorize storage and disclosure of captured bytes separately.
+An existing `KnotResidentSource` can issue a `KnotFileCapturePort` with an explicit
+`KnotCaptureGrant` of document IDs and a byte limit. `prepare` binds the reviewed
+revision to its space and writer; `retain` rechecks authority and returns a signed
+operation receipt. Exact same-writer retries reuse the retained operation,
+including after reopening the resident. The port does not open a vault, migrate
+documents, or select a persona. Host destination selection remains required.
 Desktop signing/link controls remain open; older replicas need upgrading before
 reading spaces containing the new capture event.
 

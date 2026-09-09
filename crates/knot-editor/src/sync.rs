@@ -934,6 +934,53 @@ where
         Ok(None)
     }
 
+    /// Find an already-retained exact file revision by its signed writer.
+    ///
+    /// Retention callers use this before authoring so a retry after an
+    /// uncertain response can return the original operation rather than append
+    /// another observation. The lookup refuses incomplete causal history: a
+    /// capture hidden behind an unavailable parent is not a safe idempotency
+    /// receipt. If more than one closed operation matches, the lowest operation
+    /// hash is returned so the result is independent of causal traversal order.
+    pub(crate) async fn find_file_revision_with_cipher(
+        &self,
+        cipher: KnotSyncCipher<'_>,
+        writer: [u8; 32],
+        revision: &KnotFileRevisionV1,
+    ) -> Result<Option<[u8; 32]>, KnotSyncError> {
+        revision
+            .validate()
+            .map_err(KnotSyncError::InvalidFileRevision)?;
+        self.require_cipher(cipher)?;
+        let records = self.load_operations().await?;
+        let entries = causal_entries(&records);
+        let projection = causal_projection(&entries)?;
+        if !projection.pending.is_empty() {
+            return Err(KnotSyncError::Payload(
+                "capture retention requires complete causal history".into(),
+            ));
+        }
+
+        let mut matching = None;
+        for index in projection.order {
+            let operation = &records[index].operation;
+            if *operation.header.verifying_key.as_bytes() != writer {
+                continue;
+            }
+            let event = decode_event(cipher, operation)?;
+            let KnotSyncEvent::CaptureFileRevision(candidate) = event else {
+                continue;
+            };
+            if candidate.validate().is_ok() && candidate == *revision {
+                let operation_id = *operation.hash.as_bytes();
+                if matching.is_none_or(|current| operation_id < current) {
+                    matching = Some(operation_id);
+                }
+            }
+        }
+        Ok(matching)
+    }
+
     /// Compatibility view for existing callers. New consumers should use
     /// [`Self::projection`] so unrelated documents remain available beside an
     /// explicit conflict.
@@ -3393,5 +3440,113 @@ mod tests {
         assert_eq!(projection.documents, vec![authored]);
         assert!(projection.conflicts.is_empty());
         assert_eq!(projection.relations.len(), 1);
+    }
+
+    #[tokio::test]
+    async fn retained_file_revision_lookup_requires_same_writer_and_exact_metadata() {
+        let roots = tempdir().unwrap();
+        let (alice, bob) = identities();
+        let alice_writer = alice.master_public_key().to_bytes();
+        let bob_writer = bob.master_public_key().to_bytes();
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [alice_writer, bob_writer]);
+        let revision = file_revision("knot:document:catalog-file", "quoted source");
+        let alice_capture = store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::CaptureFileRevision(revision.clone()),
+            )
+            .await
+            .unwrap();
+        store
+            .author(
+                bob.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::CaptureFileRevision(revision.clone()),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(
+            store
+                .find_file_revision_with_cipher(
+                    KnotSyncCipher::Personal(&vault),
+                    alice_writer,
+                    &revision,
+                )
+                .await
+                .unwrap(),
+            Some(*alice_capture.hash.as_bytes())
+        );
+
+        for differing in [
+            KnotFileRevisionV1 {
+                title: "Different title".into(),
+                ..revision.clone()
+            },
+            KnotFileRevisionV1 {
+                media_type: "text/markdown".into(),
+                ..revision.clone()
+            },
+            KnotFileRevisionV1 {
+                body: b"different bytes".to_vec(),
+                ..revision.clone()
+            },
+            KnotFileRevisionV1 {
+                document_id: "knot:document:other-file".into(),
+                ..revision.clone()
+            },
+        ] {
+            assert_eq!(
+                store
+                    .find_file_revision_with_cipher(
+                        KnotSyncCipher::Personal(&vault),
+                        alice_writer,
+                        &differing,
+                    )
+                    .await
+                    .unwrap(),
+                None
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn retained_file_revision_lookup_refuses_pending_causal_history() {
+        let roots = tempdir().unwrap();
+        let alice = InMemoryProvider::from_seed([0x96; 32]);
+        let writer = alice.master_public_key().to_bytes();
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [writer]);
+        let revision = file_revision("knot:document:catalog-file", "quoted source");
+        store
+            .author(
+                alice.master_keypair().to_seed(),
+                &vault,
+                &KnotSyncEvent::CaptureFileRevision(revision.clone()),
+            )
+            .await
+            .unwrap();
+        author_unchecked_with_parents(
+            &store,
+            alice.master_keypair().to_seed(),
+            &vault,
+            &KnotSyncEvent::Put(doc("pending", "unavailable parent")),
+            vec![[0xfe; 32]],
+        )
+        .await;
+
+        assert!(matches!(
+            store
+                .find_file_revision_with_cipher(
+                    KnotSyncCipher::Personal(&vault),
+                    writer,
+                    &revision,
+                )
+                .await,
+            Err(KnotSyncError::Payload(message))
+                if message == "capture retention requires complete causal history"
+        ));
     }
 }

@@ -6,6 +6,13 @@
 
 //! Graphshell disclosure for Knot directory state.
 
+#[path = "capture_retention.rs"]
+mod capture_retention;
+pub use capture_retention::{
+    KnotCaptureDestination, KnotCaptureError, KnotCaptureGrant, KnotCaptureReceipt,
+    KnotFileCapturePort, KnotPreparedFileCaptureV1,
+};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::io;

@@ -46,6 +46,8 @@ pub use content_classes::{
 };
 pub use directory::{DirectorySource, DiskDocument, IgnorePolicy};
 pub use endpoint::{
+    KnotCaptureDestination, KnotCaptureError, KnotCaptureGrant, KnotCaptureReceipt,
+    KnotFileCapturePort, KnotPreparedFileCaptureV1,
     KnotEffectAuthority, KnotEffectFetcher, KnotEffectMode, KnotEffectPolicy, KnotEndpoint,
     KnotResidentSource, KnotRosetteConfig, KnotWriteGrant,
 };

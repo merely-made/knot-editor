@@ -457,16 +457,36 @@ capture API through a reexport/adapter. Reviewing is neither a signed event nor
 permission to store or share the bytes. The desktop exposes no retention action
 until a destination authority can be selected explicitly.
 
-The next storage gate is a dedicated non-migrating adapter to a resident-owned
-persona authority. It must expose the selected persona/space and writer, admit
-exact prepared bytes, report the resulting signed operation ID, and handle lock,
-ownership, and failed-write states without repeating a successful operation.
+The resident-owned retention adapter accepts an explicit document-ID and byte
+limit grant, binds immutable prepared bytes to a space, writer, and encryption
+profile, and returns the signed operation ID. It rechecks lock, writer admission,
+destination, and grant at retention. Revocation applies to all clones of a port.
+An exact same-writer capture is reused across retries and resident reopen;
+changed metadata or bytes remain distinct observations. Lookup refuses incomplete
+causal history. The resident mutex serializes lookup and authoring for this port;
+direct store authors and replication ingestion outside the resident lock are
+outside that concurrency guarantee. Host integration must coordinate those
+mutation paths before claiming atomic retention against simultaneous ingress.
+The current `KnotSyncStore::join` LogSync callback calls `store.accept` directly;
+an async mutation coordinator shared by ingress and retention is a candidate
+next seam. Existing authored-document mutations must join that coordination too.
+
+The next storage gate is host selection and injection of that existing resident
+authority. A persona label must come from the host's authoritative selection;
+the adapter does not infer persona identity from a vault path. The desktop still
+needs explicit Retain controls, destination display, and failure/retry handling.
 `StartupUnlockedPersonalVault::open` currently migrates unsynced vault documents,
 and `local_device_root` may create a device identity; neither is a neutral
-implementation of a desktop destination picker. Establish that adapter before
-adding Retain and relation-authoring controls. It must preserve the existing
+implementation of a desktop destination picker. Retain and relation-authoring
+controls must preserve the existing
 default document feature set and avoid opening a second writer for an active
 resident. Replication remains a separately selected authority.
+
+Retention currently scans retained operations synchronously while holding the
+resident lock. Host integration must schedule it away from the input/render
+thread and measure representative long histories before claiming interactive
+latency. Any future lookup index remains rebuildable from signed captures;
+it cannot become a second source of revision identity or authorization.
 
 The first catalog stores a versioned binding list and commits each newly discovered
 path separately. Before making it a default for large trees, measure initial
@@ -663,6 +683,40 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+
+- 2026-09-08 resident capture retention: Luna implemented the resident-owned
+  port and Terra implemented and reviewed the closed-history lookup. The port
+  takes explicit grants, prepares immutable destination-bound revisions, and
+  returns signed receipts with retry reuse. Retention checks current writer,
+  vault lock, grant, destination, and Commons key availability. It reads current
+  encryption keys after rotation and leaves the editable vault projection alone.
+  Separate ports share the resident lock across lookup and authoring. Desktop
+  destination selection, Retain controls, and headed acceptance remain open.
+
+- 2026-09-08 retention validation: Windows, Rust 1.97.1, unchanged dependency
+  pins, `CARGO_HOME=C:\Users\mark_\.cargo`, `RUST_TEST_THREADS=1`. The final-source
+  command `cargo test -p knot-editor --lib --test capture_retention --test
+  file_relations --test authored_relations --test file_catalog --offline --locked
+  -j 2` built every selected executable. The library run passed 105 of 106 tests;
+  the existing publishing loopback test again failed at `publish_host.rs:730`
+  with `ConnectionLost(TimedOut)`. Cargo stopped before running integrations.
+  The freshly built executables were then run directly to avoid another shared
+  package-cache wait:
+
+  ```powershell
+  .\target\debug\deps\capture_retention-750fb988cb180059.exe --test-threads=1
+  .\target\debug\deps\authored_relations-1ae0da33a0e10c3d.exe --test-threads=1
+  .\target\debug\deps\file_catalog-71914480ac349b77.exe --test-threads=1
+  .\target\debug\deps\file_relations-8c1c19a782f0633f.exe --test-threads=1
+  .\target\debug\deps\knot_editor-f72dff44235e04e9.exe publish_host::tests::p2panda_loopback_uses_the_real_noise_and_notochord_path --exact --nocapture --test-threads=1
+  ```
+
+  These runs passed 5 retention, 2 authored-relation, 4 catalog, 1 file-relation,
+  and the isolated loopback test (6.11 seconds). One existing Windows symlink
+  test remains ignored. There are 118 distinct passing tests across the runs;
+  this is not an uninterrupted green aggregate gate. The recurring loopback
+  timeout in aggregate runs remains open. Focused formatting and `git diff --check`
+  passed. No headed UI or non-Windows receipt is claimed.
 
 - 2026-09-08 desktop saved-revision review: added an explicit Review/Refresh/
   Discard surface for catalogued files with source text, path, ID, media type,

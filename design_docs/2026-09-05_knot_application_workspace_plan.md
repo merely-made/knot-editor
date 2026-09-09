@@ -686,6 +686,17 @@ restoration, or a universal dashboard to ship the safe writing cut.
 
 ## Findings and progress
 
+- 2026-09-09 public revision boundary: synced vault editable resources now
+  disclose their exact signed document-head operation as
+  `EditableTextV1.public_revision`. `KnotResidentSource` and `KnotEndpoint`
+  expose the same authority-issued value for host adapters. The private
+  `base_token` remains a save concurrency capability and is never reused or
+  hashed as provenance. Files-in-place, fixtures, conflicts, and unsynced
+  vaults disclose no public revision. This supplies Scenograph's durable
+  revision path for Turnstone once its immutable Mere and Knot pins advance;
+  sources without such identity may use only Scenograph's non-serialized
+  runtime witness path.
+
 - 2026-09-09 coordinated mutations: Terra added one async gate shared by clones
   of `KnotSyncStore`; Luna supplied coordination tests, with root review and
   cancellation/checkpoint assertions. Capture lookup and signing now share the

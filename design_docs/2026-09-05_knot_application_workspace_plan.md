@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, G1 relation/file catalog models, desktop catalog and saved-revision review, and the signed file-revision bridge implemented, 2026-09-08; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline and session appearance controls, G1 relation/file catalog models, desktop catalog and saved-revision review, and the signed file-revision bridge implemented, 2026-09-09; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -34,7 +34,7 @@ when they have a product-owned snapshot and effect boundary.
 | Concern | Existing Knot authority or API | Current standalone surface | Required application work |
 | --- | --- | --- | --- |
 | Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
-| Derived readings | Outline snapshots use the shared lightweight readout. Existing `engine` APIs expose highlights, folds, and preview from the same source buffer. | Optional live heading outline on the narrow default dependency set. | Source decoration, folding, source-preserving preview, and headed outline acceptance. |
+| Derived readings | Outline snapshots use the shared lightweight readout. Existing `engine` APIs expose highlights, folds, and preview from the same source buffer. | Optional live heading outline; desktop Djot/Knot source decoration and Tinct appearance controls through the optional highlight feature. | Folding, source-preserving preview, cross-launch preferences, and headed writing acceptance. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
 | Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
 | Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
@@ -163,8 +163,23 @@ the original heading range and returns keyboard focus to the editor. A
 source/address check rejects a row captured from an older document state.
 Preedit text remains local to the input until committed. Outline visibility
 is a view preference; selecting a heading changes neither saved bytes nor
-the dirty baseline. Preview, folding, and source decoration remain separate
-acceptance work within A2.
+the dirty baseline. Preview and folding remain separate acceptance work within A2.
+
+The 2026-09-09 appearance slice adds session-level light/dark Tinct palettes,
+highlight visibility, 12–24 px source type, writing width, and line spacing.
+The desktop enables the optional `knot-document/highlight` feature and uses
+Cambium's styled textarea over the existing `TextInput`. Djot and legacy Knot
+receive the shared default note highlighter; Markdown, JSON, and read-only
+documents retain plain rendering. This does not enable the broad `engine`
+feature or change source bytes, selection, undo history, or save authority.
+Embedded hosts retain plain presentation by default and own their styles when
+opting in. Preferences survive document transitions within the running app;
+cross-launch preference storage remains open.
+
+Next visible slices are source-linked preview and folding, then file navigation,
+tabs and recovery, followed by a document-to-document relation workflow. Larger
+document responsiveness and headed typography, caret, and IME acceptance still
+need measured receipts before this phase is called complete.
 Outline row indices are transient positions in one reading, not durable passage
 identities. G1 still needs explicit anchor and revision rules before persisting
 relations to passages.
@@ -745,6 +760,21 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-09-09 A2 appearance and source-decoration slice: the standalone desktop
+  now derives light and dark UI and syntax palettes from Tinct and exposes
+  session controls for highlighting, 12–24 px source type, compact/relaxed line
+  spacing, and narrow/wide writing measure. Djot and legacy Knot highlighting
+  use Cambium's styled textarea over the existing authoritative `TextInput`;
+  Markdown, JSON, read-only, and default embedded surfaces remain plain. The
+  settings survive New, Open, and Reload without changing source, selection,
+  dirty state, undo history, or save authority. Cross-launch persistence,
+  source-linked preview/folding, and headed visual/IME acceptance remain open.
+- 2026-09-09 A2 validation: Windows, Rust 1.97.1, Mere `33287b0`, Genet
+  `9e8f9dc2`. The default desktop suite passed 36 library and 4 launcher tests;
+  its existing diagnostic timing probe remained ignored. The standalone
+  `knot-document` workspace with `--features highlight` passed 31 tests with
+  its existing manual performance probe ignored. `git diff --check` passed.
+  The existing Windows atomic-replacement unsafe warning was unchanged.
 - 2026-09-09 main integration and destination refinement: `0a46ebd` brings the
   earlier Retain implementation onto `main`, preserving the public revision work
   and Mere `33287b0` pin from `e312458`. Luna refined concise destination choices,

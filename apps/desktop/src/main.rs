@@ -271,11 +271,16 @@ mod tests {
                 Some(path.clone()),
             ),
             logic: desktop_view as fn(&DesktopState) -> DesktopView,
-            sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
+            sheet: format!(
+                "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}",
+                knot_desktop::appearance::appearance_css()
+            ),
         };
         let mut harness = Harness::with_hooks(init, host_hooks());
         harness.layout_at(900.0, 640.0);
-        assert!(harness.click_on(&Selector::role("textbox").containing("Receipt")));
+        // Highlighted text is nested in spans. Target the field's stable
+        // accessible name rather than the probe's direct-child text matcher.
+        assert!(harness.click_on(&Selector::role("textbox").containing("Document text")));
         assert!(harness.focus().is_some());
         harness.key_injected("Body");
         harness.press_key(&KeyPress::named(NamedKey::Enter));

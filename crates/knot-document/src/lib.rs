@@ -22,7 +22,7 @@ pub use document_surface::{
 };
 pub use document_view::{
     KNOT_DOCUMENT_CSS, KnotDocumentSurfaceState, KnotDocumentView, knot_document_descriptor,
-    knot_document_surface, knot_document_view,
+    knot_document_surface, knot_document_view, knot_document_view_with_highlighting,
 };
 pub use editor::{EditOutcome, KnotEditor, KnotEditorSaveError};
 #[cfg(feature = "engine")]

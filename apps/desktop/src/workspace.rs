@@ -4,6 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
+use crate::appearance::Appearance;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, TextInput, button, el, lens, span, text_field_typed,
 };
@@ -14,7 +15,8 @@ use cambium_genet_winit_host::{
 use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
-    KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1, knot_document_view,
+    KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1,
+    knot_document_view_with_highlighting,
 };
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
@@ -103,6 +105,7 @@ enum PendingAction {
 /// the embedding host's responsibility.
 pub struct DesktopState {
     pub document: KnotDocumentSurfaceState,
+    pub appearance: Appearance,
     pub path: TextInput,
     pub message: Option<String>,
     catalog: Option<KnotFileCatalog>,
@@ -117,6 +120,7 @@ pub struct DesktopState {
     comparison: Option<KnotDiskComparisonV1>,
     comparison_error: Option<String>,
     outline_visible: bool,
+    appearance_open: bool,
     outline_snapshot: Option<KnotOutlineSnapshotV1>,
     outline_error: Option<String>,
     focus_source_requested: bool,
@@ -169,6 +173,7 @@ impl DesktopState {
         });
         let mut state = Self {
             document: KnotDocumentSurfaceState::new(session),
+            appearance: Appearance::default(),
             path,
             message: None,
             catalog,
@@ -183,6 +188,7 @@ impl DesktopState {
             comparison: None,
             comparison_error: None,
             outline_visible: false,
+            appearance_open: false,
             outline_snapshot: None,
             outline_error: None,
             focus_source_requested: false,
@@ -463,6 +469,10 @@ impl DesktopState {
         } else {
             self.clear_outline();
         }
+    }
+
+    fn toggle_appearance(&mut self) {
+        self.appearance_open = !self.appearance_open;
     }
 
     fn select_outline_item(&mut self, index: usize) {
@@ -1094,10 +1104,89 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", ()))
     };
+    let appearance_panel: DesktopView = if state.appearance_open {
+        let appearance = &state.appearance;
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "div",
+                        (
+                            button("Light", |state: &mut DesktopState, _| {
+                                state.appearance.dark = false;
+                            })
+                            .attr("aria-pressed", (!appearance.dark).to_string()),
+                            button("Dark", |state: &mut DesktopState, _| {
+                                state.appearance.dark = true;
+                            })
+                            .attr("aria-pressed", appearance.dark.to_string()),
+                            button("Highlight", |state: &mut DesktopState, _| {
+                                state.appearance.highlight = !state.appearance.highlight;
+                            })
+                            .attr("aria-pressed", appearance.highlight.to_string()),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row"),
+                    el(
+                        "div",
+                        (
+                            button("Smaller", |state: &mut DesktopState, _| {
+                                state.appearance.font_size =
+                                    state.appearance.font_size.saturating_sub(1).max(12);
+                            }),
+                            span(format!("Text size: {}", appearance.font_size)),
+                            button("Larger", |state: &mut DesktopState, _| {
+                                state.appearance.font_size =
+                                    state.appearance.font_size.saturating_add(1).min(24);
+                            }),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row"),
+                    el(
+                        "div",
+                        (
+                            button("Narrow", |state: &mut DesktopState, _| {
+                                state.appearance.wide = false;
+                            })
+                            .attr("aria-pressed", (!appearance.wide).to_string()),
+                            button("Wide", |state: &mut DesktopState, _| {
+                                state.appearance.wide = true;
+                            })
+                            .attr("aria-pressed", appearance.wide.to_string()),
+                            button("Compact", |state: &mut DesktopState, _| {
+                                state.appearance.relaxed = false;
+                            })
+                            .attr("aria-pressed", (!appearance.relaxed).to_string()),
+                            button("Relaxed", |state: &mut DesktopState, _| {
+                                state.appearance.relaxed = true;
+                            })
+                            .attr("aria-pressed", appearance.relaxed.to_string()),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row"),
+                ),
+            )
+            .attr("class", "knot-appearance-panel")
+            .attr("id", "knot-appearance-panel")
+            .attr("role", "region")
+            .attr("aria-label", "Appearance controls"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
+    let highlight = state.appearance.highlight;
     let document: DesktopView = Box::new(lens(
-        |state: &mut KnotDocumentSurfaceState| knot_document_view(state),
+        move |state: &mut KnotDocumentSurfaceState| {
+            knot_document_view_with_highlighting(state, highlight)
+        },
         |state: &mut DesktopState| &mut state.document,
     ));
+    let source_wrapper: DesktopView = Box::new(
+        el("div", document)
+            .attr("class", "knot-source-wrapper")
+            .attr("style", state.appearance.writing_style()),
+    );
     let prompt: DesktopView = match state.pending.as_ref() {
         Some(action) => {
             let title = match action {
@@ -1178,6 +1267,11 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         button("Compare", |state: &mut DesktopState, _| {
                             state.compare_disk();
                         }),
+                        button("Appearance", |state: &mut DesktopState, _| {
+                            state.toggle_appearance();
+                        })
+                        .attr("aria-expanded", state.appearance_open.to_string())
+                        .attr("aria-controls", "knot-appearance-panel"),
                         button(
                             if state.outline_visible {
                                 "Hide Outline"
@@ -1205,12 +1299,13 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 catalog_status,
                 review_panel,
                 retention_panel,
-                el("div", (document, outline_panel)).attr("class", "knot-writing-area"),
+                appearance_panel,
+                el("div", (source_wrapper, outline_panel)).attr("class", "knot-writing-area"),
                 comparison_panel,
                 prompt,
             ),
         )
-        .attr("class", "knot-workspace"),
+        .attr("class", state.appearance.root_class()),
     )
 }
 
@@ -1363,6 +1458,9 @@ pub fn after_wake(
 pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
+    ".knot-appearance-panel { display:flex; flex-direction:column; gap:8px; padding:10px; border:1px solid; }",
+    ".knot-appearance-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }",
+    ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field input { min-width:280px; flex:1; }",
     ".knot-workspace-message { min-height:1.4em; }",
@@ -1407,6 +1505,7 @@ pub const DESKTOP_CSS: &str = concat!(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::appearance::appearance_css;
     use cambium_genet_winit_host::{Harness, Init, Modifiers, inert_hooks};
     use genet_probe::Selector;
     use knot_document::KNOT_DOCUMENT_CSS;
@@ -1428,7 +1527,7 @@ mod tests {
             Init {
                 state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
+                sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}", appearance_css()),
             },
             {
                 let mut hooks = inert_hooks();
@@ -1499,6 +1598,90 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| class_node(dom, child, class))
+    }
+
+    #[test]
+    fn appearance_controls_preserve_source_selection_and_clean_baseline() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# First\n\n## Second\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        assert!(host.click_on(&Selector::role("button").containing("Second")));
+        let before = host.state().document.snapshot();
+        assert!(!before.dirty);
+        assert_ne!(before.selection.anchor.byte, before.selection.focus.byte);
+        assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+        assert!(host.click_on(&Selector::role("button").containing("Dark")));
+        assert!(host.click_on(&Selector::role("button").containing("Highlight")));
+        assert!(host.click_on(&Selector::role("button").containing("Wide")));
+        assert!(host.click_on(&Selector::role("button").containing("Relaxed")));
+        let after = host.state().document.snapshot();
+        assert_eq!(after.text, before.text);
+        assert_eq!(after.selection, before.selection);
+        assert_eq!(after.dirty, before.dirty);
+        assert!(host.state().appearance.dark);
+        assert!(!host.state().appearance.highlight);
+        assert!(host.state().appearance.wide);
+        assert!(host.state().appearance.relaxed);
+    }
+
+    #[test]
+    fn appearance_settings_persist_through_new_open_and_reload() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("appearance.djot");
+        std::fs::write(&path, "# Opened\n").unwrap();
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "draft"));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+        assert!(host.click_on(&Selector::role("button").containing("Dark")));
+        assert!(host.click_on(&Selector::role("button").containing("Highlight")));
+        assert!(host.click_on(&Selector::role("button").containing("Wide")));
+        assert!(host.click_on(&Selector::role("button").containing("Compact")));
+        assert!(host.click_on(&Selector::role("button").containing("Larger")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert_eq!(host.state().document.snapshot().text, "");
+        assert_eq!(host.state().document.session().source_path(), None);
+        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        assert_eq!(host.state().document.snapshot().text, "# Opened\n");
+        assert_eq!(
+            host.state().document.session().source_path(),
+            Some(path.canonicalize().unwrap().as_path())
+        );
+        std::fs::write(&path, "# Reloaded\n").unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Reload")));
+        assert_eq!(host.state().document.snapshot().text, "# Reloaded\n");
+        let appearance = &host.state().appearance;
+        assert!(appearance.dark);
+        assert!(!appearance.highlight);
+        assert_eq!(appearance.font_size, 17);
+        assert!(appearance.wide);
+        assert!(!appearance.relaxed);
+    }
+
+    #[test]
+    fn highlighting_toggle_keeps_preedit_unicode_input_and_saved_bytes() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("ime.djot");
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+        assert!(host.click_on(&Selector::role("button").containing("Highlight")));
+        host.update(|state| {
+            let input = state.document.session_mut().input_mut().unwrap();
+            input.set_preedit("仮入力");
+        });
+        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        assert!(host.click_on(&Selector::role("button").containing("Highlight")));
+        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
+        host.key_injected("確定");
+        assert_eq!(host.state().document.snapshot().text, "確定");
+        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert_eq!(std::fs::read(&path).unwrap(), "確定".as_bytes());
     }
 
     fn text_content(

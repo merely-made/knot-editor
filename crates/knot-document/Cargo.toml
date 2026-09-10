@@ -12,6 +12,7 @@ description = "Djot-first local document authority and reusable Knot surface."
 
 [features]
 default = []
+highlight = ["cambium/highlight"]
 # Broad Knot conversion, preview, and canonicalization. The ordinary document
 # surface intentionally retains only the lightweight editor readout.
 engine = [

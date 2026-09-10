@@ -12,6 +12,8 @@ use cambium::{
     AnyView, DomHandle, GenetAppRunner, GenetCtx, GenetElement, RunnerSurfaceSession, TextInput,
     button, div, el, lens, span, textarea_typed,
 };
+#[cfg(feature = "highlight")]
+use cambium::{Highlight, highlighted_textarea};
 use mere_surface_api::{
     ProviderId, SourceKindId, SurfaceAvailability, SurfaceDescriptor, SurfaceId, SurfaceSourceShape,
 };
@@ -45,8 +47,21 @@ impl KnotDocumentSurfaceState {
 }
 pub type KnotDocumentView = Box<dyn AnyView<KnotDocumentSurfaceState, (), GenetCtx, GenetElement>>;
 pub fn knot_document_view(state: &KnotDocumentSurfaceState) -> KnotDocumentView {
+    knot_document_view_with_highlighting(state, false)
+}
+
+/// Builds the document surface with optional Djot/Knot source highlighting.
+///
+/// The editable branch always lenses the session's one [`TextInput`]. When the
+/// `highlight` feature is unavailable, or the source is not Djot/Knot, `enabled`
+/// retains the ordinary textarea projection.
+pub fn knot_document_view_with_highlighting(
+    state: &KnotDocumentSurfaceState,
+    enabled: bool,
+) -> KnotDocumentView {
     let snapshot = state.snapshot();
     let read_only = snapshot.write_posture == KnotDocumentWritePostureV1::ReadOnly;
+    let highlight_note = uses_note_highlighting(enabled, snapshot.format);
     let save_affordance: Box<dyn AnyView<KnotDocumentSurfaceState, (), GenetCtx, GenetElement>> =
         if read_only {
             Box::new(
@@ -92,7 +107,7 @@ pub fn knot_document_view(state: &KnotDocumentSurfaceState) -> KnotDocumentView 
             el(
                 "div",
                 lens(
-                    |input: &mut TextInput| textarea_typed(input),
+                    move |input: &mut TextInput| editable_document_textarea(input, highlight_note),
                     |state: &mut KnotDocumentSurfaceState| state.input_mut_for_editable_view(),
                 ),
             )
@@ -107,6 +122,25 @@ pub fn knot_document_view(state: &KnotDocumentSurfaceState) -> KnotDocumentView 
             .attr("data-surface", "knot.document.v1"),
     )
 }
+
+fn uses_note_highlighting(enabled: bool, format: DocumentFormat) -> bool {
+    enabled && matches!(format, DocumentFormat::Djot | DocumentFormat::Knot)
+}
+
+#[cfg(feature = "highlight")]
+fn editable_document_textarea(input: &TextInput, highlight_note: bool) -> cambium::TextField {
+    if highlight_note {
+        highlighted_textarea(input, Highlight::Note)
+    } else {
+        textarea_typed(input)
+    }
+}
+
+#[cfg(not(feature = "highlight"))]
+fn editable_document_textarea(_input: &TextInput, _highlight_note: bool) -> cambium::TextField {
+    textarea_typed(_input)
+}
+
 pub fn knot_document_descriptor() -> SurfaceDescriptor {
     SurfaceDescriptor {
         provider_id: ProviderId::from("knot"),
@@ -177,6 +211,8 @@ fn refusal_label(refusal: crate::KnotDocumentRefusalV1) -> &'static str {
 mod tests {
     use std::{cell::RefCell, rc::Rc};
 
+    #[cfg(feature = "highlight")]
+    use cambium::{Key, KeyEvent, Modifiers};
     use genet_scripted_dom::ScriptedDom;
     use layout_dom_api::LayoutDom;
 
@@ -189,6 +225,31 @@ mod tests {
                 .dom_children(node)
                 .any(|child| contains_element(dom, child, name))
     }
+
+    #[cfg(feature = "highlight")]
+    fn first_element(
+        dom: &ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        name: &str,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom
+            .element_name(node)
+            .is_some_and(|qualified| qualified.local.as_ref() == name)
+        {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| first_element(dom, child, name))
+    }
+
+    #[cfg(feature = "highlight")]
+    fn descendant_text(dom: &ScriptedDom, node: genet_scripted_dom::NodeId) -> String {
+        dom.text(node).unwrap_or_default().to_owned()
+            + &dom
+                .dom_children(node)
+                .map(|child| descendant_text(dom, child))
+                .collect::<String>()
+    }
     #[test]
     fn state_uses_the_session_input_as_the_component_buffer() {
         let mut state =
@@ -196,6 +257,15 @@ mod tests {
         let first = state.session().input() as *const TextInput;
         let second = state.input_mut_for_editable_view() as *mut TextInput;
         assert_eq!(first, second.cast_const());
+    }
+
+    #[test]
+    fn note_highlighting_is_limited_to_djot_and_legacy_knot() {
+        assert!(uses_note_highlighting(true, DocumentFormat::Djot));
+        assert!(uses_note_highlighting(true, DocumentFormat::Knot));
+        assert!(!uses_note_highlighting(true, DocumentFormat::Markdown));
+        assert!(!uses_note_highlighting(true, DocumentFormat::Json));
+        assert!(!uses_note_highlighting(false, DocumentFormat::Djot));
     }
 
     #[test]
@@ -241,6 +311,100 @@ mod tests {
                 .all_with_class(rendered.document(), "knot-document-save")
                 .is_empty(),
             "a read-only document must not render a save button"
+        );
+    }
+
+    #[cfg(feature = "highlight")]
+    #[test]
+    fn highlighted_read_only_view_remains_a_plain_immutable_projection() {
+        let dom: DomHandle = Rc::new(RefCell::new(ScriptedDom::new()));
+        let state = KnotDocumentSurfaceState::new(KnotDocumentSession::read_only(
+            "memory:highlighted-read-only",
+            "# Field\n",
+        ));
+        let runner = GenetAppRunner::new(
+            dom.clone(),
+            |state| knot_document_view_with_highlighting(state, true),
+            state,
+        );
+        let rendered = dom.borrow();
+        assert!(!contains_element(&rendered, runner.root(), "textarea"));
+        assert!(
+            rendered
+                .all_with_class(rendered.document(), "knot-document-save")
+                .is_empty()
+        );
+        assert!(
+            rendered
+                .all_with_class(rendered.document(), "syntax-heading")
+                .is_empty()
+        );
+    }
+
+    #[cfg(feature = "highlight")]
+    #[test]
+    fn highlighted_djot_renders_syntax_spans_and_keeps_the_session_buffer_for_unicode_undo() {
+        let dom: DomHandle = Rc::new(RefCell::new(ScriptedDom::new()));
+        let state = KnotDocumentSurfaceState::new(KnotDocumentSession::scratch(
+            "memory:highlighted-field",
+            "# caf\u{e9}\n",
+        ));
+        let mut runner = GenetAppRunner::new(
+            dom.clone(),
+            |state| knot_document_view_with_highlighting(state, true),
+            state,
+        );
+
+        let rendered = dom.borrow();
+        let heading = rendered
+            .all_with_class(rendered.document(), "syntax-heading")
+            .into_iter()
+            .next()
+            .expect("highlighted Djot heading");
+        assert!(!descendant_text(&rendered, heading).is_empty());
+        let textarea = first_element(&rendered, runner.root(), "textarea")
+            .expect("highlighted editable textarea");
+        assert_eq!(descendant_text(&rendered, textarea), "# caf\u{e9}\n");
+        drop(rendered);
+
+        let buffer = runner.state().session().input() as *const TextInput;
+        runner.set_focus(Some(textarea));
+        runner.dispatch_key(KeyEvent::new(Key::Character(
+            "\u{1f469}\u{200d}\u{1f680}".into(),
+        )));
+        assert_eq!(
+            runner.state().snapshot().text,
+            "# caf\u{e9}\n\u{1f469}\u{200d}\u{1f680}"
+        );
+        runner.dispatch_key(KeyEvent::with_mods(
+            Key::Character("z".into()),
+            Modifiers {
+                ctrl: true,
+                ..Modifiers::default()
+            },
+        ));
+        assert_eq!(runner.state().snapshot().text, "# caf\u{e9}\n");
+        assert_eq!(buffer, runner.state().session().input() as *const TextInput);
+    }
+
+    #[cfg(feature = "highlight")]
+    #[test]
+    fn disabled_highlighting_keeps_djot_as_plain_textarea() {
+        let dom: DomHandle = Rc::new(RefCell::new(ScriptedDom::new()));
+        let state = KnotDocumentSurfaceState::new(KnotDocumentSession::scratch(
+            "memory:plain-field",
+            "# Heading\n",
+        ));
+        let _runner = GenetAppRunner::new(
+            dom.clone(),
+            |state| knot_document_view_with_highlighting(state, false),
+            state,
+        );
+        let rendered = dom.borrow();
+        assert!(
+            rendered
+                .all_with_class(rendered.document(), "syntax-heading")
+                .is_empty()
         );
     }
 }

@@ -52,7 +52,9 @@ fn old_scroll_manifest_and_native_saved_snapshots() {
             );
         }
         if format == SiteFormat::Micron {
-            assert!(LocalServer::start(snapshot, 0).is_err());
+            let server = LocalServer::start(snapshot, 0).unwrap();
+            assert!(server.nomadnet_destination().is_some());
+            assert!(server.url().contains("ephemeral destination"));
         }
     }
 }

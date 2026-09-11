@@ -14,6 +14,7 @@ pub struct LocalServer {
 
 enum Backend {
     Scroll(ScrollServer),
+    NomadNet(crate::nomadnet::NomadNetServer),
     Native {
         address: SocketAddr,
         format: SiteFormat,
@@ -34,10 +35,7 @@ impl LocalServer {
             });
         }
         if format == SiteFormat::Micron {
-            return Err(
-                "Micron source editing is available; a NomadNet serving adapter is not installed"
-                    .into(),
-            );
+            return Self::start_nomadnet(publication, port, Default::default());
         }
         let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
             .map_err(|e| e.to_string())?;
@@ -132,6 +130,7 @@ impl LocalServer {
     pub fn address(&self) -> SocketAddr {
         match &self.backend {
             Backend::Scroll(server) => server.address(),
+            Backend::NomadNet(server) => server.address,
             Backend::Native { address, .. } => *address,
         }
     }
@@ -139,6 +138,10 @@ impl LocalServer {
     pub fn url(&self) -> String {
         match &self.backend {
             Backend::Scroll(server) => server.url(),
+            Backend::NomadNet(server) => format!(
+                "{}:/page/index.mu (ephemeral destination; Reticulum TCP interface {})",
+                server.destination, server.address
+            ),
             Backend::Native {
                 address, format, ..
             } => format!(
@@ -155,6 +158,7 @@ impl LocalServer {
 
     pub fn replace(&self, next: Publication) -> Result<(), String> {
         match &self.backend {
+            Backend::NomadNet(server) => server.replace(next),
             Backend::Scroll(server) if next.format == SiteFormat::Scroll => {
                 server.replace(next);
                 Ok(())
@@ -168,6 +172,29 @@ impl LocalServer {
                 Ok(())
             },
             _ => Err("Stop serving before changing the site protocol".into()),
+        }
+    }
+
+    /// Start a Micron saved snapshot with caller-selected connection limits.
+    pub fn start_nomadnet(
+        publication: Publication,
+        port: u16,
+        config: crate::NomadNetServerConfig,
+    ) -> Result<Self, String> {
+        Ok(Self {
+            certificate_pem: String::new(),
+            backend: Backend::NomadNet(crate::nomadnet::NomadNetServer::start(
+                publication,
+                port,
+                config,
+            )?),
+        })
+    }
+
+    pub fn nomadnet_destination(&self) -> Option<retinue::hash::AddressHash> {
+        match &self.backend {
+            Backend::NomadNet(server) => Some(server.destination),
+            _ => None,
         }
     }
 }

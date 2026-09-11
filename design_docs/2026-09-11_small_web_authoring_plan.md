@@ -1,8 +1,9 @@
 # Native small-web authoring and serving
 
 **Status (2026-09-11):** Gemini/Spartan local publication and reviewed Titan/
-Spartan submission implemented; Micron source editing implemented, native
-rendering and NomadNet access/serving blocked on admissible protocol evidence.
+Spartan submission implemented and checked through the headed review/send flow.
+Micron has an evidence-qualified partial preview and a native saved-snapshot
+NomadNet server. Unsupported Micron source remains inert and visible.
 Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
@@ -105,7 +106,7 @@ author styling are separate adapters. Titan transport adds no theme mechanism.
   and unpublished-path refusal. The example process then stopped. This is a
   site-library interoperability receipt; desktop UI verification is separate.
 
-## Integration receipts and remaining gates
+## Initial integration receipts (superseded where noted below)
 
 - `knot-site`: nine integration tests passed. These retain all four Scroll
   tests and cover old manifest defaults, immutable native publication, static
@@ -225,3 +226,89 @@ UIA click coordinates also remained unscrolled after the
 review moved below the viewport, while clicking the visibly scrolled button
 worked. Neither helper behavior is counted as a successful bulk-input or
 accessibility acceptance receipt.
+
+## Partial Micron preview and native NomadNet publication
+
+Mere `1777b19840a6478a0faf3ab060a3ff71d5532321` supplies the
+`nematic.micron-subset` engine. Literal stock-client captures qualify LF
+heading, divider, plain text, and balanced same-line bold/italic forms. Other
+control sequences and link candidates remain visible inert source with a badge.
+The engine retains a global partial-preview warning and does not invent a MIME
+type. Its checked-in `CAPTURE_MANIFEST.md` records the evidence and limits.
+
+Knot `1f8eee5` adopts this preview, `f1db43e` projects its badges and explicit
+bold/italic styles, and `ce6ba53` paints the app preview pane while scrolling.
+The headed recheck verified heading, divider, plain, bold, italic, the global
+warning, and both unknown-source badges. Content stayed readable after a
+424-pixel scroll. Thin outer canvas margins below the original viewport remain
+black, an unresolved host painting limitation. The latest desktop library
+suite passed 47 tests with one ignored; the earlier full run also passed its
+four binary tests.
+
+`knot-site` pins Retinue
+`2a763c72ec7c7ff61b8cd7adb86d084a02d2c4d6`. Its `StaticNode` owns the
+NomadNet destination and request envelope; Knot owns saved snapshots and the
+dedicated runtime. A publication starts a loopback TCP Reticulum interface,
+uses a fresh ephemeral identity, and displays its destination plus interface
+address. It maps manifest pages into `/page/` requests and never executes page
+files. Limits are caller-configurable through `NomadNetServerConfig`.
+Replacing a publication swaps the saved snapshot; stopping cancels the runtime,
+accepted sessions, and listener. This is an explicit local preview service;
+persistent identities and resident/public hosting are outside this slice.
+
+The clean revision-pinned site suite passed all 10 tests, including exact
+saved-byte isolation, 128 KiB replacement, wrong-format refusal, and listener
+shutdown. Log: `C:/t/knot-nomadnet-immutable-final.log`.
+
+Headed publication: the actual Publish locally button started destination
+`5bbaf38250b3f61469bb6c1f7ab693c1` on `127.0.0.1:5699`. A stock Windows RNS
+1.5.3 client joined after publication, requested its path, opened a link, and
+received `/page/index.mu`: 154 bytes, SHA-256
+`898a86b7d1486d6e6ad63ed27293e46a187aa0999ed2f535c6ae0be690aabf240`, exactly
+matching the saved fixture. The received file is retained at
+`C:/t/knot-nomadnet-stock-client-20260911-recalled/index.mu`.
+The first probe incorrectly waited for an announce callback; standard path
+discovery had populated `Identity.recall` and `Transport.has_path` directly.
+That fixture failure is not a serving-discovery failure.
+
+The large-page check then exposed a real session-lifetime bug: the server
+received the Resource proof and immediately dropped the session, sending a
+link close before stock RNS completed its response callback. The captured
+exchange contained 283 unique parts and the client's Resource proof. A
+diagnostic proxy delaying only the close frame made the callback succeed.
+Production uses no delay: the host retains the session for subsequent requests
+or peer closure, bounded by its configured deadline. It selects the current
+saved snapshot after receiving each request. Retinue's helper API now borrows
+or returns session ownership instead of silently discarding it.
+
+Final direct headed receipt on revision-pinned Retinue `2a763c7`: Publish locally
+started `483dcfc4871b95cc297daa9d4641215c` on `127.0.0.1:5699`. A fresh stock
+Windows RNS 1.5.3 reader joined after publication and fetched these pages over
+**one link**, without a proxy or delay:
+
+| Page | Received bytes | SHA-256 |
+| --- | ---: | --- |
+| `/page/notes.mu` | 134 | `0ac184d9d224ad09862743de0ba43ae60c0ad93ea8ec6ed4d110468e5146ba9a` |
+| `/page/about.mu` | 131072 | `15601535eca4a38b7e31ad6494861121cb9f84ccf55d4beb6a707d4f7a87813d` |
+| `/page/index.mu` | 154 | `898a86b7d1486d6e6ad63ed27293e46a187aa0999ed2f535c6ae0be690aabf240` |
+
+All bodies matched the saved files exactly. Log and received files:
+`C:/t/knot-stock-final-sequence-20260911.log` and
+`C:/t/knot-stock-final-sequence-20260911/`. A native regression additionally
+reuses one session across a large response and a newly published small snapshot.
+The stock client emitted a socket warning during its own explicit shutdown;
+all three response callbacks had already succeeded.
+
+The actual Stop serving button then showed "Local serving stopped" and the
+5699 listener disappeared. The task-owned desktop process and stock reference
+nodes were stopped; their fixtures and capture logs were retained. The final
+desktop suite on this exact Retinue pin passed 47 library tests (one ignored)
+and four binary tests: `C:/t/knot-desktop-immutable-final-tests.log`.
+
+Earlier independent native Retinue-to-stock Python NomadNet captures received
+21-byte and 131072-byte pages; stock Python RNS also received a native Retinue
+Resource response. Stock Go `view-mu` accepted the small response, but its large
+Resource transfer repeated requests and timed out. That cross-client limitation
+remains open. The capture ledger is
+`C:/t/retinue-nomadnet-capture-20260911.md`. No GPL/AGPL implementation source
+was used to implement the parser or page adapter.

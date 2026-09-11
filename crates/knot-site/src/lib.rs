@@ -7,9 +7,11 @@
 //! Knot-owned native files and publication. The server can only see an explicit
 //! immutable snapshot, never the draft filesystem or editor buffer.
 mod local;
-pub mod submission;
+mod nomadnet;
 mod server;
+pub mod submission;
 pub use local::LocalServer;
+pub use nomadnet::NomadNetServerConfig;
 
 use serde::{Deserialize, Serialize};
 use std::{

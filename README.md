@@ -103,6 +103,8 @@ the corresponding shared protocol server (Gemini TLS on port 1965 by default,
 Spartan TCP on port 300; use 0 for an available port). Static Spartan sites
 refuse uploads and never execute page files. The same explicit snapshot,
 replacement, loopback and Stop boundaries apply as for Scroll.
+Spartan site previews recognize native `=:` prompts and open the submission
+composer; following a prompt does not send its body.
 
 Knot also opens `.gmi`/`.gemini` and `.mu`/`.micron` ordinary files. Micron support
 currently means raw editing and exact saves; its native parser and NomadNet
@@ -121,6 +123,8 @@ an upload. A timeout can leave the remote outcome unknown, so check the endpoint
 before preparing a retry. This first Knot upload surface does not select client
 certificates. A compatible endpoint may require one; Turnstone has a separate
 identity-selection flow.
+Reply status and metadata remain visible after sending. Nonempty response
+bodies appear as inert text, limited to 8 KiB with a visible truncation notice.
 
 The [native small-web plan](design_docs/2026-09-11_small_web_authoring_plan.md)
 records tests, independent client receipts, remaining Micron/Reticulum gates,

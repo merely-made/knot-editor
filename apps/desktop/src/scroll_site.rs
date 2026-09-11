@@ -23,6 +23,7 @@ const LABELS: [&str; 6] = [
     "Modified (UTC or blank)",
     "Abstract (native Scrolltext)",
 ];
+const RESPONSE_DISPLAY_LIMIT: usize = 8 * 1024;
 
 pub struct ScrollWorkspace {
     pub folder: TextInput,
@@ -38,14 +39,15 @@ pub struct ScrollWorkspace {
     publication_number: usize,
     pub format: SiteFormat,
     submission_visible: bool,
-    submission_target: TextInput,
-    submission_mime: TextInput,
-    submission_body: TextInput,
-    submission_token: TextInput,
+    pub(crate) submission_target: TextInput,
+    pub(crate) submission_mime: TextInput,
+    pub(crate) submission_body: TextInput,
+    pub(crate) submission_token: TextInput,
     prepared: Option<PreparedSubmission>,
     pub(crate) submission_receiver: Option<Receiver<Result<SubmissionReceipt, String>>>,
     submission_wake: Option<HostWake>,
     submission_result: Option<String>,
+    submission_response: Option<String>,
     titan_submission_error: Option<String>,
 }
 
@@ -73,6 +75,7 @@ impl Default for ScrollWorkspace {
             submission_receiver: None,
             submission_wake: None,
             submission_result: None,
+            submission_response: None,
             titan_submission_error: None,
         }
     }
@@ -94,12 +97,14 @@ impl ScrollWorkspace {
         self.prepared = None;
         self.submission_token = TextInput::default();
         self.submission_result = None;
+        self.submission_response = None;
     }
 
     fn discard_submission(&mut self) {
         self.prepared = None;
         self.submission_token = TextInput::default();
         self.submission_result = None;
+        self.submission_response = None;
     }
 
     fn take_submission_for_send(&mut self) -> Result<(PreparedSubmission, Option<String>), String> {
@@ -132,15 +137,18 @@ impl ScrollWorkspace {
                     r.meta,
                     r.body.len()
                 ));
+                self.submission_response = response_display(&r.body);
                 self.submission_receiver = None
             },
             Ok(Err(e)) => {
                 self.submission_result = Some(format!("Send failed: {e}"));
+                self.submission_response = None;
                 self.submission_receiver = None
             },
             Err(TryRecvError::Disconnected) => {
                 self.submission_result =
                     Some("Send outcome unavailable; check target before retrying.".into());
+                self.submission_response = None;
                 self.submission_receiver = None
             },
             Err(TryRecvError::Empty) => {},
@@ -233,6 +241,22 @@ impl ScrollWorkspace {
     }
 }
 
+fn response_display(body: &[u8]) -> Option<String> {
+    if body.is_empty() {
+        return None;
+    }
+    let shown = String::from_utf8_lossy(&body[..body.len().min(RESPONSE_DISPLAY_LIMIT)]);
+    let suffix = if body.len() > RESPONSE_DISPLAY_LIMIT {
+        format!(
+            "\n\n[Response truncated after {RESPONSE_DISPLAY_LIMIT} bytes; {} bytes received.]",
+            body.len()
+        )
+    } else {
+        String::new()
+    };
+    Some(format!("{shown}{suffix}"))
+}
+
 impl DesktopState {
     fn prepare_titan(&mut self) {
         if self.scroll.submission_busy() {
@@ -258,7 +282,8 @@ impl DesktopState {
         ) {
             Ok(p) if p.target().starts_with("titan://") => {
                 self.scroll.prepared = Some(p);
-                self.scroll.submission_result = None
+                self.scroll.submission_result = None;
+                self.scroll.submission_response = None
             },
             Ok(_) => self.message = Some("Titan preparation requires a titan:// target.".into()),
             Err(e) => self.message = Some(format!("Prepare failed: {e}")),
@@ -277,7 +302,8 @@ impl DesktopState {
         ) {
             Ok(p) if p.target().starts_with("spartan://") => {
                 self.scroll.prepared = Some(p);
-                self.scroll.submission_result = None
+                self.scroll.submission_result = None;
+                self.scroll.submission_response = None
             },
             Ok(_) => {
                 self.message = Some("Spartan preparation requires a spartan:// target.".into())
@@ -693,6 +719,12 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         review,
         span(state.scroll.submission_result.clone().unwrap_or_default())
             .attr("class", "knot-submission-status"),
+        state
+            .scroll
+            .submission_response
+            .as_ref()
+            .map(|body| Box::new(el("pre", body.clone()).attr("class", "knot-submission-response")) as DesktopView)
+            .unwrap_or_else(|| Box::new(el("div", ()))),
         el("div", (
             input("Local port", "knot-scroll-port", |s| &mut s.scroll.port),
             button("Publish locally", |s: &mut DesktopState,_| s.publish_site()),
@@ -795,10 +827,20 @@ pub fn preview(state: &DesktopState) -> DesktopView {
             &EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/scroll"),
         ),
-        knot_document::DocumentFormat::Gemtext => nematic::GemtextEngine::new().render(
-            &EngineInput::new(&source.source.address, &source.text)
-                .with_content_type("text/gemini"),
-        ),
+        knot_document::DocumentFormat::Gemtext => {
+            let input = EngineInput::new(&source.source.address, &source.text)
+                .with_content_type("text/gemini");
+            if state
+                .scroll
+                .site
+                .as_ref()
+                .is_some_and(|site| site.config.format == SiteFormat::Spartan)
+            {
+                nematic::SpartanEngine::new().render(&input)
+            } else {
+                nematic::GemtextEngine::new().render(&input)
+            }
+        },
         _ => unreachable!("filtered above"),
     };
     let body: DesktopView = match rendered {
@@ -854,6 +896,7 @@ pub const CSS: &str = r#"
 .knot-submission-review { max-width: 100%; margin-top: 8px; }
 .knot-submission-review pre { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
+.knot-submission-response { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-scroll-preview { flex: 1 1 50%; width:0; min-width:0; box-sizing:border-box; padding: 16px; overflow: auto; }
 .knot-scroll-preview p { margin: 8px 0; }
 .knot-scroll-preview pre { white-space: pre-wrap; }
@@ -866,9 +909,12 @@ pub const CSS: &str = r#"
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::{DESKTOP_CSS, host_hooks, workspace::desktop_view};
     use cambium::TextCommand;
-    use cambium_genet_winit_host::WindowCommands;
+    use cambium_genet_winit_host::{Harness, Init, WindowCommands};
+    use genet_probe::Selector;
     use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
+    use layout_dom_api::{LayoutDom, LocalName, Namespace};
 
     #[test]
     fn site_navigation_metadata_and_explicit_publication_keep_separate_authority() {
@@ -1000,5 +1046,172 @@ mod tests {
         assert!(workspace.prepared.is_none());
         assert!(workspace.submission_token.text().is_empty());
         assert!(workspace.submission_receiver.is_none());
+    }
+
+    #[test]
+    fn response_display_is_inert_text_and_explicitly_caps_large_bodies() {
+        assert_eq!(response_display(b"accepted\n"), Some("accepted\n".into()));
+        let body = vec![b'x'; RESPONSE_DISPLAY_LIMIT + 1];
+        let displayed = response_display(&body).unwrap();
+        assert!(displayed.starts_with(&"x".repeat(RESPONSE_DISPLAY_LIMIT)));
+        assert!(displayed.contains("Response truncated after 8192 bytes; 8193 bytes received."));
+    }
+
+    fn submission_harness_with(
+        state: DesktopState,
+    ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: format!("{DESKTOP_CSS}{CSS}"),
+            },
+            host_hooks(),
+        );
+        host.update(|state| {
+            state.scroll.visible = true;
+            state.scroll.submission_visible = true;
+        });
+        host.layout_at(1100.0, 730.0);
+        host
+    }
+
+    fn submission_harness() -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>
+    {
+        submission_harness_with(DesktopState::new(
+            KnotDocumentSession::scratch("scratch:submission", "document source"),
+            WindowCommands::new(),
+        ))
+    }
+
+    fn node_with_id(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        id: &str,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom.attribute(node, &Namespace::from(""), &LocalName::from("id")) == Some(id) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| node_with_id(dom, child, id))
+    }
+
+    fn textarea_node(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "textarea")
+        {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| textarea_node(dom, child))
+    }
+
+    fn input_node(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "input")
+        {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| input_node(dom, child))
+    }
+
+    fn text_content(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> String {
+        format!(
+            "{}{}",
+            dom.text(node).unwrap_or_default(),
+            dom.dom_children(node)
+                .map(|child| text_content(dom, child))
+                .collect::<String>()
+        )
+    }
+
+    #[test]
+    fn spartan_body_injected_text_uses_its_own_clicked_caret_slot() {
+        let mut host = submission_harness();
+        host.update(|state| state.scroll.submission_body = TextInput::new("body"));
+        host.layout_at(1100.0, 730.0);
+        let textarea = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let body = node_with_id(&dom, dom.document(), "knot-spartan-body").unwrap();
+            textarea_node(&dom, body).unwrap()
+        };
+        let (x, y, _, _) = host.painted_rect(textarea).unwrap();
+        host.click_at(x + 1.0, y + 24.0);
+        host.key_injected("署名");
+        assert_eq!(host.state().scroll.submission_body.text(), "署名body");
+        assert_eq!(host.state().document.snapshot().text, "document source");
+    }
+
+    #[test]
+    fn loaded_spartan_site_prompt_opens_composer_without_sending() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("spartan-site");
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:spartan", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.format = SiteFormat::Spartan;
+        state.scroll.folder = TextInput::new(root.to_string_lossy());
+        state.enter_site(true);
+        state
+            .document
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+            .unwrap();
+        state
+            .document
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "=: spartan://localhost:65025/upload Submit locally\n".into(),
+            )))
+            .unwrap();
+        state.scroll.visible = true;
+        state.scroll.preview_visible = true;
+        let mut host = submission_harness_with(state);
+
+        assert!(host.click_on(&Selector::role("button").containing("Submit locally")));
+        assert!(host.state().scroll.submission_visible);
+        assert_eq!(
+            host.state().scroll.submission_target.text(),
+            "spartan://localhost:65025/upload"
+        );
+        assert!(host.state().scroll.prepared.is_none());
+        assert!(host.state().scroll.submission_receiver.is_none());
+    }
+
+    #[test]
+    fn titan_token_field_is_password_typed_and_does_not_paint_its_value() {
+        let mut host = submission_harness();
+        host.update(|state| {
+            state.scroll.prepared = Some(
+                PreparedSubmission::from_body(
+                    "titan://example.test/upload",
+                    "text/gemini",
+                    b"saved".to_vec(),
+                )
+                .unwrap(),
+            );
+            state.scroll.submission_token = TextInput::new("dummytokenonly");
+        });
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let label = node_with_id(&dom, dom.document(), "knot-submission-token").unwrap();
+        let input = input_node(&dom, label).unwrap();
+        assert_eq!(
+            dom.attribute(input, &Namespace::from(""), &LocalName::from("type")),
+            Some("password")
+        );
+        assert!(!text_content(&dom, label).contains("dummytokenonly"));
     }
 }

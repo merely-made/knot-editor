@@ -147,3 +147,39 @@ output directory, then run `cargo run --manifest-path crates/knot-site/Cargo.tom
 --example submit -- SAVED_FILE PRINTED_ENDPOINT MIME TRUST_RECORD_PATH`.
 Use a fixture-specific trust path. The receiver writes only its captured body,
 public receipt, and (for Titan) fixture-local TLS material.
+
+## Follow-up acceptance investigation
+
+The follow-up keeps Djinn and Tabard deferred while examining Micron evidence,
+headed submission, and Turnstone's convergence failure. Initial headed input
+investigation found that submission controls were missing from the desktop's
+focused-text lookup, which owns caret and IME state. In particular, the unknown
+Spartan textarea fell through to the document's text slot. Native Spartan site
+preview also selected plain Gemtext rather than the Spartan engine, preventing
+native submission prompts from reaching the existing explicit composer.
+These are application defects independent of the UIA helper's unsupported
+set-value request. Final acceptance results are recorded below when verified.
+
+The independent Python receiver now accepts an explicit test port, a nonempty
+success body, and an expected certificate-refusal mode. A local API probe sent
+the saved 64-byte index to `localhost:50597`, received status 20 plus a 22-byte
+reply, then retried explicitly against a fresh certificate on that same port.
+The durable pin refused the changed certificate; the receiver recorded a TLS
+handshake failure and zero application bytes. These remain API/fixture
+receipts until the corresponding headed flow is completed. All probe receivers
+exited. Existing user certificate records were not used.
+
+The focused desktop suite passes eight tests, including regression probes
+against the prior behavior: replacing the Spartan renderer with Gemtext makes
+the real loaded-site Submit-button test fail; restoring the old body focus
+fallback makes the clicked-caret insertion test append instead of prepend.
+The current host harness exercises pointer placement and VK_PACKET-style text
+without changing the document source. The pinned host harness exposes no
+public IME lifecycle method, so that lifecycle is not claimed as separately
+tested. A dummy-token DOM check retains password typing and hides the token
+from painted text. Response bodies are inert and explicitly capped at 8 KiB.
+The complete locked offline desktop suite passed 49 tests (45 library, four
+binary), with one existing ignored diagnostic. The first invocation could not
+replace the running acceptance executable; after stopping that owned process,
+the same check passed. Headed review/send is still pending dismissal of an
+unrelated Windows Security prompt raised by Turnstone's network test.

@@ -906,6 +906,7 @@ pub const CSS: &str = r#"
 .knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
 .knot-submission-response { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-scroll-preview { flex: 1 1 50%; width:0; min-width:0; box-sizing:border-box; padding: 16px; overflow: auto; }
+.knot-writing-area, .knot-scroll-preview { background: inherit; }
 .knot-scroll-preview p { margin: 8px 0; }
 .knot-scroll-preview pre { white-space: pre-wrap; }
 .knot-preview-badge { display: block; margin: 8px 0; padding: 4px 8px; border: 1px solid currentColor; border-radius: 4px; }
@@ -969,6 +970,10 @@ mod tests {
         assert_eq!(state.scroll.publication_number, 1);
         state.publish_site();
         assert_eq!(state.scroll.publication_number, 2);
+    }
+    #[test]
+    fn native_preview_panes_keep_the_theme_background_while_scrolling() {
+        assert!(CSS.contains(".knot-writing-area, .knot-scroll-preview { background: inherit; }"));
     }
 
     #[test]

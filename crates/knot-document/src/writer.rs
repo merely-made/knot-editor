@@ -18,6 +18,13 @@ pub enum DocumentFormat {
     Markdown,
     Djot,
     Scroll,
+    /// Gemini's native line-oriented text format. The source editor writes
+    /// these bytes directly; it never reconstructs Gemtext from a preview.
+    Gemtext,
+    /// Micron/NomadNet source. A parser is deliberately not implied by this
+    /// format marker: callers may preserve and edit native `.mu` text before a
+    /// protocol-faithful reader is available.
+    Micron,
     Json,
 }
 
@@ -33,6 +40,8 @@ impl DocumentFormat {
             Some("md" | "markdown") => Some(Self::Markdown),
             Some("djot") => Some(Self::Djot),
             Some("scroll") => Some(Self::Scroll),
+            Some("gmi" | "gemini") => Some(Self::Gemtext),
+            Some("mu" | "micron") => Some(Self::Micron),
             Some("json") => Some(Self::Json),
             _ => None,
         }
@@ -43,6 +52,11 @@ impl DocumentFormat {
             Self::Markdown => "text/markdown",
             Self::Djot => "text/djot",
             Self::Scroll => "text/scroll",
+            Self::Gemtext => "text/gemini",
+            // Micron has no registered or pinned content-type contract in
+            // this workspace yet. Keep its source identity in DocumentFormat
+            // and let the future protocol adapter supply a declared type.
+            Self::Micron => "text/plain",
             Self::Json => "application/vnd.knot.document+json",
         }
     }
@@ -52,8 +66,27 @@ impl DocumentFormat {
             "text/markdown" => Some(Self::Markdown),
             "text/djot" => Some(Self::Djot),
             "text/scroll" | "text/x-scroll" => Some(Self::Scroll),
+            "text/gemini" | "text/x-gemini" => Some(Self::Gemtext),
             "application/vnd.knot.document+json" | "application/json" => Some(Self::Json),
             _ => None,
+        }
+    }
+
+    /// Formats whose editable representation is the original source text.
+    /// They are intentionally not converted through `EngineDocument` on save.
+    pub fn native_source(self) -> bool {
+        matches!(self, Self::Scroll | Self::Gemtext | Self::Micron)
+    }
+
+    /// A parser-preview content type, when Knot has a protocol-faithful
+    /// renderer for this native source. `None` is an honest unavailable state,
+    /// not a fallback that reinterprets Micron as another markup language.
+    pub fn preview_content_type(self) -> Option<&'static str> {
+        match self {
+            Self::Scroll => Some("text/scroll"),
+            Self::Gemtext => Some("text/gemini"),
+            Self::Micron => None,
+            _ => Some(self.media_type()),
         }
     }
 }
@@ -411,6 +444,13 @@ mod engine {
                 Self::Scroll => nematic::ScrollEngine::new()
                     .render(&input)
                     .map_err(|error| error.to_string()),
+                Self::Gemtext => nematic::GemtextEngine::new()
+                    .render(&input)
+                    .map_err(|error| error.to_string()),
+                Self::Micron => Err(
+                    "Micron preview needs a protocol-faithful parser supplied by its adapter"
+                        .into(),
+                ),
                 Self::Json => unreachable!(),
             }
         }
@@ -419,7 +459,7 @@ mod engine {
                 Self::Knot => document_to_knot(document),
                 Self::Markdown => document.to_markdown(),
                 Self::Djot => blocks_to_djot(&document.blocks),
-                Self::Scroll => return Err("Scroll source must be saved through the native source editor; block serialization is unsupported".into()),
+                Self::Scroll | Self::Gemtext | Self::Micron => return Err("native protocol source must be saved through the source editor; block serialization is unsupported".into()),
                 Self::Json => {
                     serde_json::to_string_pretty(document)
                         .map_err(|error| format!("could not encode Knot document JSON: {error}"))?
@@ -546,6 +586,29 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    #[test]
+    fn native_protocol_extensions_preserve_their_source_identity() {
+        assert_eq!(
+            DocumentFormat::from_path(Path::new("capsule.gmi")),
+            Some(DocumentFormat::Gemtext)
+        );
+        assert_eq!(
+            DocumentFormat::from_path(Path::new("capsule.gemini")),
+            Some(DocumentFormat::Gemtext)
+        );
+        assert_eq!(
+            DocumentFormat::from_path(Path::new("page.mu")),
+            Some(DocumentFormat::Micron)
+        );
+        assert_eq!(
+            DocumentFormat::Gemtext.preview_content_type(),
+            Some("text/gemini")
+        );
+        assert_eq!(DocumentFormat::Micron.preview_content_type(), None);
+        assert!(DocumentFormat::Gemtext.native_source());
+        assert!(DocumentFormat::Micron.native_source());
+    }
 
     #[test]
     fn foreign_formats_reach_a_fixed_point_after_one_parse_write() {

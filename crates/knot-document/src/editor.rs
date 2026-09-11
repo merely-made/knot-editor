@@ -52,7 +52,7 @@ impl FileBaseline {
     }
 }
 
-/// One Djot or legacy `.knot` session. Its Cambium input is the only source buffer.
+/// One source-first document session. Its Cambium input is the only source buffer.
 pub struct KnotEditor {
     path: Option<PathBuf>,
     address: String,
@@ -68,12 +68,16 @@ impl KnotEditor {
             .filter(|format| {
                 matches!(
                     format,
-                    DocumentFormat::Knot | DocumentFormat::Djot | DocumentFormat::Scroll
+                    DocumentFormat::Knot
+                        | DocumentFormat::Djot
+                        | DocumentFormat::Scroll
+                        | DocumentFormat::Gemtext
+                        | DocumentFormat::Micron
                 )
             })
             .ok_or_else(|| {
                 format!(
-                    "KnotEditor requires a .djot, .knot, or .scroll file: {}",
+                    "KnotEditor requires a .djot, .knot, .scroll, .gmi, .gemini, or .mu file: {}",
                     requested_path.display()
                 )
             })?;
@@ -219,18 +223,22 @@ impl KnotEditor {
             .filter(|format| {
                 matches!(
                     format,
-                    DocumentFormat::Knot | DocumentFormat::Djot | DocumentFormat::Scroll
+                    DocumentFormat::Knot
+                        | DocumentFormat::Djot
+                        | DocumentFormat::Scroll
+                        | DocumentFormat::Gemtext
+                        | DocumentFormat::Micron
                 )
             })
             .ok_or_else(|| {
                 KnotEditorSaveError::Failed(format!(
-                    "KnotEditor requires a .djot, .knot, or .scroll save target: {}",
+                    "KnotEditor requires a .djot, .knot, .scroll, .gmi, .gemini, or .mu save target: {}",
                     target.display()
                 ))
             })?;
-        if (self.format == DocumentFormat::Scroll) != (format == DocumentFormat::Scroll) {
+        if (self.format.native_source() || format.native_source()) && self.format != format {
             return Err(KnotEditorSaveError::Failed(
-                "Save As cannot convert between Scrolltext and Djot/Knot".into(),
+                "Save As cannot convert native protocol source to another format".into(),
             ));
         }
         if self.is_current_path(&target) {
@@ -287,9 +295,9 @@ impl KnotEditor {
     }
 
     pub(crate) fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
-        // The shared readout is Djot-specific. Scroll preview supplies headings;
-        // a source-addressed Scroll outline is a separate follow-up.
-        if self.format == DocumentFormat::Scroll {
+        // The shared readout is Djot-specific. Native protocol previews keep
+        // their own structure; source-addressed outlines are separate work.
+        if self.format.native_source() {
             return Vec::new();
         }
         self.editor
@@ -306,21 +314,21 @@ impl KnotEditor {
 
     #[cfg(feature = "engine")]
     pub fn highlights(&self) -> Vec<Span> {
-        if self.format == DocumentFormat::Scroll {
+        if self.format.native_source() {
             return Vec::new();
         }
         self.editor.highlights()
     }
     #[cfg(feature = "engine")]
     pub fn outline(&self) -> Vec<OutlineItem> {
-        if self.format == DocumentFormat::Scroll {
+        if self.format.native_source() {
             return Vec::new();
         }
         self.editor.outline()
     }
     #[cfg(feature = "engine")]
     pub fn folds(&self) -> Vec<Fold> {
-        if self.format == DocumentFormat::Scroll {
+        if self.format.native_source() {
             return Vec::new();
         }
         self.editor.folds()
@@ -335,6 +343,20 @@ impl KnotEditor {
                         .with_content_type("text/scroll"),
                 )
                 .map_err(|e| e.to_string());
+        }
+        if self.format == DocumentFormat::Gemtext {
+            use inker::{Engine, EngineInput};
+            return nematic::GemtextEngine::new()
+                .render(
+                    &EngineInput::new(&self.address, self.source())
+                        .with_content_type("text/gemini"),
+                )
+                .map_err(|e| e.to_string());
+        }
+        if self.format == DocumentFormat::Micron {
+            return Err(
+                "Micron preview is unavailable until its native parser is integrated".into(),
+            );
         }
         self.editor.preview()
     }
@@ -371,6 +393,82 @@ mod tests {
         assert_eq!(
             editor.save_guarded(),
             Err(KnotEditorSaveError::ExternalChange)
+        );
+    }
+
+    #[test]
+    fn gemtext_and_micron_save_exact_source_and_refuse_conversion() {
+        let temp = tempdir().unwrap();
+        for (name, other, source, format) in [
+            (
+                "capsule.gmi",
+                "converted.djot",
+                "# Café\r\n=> /about About\r\n",
+                DocumentFormat::Gemtext,
+            ),
+            (
+                "page.mu",
+                "converted.gmi",
+                "# Micron\r\n[[/about|About]]\r\n",
+                DocumentFormat::Micron,
+            ),
+        ] {
+            let path = temp.path().join(name);
+            fs::write(&path, source).unwrap();
+            let mut editor = KnotEditor::open(&path).unwrap();
+            assert_eq!(editor.format(), format);
+            editor.apply(TextCommand::SelectAll);
+            let edited = format!("{source}\r\nNative bytes stay source-first.\r\n");
+            editor.apply(TextCommand::Insert(edited.clone()));
+            assert_eq!(editor.save().unwrap(), SaveOutcome::Written);
+            assert_eq!(fs::read(&path).unwrap(), edited.as_bytes());
+            assert!(editor.save_as(temp.path().join(other)).is_err());
+            assert!(!temp.path().join(other).exists());
+        }
+    }
+
+    #[test]
+    fn djot_cannot_be_relabelled_as_a_native_protocol_file() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("note.djot");
+        let target = temp.path().join("capsule.gmi");
+        fs::write(&path, "# Note\n").unwrap();
+        let mut editor = KnotEditor::open(&path).unwrap();
+        editor.apply(TextCommand::Insert("body\n".into()));
+        assert!(editor.save_as(&target).is_err());
+        assert!(!target.exists());
+        assert_eq!(fs::read_to_string(&path).unwrap(), "# Note\n");
+    }
+
+    #[cfg(feature = "engine")]
+    #[test]
+    fn gemtext_preview_uses_the_native_engine_without_rewriting_source() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("capsule.gmi");
+        let source = "# Capsule\r\n\r\n=> /next Next\r\n";
+        fs::write(&path, source).unwrap();
+        let editor = KnotEditor::open(&path).unwrap();
+        let preview = editor.preview().unwrap();
+        assert_eq!(
+            preview.provenance.source_kind.as_deref(),
+            Some("nematic.gemtext")
+        );
+        assert_eq!(preview.outgoing_links(), vec!["/next"]);
+        assert_eq!(fs::read(&path).unwrap(), source.as_bytes());
+    }
+
+    #[cfg(feature = "engine")]
+    #[test]
+    fn micron_preview_is_an_explicit_unavailable_state() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("page.mu");
+        fs::write(&path, "# Micron\n").unwrap();
+        let editor = KnotEditor::open(path).unwrap();
+        assert!(
+            editor
+                .preview()
+                .unwrap_err()
+                .contains("Micron preview is unavailable")
         );
     }
 

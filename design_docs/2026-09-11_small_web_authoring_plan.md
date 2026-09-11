@@ -215,7 +215,13 @@ local unauthenticated submissions and certificate continuity; external capsule
 authentication and full IME lifecycle remain separate acceptance boundaries.
 
 The Windows helper's bulk text injection still did not populate the target;
-physical keys did. UIA click coordinates also remained unscrolled after the
+physical keys did. A focused `CAMBIUM_HOST_KEY_TRACE=1` run recorded the helper
+as `Character("v")` with Ctrl held, not injected Unicode text. A physical `p`
+arrived without Ctrl and appeared in the body. This identifies the unhandled
+clipboard-paste path; it does not support blaming a string UIA setter or the
+fixed field-focus mapping. The trace is retained at
+`C:/t/knot-input-trace-20260911.err`, and its app process was stopped.
+UIA click coordinates also remained unscrolled after the
 review moved below the viewport, while clicking the visibly scrolled button
 worked. Neither helper behavior is counted as a successful bulk-input or
 accessibility acceptance receipt.

@@ -85,6 +85,34 @@ is covered by the native file tests and independent UTF-8 exchange; a headed
 IME acceptance receipt remains separate. The existing Windows atomic writer's
 unsafe-code warning and unused patches in the nested document workspace remain.
 
+## Dependency integration receipt
+
+Integrated incoming `origin/main` at `2309dc5` with local Scroll commit
+`5d26a39`, preserving all four local commits and all six incoming commits.
+Aligned the locally added Tinct dependency with incoming Mere
+`c328e6fc9028f0024a82c4a0086bf15605812630` and regenerated the lockfile.
+The resolved graph has one Mere source revision and one p2panda source tag,
+`mere-p2panda-net-0.7.3` at `e140e53b`; Genet remains `9e8f9dc2`.
+
+The broader editor gate exposed two integration issues. Vault search now
+explicitly selects dense storage because its sealed record persists a dense
+VectorIndex, while the updated lexical provider defaults to sparse storage.
+The existing sealed-vault endpoint test also reacquired a mutex it already
+held; its public-revision assertion now runs after releasing that guard.
+
+Merged-state checks: 110 editor-library tests passed; 36 document-engine
+tests passed with one existing ignored diagnostic; four Scroll site tests
+passed; desktop tests passed (37 library and four binary tests, one ignored
+diagnostic), and the desktop build passed. The resident-retention feature
+gate additionally exercises owner revocation and explicit regrant.
+The independent smolnet-portal client repeated all six body/abstract exchanges
+successfully against the unchanged standalone Scroll server, including exact
+bytes, metadata, TLS 1.3, and close notification. That server was stopped.
+The headed receipt above precedes this dependency merge.
+
+Existing warnings remain for the Windows atomic writer's unsafe block, an
+unused p2panda LogStore import, and the unused p2panda-stream patch.
+
 ## Explicit limits
 
 Publication snapshots and localhost certificates live for the serving session.

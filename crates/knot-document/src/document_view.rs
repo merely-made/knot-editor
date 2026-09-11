@@ -170,6 +170,8 @@ fn format_label(format: DocumentFormat) -> &'static str {
     match format {
         DocumentFormat::Djot => "Djot",
         DocumentFormat::Scroll => "Scrolltext",
+        DocumentFormat::Gemtext => "Gemtext",
+        DocumentFormat::Micron => "Micron",
         DocumentFormat::Knot => "legacy .knot",
         DocumentFormat::Markdown => "Markdown",
         DocumentFormat::Json => "JSON",

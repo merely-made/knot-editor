@@ -181,5 +181,41 @@ from painted text. Response bodies are inert and explicitly capped at 8 KiB.
 The complete locked offline desktop suite passed 49 tests (45 library, four
 binary), with one existing ignored diagnostic. The first invocation could not
 replace the running acceptance executable; after stopping that owned process,
-the same check passed. Headed review/send is still pending dismissal of an
-unrelated Windows Security prompt raised by Turnstone's network test.
+the same check passed.
+
+### Headed submission receipt
+
+The Windows Security prompt was gone on fresh inspection. The rebuilt
+`ef724af` desktop then completed both headed submission paths using the
+independent Python receiver, with fixture-only trust records under
+`C:/t/knot-ui-trust-20260911`.
+
+- Spartan: clicked the native **Submit locally** prompt, entered `a`, and
+  prepared the body. Review displayed `spartan://localhost:65025/upload`,
+  `text/plain`, one byte, and the body. No receiver receipt existed before
+  **Send reviewed bytes**. The receiver captured one request with exactly `a`
+  (SHA256 `ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb`).
+  Knot displayed `Reply 2 text/plain (14 bytes)` and `Body accepted.`.
+- Titan: entered `titan://localhost:65026/upload` with physical key events,
+  prepared the saved 75-byte index, and inspected its target, MIME, digest,
+  and source before sending. The receiver captured one request, `text/plain`,
+  without a token. Its body and the saved file both had SHA256
+  `f9fdc6d7ace957017adb1feeb04274b1d0a01a996f013ff8bf113039377399ea`.
+  Knot displayed `Reply 20 text/plain (22 bytes)` and `Saved source accepted.`.
+- Certificate change: a fresh fixture certificate on the same Titan address
+  was refused after a second explicit review/send. Knot displayed the changed
+  certificate error with pinned and observed fingerprints. The receiver
+  recorded TLS handshake refusal and zero application bytes.
+
+Public receiver receipts are in `C:/t/knot-ui-spartan-headed-20260911`,
+`C:/t/knot-ui-titan-headed-a-20260911`, and
+`C:/t/knot-ui-titan-headed-b-20260911`. All three receivers exited normally.
+These results supersede the earlier unverified headed-send status. They cover
+local unauthenticated submissions and certificate continuity; external capsule
+authentication and full IME lifecycle remain separate acceptance boundaries.
+
+The Windows helper's bulk text injection still did not populate the target;
+physical keys did. UIA click coordinates also remained unscrolled after the
+review moved below the viewport, while clicking the visibly scrolled button
+worked. Neither helper behavior is counted as a successful bulk-input or
+accessibility acceptance receipt.

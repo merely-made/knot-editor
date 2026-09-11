@@ -817,7 +817,9 @@ pub fn preview(state: &DesktopState) -> DesktopView {
     let source = state.document.snapshot();
     if !matches!(
         source.format,
-        knot_document::DocumentFormat::Scroll | knot_document::DocumentFormat::Gemtext
+        knot_document::DocumentFormat::Scroll
+            | knot_document::DocumentFormat::Gemtext
+            | knot_document::DocumentFormat::Micron
     ) || !state.scroll.preview_visible
     {
         return Box::new(el("div", ()));
@@ -827,6 +829,8 @@ pub fn preview(state: &DesktopState) -> DesktopView {
             &EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/scroll"),
         ),
+        knot_document::DocumentFormat::Micron => nematic::MicronSubsetEngine::new()
+            .render(&EngineInput::new(&source.source.address, &source.text)),
         knot_document::DocumentFormat::Gemtext => {
             let input = EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/gemini");
@@ -865,10 +869,11 @@ pub fn preview(state: &DesktopState) -> DesktopView {
                     "h2",
                     format!(
                         "{} preview · current source",
-                        if source.format == knot_document::DocumentFormat::Scroll {
-                            "Scroll"
-                        } else {
-                            "Gemtext"
+                        match source.format {
+                            knot_document::DocumentFormat::Scroll => "Scroll",
+                            knot_document::DocumentFormat::Gemtext => "Gemtext",
+                            knot_document::DocumentFormat::Micron => "Partial Micron",
+                            _ => unreachable!("filtered above"),
                         }
                     ),
                 ),
@@ -993,6 +998,37 @@ mod tests {
             state.scroll.site.as_ref().unwrap().config.format,
             SiteFormat::Micron
         );
+    }
+    #[test]
+    fn micron_site_preview_is_explicitly_partial_and_keeps_link_candidates_inert() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:micron", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.format = SiteFormat::Micron;
+        state.scroll.folder = TextInput::new(temp.path().join("micron").to_string_lossy());
+        state.enter_site(true);
+        state
+            .document
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+            .unwrap();
+        state
+            .document
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "> Heading\n---\nplain\n[Local`:/page/next.mu]\n".into(),
+            )))
+            .unwrap();
+        state.scroll.visible = true;
+        state.scroll.preview_visible = true;
+        let host = submission_harness_with(state);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let text = text_content(&dom, dom.document());
+        assert!(text.contains("Partial Micron preview · current source"));
+        assert!(text.contains("Heading"));
+        assert!(text.contains("[Local`:/page/next.mu]"));
+        assert!(text.contains("Rendering notes:"));
     }
 
     #[test]

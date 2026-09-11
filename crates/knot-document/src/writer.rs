@@ -432,7 +432,7 @@ mod engine {
                 body: std::str::from_utf8(bytes)
                     .map_err(|error| format!("document is not UTF-8: {error}"))?
                     .to_owned(),
-                content_type: Some(self.media_type().to_owned()),
+                content_type: (self != Self::Micron).then(|| self.media_type().to_owned()),
             };
             match self {
                 Self::Knot | Self::Djot => DjotKnotEngine::new()
@@ -447,10 +447,9 @@ mod engine {
                 Self::Gemtext => nematic::GemtextEngine::new()
                     .render(&input)
                     .map_err(|error| error.to_string()),
-                Self::Micron => Err(
-                    "Micron preview needs a protocol-faithful parser supplied by its adapter"
-                        .into(),
-                ),
+                Self::Micron => nematic::MicronSubsetEngine::new()
+                    .render(&input)
+                    .map_err(|error| error.to_string()),
                 Self::Json => unreachable!(),
             }
         }

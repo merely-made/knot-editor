@@ -5,9 +5,15 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::workspace::{DesktopState, DesktopView, PendingAction};
-use cambium::{Keyed, TextInput, button, el, lens, span, text_field_typed, textarea_typed};
+use cambium::{
+    GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button, el, lens,
+    on_key, span, text_field_typed, textarea_typed,
+};
+use cambium_genet_winit_host::HostWake;
 use inker::{Block, Engine, EngineInput, InlineSpan};
-use knot_scroll_site::{LocalServer, Page, Site};
+use knot_site::submission::{PreparedSubmission, SubmissionReceipt};
+use knot_site::{LocalServer, Page, Site, SiteFormat};
+use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 const LABELS: [&str; 6] = [
     "Author",
@@ -30,6 +36,17 @@ pub struct ScrollWorkspace {
     metadata_visible: bool,
     pub preview_visible: bool,
     publication_number: usize,
+    pub format: SiteFormat,
+    submission_visible: bool,
+    submission_target: TextInput,
+    submission_mime: TextInput,
+    submission_body: TextInput,
+    submission_token: TextInput,
+    prepared: Option<PreparedSubmission>,
+    pub(crate) submission_receiver: Option<Receiver<Result<SubmissionReceipt, String>>>,
+    submission_wake: Option<HostWake>,
+    submission_result: Option<String>,
+    titan_submission_error: Option<String>,
 }
 
 impl Default for ScrollWorkspace {
@@ -46,11 +63,104 @@ impl Default for ScrollWorkspace {
             metadata_visible: false,
             preview_visible: true,
             publication_number: 0,
+            format: SiteFormat::Scroll,
+            submission_visible: false,
+            submission_target: TextInput::default(),
+            submission_mime: TextInput::new("text/gemini"),
+            submission_body: TextInput::default(),
+            submission_token: TextInput::default(),
+            prepared: None,
+            submission_receiver: None,
+            submission_wake: None,
+            submission_result: None,
+            titan_submission_error: None,
         }
     }
 }
 
 impl ScrollWorkspace {
+    pub fn set_titan_submission_error(&mut self, error: Option<String>) {
+        self.titan_submission_error = error;
+    }
+
+    fn submission_busy(&self) -> bool {
+        self.submission_receiver.is_some()
+    }
+
+    fn select_spartan_prompt(&mut self, target: String) {
+        self.submission_visible = true;
+        self.submission_target = TextInput::new(target);
+        self.submission_mime = TextInput::new("text/plain");
+        self.prepared = None;
+        self.submission_token = TextInput::default();
+        self.submission_result = None;
+    }
+
+    fn discard_submission(&mut self) {
+        self.prepared = None;
+        self.submission_token = TextInput::default();
+        self.submission_result = None;
+    }
+
+    fn take_submission_for_send(&mut self) -> Result<(PreparedSubmission, Option<String>), String> {
+        let prepared = self
+            .prepared
+            .take()
+            .ok_or("Prepare reviewed bytes before sending.")?;
+        let token = if prepared.target().starts_with("titan://") {
+            let token = std::mem::take(&mut self.submission_token).text().to_owned();
+            (!token.is_empty()).then_some(token)
+        } else {
+            self.submission_token = TextInput::default();
+            None
+        };
+        Ok((prepared, token))
+    }
+
+    pub fn set_submission_wake(&mut self, wake: HostWake) {
+        self.submission_wake = Some(wake);
+    }
+    pub fn drain_submission(&mut self) {
+        let Some(rx) = self.submission_receiver.as_ref() else {
+            return;
+        };
+        match rx.try_recv() {
+            Ok(Ok(r)) => {
+                self.submission_result = Some(format!(
+                    "Reply {} {} ({} bytes)",
+                    r.code,
+                    r.meta,
+                    r.body.len()
+                ));
+                self.submission_receiver = None
+            },
+            Ok(Err(e)) => {
+                self.submission_result = Some(format!("Send failed: {e}"));
+                self.submission_receiver = None
+            },
+            Err(TryRecvError::Disconnected) => {
+                self.submission_result =
+                    Some("Send outcome unavailable; check target before retrying.".into());
+                self.submission_receiver = None
+            },
+            Err(TryRecvError::Empty) => {},
+        }
+    }
+    fn metadata_indices(&self) -> &'static [usize] {
+        match self
+            .site
+            .as_ref()
+            .map(|site| site.config.format)
+            .unwrap_or(self.format)
+        {
+            SiteFormat::Scroll => &[0, 1, 2, 3, 4, 5],
+            // Gemini has a native language parameter. The other Scroll-only
+            // header/abstract fields are not silently projected into Gemtext.
+            SiteFormat::Gemini => &[1],
+            SiteFormat::Spartan | SiteFormat::Micron => &[],
+        }
+    }
+
     pub fn metadata_dirty(&self) -> bool {
         self.page.is_some()
             && self
@@ -124,6 +234,86 @@ impl ScrollWorkspace {
 }
 
 impl DesktopState {
+    fn prepare_titan(&mut self) {
+        if self.scroll.submission_busy() {
+            self.message = Some("A submission is already sending.".into());
+            return;
+        }
+        if let Some(error) = &self.scroll.titan_submission_error {
+            self.message = Some(format!("Titan upload is unavailable: {error}"));
+            return;
+        }
+        if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
+            self.message = Some("Save source and metadata before preparing Titan upload.".into());
+            return;
+        }
+        let Some(path) = self.document.session().source_path() else {
+            self.message = Some("Save the source file before preparing Titan upload.".into());
+            return;
+        };
+        match PreparedSubmission::from_saved_file(
+            path,
+            self.scroll.submission_target.text(),
+            self.scroll.submission_mime.text(),
+        ) {
+            Ok(p) if p.target().starts_with("titan://") => {
+                self.scroll.prepared = Some(p);
+                self.scroll.submission_result = None
+            },
+            Ok(_) => self.message = Some("Titan preparation requires a titan:// target.".into()),
+            Err(e) => self.message = Some(format!("Prepare failed: {e}")),
+        }
+    }
+    fn prepare_spartan(&mut self) {
+        if self.scroll.submission_busy() {
+            self.message = Some("A submission is already sending.".into());
+            return;
+        }
+        self.scroll.submission_token = TextInput::default();
+        match PreparedSubmission::from_body(
+            self.scroll.submission_target.text(),
+            self.scroll.submission_mime.text(),
+            self.scroll.submission_body.text().as_bytes().to_vec(),
+        ) {
+            Ok(p) if p.target().starts_with("spartan://") => {
+                self.scroll.prepared = Some(p);
+                self.scroll.submission_result = None
+            },
+            Ok(_) => {
+                self.message = Some("Spartan preparation requires a spartan:// target.".into())
+            },
+            Err(e) => self.message = Some(format!("Prepare failed: {e}")),
+        }
+    }
+    fn send_submission(&mut self) {
+        if self.scroll.submission_busy() {
+            self.message = Some("A submission is already sending.".into());
+            return;
+        }
+        let Some(wake) = self.scroll.submission_wake.clone() else {
+            self.message = Some("Submission worker is unavailable.".into());
+            return;
+        };
+        let (prepared, token) = match self.scroll.take_submission_for_send() {
+            Ok(send) => send,
+            Err(error) => {
+                self.message = Some(error);
+                return;
+            },
+        };
+        self.scroll.submission_result = Some("Sending reviewed bytes…".into());
+        let (tx, rx) = mpsc::channel();
+        self.scroll.submission_receiver = Some(rx);
+        std::thread::spawn(move || {
+            let result = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|e| e.to_string())
+                .and_then(|rt| rt.block_on(prepared.send(token)));
+            let _ = tx.send(result);
+            wake.wake();
+        });
+    }
     fn enter_site(&mut self, create: bool) {
         if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
             self.message =
@@ -132,22 +322,38 @@ impl DesktopState {
         }
         let root = std::path::PathBuf::from(self.scroll.folder.text());
         let result = if create {
-            Site::create(&root)
+            Site::create_for(&root, self.scroll.format)
         } else {
             Site::open(&root)
         };
         match result.and_then(|site| {
-            let path = site.page_path("index.scroll")?;
+            let path = site.page_path(site.config.format.index_file())?;
             Ok((site, path))
         }) {
             Ok((site, path)) => {
                 self.scroll.server = None;
                 self.scroll.page = None;
                 self.scroll.site = Some(site);
+                self.scroll.format = self.scroll.site.as_ref().unwrap().config.format;
                 self.request(PendingAction::Open(path));
             },
             Err(error) => self.message = Some(format!("Site: {error}")),
         }
+    }
+
+    fn close_site(&mut self) {
+        if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
+            self.message = Some(
+                "Save or discard document and metadata changes before closing this site.".into(),
+            );
+            return;
+        }
+        self.scroll.server = None;
+        self.scroll.site = None;
+        self.scroll.page = None;
+        self.scroll.fields = std::array::from_fn(|_| TextInput::default());
+        self.scroll.baseline = Default::default();
+        self.message = Some("Site closed. The current source remains open.".into());
     }
 
     pub(crate) fn scroll_open_page(&mut self, name: &str) {
@@ -163,7 +369,7 @@ impl DesktopState {
         }
     }
 
-    fn publish_scroll(&mut self) {
+    fn publish_site(&mut self) {
         if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
             self.message = Some("Save source and metadata before publishing locally.".into());
             return;
@@ -173,7 +379,7 @@ impl DesktopState {
             let publication = site.publication()?;
             let count = publication.page_count();
             if let Some(server) = &self.scroll.server {
-                server.replace(publication);
+                server.replace(publication)?;
             } else {
                 let port = self
                     .scroll
@@ -211,6 +417,38 @@ fn input(
     )
 }
 
+fn password_input(
+    label: &'static str,
+    id: &'static str,
+    get: fn(&mut DesktopState) -> &mut TextInput,
+) -> DesktopView {
+    Box::new(
+        el(
+            "label",
+            (
+                label,
+                lens(|input: &mut TextInput| password_field(input), get),
+            ),
+        )
+        .attr("id", id),
+    )
+}
+
+fn edit_password(input: &mut TextInput, event: KeyEvent) {
+    input.apply_key(&event, TextFieldMode::SingleLine);
+}
+
+fn password_field(
+    input: &TextInput,
+) -> impl View<TextInput, (), GenetCtx, Element = GenetElement> + use<> {
+    let shown = input
+        .display()
+        .chars()
+        .map(|character| if character == '|' { '|' } else { '•' })
+        .collect::<String>();
+    on_key(el("input", shown).attr("type", "password"), edit_password)
+}
+
 pub fn site_panel(state: &DesktopState) -> DesktopView {
     if !state.scroll.visible {
         return Box::new(el("div", ()));
@@ -238,16 +476,18 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         ))
     };
     let metadata: DesktopView = if state.scroll.metadata_visible && state.scroll.page.is_some() {
-        let fields = LABELS
+        let fields = state
+            .scroll
+            .metadata_indices()
             .iter()
-            .enumerate()
-            .map(|(i, label)| {
+            .map(|&i| {
+                let label = LABELS[i];
                 (
                     i,
                     el(
                         "label",
                         (
-                            *label,
+                            label,
                             lens(
                                 move |input: &mut TextInput| {
                                     if i == 5 {
@@ -264,12 +504,27 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                 )
             })
             .collect::<Vec<_>>();
+        let explanation = match state
+            .scroll
+            .site
+            .as_ref()
+            .map(|site| site.config.format)
+            .unwrap_or(state.scroll.format)
+        {
+            SiteFormat::Scroll => {
+                "Publication metadata for the selected page. The abstract is separate native Scrolltext and needs a # Title."
+            },
+            SiteFormat::Gemini => {
+                "Gemini publication metadata for the selected page. Language is separate from native Gemtext source."
+            },
+            SiteFormat::Spartan | SiteFormat::Micron => {
+                "This site format has no supported page metadata controls."
+            },
+        };
         Box::new(el(
             "section",
             (
-                span(
-                    "Publication metadata for the selected page. The abstract is separate native Scrolltext and needs a # Title.",
-                ),
+                span(explanation),
                 el("div", Keyed::new(fields)).attr("class", "knot-scroll-fields"),
                 button("Save metadata", |state: &mut DesktopState, _| {
                     state.message = Some(
@@ -293,25 +548,160 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", ()))
     };
+    let format = state.scroll.format;
+    let submission_busy = state.scroll.submission_busy();
+    let review: DesktopView = if let Some(p) = state.scroll.prepared.as_ref() {
+        let is_titan = p.target().starts_with("titan://");
+        let send_action: DesktopView = if submission_busy {
+            Box::new(span("Sending reviewed bytes…"))
+        } else {
+            Box::new(button("Send reviewed bytes", |s: &mut DesktopState, _| {
+                s.send_submission()
+            }))
+        };
+        Box::new(
+            el(
+                "section",
+                (
+                    span(format!(
+                        "Reviewed submission: {} · {} · {} bytes · {}",
+                        p.target(),
+                        p.mime(),
+                        p.byte_len(),
+                        p.digest()
+                    )),
+                    el("pre", String::from_utf8_lossy(p.body()).into_owned()),
+                    if is_titan {
+                        password_input("Titan token", "knot-submission-token", |s| {
+                            &mut s.scroll.submission_token
+                        })
+                    } else {
+                        Box::new(span(
+                            "Spartan sends this reviewed body without a Titan token.",
+                        ))
+                    },
+                    send_action,
+                    button("Cancel reviewed submission", |s: &mut DesktopState, _| {
+                        s.scroll.discard_submission()
+                    }),
+                ),
+            )
+            .attr("class", "knot-submission-review"),
+        )
+    } else if submission_busy {
+        Box::new(
+            el("section", span("Sending reviewed bytes…")).attr("class", "knot-submission-review"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
+    let format_picker = [
+        SiteFormat::Scroll,
+        SiteFormat::Gemini,
+        SiteFormat::Spartan,
+        SiteFormat::Micron,
+    ]
+    .into_iter()
+    .map(|candidate| {
+        (
+            candidate as usize,
+            button(candidate.label(), move |s: &mut DesktopState, _| {
+                if s.scroll.site.is_none() {
+                    s.scroll.format = candidate;
+                    if let Some(port) = candidate.default_port() {
+                        s.scroll.port = TextInput::new(port.to_string());
+                    }
+                } else {
+                    s.message =
+                        Some("Close or open another site before changing its format.".into());
+                }
+            })
+            .attr("aria-pressed", (format == candidate).to_string()),
+        )
+    })
+    .collect::<Vec<_>>();
+    let titan_prepare: DesktopView = if state.scroll.submission_busy() {
+        Box::new(span("Sending reviewed bytes…"))
+    } else if let Some(error) = &state.scroll.titan_submission_error {
+        Box::new(span(format!("Titan upload disabled: {error}")))
+    } else {
+        Box::new(button(
+            "Prepare saved source for Titan",
+            |s: &mut DesktopState, _| s.prepare_titan(),
+        ))
+    };
+    let spartan_prepare: DesktopView = if state.scroll.submission_busy() {
+        Box::new(span("Spartan preparation is unavailable while sending."))
+    } else {
+        Box::new(button("Prepare Spartan body", |s: &mut DesktopState, _| {
+            s.prepare_spartan()
+        }))
+    };
+    let submission_composer: DesktopView = if state.scroll.submission_visible {
+        Box::new(
+            el(
+                "section",
+                (
+                    input("Submission target", "knot-submission-target", |s| {
+                        &mut s.scroll.submission_target
+                    }),
+                    input("MIME", "knot-submission-mime", |s| {
+                        &mut s.scroll.submission_mime
+                    }),
+                    titan_prepare,
+                    el(
+                        "label",
+                        (
+                            "Spartan body",
+                            lens(
+                                |input: &mut TextInput| textarea_typed(input),
+                                |s: &mut DesktopState| &mut s.scroll.submission_body,
+                            ),
+                        ),
+                    )
+                    .attr("id", "knot-spartan-body"),
+                    spartan_prepare,
+                    span("Preparing is local only. Sending is a separate action over the reviewed bytes."),
+                ),
+            )
+            .attr("class", "knot-submission"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
     Box::new(el("section", (
         el("div", (
             input("Site folder", "knot-scroll-folder", |s| &mut s.scroll.folder),
-            button("Create Scroll site", |s: &mut DesktopState,_| s.enter_site(true)),
+            el("span", Keyed::new(format_picker)).attr("class", "knot-site-format-picker"),
+            button("Create site", |s: &mut DesktopState,_| s.enter_site(true)),
             button("Open site", |s: &mut DesktopState,_| s.enter_site(false)),
+            button("Close site", |s: &mut DesktopState,_| s.close_site()),
             button("Metadata", |s: &mut DesktopState,_| s.scroll.metadata_visible = !s.scroll.metadata_visible),
             button("Toggle preview", |s: &mut DesktopState,_| s.scroll.preview_visible = !s.scroll.preview_visible),
+            button(
+                if state.scroll.submission_visible {
+                    "Hide upload / submit"
+                } else {
+                    "Upload / submit"
+                },
+                |s: &mut DesktopState, _| s.scroll.submission_visible = !s.scroll.submission_visible,
+            ),
         )).attr("class", "knot-scroll-controls"),
         pages,
         metadata,
+        submission_composer,
+        review,
+        span(state.scroll.submission_result.clone().unwrap_or_default())
+            .attr("class", "knot-submission-status"),
         el("div", (
             input("Local port", "knot-scroll-port", |s| &mut s.scroll.port),
-            button("Publish locally", |s: &mut DesktopState,_| s.publish_scroll()),
+            button("Publish locally", |s: &mut DesktopState,_| s.publish_site()),
             button("Stop serving", |s: &mut DesktopState,_| {
                 s.scroll.server = None;
                 s.message = Some("Local serving stopped.".into());
             }),
             span(state.scroll.server.as_ref().map(|server| format!("{} · revision {} · saved snapshot", server.url(), state.scroll.publication_number))
-                .unwrap_or_else(|| "Not published. Save writes drafts; Publish locally serves saved pages over loopback TLS.".into())),
+                .unwrap_or_else(|| "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into())),
         )).attr("class", "knot-scroll-controls"),
     )).attr("class", "knot-scroll-site"))
 }
@@ -333,9 +723,16 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     } else { state.message = Some(format!("Preview link: {destination}. Open with an independent client; this preview only navigates local site pages.")); }
                 }).attr("title", format!("{url} {}", predicate.as_deref().unwrap_or(""))).attr("class", "knot-scroll-link"))
             },
+            InlineSpan::Submit { target, spans } => {
+                let label = inker::inline_text(spans);
+                let target = target.clone();
+                Box::new(button(label, move |state: &mut DesktopState, _| {
+                    state.scroll.select_spartan_prompt(target.clone());
+                    state.message = Some("Enter a Spartan body, review it, then send explicitly.".into());
+                }).attr("class", "knot-spartan-submit"))
+            },
             InlineSpan::LineBreak => Box::new(el("br", ())),
             InlineSpan::SoftBreak => Box::new(span(" ")),
-            _ => Box::new(span("Unsupported inline content")),
         };
         (i, view)
     }).collect::<Vec<_>>();
@@ -386,12 +783,24 @@ fn blocks(items: &[Block]) -> DesktopView {
 
 pub fn preview(state: &DesktopState) -> DesktopView {
     let source = state.document.snapshot();
-    if source.format != knot_document::DocumentFormat::Scroll || !state.scroll.preview_visible {
+    if !matches!(
+        source.format,
+        knot_document::DocumentFormat::Scroll | knot_document::DocumentFormat::Gemtext
+    ) || !state.scroll.preview_visible
+    {
         return Box::new(el("div", ()));
     }
-    let rendered = nematic::ScrollEngine::new().render(
-        &EngineInput::new(&source.source.address, &source.text).with_content_type("text/scroll"),
-    );
+    let rendered = match source.format {
+        knot_document::DocumentFormat::Scroll => nematic::ScrollEngine::new().render(
+            &EngineInput::new(&source.source.address, &source.text)
+                .with_content_type("text/scroll"),
+        ),
+        knot_document::DocumentFormat::Gemtext => nematic::GemtextEngine::new().render(
+            &EngineInput::new(&source.source.address, &source.text)
+                .with_content_type("text/gemini"),
+        ),
+        _ => unreachable!("filtered above"),
+    };
     let body: DesktopView = match rendered {
         Ok(document) => Box::new(el(
             "div",
@@ -407,28 +816,51 @@ pub fn preview(state: &DesktopState) -> DesktopView {
         Err(error) => Box::new(span(error.to_string())),
     };
     Box::new(
-        el("aside", (el("h2", "Scroll preview · current source"), body))
-            .attr("class", "knot-scroll-preview"),
+        el(
+            "aside",
+            (
+                el(
+                    "h2",
+                    format!(
+                        "{} preview · current source",
+                        if source.format == knot_document::DocumentFormat::Scroll {
+                            "Scroll"
+                        } else {
+                            "Gemtext"
+                        }
+                    ),
+                ),
+                body,
+            ),
+        )
+        .attr("class", "knot-scroll-preview"),
     )
 }
 
 pub const CSS: &str = r#"
 .knot-workspace { overflow:auto; }
-.knot-scroll-mode .knot-source-wrapper { flex:1 1 50%; width:0; }
-.knot-scroll-mode .knot-document-body textarea { display:block; width:auto; min-width:0; min-height:260px; }
+.knot-native-site-mode .knot-source-wrapper { flex:1 1 50%; width:0; }
+.knot-native-site-mode .knot-document-body textarea { display:block; width:auto; min-width:0; min-height:260px; }
 .knot-scroll-site input { min-height:32px; box-sizing:border-box; }
 .knot-scroll-fields textarea { white-space:pre-wrap; min-height:80px; padding:8px; border:1px solid; background:transparent; color:inherit; }
 .knot-scroll-site { padding: 8px; border-bottom: 1px solid #888; flex-shrink: 0; }
-.knot-scroll-controls, .knot-scroll-pages { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.knot-scroll-controls, .knot-scroll-pages, .knot-site-format-picker { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .knot-scroll-fields { display: flex; flex-wrap: wrap; gap: 8px; }
 .knot-scroll-fields label { display: flex; flex-direction: column; width: 230px; }
+.knot-submission { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; }
+.knot-submission label { display: flex; flex-direction: column; min-width: 180px; }
+#knot-spartan-body { display: flex; flex: 1 0 100%; flex-direction: column; min-width: 0; }
+#knot-spartan-body textarea { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
+.knot-submission-review { max-width: 100%; margin-top: 8px; }
+.knot-submission-review pre { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+.knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
 .knot-scroll-preview { flex: 1 1 50%; width:0; min-width:0; box-sizing:border-box; padding: 16px; overflow: auto; }
 .knot-scroll-preview p { margin: 8px 0; }
 .knot-scroll-preview pre { white-space: pre-wrap; }
 .knot-scroll-link { text-decoration: underline; }
 #knot-scroll-folder input { width: 350px; }
 #knot-scroll-port input { width: 70px; }
-@media (max-width:700px) { .knot-scroll-mode .knot-source-wrapper, .knot-scroll-preview { width:100%; flex-basis:auto; } #knot-scroll-folder input { width:220px; } }
+@media (max-width:700px) { .knot-native-site-mode .knot-source-wrapper, .knot-scroll-preview { width:100%; flex-basis:auto; } #knot-scroll-folder input { width:220px; } }
 "#;
 
 #[cfg(test)]
@@ -456,7 +888,7 @@ mod tests {
         state.scroll.fields[0] = TextInput::new("Writer");
         state.scroll_open_page("about.scroll");
         assert_eq!(state.scroll.page.as_deref(), Some("index.scroll"));
-        state.publish_scroll();
+        state.publish_site();
         assert!(state.scroll.server.is_none());
         state.scroll.save_metadata().unwrap();
         state.scroll_open_page("about.scroll");
@@ -465,7 +897,7 @@ mod tests {
         state.scroll_open_page("index.scroll");
         assert_eq!(state.scroll.fields[0].text(), "Writer");
         state.scroll.port = TextInput::new("0");
-        state.publish_scroll();
+        state.publish_site();
         assert!(state.scroll.server.is_some());
         assert_eq!(state.scroll.publication_number, 1);
         state
@@ -474,11 +906,99 @@ mod tests {
                 "Unsaved ".into(),
             )))
             .unwrap();
-        state.publish_scroll();
+        state.publish_site();
         assert_eq!(state.scroll.publication_number, 1);
         state.document.apply(KnotDocumentIntentV1::Save).unwrap();
         assert_eq!(state.scroll.publication_number, 1);
-        state.publish_scroll();
+        state.publish_site();
         assert_eq!(state.scroll.publication_number, 2);
+    }
+
+    #[test]
+    fn native_site_selection_opens_gemtext_and_preserves_micron_as_raw_source() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:test", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.format = SiteFormat::Gemini;
+        state.scroll.folder = TextInput::new(temp.path().join("gemini").to_string_lossy());
+        state.enter_site(true);
+        assert_eq!(
+            state.document.snapshot().format,
+            knot_document::DocumentFormat::Gemtext
+        );
+        assert_eq!(state.scroll.page.as_deref(), Some("index.gmi"));
+        assert_eq!(
+            state.scroll.site.as_ref().unwrap().config.format,
+            SiteFormat::Gemini
+        );
+
+        state.document.apply(KnotDocumentIntentV1::Save).unwrap();
+        state.scroll.format = SiteFormat::Micron;
+        state.scroll.folder = TextInput::new(temp.path().join("micron").to_string_lossy());
+        state.enter_site(true);
+        assert_eq!(
+            state.document.snapshot().format,
+            knot_document::DocumentFormat::Micron
+        );
+        assert_eq!(state.scroll.page.as_deref(), Some("index.mu"));
+        assert_eq!(
+            state.scroll.site.as_ref().unwrap().config.format,
+            SiteFormat::Micron
+        );
+    }
+
+    #[test]
+    fn selecting_a_spartan_prompt_only_fills_the_local_composer() {
+        let mut workspace = ScrollWorkspace::default();
+        assert!(!workspace.submission_visible);
+        workspace.submission_token = TextInput::new("stale-token");
+        workspace.select_spartan_prompt("spartan://example.test:3000/submit".into());
+
+        assert!(workspace.submission_visible);
+        assert_eq!(
+            workspace.submission_target.text(),
+            "spartan://example.test:3000/submit"
+        );
+        assert_eq!(workspace.submission_mime.text(), "text/plain");
+        assert!(workspace.prepared.is_none());
+        assert!(workspace.submission_receiver.is_none());
+        assert!(workspace.submission_token.text().is_empty());
+    }
+
+    #[test]
+    fn reviewed_submission_is_consumed_before_send_and_cancel_has_no_effect() {
+        let mut workspace = ScrollWorkspace::default();
+        workspace.prepared = Some(
+            PreparedSubmission::from_body(
+                "titan://example.test/upload",
+                "text/gemini",
+                b"reviewed source".to_vec(),
+            )
+            .unwrap(),
+        );
+        workspace.submission_token = TextInput::new("single-use-token");
+
+        let (prepared, token) = workspace.take_submission_for_send().unwrap();
+        assert_eq!(prepared.body(), b"reviewed source");
+        assert_eq!(token.as_deref(), Some("single-use-token"));
+        assert!(workspace.prepared.is_none());
+        assert!(workspace.submission_token.text().is_empty());
+        assert!(workspace.submission_receiver.is_none());
+
+        workspace.prepared = Some(
+            PreparedSubmission::from_body(
+                "spartan://example.test:3000/submit",
+                "text/plain",
+                b"cancel me".to_vec(),
+            )
+            .unwrap(),
+        );
+        workspace.submission_token = TextInput::new("must-not-survive");
+        workspace.discard_submission();
+        assert!(workspace.prepared.is_none());
+        assert!(workspace.submission_token.text().is_empty());
+        assert!(workspace.submission_receiver.is_none());
     }
 }

@@ -18,7 +18,7 @@ use std::{
 
 /// A process-local publication with an ephemeral localhost TLS identity.
 /// Dropping this handle stops accepting clients; active reads time out.
-pub struct LocalServer {
+pub struct ScrollServer {
     address: SocketAddr,
     publication: Arc<RwLock<Publication>>,
     stop: Arc<AtomicBool>,
@@ -26,7 +26,7 @@ pub struct LocalServer {
     pub certificate_pem: String,
 }
 
-impl LocalServer {
+impl ScrollServer {
     pub fn start(publication: Publication, port: u16) -> Result<Self, String> {
         let listener =
             TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port)).map_err(|e| e.to_string())?;
@@ -114,7 +114,7 @@ impl LocalServer {
     }
 }
 
-impl Drop for LocalServer {
+impl Drop for ScrollServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::Relaxed);
         if let Some(thread) = self.thread.take() {

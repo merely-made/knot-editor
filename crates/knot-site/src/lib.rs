@@ -6,8 +6,10 @@
 
 //! Knot-owned native files and publication. The server can only see an explicit
 //! immutable snapshot, never the draft filesystem or editor buffer.
+mod local;
+pub mod submission;
 mod server;
-pub use server::LocalServer;
+pub use local::LocalServer;
 
 use serde::{Deserialize, Serialize};
 use std::{
@@ -20,6 +22,50 @@ use std::{
 pub const MAX_PAGE_BYTES: usize = 1_048_576;
 pub const MAX_SITE_BYTES: usize = 16 * MAX_PAGE_BYTES;
 pub const CONFIG: &str = "site.json";
+
+/// Native site profile. Gemini and Spartan both author Gemtext; their effects differ.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SiteFormat {
+    #[default]
+    Scroll,
+    Gemini,
+    Spartan,
+    Micron,
+}
+
+impl SiteFormat {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Scroll => "Scroll",
+            Self::Gemini => "Gemini",
+            Self::Spartan => "Spartan",
+            Self::Micron => "Micron",
+        }
+    }
+    pub fn extension(self) -> &'static str {
+        match self {
+            Self::Scroll => "scroll",
+            Self::Gemini | Self::Spartan => "gmi",
+            Self::Micron => "mu",
+        }
+    }
+    pub fn index_file(self) -> &'static str {
+        match self {
+            Self::Scroll => "index.scroll",
+            Self::Gemini | Self::Spartan => "index.gmi",
+            Self::Micron => "index.mu",
+        }
+    }
+    pub fn default_port(self) -> Option<u16> {
+        match self {
+            Self::Scroll => Some(5699),
+            Self::Gemini => Some(1965),
+            Self::Spartan => Some(300),
+            Self::Micron => None,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -37,6 +83,8 @@ pub struct Page {
 #[serde(deny_unknown_fields)]
 pub struct SiteConfig {
     pub version: u8,
+    #[serde(default)]
+    pub format: SiteFormat,
     pub pages: Vec<Page>,
 }
 
@@ -44,8 +92,8 @@ fn plain_line(value: &str) -> bool {
     value.len() <= 1024 && !value.chars().any(char::is_control)
 }
 
-fn page_name(value: &str) -> bool {
-    value.ends_with(".scroll")
+fn page_name(value: &str, format: SiteFormat) -> bool {
+    value.ends_with(&format!(".{}", format.extension()))
         && value.len() <= 128
         && !value.starts_with('.')
         && value
@@ -60,8 +108,11 @@ impl SiteConfig {
         }
         let mut names = std::collections::BTreeSet::new();
         for page in &self.pages {
-            if !page_name(&page.path) || !names.insert(page.path.to_ascii_lowercase()) {
-                return Err("Page names must be unique plain .scroll filenames".into());
+            if !page_name(&page.path, self.format) || !names.insert(page.path.to_ascii_lowercase())
+            {
+                return Err(
+                    "Page names must be unique plain filenames for the selected site format".into(),
+                );
             }
             if !plain_line(&page.author) || page.classification > 9 {
                 return Err("Author must be one line; classification must be 0–9".into());
@@ -88,16 +139,21 @@ impl SiteConfig {
                 }
             }
             if page.abstract_source.len() > MAX_PAGE_BYTES
-                || !page
-                    .abstract_source
-                    .lines()
-                    .any(|line| line.starts_with("# "))
+                || (self.format == SiteFormat::Scroll
+                    && !page
+                        .abstract_source
+                        .lines()
+                        .any(|line| line.starts_with("# ")))
             {
                 return Err("Each abstract needs a level-1 title (# Title), within 1 MiB".into());
             }
         }
-        if !self.pages.iter().any(|page| page.path == "index.scroll") {
-            return Err("A site needs index.scroll".into());
+        if !self
+            .pages
+            .iter()
+            .any(|page| page.path == self.format.index_file())
+        {
+            return Err(format!("A site needs {}", self.format.index_file()));
         }
         Ok(())
     }
@@ -126,19 +182,24 @@ impl Site {
     /// Creation requires a new directory. Existing folders are never populated
     /// or overwritten implicitly, including after an incomplete earlier create.
     pub fn create(root: &Path) -> Result<Self, String> {
+        Self::create_for(root, SiteFormat::Scroll)
+    }
+
+    pub fn create_for(root: &Path, format: SiteFormat) -> Result<Self, String> {
         fs::create_dir(root).map_err(|e| e.to_string())?;
         fs::create_dir(root.join("assets")).map_err(|e| e.to_string())?;
         let pages = [
-            ("index.scroll", "My site"),
-            ("about.scroll", "About"),
-            ("notes.scroll", "Notes"),
+            (format!("index.{}", format.extension()), "My site"),
+            (format!("about.{}", format.extension()), "About"),
+            (format!("notes.{}", format.extension()), "Notes"),
         ];
         let config = SiteConfig {
             version: 1,
+            format,
             pages: pages
                 .iter()
                 .map(|(path, title)| Page {
-                    path: (*path).into(),
+                    path: path.clone(),
                     author: String::new(),
                     language: "en".into(),
                     classification: 4,
@@ -153,13 +214,21 @@ impl Site {
                 .pages
                 .iter()
                 .filter(|p| p.path != path)
-                .map(|p| format!("=> /{} {}\n", p.path, p.path.trim_end_matches(".scroll")))
+                .map(|p| {
+                    format!(
+                        "=> /{} {}\n",
+                        p.path,
+                        p.path.trim_end_matches(&format!(".{}", format.extension()))
+                    )
+                })
                 .collect::<String>();
-            fs::write(
-                root.join(path),
-                format!("# {title}\n\nWrite here.\n\n{links}"),
-            )
-            .map_err(|e| e.to_string())?;
+            let body = if format == SiteFormat::Micron {
+                // Raw source only until a native grammar adapter is available.
+                format!("{title}\n\nWrite here.\n")
+            } else {
+                format!("# {title}\n\nWrite here.\n\n{links}")
+            };
+            fs::write(root.join(path), body).map_err(|e| e.to_string())?;
         }
         fs::write(
             root.join(CONFIG),
@@ -194,7 +263,8 @@ impl Site {
     }
 
     pub fn page_path(&self, name: &str) -> Result<PathBuf, String> {
-        if !self.config.pages.iter().any(|p| p.path == name) || !page_name(name) {
+        if !self.config.pages.iter().any(|p| p.path == name) || !page_name(name, self.config.format)
+        {
             return Err("Page is not in this site's manifest".into());
         }
         let path = fs::canonicalize(self.root.join(name)).map_err(|e| e.to_string())?;
@@ -249,7 +319,10 @@ impl Site {
                 },
             );
         }
-        Ok(Publication { pages })
+        Ok(Publication {
+            pages,
+            format: saved.config.format,
+        })
     }
 }
 
@@ -261,10 +334,71 @@ struct PublishedPage {
 
 #[derive(Clone)]
 pub struct Publication {
+    pub format: SiteFormat,
     pages: BTreeMap<String, PublishedPage>,
 }
 
 impl Publication {
+    fn native_page(&self, path: &str) -> Option<&PublishedPage> {
+        if path.is_empty() || path == "/" {
+            self.pages.get(&format!("/{}", self.format.index_file()))
+        } else {
+            self.pages.get(path)
+        }
+    }
+
+    pub fn gemini_reply(&self, url: &url::Url, port: u16) -> gemini_protocol::server::Reply {
+        use gemini_protocol::server::Reply;
+        if self.format != SiteFormat::Gemini
+            || url.scheme() != "gemini"
+            || !matches!(url.host_str(), Some("localhost" | "127.0.0.1"))
+            || url.port().unwrap_or(1965) != port
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.query().is_some()
+            || url.fragment().is_some()
+            || url.path().contains(';')
+        {
+            return Reply::header(59, "Invalid static-site request");
+        }
+        match self.native_page(url.path()) {
+            Some(page) => {
+                let language = &page.metadata.language;
+                let mime = if language.is_empty() {
+                    "text/gemini;charset=utf-8".into()
+                } else {
+                    format!("text/gemini;charset=utf-8;lang={language}")
+                };
+                Reply::success(mime, page.source.clone())
+            },
+            None => Reply::not_found("Not published"),
+        }
+    }
+
+    pub fn spartan_reply(
+        &self,
+        request: &spartan_protocol::Request,
+    ) -> spartan_protocol::SpartanResponse {
+        use spartan_protocol::SpartanResponse;
+        if self.format != SiteFormat::Spartan
+            || !matches!(request.host.as_str(), "localhost" | "127.0.0.1")
+            || !request.data.is_empty()
+        {
+            return SpartanResponse::ClientError {
+                message: "This static site accepts read requests only".into(),
+            };
+        }
+        match self.native_page(&request.path) {
+            Some(page) => SpartanResponse::Success {
+                mime: "text/gemini;charset=utf-8".into(),
+                body: page.source.clone(),
+            },
+            None => SpartanResponse::ClientError {
+                message: "Not published".into(),
+            },
+        }
+    }
+
     pub fn page_count(&self) -> usize {
         self.pages.len()
     }
@@ -273,7 +407,8 @@ impl Publication {
     /// looked up in a snapshot map, never appended to a filesystem path.
     pub fn response(&self, line: &str, port: u16) -> Vec<u8> {
         let bad = || b"59 Invalid request\r\n".to_vec();
-        if line.len() > 4096
+        if self.format != SiteFormat::Scroll
+            || line.len() > 4096
             || !line.ends_with("\r\n")
             || !line.contains(' ')
             || line[..line.len().saturating_sub(2)]

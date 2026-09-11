@@ -6,7 +6,7 @@ members = [
     "crates/knot-file-catalog",
     "crates/knot-editor",
 ]
-exclude = ["crates/knot-document", "crates/knot-scroll-site"]
+exclude = ["crates/knot-document", "crates/knot-site"]
 default-members = [
     "crates/knot-editor",
 ]
@@ -82,6 +82,7 @@ unsafe_code = "warn"
 all = "warn"
 
 [patch.crates-io]
+gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "882baeb1b59bbdbb305e475f6675f69af997c4f4" }
 # Root patches are not inherited from Genet or Mere. These keep the standalone
 # workspace on the same type families as both upstream repositories.
 vello = { git = "https://github.com/mark-ik/vello.git", tag = "vello-0.10.0" }

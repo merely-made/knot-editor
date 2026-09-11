@@ -207,10 +207,14 @@ impl DesktopState {
             retention_error: None,
         };
         if let Some(folder) = site_folder {
-            match knot_scroll_site::Site::open(&folder) {
+            match knot_site::Site::open(&folder) {
                 Ok(site) => {
-                    let page = site.page_path("index.scroll").ok();
+                    let page = site.page_path(site.config.format.index_file()).ok();
                     state.scroll.folder = TextInput::new(folder.to_string_lossy());
+                    state.scroll.format = site.config.format;
+                    if let Some(port) = site.config.format.default_port() {
+                        state.scroll.port = TextInput::new(port.to_string());
+                    }
                     state.scroll.site = Some(site);
                     state.scroll.visible = true;
                     state.scroll.sync_page(page.as_deref());
@@ -226,6 +230,7 @@ impl DesktopState {
     }
 
     pub fn set_retention_targets(&mut self, targets: Vec<Arc<dyn KnotRetainPort>>, wake: HostWake) {
+        self.scroll.set_submission_wake(wake.clone());
         self.retention_targets = targets;
         self.retention_wake = Some(wake);
         self.retention_selected = None;
@@ -763,8 +768,8 @@ fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let outline_panel: DesktopView = if !state.outline_visible {
         Box::new(el("div", ()))
-    } else if state.document.snapshot().format == knot_document::DocumentFormat::Scroll {
-        Box::new(span("A source outline is not available for Scrolltext yet. Use the preview to read headings.").attr("class", "knot-outline"))
+    } else if state.document.snapshot().format.native_source() {
+        Box::new(span("A source outline is not available for this native protocol format yet. Use its preview when available.").attr("class", "knot-outline"))
     } else if let Some(snapshot) = &state.outline_snapshot {
         let rows = snapshot
             .items
@@ -1304,7 +1309,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 el(
                     "nav",
                     (
-                        button("Scroll site", |state: &mut DesktopState, _| {
+                        button("Site", |state: &mut DesktopState, _| {
                             state.scroll.visible = !state.scroll.visible
                         }),
                         button("New", |state: &mut DesktopState, _| state.new_document()),
@@ -1348,7 +1353,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 crate::scroll_site::site_panel(state),
                 catalog_status,
                 review_panel,
-                if state.document.snapshot().format == knot_document::DocumentFormat::Scroll
+                if state.document.snapshot().format.native_source()
                     && state.retention_targets.is_empty()
                 {
                     Box::new(el("div", ())) as DesktopView
@@ -1374,8 +1379,8 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             format!(
                 "{}{}",
                 state.appearance.root_class(),
-                if state.document.snapshot().format == knot_document::DocumentFormat::Scroll {
-                    " knot-scroll-mode"
+                if state.document.snapshot().format.native_source() {
+                    " knot-native-site-mode"
                 } else {
                     ""
                 }
@@ -1508,6 +1513,9 @@ pub fn after_dispatch(
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
+    if ctx.runner.state().scroll.submission_receiver.is_some() {
+        ctx.runner.update(|state| state.scroll.drain_submission());
+    }
     let state = ctx.runner.state();
     let focus_requested = state.focus_source_requested;
     let outline_needs_sync = if state.outline_visible {
@@ -1552,6 +1560,9 @@ pub fn after_wake(
 ) {
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
+    }
+    if ctx.runner.state().scroll.submission_receiver.is_some() {
+        ctx.runner.update(|state| state.scroll.drain_submission());
     }
 }
 
@@ -2450,6 +2461,27 @@ mod tests {
         assert!(host.state().catalog_id.is_some());
         assert!(host.state().catalog_error.is_none());
         assert_eq!(host.state().document.snapshot(), before);
+    }
+
+    #[test]
+    fn opening_a_site_at_startup_uses_its_format_and_default_port() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("gemini");
+        let site = knot_site::Site::create_for(&root, knot_site::SiteFormat::Gemini).unwrap();
+        let index = site.page_path(site.config.format.index_file()).unwrap();
+        let state = DesktopState::with_catalog(
+            KnotDocumentSession::open(index).unwrap(),
+            WindowCommands::new(),
+            Some(root),
+            None,
+        );
+
+        assert_eq!(state.scroll.format, knot_site::SiteFormat::Gemini);
+        assert_eq!(state.scroll.port.text(), "1965");
+        assert_eq!(
+            state.scroll.site.as_ref().unwrap().config.format,
+            knot_site::SiteFormat::Gemini
+        );
     }
 
     type ReviewHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;

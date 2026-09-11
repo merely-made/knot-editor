@@ -12,7 +12,7 @@ name = "knot"
 path = "src/main.rs"
 
 [dependencies]
-knot-scroll-site = { path = "../../crates/knot-scroll-site" }
+knot-site = { path = "../../crates/knot-site" }
 inker.workspace = true
 nematic.workspace = true
 
@@ -25,6 +25,7 @@ knot-document = { workspace = true, features = ["highlight", "engine"] }
 tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "c328e6fc9028f0024a82c4a0086bf15605812630" }
 knot-file-catalog.workspace = true
 layout-dom-api.workspace = true
+tokio = { version = "1", features = ["rt", "time"] }
 
 [dev-dependencies]
 pollster = "0.4"

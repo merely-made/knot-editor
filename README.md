@@ -1,6 +1,6 @@
 # Knot Editor
 
-Knot Editor is a files-in-place, local-first Djot and Scrolltext editor. It can run as a
+Knot Editor is a files-in-place, local-first native-source editor for Djot, Scrolltext and Gemtext. It can run as a
 standalone desktop application or contribute the same retained document
 surface to hosts such as Turnstone.
 
@@ -13,7 +13,7 @@ the document presentation and desktop host.
 
 - `crates/knot-document`: the narrow one-document model and reusable Cambium
   surface.
-- `crates/knot-scroll-site`: native Scroll site folders and explicit loopback
+- `crates/knot-site`: native small-web site folders and explicit loopback
   publication snapshots, reusable by other Knot hosts.
 - `crates/knot-file-catalog`: durable file identities without the editor's
   preview, publishing, or replication dependencies.
@@ -48,7 +48,7 @@ Knot continues to own the document and rechecks every requested effect.
 
 ## Scroll sites
 
-Choose **Scroll site**, enter a new folder path, and select **Create Scroll site**.
+Choose **Site**, select **Scroll**, enter a new folder path, and select **Create site**.
 The parent folder must exist. Knot creates `site.json`, `index.scroll`,
 `about.scroll`, `notes.scroll`, and an empty `assets/` directory. The three pages
 link to one another. **Open site** opens an existing folder; the same folder can
@@ -92,7 +92,41 @@ The engine reports its input-link rendering limitation in the preview.
 Validation and the independent-client receipt are recorded in the
 [Scroll site plan](design_docs/2026-09-11_scroll_site_authoring_plan.md).
 Run the reusable site's focused tests with
-`cargo test --manifest-path crates/knot-scroll-site/Cargo.toml`.
+`cargo test --manifest-path crates/knot-site/Cargo.toml`.
+
+## Gemini, Spartan and Micron files
+
+Choose **Gemini** or **Spartan** before creating a site. Both create native
+Gemtext `index.gmi`, `about.gmi` and `notes.gmi` files. Their previews use the
+shared native renderer. **Publish locally** serves exact saved bytes through
+the corresponding shared protocol server (Gemini TLS on port 1965 by default,
+Spartan TCP on port 300; use 0 for an available port). Static Spartan sites
+refuse uploads and never execute page files. The same explicit snapshot,
+replacement, loopback and Stop boundaries apply as for Scroll.
+
+Knot also opens `.gmi`/`.gemini` and `.mu`/`.micron` ordinary files. Micron support
+currently means raw editing and exact saves; its native parser and NomadNet
+page transport need independently specified adapters. Micron preview and
+serving report that limitation. Gemtext, Micron and Scrolltext cannot be
+converted by renaming a Save As target.
+
+The submission controls prepare either a saved file for **Titan** or a typed
+**Spartan** body. Review the target, MIME, byte count, digest and exact body,
+then choose **Send reviewed bytes**. Preparation does not connect. A review
+holds immutable bytes even if the file later changes. Sending consumes it;
+redirects are returned as receipts and are not followed automatically. Titan
+accepts an optional masked token, which is cleared on sending or cancellation.
+It uses durable first-contact certificate pins; a changed certificate refuses
+an upload. A timeout can leave the remote outcome unknown, so check the endpoint
+before preparing a retry. This first Knot upload surface does not select client
+certificates. A compatible endpoint may require one; Turnstone has a separate
+identity-selection flow.
+
+The [native small-web plan](design_docs/2026-09-11_small_web_authoring_plan.md)
+records tests, independent client receipts, remaining Micron/Reticulum gates,
+and the separate Djinn persistent-serving proposal. The site-library Gemini
+implementation was browsed with Lagrange 1.21.1; ordinary readers need neither
+Turnstone nor Gemot.
 
 ## Application development
 

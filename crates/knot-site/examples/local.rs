@@ -5,17 +5,26 @@
 // SPDX-License-Identifier: MPL-2.0
 
 // Local verification launcher: native site, explicit publication, public cert.
-use knot_scroll_site::{LocalServer, Site};
+use knot_site::{LocalServer, Site, SiteFormat};
 fn main() -> Result<(), String> {
     let args = std::env::args().skip(1).collect::<Vec<_>>();
-    if args.len() != 2 {
-        return Err("Usage: local SITE_FOLDER PUBLIC_CERT_PATH".into());
+    if !(2..=3).contains(&args.len()) {
+        return Err(
+            "Usage: local SITE_FOLDER PUBLIC_CERT_PATH [scroll|gemini|spartan|micron]".into(),
+        );
     }
+    let format = match args.get(2).map(String::as_str).unwrap_or("scroll") {
+        "scroll" => SiteFormat::Scroll,
+        "gemini" => SiteFormat::Gemini,
+        "spartan" => SiteFormat::Spartan,
+        "micron" => SiteFormat::Micron,
+        _ => return Err("Unknown site format".into()),
+    };
     let root = std::path::Path::new(&args[0]);
     let site = if root.exists() {
         Site::open(root)?
     } else {
-        Site::create(root)?
+        Site::create_for(root, format)?
     };
     let server = LocalServer::start(site.publication()?, 0)?;
     // Public certificate only; the ephemeral private key never leaves memory.

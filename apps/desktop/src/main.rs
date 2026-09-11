@@ -111,8 +111,8 @@ fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, S
     match selection {
         DocumentSelection::Scratch => Ok(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "")),
         DocumentSelection::File(path) if path.is_dir() => {
-            let site = knot_scroll_site::Site::open(&path)?;
-            KnotDocumentSession::open(site.page_path("index.scroll")?)
+            let site = knot_site::Site::open(&path)?;
+            KnotDocumentSession::open(site.page_path(site.config.format.index_file())?)
         },
         DocumentSelection::File(path) => KnotDocumentSession::open(path),
     }
@@ -122,6 +122,13 @@ fn main() {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
+    let settings_root = std::env::var_os("APPDATA")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
+        .join("Knot");
+    let titan_submission_error =
+        knot_site::submission::initialize_submission_trust(&settings_root.join("titan-trust.json"))
+            .err();
     let catalog = options
         .catalog
         .map(|options| KnotFileCatalog::open(options.root, options.path))
@@ -144,6 +151,7 @@ fn main() {
         catalog,
         options.capture_max_bytes,
         vec![],
+        titan_submission_error,
     ) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);

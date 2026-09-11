@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use knot_scroll_site::{CONFIG, MAX_PAGE_BYTES, Site};
+use knot_site::{CONFIG, MAX_PAGE_BYTES, Site};
 use std::fs;
 
 #[test]
@@ -123,7 +123,7 @@ fn only_manifest_resources_can_be_requested_and_bounds_are_enforced() {
 
 #[test]
 fn loopback_tls_stop_and_snapshot_replacement() {
-    use knot_scroll_site::LocalServer;
+    use knot_site::LocalServer;
     let temp = tempfile::tempdir().unwrap();
     let site = Site::create(&temp.path().join("site")).unwrap();
     let server = LocalServer::start(site.publication().unwrap(), 0).unwrap();
@@ -133,7 +133,7 @@ fn loopback_tls_stop_and_snapshot_replacement() {
             .certificate_pem
             .starts_with("-----BEGIN CERTIFICATE-----")
     );
-    server.replace(site.publication().unwrap());
+    server.replace(site.publication().unwrap()).unwrap();
     let address = server.address();
     drop(server);
     assert!(std::net::TcpStream::connect(address).is_err());

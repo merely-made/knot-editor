@@ -2868,9 +2868,9 @@ dependencies = [
 [[package]]
 name = "gemini-protocol"
 version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9515c8b3d1affff64ea1e6f2c0a04561cd1a46287db7ddaff2f30f11c5744258"
+source = "git+https://github.com/merely-made/smolweb.git?rev=882baeb1b59bbdbb305e475f6675f69af997c4f4#882baeb1b59bbdbb305e475f6675f69af997c4f4"
 dependencies = [
+ "log",
  "ring",
  "rustls",
  "tokio",
@@ -4783,13 +4783,14 @@ dependencies = [
  "knot-document",
  "knot-editor",
  "knot-file-catalog",
- "knot-scroll-site",
+ "knot-site",
  "layout-dom-api",
  "nematic",
  "personae",
  "pollster",
  "tempfile",
  "tinct",
+ "tokio",
 ]
 
 [[package]]
@@ -4894,16 +4895,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "knot-scroll-site"
+name = "knot-site"
 version = "0.0.1"
 dependencies = [
+ "blake3",
+ "gemini-protocol",
  "language-tags",
  "rcgen 0.13.2",
  "rustls",
  "scroll-protocol",
  "serde",
  "serde_json",
+ "spartan-protocol",
+ "tempfile",
  "time",
+ "tokio",
  "url",
 ]
 

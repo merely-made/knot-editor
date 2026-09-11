@@ -1,6 +1,9 @@
 # Native small-web authoring and serving
 
-**Status (2026-09-11):** in progress. Scroll baseline is landed at `6fcd7e4`.
+**Status (2026-09-11):** Gemini/Spartan local publication and reviewed Titan/
+Spartan submission implemented; Micron source editing implemented, native
+rendering and NomadNet access/serving blocked on admissible protocol evidence.
+Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
 
@@ -62,34 +65,85 @@ effect; sending requires a separate explicit action over reviewed bytes.
 
 ## Persistent serving proposal, not rollout
 
-Djinn already owns process lifetime and device services in
-`mere/ports/djinn/src/resident.rs`; `resident_knot.rs` holds a personal document
-source and optional sync host, and `resident_blobs.rs` manages scoped blob
-custody. These are useful composition seams, not a general site-hosting daemon.
-
-The preferred extension is a service that accepts immutable published content
-plus explicit listener policy. Knot can own that service in process; Djinn
-could later hold it while applications are closed. An ordinary site must work
-without Gemot. Replicating governed moot records is a separate service with
-membership, contribution, hosting and revocation checks. Discovery advertises
-only enabled endpoints; it does not itself grant access or replicate content.
-
-Three concrete options remain for review: keep serving tied to Knot; let Djinn
-persist selected snapshots and supervise listeners; or let Djinn additionally
-compose governed replica/hosting services. The second is the smallest persistent
-step. Its done-conditions would include durable certificate identity, explicit
-startup policy, interface/port selection, snapshot retention and replacement,
-bounded resource use, restart recovery, status and Stop controls, and refusal
-when authority expires. Public binding and daemon installation are separate
-decisions. The existing author-offline Gemini proof in Mere demonstrates useful
-transport/authority composition but does not establish production daemon policy.
+The canonical ownership proposal is
+`mere/design_docs/mere_docs/implementation_strategy/2026-08-22_djinn_family_resident_services_plan.md`,
+section 13. It compares Knot-owned serving, Djinn-held ordinary snapshots, and
+Djinn-supervised governed hosting. The preferred persistent step is explicit
+snapshot handoff to Djinn while keeping ordinary sites independent of Gemot.
+Certificate identity, restart policy, audience, retention, authority changes,
+resource bounds and external-client restart acceptance remain proposal gates.
+The current work only runs loopback listeners within the authoring process.
 
 Theme-export research is scoped separately. A client's installed theme/settings,
 app chrome, document palette, and author-supplied styling are different surfaces.
 No foreign theme exporter or Gemini stylesheet mechanism is implied here.
+
+The originating research lane verified Lagrange's
+[official palette documentation](https://raw.githubusercontent.com/skyjake/lagrange/dev/res/about/help.gmi):
+`palette.txt` supports Dark/Light sections and named RGB colors, including
+ordered neutral intensities, accents and reserved status colors. This is a
+client-installed UI palette, not an author-controlled page theme. A future
+Tabard/Tinct exporter would map semantic roles, report unsupported roles, and
+verify contrast in Lagrange, especially link icons across document themes.
+The [Geopard README](https://github.com/ranfdev/Geopard) describes GTK4 and
+per-domain generated colors but establishes no supported theme-import contract;
+that target remains discovery-gated. GTK implementation CSS is not an import
+API. Reader-installed themes in Knot/Turnstone, client UI exports, and native
+author styling are separate adapters. Titan transport adds no theme mechanism.
 
 ## Progress
 
 - 2026-09-11: verified clean Knot main, preserved dirty Mere work, inspected
   shared servers and existing Turnstone acceptance, assigned three bounded
   Luna/Terra lanes. Implementation and independent receipts remain underway.
+- 2026-09-11: native document formats landed in `b503756` (41 tests passed,
+  one existing ignored diagnostic); shared Titan preflight/bounds landed in
+  `smolweb` at `882baeb1` (35 tests plus one doctest passed). Lagrange 1.21.1
+  loaded the native site-library example at loopback port 50372 and followed
+  `/about.gmi`. The independent standard-library client verified all three
+  saved bodies (64/62/62 bytes), TLS 1.3 close notification, root index mapping
+  and unpublished-path refusal. The example process then stopped. This is a
+  site-library interoperability receipt; desktop UI verification is separate.
+
+## Integration receipts and remaining gates
+
+- `knot-site`: nine integration tests passed. These retain all four Scroll
+  tests and cover old manifest defaults, immutable native publication, static
+  Spartan submission refusal, listener cancellation, immutable preparation,
+  one-shot redirect handling, durable Titan trust pins and certificate-change
+  refusal before application bytes.
+- Knot editor library: 110 tests passed. Desktop: 41 library and four binary
+  tests passed, one existing diagnostic ignored; desktop build passed using
+  the committed lockfile. Document adapter: 41 passed, one existing ignored.
+- Headed Knot opened the Gemini site with port 1965, displayed native source
+  beside Gemtext preview, and published three saved pages through the UI.
+  Lagrange 1.21.1 independently loaded the index and followed `/about.gmi`.
+  **Stop serving** released the listener; an independent socket then refused
+  connection. Startup format/port initialization has a regression test.
+- `scripts/submission_fixture.py` is an independent one-request Python
+  receiver. The `knot-site` `submit` example sent the same saved 64-byte index
+  through Titan TLS and Spartan. Both captures exactly matched disk with SHA256
+  `3beafae72e6ca7f9ce8c0962e2278a84d605e1ed566eb638dfad765e4edbf8bd`.
+  Each received one request; responses 30 and 3 were returned without following
+  their redirect. These are submission-API receipts, not headed-send receipts.
+  Full UI sending remains unverified: automation could click controls but its
+  bulk text injection did not populate the target. The final body-field layout
+  was visually checked and accepted a physical key after a coordinate click.
+  A compatible external capsule,
+  real authentication policy and manual end-to-end upload remain acceptance gates.
+- Turnstone `d3dde62` admits Scroll/Gemtext/Micron into the local Knot surface
+  and saves exact native source bytes. An explicit clean-scratch Rust 1.97.1
+  build and headed Scroll scenario passed; the screenshot displayed its title,
+  body and Citation link. Full library suite: 453 passed, nine ignored, one
+  failure in the existing partition-healing convergence test. That broader
+  suite is not green. Its canonical gap analysis records the detailed receipt.
+- Micron remains raw source with an explicit unavailable native preview/server.
+  No guessed control grammar was retained. Mere's Nematic fidelity plan records
+  the clean-room evidence gate. Djinn persistent serving and foreign theme
+  exports remain proposals; this work introduces no resident or public listener.
+
+For repeatable local submission checks, start the Python fixture with a new
+output directory, then run `cargo run --manifest-path crates/knot-site/Cargo.toml
+--example submit -- SAVED_FILE PRINTED_ENDPOINT MIME TRUST_RECORD_PATH`.
+Use a fixture-specific trust path. The receiver writes only its captured body,
+public receipt, and (for Titan) fixture-local TLS material.

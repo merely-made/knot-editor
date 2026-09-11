@@ -2,6 +2,11 @@
 
 Owner: Knot Editor. Status: first local authoring slice implemented, 2026-09-11.
 
+The subsequent native small-web integration renamed `crates/knot-scroll-site`
+to `crates/knot-site`; use that path for current commands. The historical
+receipts below retain their original names. See the
+[native authoring plan](2026-09-11_small_web_authoring_plan.md) for current checks.
+
 The first slice creates an ordinary folder containing `site.json`, three native
 `.scroll` pages, and `assets/`. Knot owns draft files, per-page publication
 metadata, and publication snapshots. Mere's Nematic renders the source; Tabard

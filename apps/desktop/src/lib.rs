@@ -30,6 +30,7 @@ pub fn run_desktop_with_targets(
     catalog: Option<KnotFileCatalog>,
     capture_max_bytes: usize,
     targets: Vec<Arc<dyn KnotRetainPort>>,
+    titan_submission_error: Option<String>,
 ) -> Result<(), String> {
     run(
         HostOptions {
@@ -40,6 +41,12 @@ pub fn run_desktop_with_targets(
         move |_, commands, wake| {
             let mut state =
                 DesktopState::with_catalog(session, commands.clone(), initial_path, catalog);
+            state
+                .scroll
+                .set_titan_submission_error(titan_submission_error.clone());
+            if let Some(error) = &titan_submission_error {
+                state.message = Some(format!("Titan upload disabled: {error}"));
+            }
             state.set_capture_limit(capture_max_bytes);
             state.set_retention_targets(targets, wake.clone());
             Init {

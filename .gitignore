@@ -34,4 +34,4 @@ desktop.ini
 .env.local
 .env.*.local
 
-/crates/knot-scroll-site/Cargo.lock
+/crates/knot-site/Cargo.lock

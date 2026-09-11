@@ -1425,6 +1425,10 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     }
     let folder = ancestor_has_id(&*dom_ref, focused, "knot-scroll-folder");
     let port = ancestor_has_id(&*dom_ref, focused, "knot-scroll-port");
+    let submission_target = ancestor_has_id(&*dom_ref, focused, "knot-submission-target");
+    let submission_mime = ancestor_has_id(&*dom_ref, focused, "knot-submission-mime");
+    let submission_body = ancestor_has_id(&*dom_ref, focused, "knot-spartan-body");
+    let submission_token = ancestor_has_id(&*dom_ref, focused, "knot-submission-token");
     let metadata =
         (0..6).find(|i| ancestor_has_id(&*dom_ref, focused, &format!("knot-scroll-meta-{i}")));
     let path = ancestor_has_id(&*dom_ref, focused, "knot-path-field");
@@ -1441,6 +1445,34 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
             node: focused,
             get: Box::new(|s| &s.scroll.port),
             get_mut: Box::new(|s| &mut s.scroll.port),
+        });
+    }
+    if submission_target {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|s| &s.scroll.submission_target),
+            get_mut: Box::new(|s| &mut s.scroll.submission_target),
+        });
+    }
+    if submission_mime {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|s| &s.scroll.submission_mime),
+            get_mut: Box::new(|s| &mut s.scroll.submission_mime),
+        });
+    }
+    if submission_body {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|s| &s.scroll.submission_body),
+            get_mut: Box::new(|s| &mut s.scroll.submission_body),
+        });
+    }
+    if submission_token {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|s| &s.scroll.submission_token),
+            get_mut: Box::new(|s| &mut s.scroll.submission_token),
         });
     }
     if let Some(i) = metadata {

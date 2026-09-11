@@ -743,8 +743,8 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
         let view: DesktopView = match item {
             InlineSpan::Text(text) => Box::new(span(text.clone())),
             InlineSpan::Code(text) => Box::new(el("code", text.clone())),
-            InlineSpan::Emphasis(items) => Box::new(el("em", inline(items))),
-            InlineSpan::Strong(items) => Box::new(el("strong", inline(items))),
+            InlineSpan::Emphasis(items) => Box::new(el("em", inline(items)).attr("class", "knot-preview-emphasis")),
+            InlineSpan::Strong(items) => Box::new(el("strong", inline(items)).attr("class", "knot-preview-strong")),
             InlineSpan::Link { url, spans, predicate, .. } => {
                 let destination = url.clone();
                 let label = inker::inline_text(spans);
@@ -805,6 +805,9 @@ fn blocks(items: &[Block]) -> DesktopView {
                     ),
                 )),
                 Block::Rule => Box::new(el("hr", ())),
+                Block::Badge { text } => {
+                    Box::new(el("p", text.clone()).attr("class", "knot-preview-badge"))
+                },
                 _ => Box::new(span("Unsupported preview block")),
             };
             (i, view)
@@ -905,6 +908,9 @@ pub const CSS: &str = r#"
 .knot-scroll-preview { flex: 1 1 50%; width:0; min-width:0; box-sizing:border-box; padding: 16px; overflow: auto; }
 .knot-scroll-preview p { margin: 8px 0; }
 .knot-scroll-preview pre { white-space: pre-wrap; }
+.knot-preview-badge { display: block; margin: 8px 0; padding: 4px 8px; border: 1px solid currentColor; border-radius: 4px; }
+.knot-preview-strong { font-weight: 700; }
+.knot-preview-emphasis { font-style: italic; }
 .knot-scroll-link { text-decoration: underline; }
 #knot-scroll-folder input { width: 350px; }
 #knot-scroll-port input { width: 70px; }
@@ -1028,6 +1034,10 @@ mod tests {
         assert!(text.contains("Partial Micron preview · current source"));
         assert!(text.contains("Heading"));
         assert!(text.contains("[Local`:/page/next.mu]"));
+        assert!(text.contains(
+            "Partial Micron preview. Unsupported source is inert, visible, and read-only."
+        ));
+        assert!(text.contains("Unsupported Micron source (read-only)"));
         assert!(text.contains("Rendering notes:"));
     }
 

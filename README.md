@@ -1,6 +1,6 @@
 # Knot Editor
 
-Knot Editor is a files-in-place, local-first Djot editor. It can run as a
+Knot Editor is a files-in-place, local-first Djot and Scrolltext editor. It can run as a
 standalone desktop application or contribute the same retained document
 surface to hosts such as Turnstone.
 
@@ -13,6 +13,8 @@ the document presentation and desktop host.
 
 - `crates/knot-document`: the narrow one-document model and reusable Cambium
   surface.
+- `crates/knot-scroll-site`: native Scroll site folders and explicit loopback
+  publication snapshots, reusable by other Knot hosts.
 - `crates/knot-file-catalog`: durable file identities without the editor's
   preview, publishing, or replication dependencies.
 - `crates/knot-capture`: lightweight host-issued retention targets and receipts.
@@ -43,6 +45,54 @@ publishing graph.
 Hosts mount the `knot.document.v1` surface through Genet's generic retained
 surface contract. The host owns placement, focus, windowing, and shell policy.
 Knot continues to own the document and rechecks every requested effect.
+
+## Scroll sites
+
+Choose **Scroll site**, enter a new folder path, and select **Create Scroll site**.
+The parent folder must exist. Knot creates `site.json`, `index.scroll`,
+`about.scroll`, `notes.scroll`, and an empty `assets/` directory. The three pages
+link to one another. **Open site** opens an existing folder; the same folder can
+be passed at launch: `cargo run -p knot-desktop -- path/to/site`.
+
+Select a page or follow one of its local preview links to edit native Scrolltext.
+The preview uses Mere's Nematic Scroll engine and the committed source buffer.
+**Save** retains the source's exact UTF-8 text, including existing line endings.
+Save As accepts another `.scroll` filename and refuses implicit conversion to
+Djot/Knot. External source changes retain the usual Compare/Reload safeguards.
+Scroll syntax highlighting and a source-addressed outline remain unavailable.
+
+**Metadata** edits the selected page's author, BCP47 language, UDC class (0–9,
+default 4), UTC dates, and native Scrolltext abstract. Dates may be blank; Knot
+does not invent a publication date. The supported date entry is RFC3339 with
+a `Z` suffix. **Save metadata** updates `site.json` with an external-change check.
+Metadata edits must be saved or discarded before changing pages or closing.
+These values are separate from the body: author and dates occupy Scroll's
+header lines, language is a MIME parameter, and UDC chooses status 20–29.
+An abstract request (`+` before the language list) returns the abstract instead
+of the body, with the resource's same metadata.
+
+**Publish locally** captures saved pages and metadata into a process-local
+snapshot and serves it at the displayed `scroll://localhost:PORT/` address.
+Saving later drafts does not update it. Publish locally again to replace it;
+**Stop serving** or closing Knot releases it. Choose the port before starting
+(5699 by default; 0 chooses a free port). Changing the port requires stopping
+and publishing again. Only IPv4 loopback is bound. A new self-signed localhost
+certificate is generated per serving session, so an independent client may
+require accepting a new local identity after restarting.
+
+This is the Scroll small-web protocol and `text/scroll`, not scroll.pub. It
+requires neither Turnstone nor Gemot nor a vendor service. This initial slice
+serves only the manifest's `.scroll` pages, with one language per page and a
+16 MiB total snapshot limit (1 MiB per body or abstract). Assets, nested page
+paths, automatic language variants, persistent releases, external hosting, and
+other output formats remain future work. Preview links navigate plain local
+page paths; external links and section jumps are displayed but not followed.
+The engine reports its input-link rendering limitation in the preview.
+
+Validation and the independent-client receipt are recorded in the
+[Scroll site plan](design_docs/2026-09-11_scroll_site_authoring_plan.md).
+Run the reusable site's focused tests with
+`cargo test --manifest-path crates/knot-scroll-site/Cargo.toml`.
 
 ## Application development
 

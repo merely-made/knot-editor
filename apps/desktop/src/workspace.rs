@@ -91,7 +91,7 @@ pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>
 pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum PendingAction {
+pub(crate) enum PendingAction {
     Close,
     New,
     Open(PathBuf),
@@ -106,6 +106,7 @@ enum PendingAction {
 pub struct DesktopState {
     pub document: KnotDocumentSurfaceState,
     pub appearance: Appearance,
+    pub scroll: crate::scroll_site::ScrollWorkspace,
     pub path: TextInput,
     pub message: Option<String>,
     catalog: Option<KnotFileCatalog>,
@@ -168,12 +169,14 @@ impl DesktopState {
         initial_path: Option<PathBuf>,
         catalog: Option<KnotFileCatalog>,
     ) -> Self {
+        let site_folder = initial_path.as_ref().filter(|path| path.is_dir()).cloned();
         let path = initial_path.map_or_else(TextInput::default, |path| {
             TextInput::new(path.to_string_lossy())
         });
         let mut state = Self {
             document: KnotDocumentSurfaceState::new(session),
             appearance: Appearance::default(),
+            scroll: Default::default(),
             path,
             message: None,
             catalog,
@@ -203,6 +206,21 @@ impl DesktopState {
             retention_receipt: None,
             retention_error: None,
         };
+        if let Some(folder) = site_folder {
+            match knot_scroll_site::Site::open(&folder) {
+                Ok(site) => {
+                    let page = site.page_path("index.scroll").ok();
+                    state.scroll.folder = TextInput::new(folder.to_string_lossy());
+                    state.scroll.site = Some(site);
+                    state.scroll.visible = true;
+                    state.scroll.sync_page(page.as_deref());
+                    if let Some(page) = page {
+                        state.path = TextInput::new(page.to_string_lossy());
+                    }
+                },
+                Err(error) => state.message = Some(format!("Site: {error}")),
+            }
+        }
         state.sync_catalog();
         state
     }
@@ -513,7 +531,11 @@ impl DesktopState {
         self.clear_comparison();
     }
 
-    fn request(&mut self, action: PendingAction) {
+    pub(crate) fn request(&mut self, action: PendingAction) {
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before changing documents.".into());
+            return;
+        }
         if self.dirty() {
             self.pending = Some(action);
         } else {
@@ -530,6 +552,7 @@ impl DesktopState {
                     "",
                 ));
                 self.path = TextInput::default();
+                self.scroll.sync_page(None);
                 self.clear_comparison();
                 self.clear_prepared_capture();
                 self.clear_outline();
@@ -541,6 +564,8 @@ impl DesktopState {
                 Ok(session) => {
                     self.path = TextInput::new(path.to_string_lossy().into_owned());
                     self.document = KnotDocumentSurfaceState::new(session);
+                    let resolved = std::fs::canonicalize(&path).ok();
+                    self.scroll.sync_page(resolved.as_deref());
                     self.clear_comparison();
                     self.clear_prepared_capture();
                     self.clear_outline();
@@ -586,6 +611,10 @@ impl DesktopState {
     }
 
     fn save_as(&mut self) -> bool {
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before Save As.".into());
+            return false;
+        }
         let path = match self.path_value() {
             Ok(path) => path,
             Err(error) => {
@@ -603,6 +632,8 @@ impl DesktopState {
                 self.clear_outline();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
+                let resolved = std::fs::canonicalize(&path).ok();
+                self.scroll.sync_page(resolved.as_deref());
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
             },
@@ -618,6 +649,10 @@ impl DesktopState {
     }
 
     fn confirm_save(&mut self) {
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before changing documents.".into());
+            return;
+        }
         let Some(action) = self.pending.take() else {
             return;
         };
@@ -666,6 +701,10 @@ impl DesktopState {
     }
 
     fn confirm_discard(&mut self) {
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before changing documents.".into());
+            return;
+        }
         let Some(action) = self.pending.take() else {
             return;
         };
@@ -682,6 +721,11 @@ impl DesktopState {
     }
 
     fn close_request(&mut self, request: CloseRequest) -> CloseDisposition {
+        if self.scroll.metadata_dirty() {
+            self.scroll.visible = true;
+            self.message = Some("Save or discard metadata edits before closing.".into());
+            return CloseDisposition::KeepVisible;
+        }
         if self.retention_busy.is_some() {
             self.message = Some("Wait for retention to finish before closing.".to_owned());
             self.discard_close = false;
@@ -719,6 +763,8 @@ fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let outline_panel: DesktopView = if !state.outline_visible {
         Box::new(el("div", ()))
+    } else if state.document.snapshot().format == knot_document::DocumentFormat::Scroll {
+        Box::new(span("A source outline is not available for Scrolltext yet. Use the preview to read headings.").attr("class", "knot-outline"))
     } else if let Some(snapshot) = &state.outline_snapshot {
         let rows = snapshot
             .items
@@ -1258,6 +1304,9 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 el(
                     "nav",
                     (
+                        button("Scroll site", |state: &mut DesktopState, _| {
+                            state.scroll.visible = !state.scroll.visible
+                        }),
                         button("New", |state: &mut DesktopState, _| state.new_document()),
                         button("Open", |state: &mut DesktopState, _| state.open_document()),
                         button("Save As", |state: &mut DesktopState, _| {
@@ -1296,16 +1345,42 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 )
                 .attr("class", "knot-workspace-toolbar"),
                 message,
+                crate::scroll_site::site_panel(state),
                 catalog_status,
                 review_panel,
-                retention_panel,
+                if state.document.snapshot().format == knot_document::DocumentFormat::Scroll
+                    && state.retention_targets.is_empty()
+                {
+                    Box::new(el("div", ())) as DesktopView
+                } else {
+                    retention_panel
+                },
                 appearance_panel,
-                el("div", (source_wrapper, outline_panel)).attr("class", "knot-writing-area"),
+                el(
+                    "div",
+                    (
+                        source_wrapper,
+                        outline_panel,
+                        crate::scroll_site::preview(state),
+                    ),
+                )
+                .attr("class", "knot-writing-area"),
                 comparison_panel,
                 prompt,
             ),
         )
-        .attr("class", state.appearance.root_class()),
+        .attr(
+            "class",
+            format!(
+                "{}{}",
+                state.appearance.root_class(),
+                if state.document.snapshot().format == knot_document::DocumentFormat::Scroll {
+                    " knot-scroll-mode"
+                } else {
+                    ""
+                }
+            ),
+        ),
     )
 }
 
@@ -1343,8 +1418,33 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     if !is_text_control {
         return None;
     }
+    let folder = ancestor_has_id(&*dom_ref, focused, "knot-scroll-folder");
+    let port = ancestor_has_id(&*dom_ref, focused, "knot-scroll-port");
+    let metadata =
+        (0..6).find(|i| ancestor_has_id(&*dom_ref, focused, &format!("knot-scroll-meta-{i}")));
     let path = ancestor_has_id(&*dom_ref, focused, "knot-path-field");
     drop(dom_ref);
+    if folder {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|s| &s.scroll.folder),
+            get_mut: Box::new(|s| &mut s.scroll.folder),
+        });
+    }
+    if port {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|s| &s.scroll.port),
+            get_mut: Box::new(|s| &mut s.scroll.port),
+        });
+    }
+    if let Some(i) = metadata {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(move |s| &s.scroll.fields[i]),
+            get_mut: Box::new(move |s| &mut s.scroll.fields[i]),
+        });
+    }
     if path {
         return Some(FocusedTextSlot {
             node: focused,

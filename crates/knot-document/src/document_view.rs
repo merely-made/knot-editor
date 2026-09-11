@@ -169,6 +169,7 @@ pub fn knot_document_surface(
 fn format_label(format: DocumentFormat) -> &'static str {
     match format {
         DocumentFormat::Djot => "Djot",
+        DocumentFormat::Scroll => "Scrolltext",
         DocumentFormat::Knot => "legacy .knot",
         DocumentFormat::Markdown => "Markdown",
         DocumentFormat::Json => "JSON",

@@ -17,6 +17,7 @@ pub enum DocumentFormat {
     Knot,
     Markdown,
     Djot,
+    Scroll,
     Json,
 }
 
@@ -31,6 +32,7 @@ impl DocumentFormat {
             Some("knot") => Some(Self::Knot),
             Some("md" | "markdown") => Some(Self::Markdown),
             Some("djot") => Some(Self::Djot),
+            Some("scroll") => Some(Self::Scroll),
             Some("json") => Some(Self::Json),
             _ => None,
         }
@@ -40,6 +42,7 @@ impl DocumentFormat {
             Self::Knot => "text/vnd.knot",
             Self::Markdown => "text/markdown",
             Self::Djot => "text/djot",
+            Self::Scroll => "text/scroll",
             Self::Json => "application/vnd.knot.document+json",
         }
     }
@@ -48,6 +51,7 @@ impl DocumentFormat {
             "text/vnd.knot" => Some(Self::Knot),
             "text/markdown" => Some(Self::Markdown),
             "text/djot" => Some(Self::Djot),
+            "text/scroll" | "text/x-scroll" => Some(Self::Scroll),
             "application/vnd.knot.document+json" | "application/json" => Some(Self::Json),
             _ => None,
         }
@@ -404,6 +408,9 @@ mod engine {
                 Self::Markdown => MarkdownEngine::new()
                     .render(&input)
                     .map_err(|error| format!("could not parse Markdown document: {error}")),
+                Self::Scroll => nematic::ScrollEngine::new()
+                    .render(&input)
+                    .map_err(|error| error.to_string()),
                 Self::Json => unreachable!(),
             }
         }
@@ -412,6 +419,7 @@ mod engine {
                 Self::Knot => document_to_knot(document),
                 Self::Markdown => document.to_markdown(),
                 Self::Djot => blocks_to_djot(&document.blocks),
+                Self::Scroll => return Err("Scroll source must be saved through the native source editor; block serialization is unsupported".into()),
                 Self::Json => {
                     serde_json::to_string_pretty(document)
                         .map_err(|error| format!("could not encode Knot document JSON: {error}"))?

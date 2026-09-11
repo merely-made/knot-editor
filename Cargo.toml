@@ -6,7 +6,7 @@ members = [
     "crates/knot-file-catalog",
     "crates/knot-editor",
 ]
-exclude = ["crates/knot-document"]
+exclude = ["crates/knot-document", "crates/knot-scroll-site"]
 default-members = [
     "crates/knot-editor",
 ]

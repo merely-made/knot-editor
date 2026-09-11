@@ -5,6 +5,8 @@ to an independently consumable repository.
 
 Current authority:
 
+- [Scroll site authoring](2026-09-11_scroll_site_authoring_plan.md): native site files, preview, metadata and explicit loopback publication.
+
 - [Application workspace](2026-09-05_knot_application_workspace_plan.md): single-document lifecycle, live outline, desktop file catalog and saved-revision review, coordinated resident capture retention, host-injected worker Retain controls, relation model, and the public signed-head revision boundary for projection provenance; remaining workspace, graph-query, evidence, and host authority integration.
 - [Repository extraction](2026-09-01_knot_editor_repository_extraction_plan.md)
 - [Publishing protocol](2026-08-07_knot_publishing_protocol_plan.md)

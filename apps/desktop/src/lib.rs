@@ -5,6 +5,7 @@
 //! The host binds persona display identities to granted retention capabilities
 //! before launch. This entrypoint never opens a vault or creates an identity.
 pub mod appearance;
+pub mod scroll_site;
 pub mod workspace;
 
 use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
@@ -45,8 +46,9 @@ pub fn run_desktop_with_targets(
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!(
-                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}",
-                    appearance::appearance_css()
+                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}",
+                    appearance::appearance_css(),
+                    scroll_site::CSS
                 ),
             }
         },

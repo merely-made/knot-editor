@@ -110,6 +110,10 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
 fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, String> {
     match selection {
         DocumentSelection::Scratch => Ok(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "")),
+        DocumentSelection::File(path) if path.is_dir() => {
+            let site = knot_scroll_site::Site::open(&path)?;
+            KnotDocumentSession::open(site.page_path("index.scroll")?)
+        },
         DocumentSelection::File(path) => KnotDocumentSession::open(path),
     }
 }

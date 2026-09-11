@@ -4756,11 +4756,14 @@ dependencies = [
  "cambium-genet-winit-host",
  "genet-probe",
  "genet-scripted-dom",
+ "inker",
  "knot-capture",
  "knot-document",
  "knot-editor",
  "knot-file-catalog",
+ "knot-scroll-site",
  "layout-dom-api",
+ "nematic",
  "personae",
  "pollster",
  "tempfile",
@@ -4869,6 +4872,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "knot-scroll-site"
+version = "0.0.1"
+dependencies = [
+ "language-tags",
+ "rcgen 0.13.2",
+ "rustls",
+ "scroll-protocol",
+ "serde",
+ "serde_json",
+ "time",
+ "url",
+]
+
+[[package]]
 name = "kqueue"
 version = "1.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4899,6 +4916,12 @@ dependencies = [
  "polycool",
  "smallvec",
 ]
+
+[[package]]
+name = "language-tags"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4345964bb142484797b161f473a503a434de77149dd8c7427788c6e13379388"
 
 [[package]]
 name = "layout-dom-api"

@@ -65,10 +65,15 @@ impl KnotEditor {
     pub fn open(path: impl Into<PathBuf>) -> Result<Self, String> {
         let requested_path = path.into();
         let format = DocumentFormat::from_path(&requested_path)
-            .filter(|format| matches!(format, DocumentFormat::Knot | DocumentFormat::Djot))
+            .filter(|format| {
+                matches!(
+                    format,
+                    DocumentFormat::Knot | DocumentFormat::Djot | DocumentFormat::Scroll
+                )
+            })
             .ok_or_else(|| {
                 format!(
-                    "KnotEditor requires a .djot or .knot file: {}",
+                    "KnotEditor requires a .djot, .knot, or .scroll file: {}",
                     requested_path.display()
                 )
             })?;
@@ -211,13 +216,23 @@ impl KnotEditor {
     ) -> Result<SaveOutcome, KnotEditorSaveError> {
         let target = target.into();
         let format = DocumentFormat::from_path(&target)
-            .filter(|format| matches!(format, DocumentFormat::Knot | DocumentFormat::Djot))
+            .filter(|format| {
+                matches!(
+                    format,
+                    DocumentFormat::Knot | DocumentFormat::Djot | DocumentFormat::Scroll
+                )
+            })
             .ok_or_else(|| {
                 KnotEditorSaveError::Failed(format!(
-                    "KnotEditor requires a .djot or .knot save target: {}",
+                    "KnotEditor requires a .djot, .knot, or .scroll save target: {}",
                     target.display()
                 ))
             })?;
+        if (self.format == DocumentFormat::Scroll) != (format == DocumentFormat::Scroll) {
+            return Err(KnotEditorSaveError::Failed(
+                "Save As cannot convert between Scrolltext and Djot/Knot".into(),
+            ));
+        }
         if self.is_current_path(&target) {
             return self.save_guarded();
         }
@@ -272,6 +287,11 @@ impl KnotEditor {
     }
 
     pub(crate) fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
+        // The shared readout is Djot-specific. Scroll preview supplies headings;
+        // a source-addressed Scroll outline is a separate follow-up.
+        if self.format == DocumentFormat::Scroll {
+            return Vec::new();
+        }
         self.editor
             .outline()
             .into_iter()
@@ -286,18 +306,36 @@ impl KnotEditor {
 
     #[cfg(feature = "engine")]
     pub fn highlights(&self) -> Vec<Span> {
+        if self.format == DocumentFormat::Scroll {
+            return Vec::new();
+        }
         self.editor.highlights()
     }
     #[cfg(feature = "engine")]
     pub fn outline(&self) -> Vec<OutlineItem> {
+        if self.format == DocumentFormat::Scroll {
+            return Vec::new();
+        }
         self.editor.outline()
     }
     #[cfg(feature = "engine")]
     pub fn folds(&self) -> Vec<Fold> {
+        if self.format == DocumentFormat::Scroll {
+            return Vec::new();
+        }
         self.editor.folds()
     }
     #[cfg(feature = "engine")]
     pub fn preview(&self) -> Result<EngineDocument, String> {
+        if self.format == DocumentFormat::Scroll {
+            use inker::{Engine, EngineInput};
+            return nematic::ScrollEngine::new()
+                .render(
+                    &EngineInput::new(&self.address, self.source())
+                        .with_content_type("text/scroll"),
+                )
+                .map_err(|e| e.to_string());
+        }
         self.editor.preview()
     }
 }
@@ -310,6 +348,53 @@ mod tests {
     use tempfile::tempdir;
 
     use super::*;
+
+    #[test]
+    fn scroll_save_preserves_native_source_and_rejects_implicit_conversion() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("native.scroll");
+        let source = "# Café\r\n=> /about.scroll About [+Citation]\r\n\r\n";
+        fs::write(&path, source).unwrap();
+        let mut editor = KnotEditor::open(&path).unwrap();
+        assert_eq!(editor.format(), DocumentFormat::Scroll);
+        assert_eq!(editor.source(), source);
+        assert_eq!(editor.save().unwrap(), SaveOutcome::Unchanged);
+        editor.apply(TextCommand::SelectAll);
+        let edited = format!("{source}* Native _text_\r\n");
+        editor.apply(TextCommand::Insert(edited.clone()));
+        editor.save().unwrap();
+        assert_eq!(fs::read(&path).unwrap(), edited.as_bytes());
+        assert!(editor.save_as(temp.path().join("converted.djot")).is_err());
+        assert!(!temp.path().join("converted.djot").exists());
+        fs::write(&path, "external").unwrap();
+        editor.apply(TextCommand::Insert("later".into()));
+        assert_eq!(
+            editor.save_guarded(),
+            Err(KnotEditorSaveError::ExternalChange)
+        );
+    }
+
+    #[cfg(feature = "engine")]
+    #[test]
+    fn scroll_preview_uses_native_engine_and_retains_relations() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("native.scroll");
+        fs::write(&path, "##### Deep\n=> /other.scroll Evidence [-Citation]\n").unwrap();
+        let editor = KnotEditor::open(path).unwrap();
+        let preview = editor.preview().unwrap();
+        assert_eq!(
+            preview.provenance.source_kind.as_deref(),
+            Some("nematic.scroll")
+        );
+        assert!(matches!(
+            preview.blocks[0],
+            inker::Block::Heading { level: 5, .. }
+        ));
+        assert!(
+            matches!(&preview.blocks[1], inker::Block::Paragraph { spans }
+            if matches!(&spans[0], inker::InlineSpan::Link { predicate: Some(p), .. } if p == "-Citation"))
+        );
+    }
 
     #[cfg(feature = "engine")]
     #[test]

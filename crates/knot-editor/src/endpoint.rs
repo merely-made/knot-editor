@@ -3739,21 +3739,22 @@ Fallback.
         let Source::Vault(source) = &endpoint.source else {
             unreachable!()
         };
-        {
+        let saved_head = {
             let source = source.state();
             let projection =
                 pollster::block_on(inspection_store.projection(&source.vault)).unwrap();
             assert_eq!(projection.documents[0].body, b"# Private revised\n");
             assert_ne!(projection.document_heads["field-note"], initial_head);
             assert_eq!(
-                endpoint.public_document_revision("field-note"),
-                Some(projection.document_heads["field-note"])
-            );
-            assert_eq!(
                 source.vault.body("field-note"),
                 Some(&b"# Private revised\n"[..])
             );
-        }
+            projection.document_heads["field-note"]
+        };
+        assert_eq!(
+            endpoint.public_document_revision("field-note"),
+            Some(saved_head)
+        );
         let sealed = fs::read(vault_dir.path().join("knot/documents.json")).unwrap();
         assert!(
             !sealed

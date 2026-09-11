@@ -8,7 +8,7 @@
 
 use std::fs;
 
-use esp::embed::{LexicalEmbeddingProvider, SemanticSearch};
+use esp::embed::{EmbeddingProvider, LexicalEmbeddingProvider, SemanticSearch, VectorIndex};
 use serde::{Deserialize, Serialize};
 use servitor::{AuthorityProvider, Cap, Mode, Subject};
 
@@ -91,7 +91,12 @@ impl KnotSearch {
             if vault.is_locked() {
                 return Err("cannot build the Knot vault index while locked".into());
             }
-            let mut sealed = SemanticSearch::new(provider()?);
+            // The sealed vault record stores a dense VectorIndex. Select that
+            // representation explicitly even when lexical search offers sparse storage.
+            let provider = provider()?;
+            let index = VectorIndex::new(provider.dimensions(), provider.metric());
+            let mut sealed = SemanticSearch::with_index(provider, index)
+                .map_err(|error| format!("could not build Knot vault index: {error}"))?;
             for document in vault.documents() {
                 let Ok(body) = std::str::from_utf8(&document.body) else {
                     continue;

@@ -5,6 +5,8 @@ to an independently consumable repository.
 
 Current authority:
 
+- [Native small-web authoring](2026-09-11_small_web_authoring_plan.md): Gemini, Titan, Spartan and Micron scope, shared protocol ownership, Turnstone composition and persistent-serving proposal.
+
 - [Scroll site authoring](2026-09-11_scroll_site_authoring_plan.md): native site files, preview, metadata and explicit loopback publication.
 
 - [Application workspace](2026-09-05_knot_application_workspace_plan.md): single-document lifecycle, live outline, desktop file catalog and saved-revision review, coordinated resident capture retention, host-injected worker Retain controls, relation model, and the public signed-head revision boundary for projection provenance; remaining workspace, graph-query, evidence, and host authority integration.

@@ -4,7 +4,9 @@
 Spartan submission implemented and checked through the headed review/send flow.
 Micron has source-preserving syntax, a native preview for text, headings,
 emphasis, ordinary links and tables, and a saved-snapshot NomadNet server.
-Full presentation fidelity, form submission and partial refresh remain open.
+Full presentation fidelity and partial refresh remain open. Micron request-form
+editing and explicit remote submission are implemented below, pending focused
+automated and headed receipts.
 Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
@@ -95,6 +97,39 @@ acceptance is an explicitly handed-off saved Gemini snapshot that remains
 readable after Knot exits and after the resident restarts; this does not wait
 for Micron forms. Progress on these scopes is recorded below without treating
 library implementation as a headed consumer receipt.
+
+## Micron request-form consumer (2026-09-13)
+
+Knot keeps Micron form values in an ephemeral preview-side editor. Opening a
+form requires an active Micron document, including a loose `.mu` file; its exact
+source bytes and document address are retained with the form. Text, masked
+text, checkbox, and radio values are editable without changing authored source,
+the site manifest, an address, or a publication. A field change after review
+invalidates that review; a source or address change requires reopening the
+form. The shared Nematic form model rejects malformed, partial, and table
+controls rather than treating an incomplete projection as sendable.
+
+Each Micron request action is separately prepared from the current values.
+Knot displays a local review, redacting values from masked fields. Send is a
+second explicit action. It only accepts a full `destination:/absolute/path`
+target and an explicit `KNOT_NOMADNET_TCP=host:port` interface. The client uses
+an ephemeral Reticulum identity, bounded typed string-map request, path
+discovery, a bounded request timeout, and a transient response pane. A timeout
+has an unknown remote outcome and is never retried automatically. Local `:/`
+aliases have no standalone remote authority and are refused. Knot's loopback
+`StaticNode` remains pages-only: publishing a local Micron site never creates a
+request handler or executes page files.
+
+Automated receipts pass with the isolated Cargo home from `C:/t`:
+`cargo test --manifest-path C:/Users/mark_/Code/repos/knot-editor/crates/knot-site/Cargo.toml --offline --locked`
+passes 16 tests, including a real Reticulum loopback handler that decodes the
+typed map. `cargo test --manifest-path C:/Users/mark_/Code/repos/knot-editor/apps/desktop/Cargo.toml --lib scroll_site::tests --offline --locked`
+passes 16 desktop tests. Those cover preparation, source/address and field
+review invalidation, cancellation/disconnected stale-result suppression, and
+response visibility when the site panel is closed. They do not establish a
+headed form-flow or interoperability with a stock handler. Those need an
+explicit remote fixture and visible desktop exercise before this plan calls the
+consumer complete.
 
 **2026-09-13 saved-snapshot handoff:** `knot-site` now exports
 `PublishedSnapshotV1` and `PublishedPageV1`, with canonical encoding, a digest,

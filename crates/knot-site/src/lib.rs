@@ -7,6 +7,7 @@
 //! Knot-owned native files and publication. The server can only see an explicit
 //! immutable snapshot, never the draft filesystem or editor buffer.
 mod local;
+pub mod micron_submission;
 mod nomadnet;
 mod server;
 pub mod submission;

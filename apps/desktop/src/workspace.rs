@@ -1742,8 +1742,13 @@ pub fn after_dispatch(
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
-    if ctx.runner.state().scroll.submission_receiver.is_some() {
-        ctx.runner.update(|state| state.scroll.drain_submission());
+    if ctx.runner.state().scroll.submission_busy() {
+        ctx.runner.update(|state| {
+            let current = state.document.snapshot();
+            state
+                .scroll
+                .drain_submission(&current.text, &current.source.address);
+        });
     }
     let state = ctx.runner.state();
     let mut focus_requested = state.focus_source_requested;
@@ -1810,8 +1815,13 @@ pub fn after_wake(
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
-    if ctx.runner.state().scroll.submission_receiver.is_some() {
-        ctx.runner.update(|state| state.scroll.drain_submission());
+    if ctx.runner.state().scroll.submission_busy() {
+        ctx.runner.update(|state| {
+            let current = state.document.snapshot();
+            state
+                .scroll
+                .drain_submission(&current.text, &current.source.address);
+        });
     }
 }
 

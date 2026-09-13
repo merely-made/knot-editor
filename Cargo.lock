@@ -8440,7 +8440,7 @@ dependencies = [
 [[package]]
 name = "retinue"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/retinue.git?rev=ef1c47a602cb742293c109b0c443a9ceb8c1dce7#ef1c47a602cb742293c109b0c443a9ceb8c1dce7"
+source = "git+https://github.com/merely-made/retinue.git?rev=85e716c7f06dac0a5253effe5ef06d05b266f02f#85e716c7f06dac0a5253effe5ef06d05b266f02f"
 dependencies = [
  "aes 0.9.3",
  "bzip2",

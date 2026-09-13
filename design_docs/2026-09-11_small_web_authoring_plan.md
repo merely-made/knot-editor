@@ -5,8 +5,8 @@ Spartan submission implemented and checked through the headed review/send flow.
 Micron has source-preserving syntax, a native preview for text, headings,
 emphasis, ordinary links and tables, and a saved-snapshot NomadNet server.
 Full presentation fidelity and partial refresh remain open. Micron request-form
-editing and explicit remote submission are implemented below, pending focused
-automated and headed receipts.
+editing and explicit remote submission have focused automated receipts below;
+headed acceptance remains open.
 Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
@@ -123,7 +123,11 @@ request handler or executes page files.
 Automated receipts pass with the isolated Cargo home from `C:/t`:
 `cargo test --manifest-path C:/Users/mark_/Code/repos/knot-editor/crates/knot-site/Cargo.toml --offline --locked`
 passes 16 tests, including a real Reticulum loopback handler that decodes the
-typed map. `cargo test --manifest-path C:/Users/mark_/Code/repos/knot-editor/apps/desktop/Cargo.toml --lib scroll_site::tests --offline --locked`
+typed map. The follow-up expands that response to a 4096-byte Resource and
+requires the server to finish receiving its proof. Both form clients now await
+Retinue's bounded `Endpoint::shutdown` after receiving a reply; abrupt `close`
+or Drop could discard the queued acknowledgement. The three focused client
+tests pass after this correction. `cargo test --manifest-path C:/Users/mark_/Code/repos/knot-editor/apps/desktop/Cargo.toml --lib scroll_site::tests --offline --locked`
 passes 16 desktop tests. Those cover preparation, source/address and field
 review invalidation, cancellation/disconnected stale-result suppression, and
 response visibility when the site panel is closed. They do not establish a

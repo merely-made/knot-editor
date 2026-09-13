@@ -11,8 +11,12 @@ use cambium::{
 };
 use cambium_genet_winit_host::HostWake;
 use inker::{Block, Engine, EngineInput, InlineSpan, TableAlignment};
+use knot_site::micron_submission::{MicronResponse, MicronSubmissionConfig, PreparedMicronRequest};
 use knot_site::submission::{PreparedSubmission, SubmissionReceipt};
 use knot_site::{LocalServer, Page, Site, SiteFormat};
+use nematic::micron::forms::{FormLimits, FormState};
+use nematic::micron::syntax::FieldKind;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 const LABELS: [&str; 6] = [
@@ -24,6 +28,24 @@ const LABELS: [&str; 6] = [
     "Abstract (native Scrolltext)",
 ];
 const RESPONSE_DISPLAY_LIMIT: usize = 8 * 1024;
+
+/// Ephemeral state for a Micron request form.  It deliberately lives beside the
+/// preview rather than in the document: editing a field never changes authored
+/// source, a site manifest, or an address.
+struct MicronFormEditor {
+    source: String,
+    address: String,
+    form: FormState,
+    inputs: Vec<TextInput>,
+    prepared: Option<MicronPreparedRequest>,
+}
+
+struct MicronPreparedRequest {
+    target: String,
+    values: BTreeMap<String, String>,
+    masked: BTreeSet<String>,
+    input_snapshot: Vec<String>,
+}
 
 pub struct ScrollWorkspace {
     pub folder: TextInput,
@@ -49,6 +71,11 @@ pub struct ScrollWorkspace {
     submission_result: Option<String>,
     submission_response: Option<String>,
     titan_submission_error: Option<String>,
+    micron_form: Option<MicronFormEditor>,
+    micron_submission_receiver: Option<Receiver<(u64, Result<MicronResponse, String>)>>,
+    next_micron_submission: u64,
+    active_micron_submission: Option<(u64, String, String)>,
+    micron_cancel: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl Default for ScrollWorkspace {
@@ -77,6 +104,11 @@ impl Default for ScrollWorkspace {
             submission_result: None,
             submission_response: None,
             titan_submission_error: None,
+            micron_form: None,
+            micron_submission_receiver: None,
+            next_micron_submission: 0,
+            active_micron_submission: None,
+            micron_cancel: None,
         }
     }
 }
@@ -86,8 +118,8 @@ impl ScrollWorkspace {
         self.titan_submission_error = error;
     }
 
-    fn submission_busy(&self) -> bool {
-        self.submission_receiver.is_some()
+    pub(crate) fn submission_busy(&self) -> bool {
+        self.submission_receiver.is_some() || self.micron_submission_receiver.is_some()
     }
 
     fn select_spartan_prompt(&mut self, target: String) {
@@ -125,31 +157,83 @@ impl ScrollWorkspace {
     pub fn set_submission_wake(&mut self, wake: HostWake) {
         self.submission_wake = Some(wake);
     }
-    pub fn drain_submission(&mut self) {
-        let Some(rx) = self.submission_receiver.as_ref() else {
+    pub fn drain_submission(&mut self, current_source: &str, current_address: &str) {
+        if let Some(rx) = self.submission_receiver.as_ref() {
+            match rx.try_recv() {
+                Ok(Ok(r)) => {
+                    self.submission_result = Some(format!(
+                        "Reply {} {} ({} bytes)",
+                        r.code,
+                        r.meta,
+                        r.body.len()
+                    ));
+                    self.submission_response = response_display(&r.body);
+                    self.submission_receiver = None
+                },
+                Ok(Err(e)) => {
+                    self.submission_result = Some(format!("Send failed: {e}"));
+                    self.submission_response = None;
+                    self.submission_receiver = None
+                },
+                Err(TryRecvError::Disconnected) => {
+                    self.submission_result =
+                        Some("Send outcome unavailable; check target before retrying.".into());
+                    self.submission_response = None;
+                    self.submission_receiver = None
+                },
+                Err(TryRecvError::Empty) => {},
+            }
+        }
+        let Some(rx) = self.micron_submission_receiver.as_ref() else {
             return;
         };
         match rx.try_recv() {
-            Ok(Ok(r)) => {
-                self.submission_result = Some(format!(
-                    "Reply {} {} ({} bytes)",
-                    r.code,
-                    r.meta,
-                    r.body.len()
-                ));
-                self.submission_response = response_display(&r.body);
-                self.submission_receiver = None
+            Ok((id, Ok(response))) => {
+                let current = self.active_micron_submission.as_ref().is_some_and(
+                    |(active, source, address)| {
+                        *active == id && source == current_source && address == current_address
+                    },
+                );
+                self.micron_submission_receiver = None;
+                self.active_micron_submission = None;
+                self.micron_cancel = None;
+                if !current {
+                    return;
+                }
+                self.submission_result =
+                    Some(format!("Micron reply ({} bytes)", response.body.len()));
+                self.submission_response = response_display(&response.body);
             },
-            Ok(Err(e)) => {
-                self.submission_result = Some(format!("Send failed: {e}"));
+            Ok((id, Err(error))) => {
+                let current = self.active_micron_submission.as_ref().is_some_and(
+                    |(active, source, address)| {
+                        *active == id && source == current_source && address == current_address
+                    },
+                );
+                self.micron_submission_receiver = None;
+                self.active_micron_submission = None;
+                self.micron_cancel = None;
+                if !current {
+                    return;
+                }
+                self.submission_result = Some(format!("Micron request failed: {error}"));
                 self.submission_response = None;
-                self.submission_receiver = None
             },
             Err(TryRecvError::Disconnected) => {
-                self.submission_result =
-                    Some("Send outcome unavailable; check target before retrying.".into());
-                self.submission_response = None;
-                self.submission_receiver = None
+                let current =
+                    self.active_micron_submission
+                        .as_ref()
+                        .is_some_and(|(_, source, address)| {
+                            source == current_source && address == current_address
+                        });
+                self.micron_submission_receiver = None;
+                self.micron_cancel = None;
+                self.active_micron_submission = None;
+                if current {
+                    self.submission_result =
+                        Some("Micron request outcome unavailable; review before retrying.".into());
+                    self.submission_response = None;
+                }
             },
             Err(TryRecvError::Empty) => {},
         }
@@ -239,6 +323,96 @@ impl ScrollWorkspace {
         self.baseline = values;
         Ok(())
     }
+
+    fn open_micron_form(&mut self, source: String, address: String) -> Result<(), String> {
+        let form = FormState::from_source(&source, FormLimits::default())?;
+        if form.actions().is_empty() {
+            return Err("This Micron page has no request action.".into());
+        }
+        let inputs = form
+            .fields()
+            .iter()
+            .map(|field| TextInput::new(field.value()))
+            .collect();
+        self.micron_form = Some(MicronFormEditor {
+            source,
+            address,
+            form,
+            inputs,
+            prepared: None,
+        });
+        Ok(())
+    }
+
+    fn close_micron_form(&mut self) {
+        self.micron_form = None;
+    }
+
+    fn cancel_micron_submission(&mut self) {
+        if let Some(cancel) = self.micron_cancel.take() {
+            let _ = cancel.send(());
+            self.active_micron_submission = None;
+            self.submission_result = Some(
+                "Micron request cancelled locally. Its remote outcome may be unknown; do not retry automatically."
+                    .into(),
+            );
+            self.submission_response = None;
+        }
+    }
+
+    fn micron_set_checked(&mut self, index: usize, checked: bool) -> Result<(), String> {
+        let editor = self
+            .micron_form
+            .as_mut()
+            .ok_or("Open the Micron form first.")?;
+        editor.form.set_checked(index, checked)?;
+        editor.prepared = None;
+        Ok(())
+    }
+
+    fn prepare_micron_form(
+        &mut self,
+        source: &str,
+        address: &str,
+        action: usize,
+    ) -> Result<(), String> {
+        let editor = self
+            .micron_form
+            .as_mut()
+            .ok_or("Open the Micron form first.")?;
+        if editor.address != address {
+            return Err(
+                "The page address changed. Reopen the form before preparing a request.".into(),
+            );
+        }
+        for (index, input) in editor.inputs.iter().enumerate() {
+            if matches!(editor.form.fields()[index].kind, FieldKind::Text { .. }) {
+                editor.form.set_text(index, input.text().to_owned())?;
+            }
+        }
+        let prepared = editor.form.prepare(action, source)?;
+        let masked = editor
+            .form
+            .fields()
+            .iter()
+            .filter(|field| field.masked())
+            .filter_map(|field| match &field.kind {
+                FieldKind::Text { name, .. } => Some(format!("field_{name}")),
+                _ => None,
+            })
+            .collect();
+        editor.prepared = Some(MicronPreparedRequest {
+            target: prepared.target.clone(),
+            values: prepared.into_values(),
+            masked,
+            input_snapshot: editor
+                .inputs
+                .iter()
+                .map(|input| input.text().to_owned())
+                .collect(),
+        });
+        Ok(())
+    }
 }
 
 fn response_display(body: &[u8]) -> Option<String> {
@@ -258,6 +432,137 @@ fn response_display(body: &[u8]) -> Option<String> {
 }
 
 impl DesktopState {
+    fn open_micron_form(&mut self) {
+        let source = self.document.snapshot();
+        if source.format != knot_document::DocumentFormat::Micron {
+            self.message = Some("Micron forms are available only for a Micron document.".into());
+            return;
+        }
+        match self
+            .scroll
+            .open_micron_form(source.text, source.source.address)
+        {
+            Ok(()) => {
+                self.message = Some(
+                    "Form values are local and temporary. Prepare an action before any request can be considered."
+                        .into(),
+                )
+            }
+            Err(error) => self.message = Some(format!("Micron form: {error}")),
+        }
+    }
+
+    fn prepare_micron_form(&mut self, action: usize) {
+        let source = self.document.snapshot();
+        match self
+            .scroll
+            .prepare_micron_form(&source.text, &source.source.address, action)
+        {
+            Ok(()) => {
+                self.message = Some(
+                    "Request prepared locally. Knot's static preview does not execute Micron request handlers."
+                        .into(),
+                )
+            }
+            Err(error) => self.message = Some(format!("Micron request was not prepared: {error}")),
+        }
+    }
+
+    fn send_micron_form(&mut self) {
+        if self.scroll.submission_busy() {
+            self.message = Some("A submission is already sending.".into());
+            return;
+        }
+        let Some(wake) = self.scroll.submission_wake.clone() else {
+            self.message = Some("Submission worker is unavailable.".into());
+            return;
+        };
+        let interface = match std::env::var("KNOT_NOMADNET_TCP") {
+            Ok(value) => match value.parse() {
+                Ok(interface) => interface,
+                Err(_) => {
+                    self.message = Some("KNOT_NOMADNET_TCP must be a host:port interface for the remote Reticulum peer.".into());
+                    return;
+                },
+            },
+            Err(_) => {
+                self.message = Some("Set KNOT_NOMADNET_TCP to an explicit Reticulum TCP interface before sending a Micron request.".into());
+                return;
+            },
+        };
+        let current_document = self.document.snapshot();
+        let Some(editor) = self.scroll.micron_form.as_mut() else {
+            self.message = Some("Open and prepare a Micron form first.".into());
+            return;
+        };
+        if editor.source != current_document.text
+            || editor.address != current_document.source.address
+        {
+            self.message = Some(
+                "The source or page address changed. Reopen and review the Micron form before sending."
+                    .into(),
+            );
+            return;
+        }
+        let Some(prepared) = editor.prepared.as_ref() else {
+            self.message = Some("Prepare the current Micron request before sending.".into());
+            return;
+        };
+        let current = editor
+            .inputs
+            .iter()
+            .map(|input| input.text().to_owned())
+            .collect::<Vec<_>>();
+        if prepared.input_snapshot != current {
+            self.message = Some(
+                "Field values changed after review. Prepare the request again before sending."
+                    .into(),
+            );
+            return;
+        }
+        let config = MicronSubmissionConfig::default();
+        let request = match PreparedMicronRequest::new(
+            prepared.target.clone(),
+            prepared.values.clone(),
+            config,
+        ) {
+            Ok(request) => request,
+            Err(error) => {
+                self.message = Some(format!("Micron request cannot be sent: {error}"));
+                return;
+            },
+        };
+        editor.prepared = None;
+        let source_binding = editor.source.clone();
+        let address_binding = editor.address.clone();
+        let _ = editor;
+        self.scroll.submission_result = Some("Sending reviewed Micron request…".into());
+        self.scroll.submission_response = None;
+        let (tx, rx) = mpsc::channel();
+        let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel();
+        self.scroll.micron_submission_receiver = Some(rx);
+        self.scroll.micron_cancel = Some(cancel_tx);
+        let id = self.scroll.next_micron_submission;
+        self.scroll.next_micron_submission = self.scroll.next_micron_submission.wrapping_add(1);
+        self.scroll.active_micron_submission = Some((id, source_binding, address_binding));
+        std::thread::spawn(move || {
+            let result = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .map_err(|error| error.to_string())
+                .and_then(|runtime| {
+                    runtime.block_on(async move {
+                        tokio::select! {
+                            result = request.send(interface, config) => result,
+                            _ = cancel_rx => Err("Micron request cancelled locally; remote outcome may be unknown.".into()),
+                        }
+                    })
+                });
+            let _ = tx.send((id, result));
+            wake.wake();
+        });
+    }
+
     fn prepare_titan(&mut self) {
         if self.scroll.submission_busy() {
             self.message = Some("A submission is already sending.".into());
@@ -357,6 +662,7 @@ impl DesktopState {
             Ok((site, path))
         }) {
             Ok((site, path)) => {
+                self.scroll.close_micron_form();
                 self.scroll.server = None;
                 self.scroll.page = None;
                 self.scroll.site = Some(site);
@@ -375,6 +681,7 @@ impl DesktopState {
             return;
         }
         self.scroll.server = None;
+        self.scroll.close_micron_form();
         self.scroll.site = None;
         self.scroll.page = None;
         self.scroll.fields = std::array::from_fn(|_| TextInput::default());
@@ -952,6 +1259,219 @@ fn table_block(
     ))
 }
 
+fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> DesktopView {
+    let Some(editor) = state.scroll.micron_form.as_ref() else {
+        return Box::new(
+            el(
+                "section",
+                button(
+                    "Open Micron form controls",
+                    |state: &mut DesktopState, _| state.open_micron_form(),
+                ),
+            )
+            .attr("class", "knot-micron-form"),
+        );
+    };
+
+    if state.scroll.micron_submission_receiver.is_some() {
+        return Box::new(
+            el(
+                "section",
+                (
+                    span("Sending reviewed Micron request…"),
+                    button("Cancel Micron request", |state: &mut DesktopState, _| {
+                        state.scroll.cancel_micron_submission()
+                    }),
+                ),
+            )
+            .attr("class", "knot-micron-form"),
+        );
+    }
+
+    if editor.source != source || editor.address != address {
+        return Box::new(
+            el(
+                "section",
+                (
+                    span("The source or page address changed. Reopen the form so the request matches the visible page."),
+                    button("Discard stale form", |state: &mut DesktopState, _| {
+                        state.scroll.close_micron_form()
+                    }),
+                ),
+            )
+            .attr("class", "knot-micron-form"),
+        );
+    }
+
+    let fields = editor
+        .form
+        .fields()
+        .iter()
+        .enumerate()
+        .map(|(index, field)| {
+            let view: DesktopView = match &field.kind {
+                FieldKind::Text { name, masked, .. } => {
+                    let label = if *masked {
+                        format!("{name} (masked)")
+                    } else {
+                        name.clone()
+                    };
+                    let input: DesktopView = if *masked {
+                        Box::new(lens(
+                            |input: &mut TextInput| password_field(input),
+                            move |state: &mut DesktopState| {
+                                &mut state
+                                    .scroll
+                                    .micron_form
+                                    .as_mut()
+                                    .expect("Micron form is present while it is rendered")
+                                    .inputs[index]
+                            },
+                        ))
+                    } else {
+                        Box::new(lens(
+                            |input: &mut TextInput| text_field_typed(input),
+                            move |state: &mut DesktopState| {
+                                &mut state
+                                    .scroll
+                                    .micron_form
+                                    .as_mut()
+                                    .expect("Micron form is present while it is rendered")
+                                    .inputs[index]
+                            },
+                        ))
+                    };
+                    Box::new(el("label", (label, input)))
+                },
+                FieldKind::Checkbox { name, value, .. } => {
+                    let checked = field.checked();
+                    let name = name.clone();
+                    let value = value.clone();
+                    Box::new(button(
+                        format!("[{}] {name}: {value}", if checked { "x" } else { " " }),
+                        move |state: &mut DesktopState, _| {
+                            let result = state.scroll.micron_set_checked(index, !checked);
+                            if let Err(error) = result {
+                                state.message = Some(format!("Micron form: {error}"));
+                            }
+                        },
+                    ))
+                },
+                FieldKind::Radio { name, value, .. } => {
+                    let checked = field.checked();
+                    let name = name.clone();
+                    let value = value.clone();
+                    Box::new(button(
+                        format!("[{}] {name}: {value}", if checked { "x" } else { " " }),
+                        move |state: &mut DesktopState, _| {
+                            if let Err(error) = state.scroll.micron_set_checked(index, true) {
+                                state.message = Some(format!("Micron form: {error}"));
+                            }
+                        },
+                    ))
+                },
+            };
+            (index, view)
+        })
+        .collect::<Vec<_>>();
+    let actions = editor
+        .form
+        .actions()
+        .iter()
+        .enumerate()
+        .map(|(index, action)| {
+            let label = action.label.clone();
+            (
+                index,
+                button(
+                    format!("Prepare {label}"),
+                    move |state: &mut DesktopState, _| state.prepare_micron_form(index),
+                ),
+            )
+        })
+        .collect::<Vec<_>>();
+    let prepared_is_current = editor.prepared.as_ref().is_some_and(|prepared| {
+        prepared.input_snapshot.len() == editor.inputs.len()
+            && prepared
+                .input_snapshot
+                .iter()
+                .zip(&editor.inputs)
+                .all(|(before, input)| before == input.text())
+    });
+    let review: DesktopView = editor
+        .prepared
+        .as_ref()
+        .filter(|_| prepared_is_current)
+        .map(|prepared| {
+            let values = prepared
+                .values
+                .iter()
+                .map(|(name, value)| {
+                    if prepared.masked.contains(name) {
+                        format!("{name}=••••")
+                    } else {
+                        format!("{name}={value}")
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join("\n");
+            Box::new(el(
+                "section",
+                (
+                    span(format!("Prepared Micron request for {}", prepared.target)),
+                    el("pre", values),
+                    span("Send uses the separately configured KNOT_NOMADNET_TCP interface. A local :/ alias cannot be sent, and Knot's static publisher never becomes a request handler."),
+                    button("Send reviewed Micron request", |state: &mut DesktopState, _| {
+                        state.send_micron_form()
+                    }),
+                    button("Discard prepared request", |state: &mut DesktopState, _| {
+                        if let Some(editor) = state.scroll.micron_form.as_mut() {
+                            editor.prepared = None;
+                        }
+                    }),
+                ),
+            )) as DesktopView
+        })
+        .unwrap_or_else(|| {
+            if editor.prepared.is_some() {
+                Box::new(span(
+                    "Field values changed after review. Prepare the request again before it can be used.",
+                ))
+            } else {
+                Box::new(el("div", ()))
+            }
+        });
+    let result: DesktopView = state
+        .scroll
+        .submission_result
+        .as_ref()
+        .map(|message| Box::new(span(message.clone())) as DesktopView)
+        .unwrap_or_else(|| Box::new(el("div", ())));
+    let response: DesktopView = state
+        .scroll
+        .submission_response
+        .as_ref()
+        .map(|body| Box::new(el("pre", body.clone())) as DesktopView)
+        .unwrap_or_else(|| Box::new(el("div", ())));
+    Box::new(
+        el(
+            "section",
+            (
+                span("Micron form values are temporary and are never written into this page or its address."),
+                el("div", Keyed::new(fields)).attr("class", "knot-micron-fields"),
+                el("div", Keyed::new(actions)).attr("class", "knot-scroll-controls"),
+                review,
+                result,
+                response,
+                button("Close Micron form", |state: &mut DesktopState, _| {
+                    state.scroll.close_micron_form()
+                }),
+            ),
+        )
+        .attr("class", "knot-micron-form"),
+    )
+}
+
 pub fn preview(state: &DesktopState) -> DesktopView {
     let source = state.document.snapshot();
     if !matches!(
@@ -1017,6 +1537,11 @@ pub fn preview(state: &DesktopState) -> DesktopView {
                     ),
                 ),
                 body,
+                if source.format == knot_document::DocumentFormat::Micron {
+                    micron_form_panel(state, &source.text, &source.source.address)
+                } else {
+                    Box::new(el("div", ()))
+                },
             ),
         )
         .attr("class", "knot-scroll-preview"),
@@ -1041,6 +1566,10 @@ pub const CSS: &str = r#"
 .knot-submission-review pre { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
 .knot-submission-response { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
+.knot-micron-form { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding: 8px; border: 1px solid currentColor; }
+.knot-micron-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
+.knot-micron-fields label { display: flex; flex-direction: column; min-width: 180px; }
+.knot-micron-form pre { box-sizing: border-box; width: 100%; max-height: 180px; overflow: auto; white-space: pre-wrap; }
 .knot-scroll-preview { flex: 1 1 50%; width:0; min-width:0; box-sizing:border-box; padding: 16px; overflow: auto; }
 .knot-writing-area, .knot-scroll-preview { background: inherit; }
 .knot-scroll-preview p { margin: 8px 0; }
@@ -1177,6 +1706,118 @@ mod tests {
         assert!(text.contains("Local"));
         assert!(text.contains("Micron preview: some presentation or controls"));
         assert!(text.contains("Rendering notes:"));
+    }
+
+    #[test]
+    fn micron_form_review_is_ephemeral_and_uses_the_declared_action_map() {
+        let source = "`[Submit selected`0123456789abcdef0123456789abcdef:/capture`name|checks|fixed=ready]\nText: `<name`seed>\nChecks: `<?|checks|red|*`> Red\n`<?|checks|blue`> Blue\n";
+        let mut workspace = ScrollWorkspace::default();
+        workspace
+            .open_micron_form(source.into(), "scratch:micron-form".into())
+            .unwrap();
+        workspace.micron_form.as_mut().unwrap().inputs[0] = TextInput::new("edited");
+        workspace.micron_set_checked(1, false).unwrap();
+        workspace.micron_set_checked(2, true).unwrap();
+        assert!(
+            workspace
+                .prepare_micron_form("changed", "scratch:micron-form", 0)
+                .is_err()
+        );
+        assert!(
+            workspace
+                .prepare_micron_form(source, "scratch:other-address", 0)
+                .is_err()
+        );
+        workspace
+            .prepare_micron_form(source, "scratch:micron-form", 0)
+            .unwrap();
+        let prepared = workspace
+            .micron_form
+            .as_ref()
+            .unwrap()
+            .prepared
+            .as_ref()
+            .unwrap();
+        assert_eq!(prepared.target, "0123456789abcdef0123456789abcdef:/capture");
+        assert_eq!(prepared.values.get("field_name"), Some(&"edited".into()));
+        assert_eq!(prepared.values.get("field_checks"), Some(&"blue".into()));
+        assert_eq!(prepared.values.get("var_fixed"), Some(&"ready".into()));
+        assert!(!source.contains("edited"));
+    }
+
+    #[test]
+    fn stale_micron_completion_does_not_replace_the_visible_page_result() {
+        let (sender, receiver) = mpsc::channel();
+        let mut workspace = ScrollWorkspace::default();
+        workspace.micron_submission_receiver = Some(receiver);
+        workspace.active_micron_submission = Some((7, "old source".into(), "old:page".into()));
+        sender
+            .send((
+                7,
+                Ok(MicronResponse {
+                    body: b"old reply".to_vec(),
+                }),
+            ))
+            .unwrap();
+        workspace.drain_submission("new source", "new:page");
+        assert!(workspace.submission_result.is_none());
+        assert!(workspace.submission_response.is_none());
+        assert!(workspace.active_micron_submission.is_none());
+    }
+
+    #[test]
+    fn cancelling_micron_request_keeps_its_local_unknown_outcome_status() {
+        let (sender, receiver) = mpsc::channel();
+        let (cancel, _cancelled) = tokio::sync::oneshot::channel();
+        let mut workspace = ScrollWorkspace::default();
+        workspace.micron_submission_receiver = Some(receiver);
+        workspace.active_micron_submission = Some((8, "source".into(), "address".into()));
+        workspace.micron_cancel = Some(cancel);
+        workspace.cancel_micron_submission();
+        drop(sender);
+        workspace.drain_submission("source", "address");
+        assert_eq!(
+            workspace.submission_result.as_deref(),
+            Some(
+                "Micron request cancelled locally. Its remote outcome may be unknown; do not retry automatically."
+            )
+        );
+        assert!(workspace.active_micron_submission.is_none());
+    }
+
+    #[test]
+    fn micron_result_remains_visible_in_preview_when_site_panel_is_closed() {
+        let source = "`[Submit`0123456789abcdef0123456789abcdef:/capture`name]\n`<name`seed>\n";
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("loose.mu");
+        std::fs::write(&path, source).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.preview_visible = true;
+        let address = state.document.snapshot().source.address;
+        state
+            .scroll
+            .open_micron_form(source.into(), address)
+            .unwrap();
+        state.scroll.submission_result = Some("Micron reply (8 bytes)".into());
+        state.scroll.submission_response = Some("accepted".into());
+        assert!(!state.scroll.visible);
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: format!("{DESKTOP_CSS}{CSS}"),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let text = text_content(&dom, dom.document());
+        assert!(text.contains("Micron reply (8 bytes)"));
+        assert!(text.contains("accepted"));
     }
 
     #[test]

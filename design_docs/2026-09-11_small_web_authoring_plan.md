@@ -5,8 +5,10 @@ Spartan submission implemented and checked through the headed review/send flow.
 Micron has source-preserving syntax, a native preview for text, headings,
 emphasis, ordinary links and tables, and a saved-snapshot NomadNet server.
 Full presentation fidelity and partial refresh remain open. Micron request-form
-editing and explicit remote submission have focused automated receipts below;
-headed acceptance remains open.
+editing and explicit remote submission have focused automated receipts below and
+a headed acceptance taken the same day against a controlled request handler and
+a real stock `nomadnet` 1.4.2 node; response-cap ordering, configurable request
+bounds and two preview-pane defects remain open from it.
 Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
@@ -130,10 +132,69 @@ or Drop could discard the queued acknowledgement. The three focused client
 tests pass after this correction. `cargo test --manifest-path C:/Users/mark_/Code/repos/knot-editor/apps/desktop/Cargo.toml --lib scroll_site::tests --offline --locked`
 passes 16 desktop tests. Those cover preparation, source/address and field
 review invalidation, cancellation/disconnected stale-result suppression, and
-response visibility when the site panel is closed. They do not establish a
-headed form-flow or interoperability with a stock handler. Those need an
-explicit remote fixture and visible desktop exercise before this plan calls the
-consumer complete.
+response visibility when the site panel is closed. They are automated seams and
+do not by themselves establish a headed form-flow or interoperability with a
+stock handler.
+
+**Headed acceptance, 2026-09-13.** Those two gates are now closed. The
+artifacts are at `C:\t\micron-headed-20260913`, whose `RECEIPT.md` indexes the
+captures, logs, scenarios and scripts. Two independent instruments observed the
+sends: a controlled public-RNS `nomadnetwork/node` request handler that appends
+every received typed map to `handler/requests.jsonl` with a wall-clock
+timestamp, and a real stock `nomadnet` 1.4.2 daemon under WSL whose stock
+executable page records the `field_*` environment it receives to
+`stock-node/submissions.jsonl`. Stock NomadNet was treated as a black box
+throughout. The desktop binary was Knot `fae329c`, built from `C:/t` with the
+isolated Cargo home and an absolute manifest under Rust 1.97.1:
+`cargo build --manifest-path C:/Users/mark_/Code/repos/knot-editor/apps/desktop/Cargo.toml --locked --offline`.
+Knot has no self-drive lane, so the window was driven by a foreground-guarded,
+DPI-aware click/key script with PrintWindow captures, with
+`KNOT_NOMADNET_TCP=127.0.0.1:42541` for the handler and `…:42543` for the stock
+daemon.
+
+Opening the page, opening the form and editing fields produced no request beyond
+the ordinary page fetch. **Open Micron form controls** → edit → **Prepare Submit
+all** showed the reviewed map with the masked value redacted; **Send reviewed
+Micron request** then produced exactly one observed map at the handler with the
+edited values (`field_hd_text="edited café 雪"`,
+`field_hd_empty="filled"`, `field_hd_mask="secret"`,
+`field_hd_checks="red,blue"`, `field_hd_radio="blue"`) and a visible
+`Micron reply (172 bytes)` echoing it. A malformed local target — a stray `:`
+before the destination hash, an authoring error in the fixture — was refused
+before anything was sent: `Micron target must be a 32-digit destination and a
+plain absolute path`. Reload after editing the file produced the stale-form
+notice and **Discard stale form**. Against a 40 s handler delay, **Cancel Micron
+request** gave `Micron request cancelled locally. Its remote outcome may be
+unknown; do not retry automatically.` and the pane was unchanged after the late
+reply arrived; letting the same delay run to Knot's fixed 30 s deadline gave
+`Micron request failed: Micron request timed out; the remote outcome may be
+unknown. Review before retrying.` Both cases issued one request and no retry. A
+send to the stock daemon with default values was recorded as one
+`submissions.jsonl` line of the same map shape plus `link_id`, with a
+195-byte reply shown in the app; the node passes the `str → str` map verbatim as
+`field_*` environment variables and does no splitting or typing of its own.
+
+Four findings stay open against this consumer. First, a 5 MiB reply fails as
+`Remote Micron handler returned an invalid response` before the 4 MiB cap is
+compared: Retinue's single-segment `MAX_SEGMENT_SIZE` is 1,048,575 bytes and
+Knot unpacks the received Response before checking its size, so the cap is
+unreachable and the message names the wrong cause. Turnstone caps received bytes
+before decoding and reports correctly; Knot should move the check ahead of
+unpacking, and multi-segment responses remain a separate transport gate. Second,
+Knot's request bounds (30 s, 4 MiB) are compile-time defaults with no
+environment override, unlike Turnstone's `TURNSTONE_NOMADNET_*` knobs; the
+timeout receipt therefore needed a 40 s handler path. Third, the preview pane
+loses its scroll offset during submission redraws, so the cancel control is only
+reliably hittable immediately after a scroll on long pages. Fourth, Knot keeps
+the previous reply text after a form is closed and reopened, though the values
+themselves reset to defaults. Inline form widgets, partial refresh, outgoing
+request Resources, multi-segment responses, authentication and dynamic page
+hosting in Djinn all remain outside this receipt.
+
+Platform facts from standing the stock instrument up: Windows `nomadnet.exe`
+cannot start at all (`ModuleNotFoundError: termios`), and under WSL every file
+on `/mnt/c` is mode 0777, so NomadNet treats every page as executable and the
+pages had to be shebang scripts whose stdout is the served page.
 
 **2026-09-13 saved-snapshot handoff:** `knot-site` now exports
 `PublishedSnapshotV1` and `PublishedPageV1`, with canonical encoding, a digest,

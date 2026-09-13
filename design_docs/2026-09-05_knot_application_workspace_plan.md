@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; the next workspace sequence is scoped below, while headed acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -36,7 +36,7 @@ when they have a product-owned snapshot and effect boundary.
 | Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
 | Derived readings | Outline, preview, and fold snapshots remain bound to the retained source and address. Existing `engine` APIs derive highlights, folds, and preview from that source buffer. | Optional live heading outline; desktop Djot/Knot source decoration, read-only visual folds, and Tinct appearance controls; optional live preview whose rendered headings select exact source spans. | Source ranges for every preview block, cross-launch preferences, and headed writing acceptance. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
-| Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
+| Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | The current source can bind to a configured root-scoped file catalog and prepare an exact saved revision; there is no chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
 | Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
 | Revisions and replication | `KnotDocumentProjection` exposes causal heads, conflicts, automatic text merges, and pending operations. | No revision or conflict view. | A review panel and explicit resolve flows. Titled drafts are a product capability still to be designed, not an existing sync type. |
 | Publishing and sharing | Publication candidates, pinned-head tickets, recipient delegation, and revocation APIs exist. | No publishing interface. | A share flow that states what exact revision is offered, to whom, for how long, and whether it remains available. |
@@ -94,13 +94,12 @@ editor already supports them.
 
 ### A1. File-safe writing workspace
 
-**Dependency for tabs and docking:** a pushed Mere revision containing Workbench W5 S1/S2 and
-`cambium::workspace`. Neither Knot's published `d82afa17` family pin nor the
-in-flight `b9b0ee13` update should be treated as that adoption: the latter was
-checked and does not contain `cambium/src/workspace.rs`. Align boundary types
-on one immutable source identity before compiling the new workspace; do not
-absorb the unrelated in-flight Cargo edits into this work. The single-document
-file lifecycle below can use the current pinned controls and shared host.
+**Dependency for tabs and docking:** cleared. Knot's current Mere family pin,
+`91c6238deee39738cf7c0b28cf6b35df52f51caf`, descends from Workbench W5/S2 and
+contains `cambium::workspace`. The desktop still needs a direct `workbench`
+dependency at the same immutable source identity to construct and retain its
+presentation tree. Workbench owns tile arrangement and gestures only; Knot
+keeps document sessions, file authority, dirty-close decisions, and recovery.
 
 Build the first standalone workspace around a product-owned `DocumentWorkspace`
 model. It owns the open-document list, active document, transient recovery
@@ -201,6 +200,73 @@ need measured receipts before this phase is called complete.
 Outline row indices are transient positions in one reading, not durable passage
 identities. G1 still needs explicit anchor and revision rules before persisting
 relations to passages.
+
+### Scoped next sequence: multi-document workspace
+
+The next implementation slice begins with a Knot-owned in-memory
+`DocumentWorkspace`, not a new generic container. It retains runtime document
+keys, open `KnotDocumentSession`s, the active document, per-document derived
+reading state, and a `TileId` to document-key map. Mutable source addresses are
+not document keys because Save As changes them. File-backed duplicate detection
+uses the catalog identity when available and the canonical path otherwise;
+scratch documents receive runtime keys. Opening an existing document activates
+its current entry rather than creating a second writable session.
+
+Mount that model in one `workbench::Workspace` tab stack through
+`cambium::workspace_view`. The first presentation exposes New, the existing
+caller-provided Open path, currently open documents, activation, and close. A
+close gesture is preflighted through Knot's dirty Save/Discard/Cancel decision
+before the Workbench reducer removes its tile. Cancelled, failed, or
+custody-refused closes leave both document and tile present. Source bytes, file
+handles, catalog records, and recovery material never enter Workbench.
+
+Keep this first tab slice to scratch, Djot, and legacy Knot sessions. The
+desktop's current `ScrollWorkspace` includes site metadata, page selection,
+submission workers, and Micron form state globally. Native Scroll, Gemtext, and
+Micron tabs require moving that state into each document entry first; otherwise
+switching tabs would leak one site's state into another. Splits, floats, tab
+dragging, a native picker, directory scanning, and persisted recents are later
+adoptions of the same model rather than first-slice requirements.
+
+The following navigator slice reads `KnotFileCatalog::records()` and reports
+available and unavailable history explicitly. Selecting an available record
+opens or activates its document. Rebinding unavailable history is an explicit
+user action; the application never infers a move from a filename, digest, or
+similar path. The path textbox remains a test and fallback capability until the
+host supplies a picker callback. Persistent recent files remain a later
+application-preference slice, scoped beside recovery so their retention policy
+is visible and configurable without making them recovery records.
+
+Local recovery follows the workspace model. It is an application-scoped,
+versioned, checksummed, atomically replaced store with a bounded configurable
+retention policy. A record carries its own recovery-item identity, source text,
+format, original address or path, selection, and active-tab hint. Restoration
+mints a fresh runtime document key; the ephemeral pre-crash key never becomes a
+cross-launch document identity. Restoring a file-backed record produces an
+explicit recovery candidate requiring the
+ordinary compare/reload/Save As custody decision; it never overwrites the
+source target automatically. Sealed-vault plaintext is excluded until recovery
+is integrated with vault encryption and lock authority. Workbench layout,
+file-catalog metadata, and causal checkpoint replay remain separate stores.
+
+The first workspace slice is done when two file sessions and one scratch
+session can coexist in one stack; duplicate open activates the existing tab;
+each entry retains exact source, selection, undo, dirty state, folds and other
+derived readings across activation; and closing a dirty final view preserves
+Save/Discard/Cancel and custody refusal. The navigator is done when available
+and unavailable catalog history is labelled truthfully without changing source
+bytes. Recovery is done when a crash simulation restores exact text and
+selection as a candidate, leaves the original target untouched, explains or
+discards malformed records, and clears only the corresponding record after a
+successful Save or Discard.
+
+Editable visual folds proceed as a parallel shared-editor track in Mere. Knot's
+read-only folded-source view remains the product behavior until Cambium has a
+source-to-rendered coordinate map and Rootstock converts pointer hits, visual
+movement, caret and selection paint, and IME geometry through it. Knot adopts
+that path only after Unicode, destructive-edit, undo/redo, composition, zoom,
+accessibility, and headed native receipts pass on the one authoritative
+`TextInput`.
 
 Adopt existing readouts without adding another text model. Outline uses the
 shared editor's already-available lightweight parser through Knot-owned

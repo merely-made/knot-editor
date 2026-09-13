@@ -9,7 +9,7 @@ Current authority:
 
 - [Scroll site authoring](2026-09-11_scroll_site_authoring_plan.md): native site files, preview, metadata and explicit loopback publication.
 
-- [Application workspace](2026-09-05_knot_application_workspace_plan.md): single-document lifecycle, live outline, heading-linked Djot/Knot preview, exact fold readings, desktop file catalog and saved-revision review, coordinated resident capture retention, host-injected worker Retain controls, relation model, and the public signed-head revision boundary for projection provenance; remaining visual folding, workspace, graph-query, evidence, and host authority integration.
+- [Application workspace](2026-09-05_knot_application_workspace_plan.md): single-document lifecycle, live outline, heading-linked Djot/Knot preview, read-only folded source, desktop file catalog and saved-revision review, coordinated resident capture retention, host-injected worker Retain controls, relation model, and the public signed-head revision boundary for projection provenance; the next scoped sequence is a Knot-owned multi-document workspace, one-stack tabs and navigator, then local recovery. Editable folds remain a separate Cambium coordinate-mapping project.
 - [Repository extraction](2026-09-01_knot_editor_repository_extraction_plan.md)
 - [Publishing protocol](2026-08-07_knot_publishing_protocol_plan.md)
 - [Mark read adapter](2026-08-08_knot_mark_read_adapter.md)

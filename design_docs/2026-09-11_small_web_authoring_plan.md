@@ -362,7 +362,7 @@ Djinn's resident serving and Tabard's theme exports remain separate work.
 
 ### Shared reading presentation receipt (2026-09-13)
 
-The desktop consumes Mere `b5750a96`, Genet `101d9e9` and its matching
+The initial receipt used Mere `b5750a96`, Genet `101d9e9` and its matching
 Netrender `3961aca` through committed Git selectors. Micron previews retain
 source color, background, underline, alignment and section indentation. Styled
 link children remain inside their existing navigation control; saving and
@@ -372,6 +372,10 @@ document-preview fallback.
 The focused immutable Micron gate passes four tests with `--locked --offline`.
 The complete desktop library suite passes 54 tests with one existing ignored
 outline timing receipt.
+The follow-up at Knot `cf3afe8` advances Mere to `dce5cc97`, including clipping
+and outline traversal through presentation wrappers. The same desktop library
+suite again passes 54 tests with one ignored, using `--locked --offline` and
+one immutable Mere/Genet/Netrender source identity each.
 It includes a native DOM check for styled link children and nested section
 layout, while asserting unchanged source bytes and a clean editor buffer.
 This is an automated projection receipt; headed appearance and interaction

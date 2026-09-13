@@ -106,11 +106,12 @@ replacement, loopback and Stop boundaries apply as for Scroll.
 Spartan site previews recognize native `=:` prompts and open the submission
 composer; following a prompt does not send its body.
 
-Knot also opens `.gmi`/`.gemini` and `.mu`/`.micron` ordinary files. Micron support
-currently means raw editing and exact saves; its native parser and NomadNet
-page transport need independently specified adapters. Micron preview and
-serving report that limitation. Gemtext, Micron and Scrolltext cannot be
-converted by renaming a Save As target.
+Knot also opens `.gmi`/`.gemini` and `.mu`/`.micron` ordinary files. Micron
+editing and exact saves preserve the native source. Preview uses Nematic's
+source preserving native projection for qualified headings, inline emphasis,
+ordinary native links and tables; unsupported controls and styles stay visible
+with diagnostics. NomadNet page transport remains a separate adapter.
+Gemtext, Micron and Scrolltext cannot be converted by renaming a Save As target.
 
 The submission controls prepare either a saved file for **Titan** or a typed
 **Spartan** body. Review the target, MIME, byte count, digest and exact body,

@@ -10,7 +10,7 @@ use cambium::{
     on_key, span, text_field_typed, textarea_typed,
 };
 use cambium_genet_winit_host::HostWake;
-use inker::{Block, Engine, EngineInput, InlineSpan};
+use inker::{Block, Engine, EngineInput, InlineSpan, TableAlignment};
 use knot_site::submission::{PreparedSubmission, SubmissionReceipt};
 use knot_site::{LocalServer, Page, Site, SiteFormat};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
@@ -749,10 +749,11 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                 let destination = url.clone();
                 let label = inker::inline_text(spans);
                 Box::new(button(label, move |state: &mut DesktopState,_| {
-                    let name = destination.trim_start_matches('/');
-                    if !name.contains('/') && !name.contains(':') && !name.contains('#') {
-                        state.scroll_open_page(name);
-                    } else { state.message = Some(format!("Preview link: {destination}. Open with an independent client; this preview only navigates local site pages.")); }
+                    if let Some(local_name) = preview_manifest_page(state, &destination) {
+                        state.scroll_open_page(local_name);
+                    } else {
+                        state.message = Some(format!("Preview link: {destination}. Open with an independent client; this preview only navigates local site pages."));
+                    }
                 }).attr("title", format!("{url} {}", predicate.as_deref().unwrap_or(""))).attr("class", "knot-scroll-link"))
             },
             InlineSpan::Submit { target, spans } => {
@@ -769,6 +770,51 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
         (i, view)
     }).collect::<Vec<_>>();
     Box::new(el("span", Keyed::new(children)))
+}
+
+fn valid_preview_page_name(name: &str) -> bool {
+    !name.is_empty()
+        && !name.contains('/')
+        && !name.contains('\\')
+        && !name.contains(':')
+        && !name.chars().any(|character| matches!(character, '#' | '?'))
+}
+
+fn preview_page_name<'a>(
+    destination: &'a str,
+    active_destination: Option<&str>,
+) -> Option<&'a str> {
+    let candidate = if let Some(name) = destination.strip_prefix(":/page/") {
+        Some(name)
+    } else if let Some((node, path)) = destination.split_once(':') {
+        let expected = active_destination?;
+        node.eq_ignore_ascii_case(expected)
+            .then(|| path.strip_prefix("/page/"))?
+    } else {
+        Some(destination.trim_start_matches('/'))
+    }?;
+    valid_preview_page_name(candidate).then_some(candidate)
+}
+
+fn preview_manifest_page<'a>(state: &DesktopState, destination: &'a str) -> Option<&'a str> {
+    // A site can remain selected while the editor displays an unrelated local
+    // file. The manifest is an authority only while the current document is
+    // one of that site's pages.
+    state.scroll.page.as_ref()?;
+    let active_destination = state
+        .scroll
+        .server
+        .as_ref()
+        .and_then(|server| server.nomadnet_destination())
+        .map(|destination| destination.to_string());
+    let name = preview_page_name(destination, active_destination.as_deref())?;
+    state
+        .scroll
+        .site
+        .as_ref()?
+        .page_path(name)
+        .ok()
+        .map(|_| name)
 }
 
 fn blocks(items: &[Block]) -> DesktopView {
@@ -805,6 +851,11 @@ fn blocks(items: &[Block]) -> DesktopView {
                     ),
                 )),
                 Block::Rule => Box::new(el("hr", ())),
+                Block::Table {
+                    alignments,
+                    header,
+                    rows,
+                } => table_block(alignments, header, rows),
                 Block::Badge { text } => {
                     Box::new(el("p", text.clone()).attr("class", "knot-preview-badge"))
                 },
@@ -814,6 +865,80 @@ fn blocks(items: &[Block]) -> DesktopView {
         })
         .collect::<Vec<_>>();
     Box::new(el("div", Keyed::new(children)))
+}
+
+fn table_cell(
+    spans: &[InlineSpan],
+    header: bool,
+    alignment: Option<TableAlignment>,
+) -> DesktopView {
+    let tag = if header { "th" } else { "td" };
+    let mut cell = el(tag, inline(spans));
+    if let Some(alignment) = alignment {
+        let value = match alignment {
+            TableAlignment::None | TableAlignment::Left => "left",
+            TableAlignment::Center => "center",
+            TableAlignment::Right => "right",
+        };
+        cell = cell.attr("style", format!("text-align:{value}"));
+    }
+    Box::new(cell)
+}
+
+fn table_block(
+    alignments: &[TableAlignment],
+    header: &[Vec<InlineSpan>],
+    rows: &[Vec<Vec<InlineSpan>>],
+) -> DesktopView {
+    let header_view: DesktopView = if header.is_empty() {
+        Box::new(el("thead", ()))
+    } else {
+        Box::new(el(
+            "thead",
+            el(
+                "tr",
+                Keyed::new(
+                    header
+                        .iter()
+                        .enumerate()
+                        .map(|(index, spans)| {
+                            (
+                                index,
+                                table_cell(spans, true, alignments.get(index).copied()),
+                            )
+                        })
+                        .collect::<Vec<_>>(),
+                ),
+            ),
+        ))
+    };
+    let body_rows = rows
+        .iter()
+        .enumerate()
+        .map(|(row_index, row)| {
+            (
+                row_index,
+                el(
+                    "tr",
+                    Keyed::new(
+                        row.iter()
+                            .enumerate()
+                            .map(|(column, spans)| {
+                                (
+                                    column,
+                                    table_cell(spans, false, alignments.get(column).copied()),
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                    ),
+                ),
+            )
+        })
+        .collect::<Vec<_>>();
+    Box::new(el(
+        "table",
+        (header_view, el("tbody", Keyed::new(body_rows))),
+    ))
 }
 
 pub fn preview(state: &DesktopState) -> DesktopView {
@@ -832,7 +957,7 @@ pub fn preview(state: &DesktopState) -> DesktopView {
             &EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/scroll"),
         ),
-        knot_document::DocumentFormat::Micron => nematic::MicronSubsetEngine::new()
+        knot_document::DocumentFormat::Micron => nematic::MicronEngine::new()
             .render(&EngineInput::new(&source.source.address, &source.text)),
         knot_document::DocumentFormat::Gemtext => {
             let input = EngineInput::new(&source.source.address, &source.text)
@@ -875,7 +1000,7 @@ pub fn preview(state: &DesktopState) -> DesktopView {
                         match source.format {
                             knot_document::DocumentFormat::Scroll => "Scroll",
                             knot_document::DocumentFormat::Gemtext => "Gemtext",
-                            knot_document::DocumentFormat::Micron => "Partial Micron",
+                            knot_document::DocumentFormat::Micron => "Micron",
                             _ => unreachable!("filtered above"),
                         }
                     ),
@@ -1011,7 +1136,7 @@ mod tests {
         );
     }
     #[test]
-    fn micron_site_preview_is_explicitly_partial_and_keeps_link_candidates_inert() {
+    fn micron_site_preview_renders_native_projection_and_diagnostics() {
         let temp = tempfile::tempdir().unwrap();
         let mut state = DesktopState::new(
             KnotDocumentSession::scratch("scratch:micron", ""),
@@ -1027,7 +1152,7 @@ mod tests {
         state
             .document
             .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
-                "> Heading\n---\nplain\n[Local`:/page/next.mu]\n".into(),
+                ">Heading\n---\nplain\n`[Local`:/page/next.mu]\n".into(),
             )))
             .unwrap();
         state.scroll.visible = true;
@@ -1036,14 +1161,60 @@ mod tests {
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let text = text_content(&dom, dom.document());
-        assert!(text.contains("Partial Micron preview · current source"));
+        assert!(text.contains("Micron preview · current source"));
         assert!(text.contains("Heading"));
-        assert!(text.contains("[Local`:/page/next.mu]"));
-        assert!(text.contains(
-            "Partial Micron preview. Unsupported source is inert, visible, and read-only."
-        ));
-        assert!(text.contains("Unsupported Micron source (read-only)"));
+        assert!(text.contains("Local"));
+        assert!(text.contains("Micron preview: some presentation or controls"));
         assert!(text.contains("Rendering notes:"));
+    }
+
+    #[test]
+    fn micron_preview_links_require_site_manifest_and_matching_authority() {
+        let temp = tempfile::tempdir().unwrap();
+        let site = Site::create_for(&temp.path().join("micron"), SiteFormat::Micron).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:micron-links", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.site = Some(site);
+
+        assert_eq!(preview_manifest_page(&state, ":/page/about.mu"), None);
+        let index = state
+            .scroll
+            .site
+            .as_ref()
+            .unwrap()
+            .page_path("index.mu")
+            .unwrap();
+        state.scroll.sync_page(Some(&index));
+        assert_eq!(
+            preview_manifest_page(&state, ":/page/about.mu"),
+            Some("about.mu")
+        );
+        assert_eq!(preview_manifest_page(&state, ":/page/missing.mu"), None);
+        assert_eq!(preview_manifest_page(&state, ":/page/../index.mu"), None);
+        assert_eq!(
+            preview_manifest_page(&state, ":/page/about\\notes.mu"),
+            None
+        );
+        assert_eq!(
+            preview_manifest_page(&state, "othernode:/page/about.mu"),
+            None
+        );
+        assert_eq!(
+            preview_page_name(
+                "0123456789abcdef0123456789abcdef:/page/about.mu",
+                Some("0123456789abcdef0123456789abcdef")
+            ),
+            Some("about.mu")
+        );
+        assert_eq!(
+            preview_page_name(
+                "0123456789ABCDEF0123456789ABCDEF:/page/about.mu",
+                Some("0123456789abcdef0123456789abcdef")
+            ),
+            Some("about.mu")
+        );
     }
 
     #[test]

@@ -447,7 +447,7 @@ mod engine {
                 Self::Gemtext => nematic::GemtextEngine::new()
                     .render(&input)
                     .map_err(|error| error.to_string()),
-                Self::Micron => nematic::MicronSubsetEngine::new()
+                Self::Micron => nematic::MicronEngine::new()
                     .render(&input)
                     .map_err(|error| error.to_string()),
                 Self::Json => unreachable!(),

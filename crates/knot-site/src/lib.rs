@@ -225,8 +225,18 @@ impl Site {
                 })
                 .collect::<String>();
             let body = if format == SiteFormat::Micron {
-                // Raw source only until a native grammar adapter is available.
-                format!("{title}\n\nWrite here.\n")
+                // Guide-qualified Micron headings and ordinary same-node page
+                // links. The source remains literal bytes owned by the site.
+                let micron_links = config
+                    .pages
+                    .iter()
+                    .filter(|p| p.path != path)
+                    .map(|p| {
+                        let label = p.path.trim_end_matches(&format!(".{}", format.extension()));
+                        format!("`[{label}`:/page/{}]\n", p.path)
+                    })
+                    .collect::<String>();
+                format!(">{title}\n\nWrite here.\n\n{micron_links}")
             } else {
                 format!("# {title}\n\nWrite here.\n\n{links}")
             };

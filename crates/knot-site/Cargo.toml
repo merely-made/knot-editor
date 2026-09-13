@@ -22,7 +22,7 @@ gemini-protocol = { version = "=0.1.7", features = ["server"] }
 spartan-protocol = "=0.1.1"
 tokio = { version = "1", features = ["rt", "sync", "net", "time", "macros"] }
 blake3 = "1"
-retinue = { git = "https://github.com/merely-made/retinue.git", rev = "2a763c72ec7c7ff61b8cd7adb86d084a02d2c4d6" }
+retinue = { git = "https://github.com/merely-made/retinue.git", rev = "ef1c47a602cb742293c109b0c443a9ceb8c1dce7" }
 getrandom = "0.2"
 tempfile = "3"
 

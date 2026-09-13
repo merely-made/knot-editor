@@ -355,7 +355,7 @@ impl KnotEditor {
         }
         if self.format == DocumentFormat::Micron {
             use inker::{Engine, EngineInput};
-            return nematic::MicronSubsetEngine::new()
+            return nematic::MicronEngine::new()
                 .render(&EngineInput::new(&self.address, self.source()))
                 .map_err(|e| e.to_string());
         }
@@ -460,25 +460,27 @@ mod tests {
 
     #[cfg(feature = "engine")]
     #[test]
-    fn micron_preview_uses_the_evidence_qualified_engine_without_rewriting_source() {
+    fn micron_preview_uses_the_native_engine_without_rewriting_source() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("page.mu");
-        let source = "> Heading\n---\nplain\n[x](link)\n";
+        let source = ">Heading\n---\nplain\n`[Next`:/page/next.mu]\n";
         fs::write(&path, source).unwrap();
         let editor = KnotEditor::open(&path).unwrap();
         let preview = editor.preview().unwrap();
         assert_eq!(
             preview.provenance.source_kind.as_deref(),
-            Some("nematic.micron-subset")
+            Some("nematic.micron")
         );
         assert!(preview.content_type.is_empty());
-        assert!(preview.outgoing_links().is_empty());
-        assert!(
-            preview.diagnostics.iter().any(|diagnostic| matches!(
-                diagnostic,
-                inker::DocumentDiagnostic::RawSourceFallback
-            ))
+        assert_eq!(
+            preview.outgoing_links(),
+            vec![":/page/next.mu"],
+            "the preview retains same-node aliases for the site authority"
         );
+        assert!(preview.diagnostics.iter().any(|diagnostic| matches!(
+            diagnostic,
+            inker::DocumentDiagnostic::UnsupportedConstruct(_)
+        )));
         assert_eq!(fs::read(&path).unwrap(), source.as_bytes());
     }
 

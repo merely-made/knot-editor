@@ -23,6 +23,12 @@ fn old_scroll_manifest_and_native_saved_snapshots() {
         let site = Site::create_for(&temp.path().join(format.label()), format).unwrap();
         assert_eq!(site.config.pages.len(), 3);
         let path = site.page_path(format.index_file()).unwrap();
+        if format == SiteFormat::Micron {
+            let generated = String::from_utf8(fs::read(&path).unwrap()).unwrap();
+            assert!(generated.starts_with(">My site\n"));
+            assert!(generated.contains("`[about`:/page/about.mu]"));
+            assert!(generated.contains("`[notes`:/page/notes.mu]"));
+        }
         let body = "# Café\r\n``` art\r\n  * literal\r\n```\r\n=> /about.gmi About\r\n";
         fs::write(&path, body).unwrap();
         let snapshot = site.publication().unwrap();

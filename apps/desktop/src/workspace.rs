@@ -122,6 +122,10 @@ pub struct DesktopState {
     comparison_error: Option<String>,
     outline_visible: bool,
     pub(crate) document_preview_visible: bool,
+    pub(crate) fold_visible: bool,
+    pub(crate) fold_snapshot: Option<knot_document::KnotFoldSnapshotV1>,
+    pub(crate) collapsed_folds: std::collections::BTreeSet<usize>,
+    pub(crate) fold_error: Option<String>,
     appearance_open: bool,
     outline_snapshot: Option<KnotOutlineSnapshotV1>,
     outline_error: Option<String>,
@@ -193,6 +197,10 @@ impl DesktopState {
             comparison_error: None,
             outline_visible: false,
             document_preview_visible: false,
+            fold_visible: false,
+            fold_snapshot: None,
+            collapsed_folds: std::collections::BTreeSet::new(),
+            fold_error: None,
             appearance_open: false,
             outline_snapshot: None,
             outline_error: None,
@@ -473,6 +481,96 @@ impl DesktopState {
         self.outline_error = None;
     }
 
+    pub(crate) fn clear_folding(&mut self) {
+        self.fold_visible = false;
+        self.fold_snapshot = None;
+        self.collapsed_folds.clear();
+        self.fold_error = None;
+    }
+
+    fn toggle_folding(&mut self) {
+        if !crate::document_folding::supported(self.document.snapshot().format) {
+            return;
+        }
+        self.fold_visible = !self.fold_visible;
+        if self.fold_visible {
+            self.fold_snapshot = Some(self.document.session().fold_snapshot());
+            self.collapsed_folds.clear();
+            self.fold_error = None;
+        } else {
+            self.clear_folding();
+        }
+    }
+
+    pub(crate) fn edit_source(&mut self) {
+        self.clear_folding();
+        self.focus_source_requested = true;
+    }
+
+    pub(crate) fn toggle_fold(
+        &mut self,
+        action_snapshot: knot_document::KnotFoldSnapshotV1,
+        source_index: usize,
+    ) {
+        if !self
+            .fold_snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot == &action_snapshot)
+            || !crate::document_folding::snapshot_matches(self.document.session(), &action_snapshot)
+        {
+            self.fold_snapshot = Some(self.document.session().fold_snapshot());
+            self.collapsed_folds.clear();
+            self.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+            return;
+        }
+        if !crate::document_folding::normalized_folds(&action_snapshot)
+            .iter()
+            .any(|fold| fold.source_index == source_index)
+        {
+            self.fold_error = Some("That fold is no longer part of the current source.".to_owned());
+            return;
+        }
+        if !self.collapsed_folds.insert(source_index) {
+            self.collapsed_folds.remove(&source_index);
+        }
+        self.fold_error = None;
+    }
+
+    pub(crate) fn collapse_all_folds(
+        &mut self,
+        action_snapshot: knot_document::KnotFoldSnapshotV1,
+    ) {
+        if !self
+            .fold_snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot == &action_snapshot)
+            || !crate::document_folding::snapshot_matches(self.document.session(), &action_snapshot)
+        {
+            self.fold_snapshot = Some(self.document.session().fold_snapshot());
+            self.collapsed_folds.clear();
+            self.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+            return;
+        }
+        self.collapsed_folds = crate::document_folding::collapse_all_indices(&action_snapshot);
+        self.fold_error = None;
+    }
+
+    pub(crate) fn expand_all_folds(&mut self, action_snapshot: knot_document::KnotFoldSnapshotV1) {
+        if self
+            .fold_snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot == &action_snapshot)
+            && crate::document_folding::snapshot_matches(self.document.session(), &action_snapshot)
+        {
+            self.collapsed_folds.clear();
+            self.fold_error = None;
+        } else {
+            self.fold_snapshot = Some(self.document.session().fold_snapshot());
+            self.collapsed_folds.clear();
+            self.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+        }
+    }
+
     fn sync_outline_snapshot(&mut self) {
         if !self.outline_visible {
             return;
@@ -588,6 +686,7 @@ impl DesktopState {
                 self.clear_comparison();
                 self.clear_prepared_capture();
                 self.clear_outline();
+                self.clear_folding();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
                 self.message = Some("New untitled Djot document.".to_owned());
@@ -601,6 +700,7 @@ impl DesktopState {
                     self.clear_comparison();
                     self.clear_prepared_capture();
                     self.clear_outline();
+                    self.clear_folding();
                     self.sync_outline_snapshot();
                     self.sync_catalog();
                     self.message = Some(format!("Opened {}.", path.display()));
@@ -612,6 +712,7 @@ impl DesktopState {
                     self.clear_comparison();
                     self.clear_prepared_capture();
                     self.clear_outline();
+                    self.clear_folding();
                     self.sync_outline_snapshot();
                     self.sync_catalog();
                     self.message = Some("Reloaded from disk.".to_owned());
@@ -662,6 +763,7 @@ impl DesktopState {
                 self.clear_comparison();
                 self.clear_prepared_capture();
                 self.clear_outline();
+                self.clear_folding();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
                 let resolved = std::fs::canonicalize(&path).ok();
@@ -1260,11 +1362,21 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         },
         |state: &mut DesktopState| &mut state.document,
     ));
-    let source_wrapper: DesktopView = Box::new(
-        el("div", document)
-            .attr("class", "knot-source-wrapper")
-            .attr("style", state.appearance.writing_style()),
-    );
+    let source_wrapper: DesktopView = if state.fold_visible
+        && crate::document_folding::supported(state.document.snapshot().format)
+    {
+        Box::new(
+            el("div", crate::document_folding::view(state))
+                .attr("class", "knot-source-wrapper")
+                .attr("style", state.appearance.writing_style()),
+        )
+    } else {
+        Box::new(
+            el("div", document)
+                .attr("class", "knot-source-wrapper")
+                .attr("style", state.appearance.writing_style()),
+        )
+    };
     let prompt: DesktopView = match state.pending.as_ref() {
         Some(action) => {
             let title = match action {
@@ -1350,6 +1462,23 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", ()))
     };
+    let document_folding_button: DesktopView =
+        if crate::document_folding::supported(state.document.snapshot().format) {
+            Box::new(
+                button(
+                    if state.fold_visible {
+                        "Hide folds"
+                    } else {
+                        "Show folds"
+                    },
+                    |state: &mut DesktopState, _| state.toggle_folding(),
+                )
+                .attr("aria-expanded", state.fold_visible.to_string())
+                .attr("aria-controls", "knot-document-folding"),
+            )
+        } else {
+            Box::new(el("div", ()))
+        };
     Box::new(
         el(
             "main",
@@ -1370,6 +1499,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                             state.compare_disk();
                         }),
                         document_preview_button,
+                        document_folding_button,
                         button("Appearance", |state: &mut DesktopState, _| {
                             state.toggle_appearance();
                         })
@@ -1427,7 +1557,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         .attr(
             "class",
             format!(
-                "{}{}{}",
+                "{}{}{}{}",
                 state.appearance.root_class(),
                 if state.document.snapshot().format.native_source() {
                     " knot-native-site-mode"
@@ -1441,6 +1571,13 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     )
                 {
                     " knot-document-preview-mode"
+                } else {
+                    ""
+                },
+                if state.fold_visible
+                    && crate::document_folding::supported(state.document.snapshot().format)
+                {
+                    " knot-document-folding-mode"
                 } else {
                     ""
                 }
@@ -1609,7 +1746,7 @@ pub fn after_dispatch(
         ctx.runner.update(|state| state.scroll.drain_submission());
     }
     let state = ctx.runner.state();
-    let focus_requested = state.focus_source_requested;
+    let mut focus_requested = state.focus_source_requested;
     let outline_needs_sync = if state.outline_visible {
         let current = state.document.snapshot();
         state.outline_snapshot.as_ref().is_none_or(|snapshot| {
@@ -1618,7 +1755,24 @@ pub fn after_dispatch(
     } else {
         false
     };
-    if !focus_requested && !outline_needs_sync {
+    let fold_needs_sync = if state.fold_visible {
+        let current = state.document.snapshot();
+        state.fold_snapshot.as_ref().is_none_or(|snapshot| {
+            snapshot.address != current.source.address
+                || snapshot.source_text != current.text
+                || !crate::document_folding::snapshot_matches(state.document.session(), snapshot)
+        })
+    } else {
+        false
+    };
+    let fold_must_close = state.fold_visible && (focus_requested || fold_needs_sync);
+    if fold_needs_sync {
+        // Source edits and document/address transitions invalidate the entire
+        // transient reading. Return to the one ordinary editor surface so a
+        // stale folded view can never become an editing affordance.
+        focus_requested = true;
+    }
+    if !focus_requested && !outline_needs_sync && !fold_must_close {
         return;
     }
     ctx.runner.update(|state| {
@@ -1627,6 +1781,9 @@ pub fn after_dispatch(
         }
         if outline_needs_sync {
             state.sync_outline_snapshot();
+        }
+        if fold_must_close {
+            state.clear_folding();
         }
     });
     if !focus_requested {
@@ -1731,8 +1888,9 @@ mod tests {
                 state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!(
-                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}",
+                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}",
                     appearance_css(),
+                    crate::document_folding::CSS,
                     crate::document_preview::CSS
                 ),
             },
@@ -1870,6 +2028,166 @@ mod tests {
     }
 
     #[test]
+    fn folded_source_is_hidden_by_default_and_keeps_source_immutable() {
+        let source = "# α\n\n## 二\nbody\n\n- first\n- second\n";
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, source));
+        host.layout_at(900.0, 640.0);
+        let before = host.state().document.snapshot();
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            assert!(class_node(&dom, dom.document(), "knot-document-folding").is_none());
+            assert!(!text_content(&dom, dom.document()).contains("Folded source"));
+        }
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .set_preedit("仮入力");
+        });
+        assert!(host.click_on(&Selector::role("button").containing("Show folds")));
+        let after_show = host.state().document.snapshot();
+        assert_eq!(after_show, before);
+        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let folding = class_node(&dom, dom.document(), "knot-folding").unwrap();
+            let folded_text = text_content(&dom, folding);
+            assert!(folded_text.contains("# α"));
+            assert!(!folded_text.contains("仮入力"));
+        }
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("aria-label", "Collapse all folds"))
+        );
+        let after_collapse = host.state().document.snapshot();
+        assert_eq!(after_collapse, before);
+        assert!(
+            !host.state().collapsed_folds.is_empty(),
+            "fold error: {:?}; snapshot: {:?}",
+            host.state().fold_error,
+            host.state().fold_snapshot
+        );
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            assert!(count_class(&dom, dom.document(), "fold-marker") > 0);
+            assert!(attr_node(&dom, dom.document(), "aria-label", "Folded content").is_some());
+        }
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("aria-label", "Expand all folds"))
+        );
+        assert!(host.state().collapsed_folds.is_empty());
+        assert_eq!(host.state().document.snapshot(), before);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let folding = class_node(&dom, dom.document(), "knot-folding").unwrap();
+        assert!(text_content(&dom, folding).contains("body"));
+        drop(dom);
+        assert!(host.click_on(&Selector::role("button").containing("Edit source")));
+        assert!(!host.state().fold_visible);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        assert!(class_node(&dom, dom.document(), "knot-document-body").is_some());
+    }
+
+    #[test]
+    fn folded_source_state_resets_after_a_source_edit() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# First\n\n- one\n- two\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show folds")));
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("aria-label", "Collapse all folds"))
+        );
+        assert!(
+            !host.state().collapsed_folds.is_empty(),
+            "fold error: {:?}; snapshot: {:?}",
+            host.state().fold_error,
+            host.state().fold_snapshot
+        );
+        host.update(|state| {
+            state
+                .document
+                .apply(knot_document::KnotDocumentIntentV1::Edit(
+                    cambium::TextCommand::SelectAll,
+                ))
+                .unwrap();
+            state
+                .document
+                .apply(knot_document::KnotDocumentIntentV1::Edit(
+                    cambium::TextCommand::Insert("# Changed\n\nnew body\n".into()),
+                ))
+                .unwrap();
+        });
+        host.after_dispatch();
+        assert!(host.state().collapsed_folds.is_empty());
+        assert!(!host.state().fold_visible);
+        assert!(host.state().fold_snapshot.is_none());
+        assert_eq!(
+            host.state().document.snapshot().text,
+            "# Changed\n\nnew body\n"
+        );
+    }
+
+    #[test]
+    fn folded_source_returns_to_editing_for_an_outline_selection() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# First\n\n## Second\n\nbody\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        assert!(host.click_on(&Selector::role("button").containing("Show folds")));
+        assert!(host.click_on(&Selector::role("button").containing("Second")));
+
+        let snapshot = host.state().document.snapshot();
+        assert_eq!(
+            &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte],
+            "## Second\n"
+        );
+        assert!(!host.state().fold_visible);
+        assert!(host.focus().is_some());
+    }
+
+    #[test]
+    fn folded_row_action_rejects_a_stale_full_snapshot() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# First\n\n## Second\nbody\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show folds")));
+        let stale = host.state().fold_snapshot.clone().unwrap();
+        host.update(|state| {
+            state
+                .document
+                .apply(knot_document::KnotDocumentIntentV1::Edit(
+                    cambium::TextCommand::SelectAll,
+                ))
+                .unwrap();
+            state
+                .document
+                .apply(knot_document::KnotDocumentIntentV1::Edit(
+                    cambium::TextCommand::Insert("# New\n\nchanged\n".into()),
+                ))
+                .unwrap();
+        });
+        host.update(|state| state.toggle_fold(stale, 0));
+        assert!(host.state().collapsed_folds.is_empty());
+        assert!(
+            host.state()
+                .fold_error
+                .as_deref()
+                .is_some_and(|error| error.contains("stale"))
+        );
+    }
+
+    #[test]
     fn ordinary_preview_heading_selects_source_and_returns_focus() {
         let mut host = harness(KnotDocumentSession::scratch(
             SCRATCH_ADDRESS,
@@ -1949,6 +2267,8 @@ mod tests {
         assert!(class_node(&dom, dom.document(), "knot-document-preview").is_none());
         let native_preview = class_node(&dom, dom.document(), "knot-scroll-preview").unwrap();
         assert!(text_content(&dom, native_preview).contains("Native"));
+        assert!(!text_content(&dom, dom.document()).contains("Show folds"));
+        assert!(host.state().fold_snapshot.is_none());
     }
 
     #[test]

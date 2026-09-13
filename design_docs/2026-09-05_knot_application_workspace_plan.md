@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, and exact fold readings, G1 relation/file catalog models, desktop catalog and saved-revision review, and the signed file-revision bridge implemented through 2026-09-12; visual folding, remaining workspace acceptance, and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; remaining workspace acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -34,7 +34,7 @@ when they have a product-owned snapshot and effect boundary.
 | Concern | Existing Knot authority or API | Current standalone surface | Required application work |
 | --- | --- | --- | --- |
 | Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
-| Derived readings | Outline, preview, and fold snapshots remain bound to the retained source and address. Existing `engine` APIs derive highlights, folds, and preview from that source buffer. | Optional live heading outline; desktop Djot/Knot source decoration and Tinct appearance controls; optional live preview whose rendered headings select exact source spans. | Caret-safe visual fold concealment, source ranges for every preview block, cross-launch preferences, and headed writing acceptance. |
+| Derived readings | Outline, preview, and fold snapshots remain bound to the retained source and address. Existing `engine` APIs derive highlights, folds, and preview from that source buffer. | Optional live heading outline; desktop Djot/Knot source decoration, read-only visual folds, and Tinct appearance controls; optional live preview whose rendered headings select exact source spans. | Source ranges for every preview block, cross-launch preferences, and headed writing acceptance. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
 | Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
 | Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
@@ -183,9 +183,18 @@ editable text. Activating a rendered heading selects that heading's exact UTF-8
 source span and returns focus to the editor. The public preview snapshot binds
 the rendered document and heading rows to its source text and address. The
 fold snapshot similarly publishes exact section, list, quote, code, and div
-ranges, with guarded selection, but the editor does not conceal them yet.
+ranges, with guarded selection. The 2026-09-13 visual-fold slice adds an
+explicitly read-only folded source reading for Djot and legacy Knot. It uses
+the shared Cambium fold projection with conceal ranges beginning after each
+opening line, so the opening line is retained and the remainder becomes a
+semantic folded-content marker. The desktop keeps the full
+`KnotFoldSnapshotV1` with each action, rejects stale address/source/fold-set
+actions, normalizes nested and crossing ranges, and clears transient fold state
+on source or document transitions. **Edit source** returns to the ordinary
+styled textarea. Native protocol formats have no fold controls. Knot pins the
+shared Mere revision containing `fold_projection` for the desktop receipt.
 
-The next visible slice is visual folding, then file navigation, tabs and
+The next visible slice is file navigation, tabs and
 recovery, followed by a document-to-document relation workflow. Larger
 document responsiveness and headed typography, caret, and IME acceptance still
 need measured receipts before this phase is called complete.

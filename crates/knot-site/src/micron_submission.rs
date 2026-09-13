@@ -104,7 +104,9 @@ impl PreparedMicronRequest {
                 .request_raw(self.destination, peer, &packed)
                 .await
                 .map_err(|error| error.to_string())?;
-            endpoint.close();
+            // Flush the Resource acknowledgement before abrupt Endpoint::Drop.
+            // The enclosing timeout bounds this graceful shutdown as well.
+            endpoint.shutdown(config.timeout).await;
             let response = Response::unpack(&received.packed)
                 .map_err(|_| "Remote Micron handler returned an invalid response".to_string())?;
             if response.data.len() > config.max_response_bytes {
@@ -199,6 +201,7 @@ mod tests {
         let name = DestinationName::new("nomadnetwork", ["node"]);
         let destination = name.destination_hash(server.identity());
         server.register_resource(name, &[]);
+        let (done_tx, done_rx) = tokio::sync::oneshot::channel::<()>();
         let handler = {
             let server = Arc::clone(&server);
             tokio::spawn(async move {
@@ -209,9 +212,10 @@ mod tests {
                     StringMapRequest::unpack(&received.packed, StringMapLimits::default()).unwrap();
                 assert_eq!(request.data.get("field_note"), Some(&"hello".into()));
                 session
-                    .respond_auto(received.request_id, b"accepted".to_vec())
+                    .respond_auto(received.request_id, vec![b'x'; 4096])
                     .await
                     .unwrap();
+                let _ = done_rx.await;
             })
         };
         let mut values = BTreeMap::new();
@@ -225,8 +229,12 @@ mod tests {
         .send(address, MicronSubmissionConfig::default())
         .await
         .unwrap();
-        assert_eq!(response.body, b"accepted");
-        handler.await.unwrap();
+        assert_eq!(response.body, vec![b'x'; 4096]);
+        let _ = done_tx.send(());
+        tokio::time::timeout(Duration::from_secs(10), handler)
+            .await
+            .unwrap()
+            .unwrap();
         server.close();
     }
 }

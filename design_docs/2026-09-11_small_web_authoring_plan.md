@@ -80,18 +80,20 @@ Theme-export research is scoped separately. A client's installed theme/settings,
 app chrome, document palette, and author-supplied styling are different surfaces.
 No foreign theme exporter or Gemini stylesheet mechanism is implied here.
 
-The originating research lane verified Lagrange's
-[official palette documentation](https://raw.githubusercontent.com/skyjake/lagrange/dev/res/about/help.gmi):
-`palette.txt` supports Dark/Light sections and named RGB colors, including
-ordered neutral intensities, accents and reserved status colors. This is a
-client-installed UI palette, not an author-controlled page theme. A future
-Tabard/Tinct exporter would map semantic roles, report unsupported roles, and
-verify contrast in Lagrange, especially link icons across document themes.
-The [Geopard README](https://github.com/ranfdev/Geopard) describes GTK4 and
-per-domain generated colors but establishes no supported theme-import contract;
-that target remains discovery-gated. GTK implementation CSS is not an import
-API. Reader-installed themes in Knot/Turnstone, client UI exports, and native
-author styling are separate adapters. Titan transport adds no theme mechanism.
+**2026-09-13 scope consolidation:** Tabard's verified external contracts,
+native reader adapter and foreign-export done-conditions now live in
+`mere/design_docs/mere_docs/implementation_strategy/2026-07-05_theme_modes_plan.md`,
+section "Tabard small-web adapters (2026-09-13 scope)". Knot owns the selection,
+preview and persistence consumer, with `apps/desktop/src/appearance.rs` as its
+current palette seam. A reader setting does not change published author CSS.
+
+The next shared Micron presentation and interaction scope lives in
+`mere/design_docs/nematic_docs/implementation_strategy/2026-07-01_smolweb_fidelity_plan.md`,
+section "Micron completion scope (2026-09-13)". Knot supplies headed authoring and
+preview receipts alongside Turnstone's browsing receipt. Djinn's first resident
+acceptance is an explicitly handed-off saved Gemini snapshot that remains
+readable after Knot exits and after the resident restarts; this does not wait
+for Micron forms. None of these scoped features is claimed implemented here.
 
 ## Progress
 

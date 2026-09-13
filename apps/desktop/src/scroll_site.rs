@@ -6,8 +6,8 @@
 
 use crate::workspace::{DesktopState, DesktopView, PendingAction};
 use cambium::{
-    GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button, el, lens,
-    on_key, span, text_field_typed, textarea_typed,
+    GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button, button_with,
+    el, lens, on_key, span, text_field_typed, textarea_typed,
 };
 use cambium_genet_winit_host::HostWake;
 use inker::{Block, Engine, EngineInput, InlineSpan, TableAlignment};
@@ -742,13 +742,15 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
     let children = items.iter().enumerate().map(|(i,item)| {
         let view: DesktopView = match item {
             InlineSpan::Text(text) => Box::new(span(text.clone())),
+            InlineSpan::Presented { presentation, spans } => Box::new(
+                el("span", inline(spans)).attr("style", crate::document_preview::inline_presentation_css(presentation)),
+            ),
             InlineSpan::Code(text) => Box::new(el("code", text.clone())),
             InlineSpan::Emphasis(items) => Box::new(el("em", inline(items)).attr("class", "knot-preview-emphasis")),
             InlineSpan::Strong(items) => Box::new(el("strong", inline(items)).attr("class", "knot-preview-strong")),
             InlineSpan::Link { url, spans, predicate, .. } => {
                 let destination = url.clone();
-                let label = inker::inline_text(spans);
-                Box::new(button(label, move |state: &mut DesktopState,_| {
+                Box::new(button_with(inline(spans), move |state: &mut DesktopState,_| {
                     if let Some(local_name) = preview_manifest_page(state, &destination) {
                         state.scroll_open_page(local_name);
                     } else {
@@ -823,6 +825,15 @@ fn blocks(items: &[Block]) -> DesktopView {
         .enumerate()
         .map(|(i, item)| {
             let view: DesktopView = match item {
+                Block::Presented {
+                    presentation,
+                    block,
+                } => Box::new(
+                    el("div", blocks(std::slice::from_ref(block.as_ref()))).attr(
+                        "style",
+                        crate::document_preview::block_presentation_css(presentation),
+                    ),
+                ),
                 Block::Heading { level, spans } => Box::new(el(
                     match level {
                         1 => "h1",
@@ -1215,6 +1226,68 @@ mod tests {
             ),
             Some("about.mu")
         );
+    }
+
+    #[test]
+    fn micron_preview_preserves_styled_link_children_and_section_layout() {
+        let temp = tempfile::tempdir().unwrap();
+        let site = Site::create_for(&temp.path().join("styled"), SiteFormat::Micron).unwrap();
+        let path = site.page_path("index.mu").unwrap();
+        let source = ">Title\n>>Section\n`c`Ff00`B123`_`[About`:/page/about.mu]\n";
+        std::fs::write(&path, source).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:styled", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.site = Some(site);
+        state.scroll_open_page("index.mu");
+        state.scroll.preview_visible = true;
+        let host = submission_harness_with(state);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        fn inspect(
+            dom: &genet_scripted_dom::ScriptedDom,
+            node: genet_scripted_dom::NodeId,
+            styles: &mut Vec<String>,
+            styled_button: &mut bool,
+        ) {
+            if let Some(style) =
+                dom.attribute(node, &Namespace::from(""), &LocalName::from("style"))
+            {
+                styles.push(style.to_owned());
+            }
+            if dom
+                .element_name(node)
+                .is_some_and(|name| name.local.as_ref() == "button")
+                && text_content(dom, node) == "About"
+            {
+                *styled_button = dom
+                    .dom_children(node)
+                    .any(|child| text_content(dom, child) == "About");
+            }
+            for child in dom.dom_children(node) {
+                inspect(dom, child, styles, styled_button);
+            }
+        }
+        let mut styles = Vec::new();
+        let mut styled_button = false;
+        inspect(&dom, dom.document(), &mut styles, &mut styled_button);
+        assert!(
+            styles
+                .iter()
+                .any(|style| style.contains("color:rgb(255,0,0)")
+                    && style.contains("background-color:rgb(17,34,51)")
+                    && style.contains("text-decoration:underline"))
+        );
+        assert!(
+            styles
+                .iter()
+                .any(|style| style.contains("text-align:center")
+                    && style.contains("padding-inline-start:calc(1 *"))
+        );
+        assert!(styled_button);
+        assert_eq!(host.state().document.snapshot().text, source);
+        assert!(!host.state().document.snapshot().dirty);
     }
 
     #[test]

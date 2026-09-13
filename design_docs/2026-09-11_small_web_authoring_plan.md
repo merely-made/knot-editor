@@ -93,7 +93,18 @@ section "Micron completion scope (2026-09-13)". Knot supplies headed authoring a
 preview receipts alongside Turnstone's browsing receipt. Djinn's first resident
 acceptance is an explicitly handed-off saved Gemini snapshot that remains
 readable after Knot exits and after the resident restarts; this does not wait
-for Micron forms. None of these scoped features is claimed implemented here.
+for Micron forms. Progress on these scopes is recorded below without treating
+library implementation as a headed consumer receipt.
+
+**2026-09-13 saved-snapshot handoff:** `knot-site` now exports
+`PublishedSnapshotV1` and `PublishedPageV1`, with canonical encoding, a digest,
+bounded decoding, and reconstruction of a read-only `Publication`. The contract
+contains selected saved bytes and metadata, never an authoring-directory handle.
+It validates the index, case-insensitive page-name uniqueness, format, UTF-8,
+page/site byte bounds and a separate 24 MiB encoded-message bound. Thirteen
+standalone tests pass with `--offline --locked`, including three snapshot
+regressions. The contract is published at `6b68405`; resident lifetime and
+ordinary-client restart acceptance belong to Djinn's next gate.
 
 ## Progress
 
@@ -348,3 +359,21 @@ Forms and partials remain inert in the preview; colors, underline, alignment,
 folding, indentation and anchor scrolling need further native work. Wide tables
 also expose the retained Smolweb session's lack of horizontal scrolling.
 Djinn's resident serving and Tabard's theme exports remain separate work.
+
+### Shared reading presentation receipt (2026-09-13)
+
+The desktop consumes Mere `b5750a96`, Genet `101d9e9` and its matching
+Netrender `3961aca` through committed Git selectors. Micron previews retain
+source color, background, underline, alignment and section indentation. Styled
+link children remain inside their existing navigation control; saving and
+publication authority do not change. The same wrappers have an ordinary
+document-preview fallback.
+
+The focused immutable Micron gate passes four tests with `--locked --offline`.
+The complete desktop library suite passes 54 tests with one existing ignored
+outline timing receipt.
+It includes a native DOM check for styled link children and nested section
+layout, while asserting unchanged source bytes and a clean editor buffer.
+This is an automated projection receipt; headed appearance and interaction
+comparisons remain open. Djinn's CLI publication/restart receipt lives in its
+resident-services plan. A desktop publish-to-Djinn action is still separate.

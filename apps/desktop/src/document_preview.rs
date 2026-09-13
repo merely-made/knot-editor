@@ -1,7 +1,7 @@
 // Copyright 2026 Mark Alan Boykin
 // SPDX-License-Identifier: MPL-2.0
 
-use cambium::{Keyed, button, el, span};
+use cambium::{Keyed, button, button_with, el, span};
 use inker::{Block, DocumentDiagnostic, InlineSpan};
 use knot_document::KnotOutlineItemV1;
 use std::sync::Arc;
@@ -10,12 +10,44 @@ use crate::workspace::{DesktopState, DesktopView};
 
 pub const CSS: &str = ".knot-document-preview-mode .knot-writing-area { display:flex; align-items:flex-start; gap:12px; } .knot-document-preview { flex:1 1 50%; width:0; min-width:0; box-sizing:border-box; padding:16px; overflow:auto; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-heading { display:block; width:100%; text-align:left; } @media (max-width:700px) { .knot-document-preview-mode .knot-document-preview { width:100%; flex-basis:auto; } }";
 
+pub(crate) fn inline_presentation_css(presentation: &inker::InlinePresentation) -> String {
+    let mut css = String::new();
+    if let Some([r, g, b]) = presentation.foreground {
+        css.push_str(&format!("color:rgb({r},{g},{b});"));
+    }
+    if let Some([r, g, b]) = presentation.background {
+        css.push_str(&format!("background-color:rgb({r},{g},{b});"));
+    }
+    if presentation.underline {
+        css.push_str("text-decoration:underline;");
+    }
+    css
+}
+
+pub(crate) fn block_presentation_css(presentation: &inker::BlockPresentation) -> String {
+    let alignment = match presentation.alignment {
+        inker::BlockAlignment::Start => "start",
+        inker::BlockAlignment::Center => "center",
+        inker::BlockAlignment::End => "end",
+    };
+    format!(
+        "text-align:{alignment};padding-inline-start:calc({} * var(--knot-reader-indent,24px));",
+        presentation.indent_level
+    )
+}
+
 fn inline(items: &[InlineSpan]) -> DesktopView {
     let children = items
         .iter()
         .enumerate()
         .map(|(index, item)| {
             let view: DesktopView = match item {
+                InlineSpan::Presented {
+                    presentation,
+                    spans,
+                } => Box::new(
+                    el("span", inline(spans)).attr("style", inline_presentation_css(presentation)),
+                ),
                 InlineSpan::Text(text) => Box::new(span(text.clone())),
                 InlineSpan::Code(text) => Box::new(el("code", text.clone())),
                 InlineSpan::Emphasis(items) => Box::new(el("em", inline(items))),
@@ -24,12 +56,9 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     let destination = url.clone();
                     let accessible_destination = destination.clone();
                     Box::new(
-                        button(
-                            inker::inline_text(spans),
-                            move |state: &mut DesktopState, _| {
-                                state.message = Some(format!("Preview link: {destination}"));
-                            },
-                        )
+                        button_with(inline(spans), move |state: &mut DesktopState, _| {
+                            state.message = Some(format!("Preview link: {destination}"));
+                        })
                         .attr(
                             "aria-label",
                             format!("Preview link: {accessible_destination}"),
@@ -87,6 +116,22 @@ fn blocks(
         .enumerate()
         .map(|(index, item)| {
             let view: DesktopView = match item {
+                Block::Presented {
+                    presentation,
+                    block,
+                } => Box::new(
+                    el(
+                        "div",
+                        blocks(
+                            std::slice::from_ref(block.as_ref()),
+                            headings,
+                            address,
+                            source_text,
+                            next_heading,
+                        ),
+                    )
+                    .attr("style", block_presentation_css(presentation)),
+                ),
                 Block::Heading { level, spans } => {
                     let index = *next_heading;
                     *next_heading += 1;

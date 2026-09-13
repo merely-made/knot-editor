@@ -284,8 +284,9 @@ mod tests {
             ),
             logic: desktop_view as fn(&DesktopState) -> DesktopView,
             sheet: format!(
-                "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}",
-                knot_desktop::appearance::appearance_css()
+                "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}",
+                knot_desktop::appearance::appearance_css(),
+                knot_desktop::document_preview::CSS
             ),
         };
         let mut harness = Harness::with_hooks(init, host_hooks());

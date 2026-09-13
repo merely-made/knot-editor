@@ -7,6 +7,10 @@
 use crate::{DocumentFormat, KnotEditor, KnotEditorSaveError, SaveOutcome};
 use cambium::{CaretAffinity, CaretPosition};
 use cambium::{CaretSelection, TextCommand, TextInput};
+#[cfg(feature = "engine")]
+use illume::NodeKind;
+#[cfg(feature = "engine")]
+use inker::EngineDocument;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -83,6 +87,42 @@ pub struct KnotOutlineItemV1 {
     pub level: u8,
     pub start: usize,
     pub end: usize,
+}
+/// A rendered preview and its heading rows, bound to the editor source that
+/// produced both. Preview blocks do not presently carry source ranges.
+#[cfg(feature = "engine")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnotPreviewSnapshotV1 {
+    pub address: String,
+    pub source_text: String,
+    pub document: EngineDocument,
+    pub headings: Vec<KnotOutlineItemV1>,
+}
+/// The source container kind represented by a collapsible editor fold.
+#[cfg(feature = "engine")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum KnotFoldKindV1 {
+    Section,
+    List,
+    Blockquote,
+    CodeBlock,
+    Div,
+}
+/// One foldable UTF-8 byte span in the source document.
+#[cfg(feature = "engine")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnotFoldItemV1 {
+    pub kind: KnotFoldKindV1,
+    pub start: usize,
+    pub end: usize,
+}
+/// A source-bound set of editor folds from the committed editor text.
+#[cfg(feature = "engine")]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct KnotFoldSnapshotV1 {
+    pub address: String,
+    pub source_text: String,
+    pub items: Vec<KnotFoldItemV1>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum KnotDocumentIntentV1 {
@@ -229,16 +269,32 @@ impl KnotDocumentSession {
             items: self.outline_items(),
         }
     }
+    /// Renders the current retained source without creating a second editor
+    /// buffer. Only the accompanying headings have source byte spans.
+    #[cfg(feature = "engine")]
+    pub fn preview_snapshot(&self) -> Result<KnotPreviewSnapshotV1, String> {
+        Ok(KnotPreviewSnapshotV1 {
+            address: self.editor.address().to_owned(),
+            source_text: self.editor.source().to_owned(),
+            document: self.editor.preview()?,
+            headings: self.outline_items(),
+        })
+    }
+    /// Returns point-in-time fold rows with exact source byte spans.
+    #[cfg(feature = "engine")]
+    pub fn fold_snapshot(&self) -> KnotFoldSnapshotV1 {
+        KnotFoldSnapshotV1 {
+            address: self.editor.address().to_owned(),
+            source_text: self.editor.source().to_owned(),
+            items: self.fold_items(),
+        }
+    }
     /// Selects an item only when its source-bound snapshot still matches this session.
     pub fn select_outline_item(
         &mut self,
         snapshot: &KnotOutlineSnapshotV1,
         index: usize,
     ) -> Result<(), String> {
-        let source = self.editor.source();
-        if snapshot.address != self.editor.address() || snapshot.source_text != source {
-            return Err("outline snapshot is stale for this document source".to_owned());
-        }
         if snapshot.items != self.outline_items() {
             return Err("outline snapshot items do not match this document source".to_owned());
         }
@@ -246,27 +302,114 @@ impl KnotDocumentSession {
             .items
             .get(index)
             .ok_or_else(|| format!("outline item index {index} is out of range"))?;
-        if item.start > item.end
-            || item.end > source.len()
-            || !source.is_char_boundary(item.start)
-            || !source.is_char_boundary(item.end)
+        self.select_source_range(
+            &snapshot.address,
+            &snapshot.source_text,
+            item.start,
+            item.end,
+            "outline item",
+        )
+    }
+    /// Selects a preview heading only when the preview and its source-bound
+    /// heading rows still describe this session's retained source.
+    #[cfg(feature = "engine")]
+    pub fn select_preview_heading(
+        &mut self,
+        snapshot: &KnotPreviewSnapshotV1,
+        index: usize,
+    ) -> Result<(), String> {
+        if snapshot.headings != self.outline_items() {
+            return Err("preview headings do not match this document source".to_owned());
+        }
+        let heading = snapshot
+            .headings
+            .get(index)
+            .ok_or_else(|| format!("preview heading index {index} is out of range"))?;
+        self.select_source_range(
+            &snapshot.address,
+            &snapshot.source_text,
+            heading.start,
+            heading.end,
+            "preview heading",
+        )
+    }
+    /// Selects a fold row only when the snapshot's exact fold set still
+    /// describes this session's retained source.
+    #[cfg(feature = "engine")]
+    pub fn select_fold_item(
+        &mut self,
+        snapshot: &KnotFoldSnapshotV1,
+        index: usize,
+    ) -> Result<(), String> {
+        if snapshot.items != self.fold_items() {
+            return Err("fold snapshot items do not match this document source".to_owned());
+        }
+        let item = snapshot
+            .items
+            .get(index)
+            .ok_or_else(|| format!("fold item index {index} is out of range"))?;
+        self.select_source_range(
+            &snapshot.address,
+            &snapshot.source_text,
+            item.start,
+            item.end,
+            "fold item",
+        )
+    }
+    fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
+        self.editor.outline_items()
+    }
+    #[cfg(feature = "engine")]
+    fn fold_items(&self) -> Vec<KnotFoldItemV1> {
+        self.editor
+            .folds()
+            .into_iter()
+            .map(|fold| KnotFoldItemV1 {
+                kind: match fold.kind {
+                    NodeKind::Section => KnotFoldKindV1::Section,
+                    NodeKind::List => KnotFoldKindV1::List,
+                    NodeKind::Blockquote => KnotFoldKindV1::Blockquote,
+                    NodeKind::CodeBlock => KnotFoldKindV1::CodeBlock,
+                    NodeKind::Div => KnotFoldKindV1::Div,
+                    other => unreachable!("editor returned non-foldable node kind: {other:?}"),
+                },
+                start: fold.range.start,
+                end: fold.range.end,
+            })
+            .collect()
+    }
+    fn select_source_range(
+        &mut self,
+        address: &str,
+        source_text: &str,
+        start: usize,
+        end: usize,
+        item_kind: &str,
+    ) -> Result<(), String> {
+        let source = self.editor.source();
+        if address != self.editor.address() || source_text != source {
+            return Err(format!(
+                "{item_kind} snapshot is stale for this document source"
+            ));
+        }
+        if start > end
+            || end > source.len()
+            || !source.is_char_boundary(start)
+            || !source.is_char_boundary(end)
         {
-            return Err("outline item range is not a valid source span".to_owned());
+            return Err(format!("{item_kind} range is not a valid source span"));
         }
         self.editor.apply_layout_selection(CaretSelection {
             anchor: CaretPosition {
-                byte: item.start,
+                byte: start,
                 affinity: CaretAffinity::Downstream,
             },
             focus: CaretPosition {
-                byte: item.end,
+                byte: end,
                 affinity: CaretAffinity::Upstream,
             },
         });
         Ok(())
-    }
-    fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
-        self.editor.outline_items()
     }
     pub fn apply(
         &mut self,
@@ -527,6 +670,107 @@ mod tests {
         std::fs::write(&path, [0xff, 0xfe]).unwrap();
         assert!(session.compare_disk().is_err());
         assert_eq!(session.snapshot(), before);
+    }
+
+    #[cfg(feature = "engine")]
+    #[test]
+    fn preview_and_fold_snapshots_are_unicode_exact_and_select_retained_source() {
+        let source = "# α\n\n## 二\n\n- first\n- second\n";
+        let mut session = KnotDocumentSession::scratch("memory:preview", source);
+
+        let preview = session.preview_snapshot().unwrap();
+        let folds = session.fold_snapshot();
+        assert_eq!(preview.address, "memory:preview");
+        assert_eq!(preview.source_text, source);
+        assert_eq!(preview.document.address, "memory:preview");
+        assert_eq!(
+            preview
+                .source_text
+                .get(preview.headings[1].start..preview.headings[1].end),
+            Some("## 二\n")
+        );
+        assert!(folds.items.iter().any(|item| {
+            item.kind == KnotFoldKindV1::List
+                && folds
+                    .source_text
+                    .get(item.start..item.end)
+                    .is_some_and(|span| span.contains("- first") && span.contains("- second"))
+        }));
+        assert!(folds.items.iter().all(|item| {
+            folds.source_text.is_char_boundary(item.start)
+                && folds.source_text.is_char_boundary(item.end)
+        }));
+
+        let before = session.snapshot();
+        session.select_preview_heading(&preview, 1).unwrap();
+        let after_preview_selection = session.snapshot();
+        assert_eq!(after_preview_selection.text, before.text);
+        assert_eq!(after_preview_selection.dirty, before.dirty);
+        assert_eq!(
+            after_preview_selection.selection.anchor.byte,
+            preview.headings[1].start
+        );
+        assert_eq!(
+            after_preview_selection.selection.focus.byte,
+            preview.headings[1].end
+        );
+
+        let list_index = folds
+            .items
+            .iter()
+            .position(|item| item.kind == KnotFoldKindV1::List)
+            .unwrap();
+        session.select_fold_item(&folds, list_index).unwrap();
+        let after_fold_selection = session.snapshot();
+        assert_eq!(after_fold_selection.text, before.text);
+        assert_eq!(after_fold_selection.dirty, before.dirty);
+        assert_eq!(
+            after_fold_selection.selection.anchor.byte,
+            folds.items[list_index].start
+        );
+        assert_eq!(
+            after_fold_selection.selection.focus.byte,
+            folds.items[list_index].end
+        );
+    }
+
+    #[cfg(feature = "engine")]
+    #[test]
+    fn preview_and_fold_selection_reject_stale_or_forged_snapshots_without_mutation() {
+        let mut session = KnotDocumentSession::scratch("memory:preview", "# α\n\n- one\n- two\n");
+        let stale_preview = session.preview_snapshot().unwrap();
+        let stale_folds = session.fold_snapshot();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "local\n".into(),
+            )))
+            .unwrap();
+        let before = session.snapshot();
+
+        assert!(session.select_preview_heading(&stale_preview, 0).is_err());
+        assert!(session.select_fold_item(&stale_folds, 0).is_err());
+        assert_eq!(session.snapshot(), before);
+
+        let mut forged_preview = session.preview_snapshot().unwrap();
+        forged_preview.headings[0].end -= 1;
+        let mut forged_folds = session.fold_snapshot();
+        forged_folds.items[0].end -= 1;
+        assert!(session.select_preview_heading(&forged_preview, 0).is_err());
+        assert!(session.select_fold_item(&forged_folds, 0).is_err());
+        assert_eq!(session.snapshot(), before);
+    }
+
+    #[cfg(feature = "engine")]
+    #[test]
+    fn native_source_has_no_editor_folds() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.scroll");
+        std::fs::write(&path, "# heading\n\n- one\n- two\n").unwrap();
+        let session = KnotDocumentSession::open(&path).unwrap();
+
+        let folds = session.fold_snapshot();
+        assert_eq!(folds.source_text, "# heading\n\n- one\n- two\n");
+        assert!(folds.items.is_empty());
     }
 
     #[test]

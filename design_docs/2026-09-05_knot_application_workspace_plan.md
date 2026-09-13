@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline and session appearance controls, G1 relation/file catalog models, desktop catalog and saved-revision review, and the signed file-revision bridge implemented, 2026-09-09; remaining workspace acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, and exact fold readings, G1 relation/file catalog models, desktop catalog and saved-revision review, and the signed file-revision bridge implemented through 2026-09-12; visual folding, remaining workspace acceptance, and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Ruling
@@ -34,7 +34,7 @@ when they have a product-owned snapshot and effect boundary.
 | Concern | Existing Knot authority or API | Current standalone surface | Required application work |
 | --- | --- | --- | --- |
 | Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
-| Derived readings | Outline snapshots use the shared lightweight readout. Existing `engine` APIs expose highlights, folds, and preview from the same source buffer. | Optional live heading outline; desktop Djot/Knot source decoration and Tinct appearance controls through the optional highlight feature. | Folding, source-preserving preview, cross-launch preferences, and headed writing acceptance. |
+| Derived readings | Outline, preview, and fold snapshots remain bound to the retained source and address. Existing `engine` APIs derive highlights, folds, and preview from that source buffer. | Optional live heading outline; desktop Djot/Knot source decoration and Tinct appearance controls; optional live preview whose rendered headings select exact source spans. | Caret-safe visual fold concealment, source ranges for every preview block, cross-launch preferences, and headed writing acceptance. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
 | Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | No chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
 | Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
@@ -176,8 +176,17 @@ Embedded hosts retain plain presentation by default and own their styles when
 opting in. Preferences survive document transitions within the running app;
 cross-launch preference storage remains open.
 
-Next visible slices are source-linked preview and folding, then file navigation,
-tabs and recovery, followed by a document-to-document relation workflow. Larger
+The 2026-09-12 preview slice enables the existing engine in the desktop and
+projects the current Djot or Knot source beside the editor. The pane is hidden
+by default, labels its source address and renderer diagnostics, and never owns
+editable text. Activating a rendered heading selects that heading's exact UTF-8
+source span and returns focus to the editor. The public preview snapshot binds
+the rendered document and heading rows to its source text and address. The
+fold snapshot similarly publishes exact section, list, quote, code, and div
+ranges, with guarded selection, but the editor does not conceal them yet.
+
+The next visible slice is visual folding, then file navigation, tabs and
+recovery, followed by a document-to-document relation workflow. Larger
 document responsiveness and headed typography, caret, and IME acceptance still
 need measured receipts before this phase is called complete.
 Outline row indices are transient positions in one reading, not durable passage
@@ -207,6 +216,14 @@ selection intact; and malformed source presents a diagnostic while Save and
 source editing still work. Include Unicode/IME and a realistically large
 document probe so source mapping and input behavior are demonstrated beyond
 ASCII fixture text.
+
+Two shared presentation seams now bound the remaining work. Inker's
+`EngineDocument` needs optional source ranges for rendered blocks so paragraphs,
+lists, quotes, code, and tables can return to their source without guessing from
+rendered text. Cambium's styled textarea needs a folding projection which hides
+source ranges while preserving byte offsets, caret motion, selection, undo, and
+IME composition. Knot should consume those generic contracts rather than keep a
+second block map or mutate its authoritative source.
 
 ### A3. References and lexical lenses
 
@@ -760,6 +777,20 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-09-12 A2 source-linked preview-heading and fold contract: ordinary Djot and
+  legacy Knot documents now have an optional live, read-only desktop preview
+  derived from the retained source buffer. Rendered headings select their exact
+  source syntax and request editor focus. Preview and fold snapshots reject
+  stale or forged source-bound rows; fold rows cover sections, lists, quotes,
+  code blocks, and divs. Native Scroll, Gemtext, and Micron files retain their
+  separate site preview route. Inker block source ranges and Cambium visual fold
+  concealment remain open shared-library work.
+- 2026-09-12 A2 validation: Windows, Rust 1.97.1, Mere `1777b198`, and Genet
+  `9e8f9dc2`. The `knot-document` engine/highlight suite passed 47 tests with
+  its existing manual large-document probe ignored. The desktop passed 52
+  library and 4 launcher tests with its existing timing probe ignored.
+  `git diff --check` passed. The existing Windows atomic-replacement unsafe
+  warning and unused root patch notice were unchanged.
 - 2026-09-09 A2 appearance and source-decoration slice: the standalone desktop
   now derives light and dark UI and syntax palettes from Tinct and exposes
   session controls for highlighting, 12–24 px source type, compact/relaxed line

@@ -15,7 +15,7 @@ use cambium_genet_winit_host::{
 use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
-    KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineSnapshotV1,
+    KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineItemV1, KnotOutlineSnapshotV1,
     knot_document_view_with_highlighting,
 };
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
@@ -121,6 +121,7 @@ pub struct DesktopState {
     comparison: Option<KnotDiskComparisonV1>,
     comparison_error: Option<String>,
     outline_visible: bool,
+    pub(crate) document_preview_visible: bool,
     appearance_open: bool,
     outline_snapshot: Option<KnotOutlineSnapshotV1>,
     outline_error: Option<String>,
@@ -191,6 +192,7 @@ impl DesktopState {
             comparison: None,
             comparison_error: None,
             outline_visible: false,
+            document_preview_visible: false,
             appearance_open: false,
             outline_snapshot: None,
             outline_error: None,
@@ -496,6 +498,31 @@ impl DesktopState {
 
     fn toggle_appearance(&mut self) {
         self.appearance_open = !self.appearance_open;
+    }
+
+    pub(crate) fn select_preview_heading(
+        &mut self,
+        address: &str,
+        source_text: &str,
+        heading: &KnotOutlineItemV1,
+        index: usize,
+    ) {
+        let result = self.document.session().preview_snapshot();
+        let result = result.and_then(|snapshot| {
+            if snapshot.address != address
+                || snapshot.source_text != source_text
+                || snapshot.headings.get(index) != Some(heading)
+            {
+                return Err("preview heading is stale for the current source".to_owned());
+            }
+            self.document
+                .session_mut()
+                .select_preview_heading(&snapshot, index)
+        });
+        match result {
+            Ok(()) => self.focus_source_requested = true,
+            Err(error) => self.message = Some(format!("Preview heading selection failed: {error}")),
+        }
     }
 
     fn select_outline_item(&mut self, index: usize) {
@@ -1302,6 +1329,27 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .attr("aria-live", "polite"),
         )
     };
+    let document_preview_button: DesktopView = if matches!(
+        state.document.snapshot().format,
+        knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
+    ) {
+        Box::new(
+            button(
+                if state.document_preview_visible {
+                    "Hide Preview"
+                } else {
+                    "Show Preview"
+                },
+                |state: &mut DesktopState, _| {
+                    state.document_preview_visible = !state.document_preview_visible;
+                },
+            )
+            .attr("aria-expanded", state.document_preview_visible.to_string())
+            .attr("aria-controls", "knot-document-preview"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
     Box::new(
         el(
             "main",
@@ -1321,6 +1369,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         button("Compare", |state: &mut DesktopState, _| {
                             state.compare_disk();
                         }),
+                        document_preview_button,
                         button("Appearance", |state: &mut DesktopState, _| {
                             state.toggle_appearance();
                         })
@@ -1366,6 +1415,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     (
                         source_wrapper,
                         outline_panel,
+                        crate::document_preview::view(state),
                         crate::scroll_site::preview(state),
                     ),
                 )
@@ -1377,10 +1427,20 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         .attr(
             "class",
             format!(
-                "{}{}",
+                "{}{}{}",
                 state.appearance.root_class(),
                 if state.document.snapshot().format.native_source() {
                     " knot-native-site-mode"
+                } else {
+                    ""
+                },
+                if state.document_preview_visible
+                    && matches!(
+                        state.document.snapshot().format,
+                        knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
+                    )
+                {
+                    " knot-document-preview-mode"
                 } else {
                     ""
                 }
@@ -1670,7 +1730,11 @@ mod tests {
             Init {
                 state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}", appearance_css()),
+                sheet: format!(
+                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}",
+                    appearance_css(),
+                    crate::document_preview::CSS
+                ),
             },
             {
                 let mut hooks = inert_hooks();
@@ -1768,6 +1832,123 @@ mod tests {
         assert!(!host.state().appearance.highlight);
         assert!(host.state().appearance.wide);
         assert!(host.state().appearance.relaxed);
+    }
+
+    #[test]
+    fn ordinary_document_preview_is_hidden_by_default_and_toggle_preserves_source() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Héading\n\nBody",
+        ));
+        host.layout_at(900.0, 640.0);
+        let before = host.state().document.snapshot();
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .set_preedit("仮入力");
+        });
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        assert!(class_node(&dom, dom.document(), "knot-document-preview").is_none());
+        drop(dom);
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        let after = host.state().document.snapshot();
+        assert_eq!(after.text, before.text);
+        assert_eq!(after.selection, before.selection);
+        assert_eq!(after.dirty, before.dirty);
+        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+        let preview_text = text_content(&dom, preview);
+        assert!(preview_text.contains("Source: scratch:untitled"));
+        assert!(preview_text.contains("Preview diagnostics: none"));
+        assert!(!preview_text.contains("仮入力"));
+    }
+
+    #[test]
+    fn ordinary_preview_heading_selects_source_and_returns_focus() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Héading\n\nBody",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("aria-label", "Select source heading: Héading")
+        ));
+        let snapshot = host.state().document.snapshot();
+        assert_eq!(
+            &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte],
+            "# Héading\n"
+        );
+        assert!(host.focus().is_some());
+    }
+
+    #[test]
+    fn ordinary_preview_renders_current_unicode_edit() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Start\n"));
+        host.layout_at(900.0, 640.0);
+        host.update(|state| {
+            state
+                .document
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("\n本文")
+        });
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+        assert!(text_content(&dom, preview).contains("本文"));
+    }
+
+    #[test]
+    fn ordinary_preview_tracks_new_open_and_reload() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("preview-transitions.djot");
+        std::fs::write(&path, "# Opened preview\n").unwrap();
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Initial preview\n",
+        ));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert!(host.state().document_preview_visible);
+        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+        assert!(text_content(&dom, preview).contains("Opened preview"));
+        drop(dom);
+        std::fs::write(&path, "# Reloaded preview\n").unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Reload")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+        assert!(text_content(&dom, preview).contains("Reloaded preview"));
+        assert!(!text_content(&dom, preview).contains("Opened preview"));
+    }
+
+    #[test]
+    fn ordinary_preview_is_absent_for_native_formats() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("native.gmi");
+        std::fs::write(&path, "# Native\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.update(|state| state.document_preview_visible = true);
+        host.layout_at(900.0, 640.0);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        assert!(class_node(&dom, dom.document(), "knot-document-preview").is_none());
+        let native_preview = class_node(&dom, dom.document(), "knot-scroll-preview").unwrap();
+        assert!(text_content(&dom, native_preview).contains("Native"));
     }
 
     #[test]

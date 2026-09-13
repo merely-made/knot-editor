@@ -20,6 +20,10 @@ pub use document_surface::{
     KnotDocumentSnapshotV1, KnotDocumentSourceKindV1, KnotDocumentSourceV1,
     KnotDocumentWritePostureV1, KnotOutlineItemV1, KnotOutlineSnapshotV1,
 };
+#[cfg(feature = "engine")]
+pub use document_surface::{
+    KnotFoldItemV1, KnotFoldKindV1, KnotFoldSnapshotV1, KnotPreviewSnapshotV1,
+};
 pub use document_view::{
     KNOT_DOCUMENT_CSS, KnotDocumentSurfaceState, KnotDocumentView, knot_document_descriptor,
     knot_document_surface, knot_document_view, knot_document_view_with_highlighting,

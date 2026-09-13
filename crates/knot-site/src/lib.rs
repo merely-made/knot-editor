@@ -23,6 +23,8 @@ use std::{
 
 pub const MAX_PAGE_BYTES: usize = 1_048_576;
 pub const MAX_SITE_BYTES: usize = 16 * MAX_PAGE_BYTES;
+/// The JSON handoff has its own bounded size, independent of native page bytes.
+pub const MAX_ENCODED_SNAPSHOT_BYTES: usize = 24 * MAX_PAGE_BYTES;
 pub const CONFIG: &str = "site.json";
 
 /// Native site profile. Gemini and Spartan both author Gemtext; their effects differ.
@@ -103,6 +105,36 @@ fn page_name(value: &str, format: SiteFormat) -> bool {
             .all(|c| c.is_ascii_alphanumeric() || matches!(c, b'-' | b'_' | b'.'))
 }
 
+fn validate_page(page: &Page) -> Result<(), String> {
+    if !plain_line(&page.author) || page.classification > 9 {
+        return Err("Author must be one line; classification must be 0–9".into());
+    }
+    if !page.language.is_empty()
+        && (page.language.len() > 128
+            || page.language.parse::<language_tags::LanguageTag>().is_err())
+    {
+        return Err("Language must be a BCP47 tag, such as en-US, or empty".into());
+    }
+    for date in [&page.published, &page.modified] {
+        if !date.is_empty()
+            && (!date.ends_with('Z')
+                || time::OffsetDateTime::parse(
+                    date,
+                    &time::format_description::well_known::Rfc3339,
+                )
+                .is_err())
+        {
+            return Err(
+                "Dates must be UTC timestamps, such as 2026-09-11T12:00:00Z, or empty".into(),
+            );
+        }
+    }
+    if page.abstract_source.len() > MAX_PAGE_BYTES {
+        return Err("Each abstract needs a level-1 title (# Title), within 1 MiB".into());
+    }
+    Ok(())
+}
+
 impl SiteConfig {
     pub fn validate(&self) -> Result<(), String> {
         if self.version != 1 || self.pages.is_empty() || self.pages.len() > 64 {
@@ -116,36 +148,12 @@ impl SiteConfig {
                     "Page names must be unique plain filenames for the selected site format".into(),
                 );
             }
-            if !plain_line(&page.author) || page.classification > 9 {
-                return Err("Author must be one line; classification must be 0–9".into());
-            }
-            if !page.language.is_empty()
-                && (page.language.len() > 128
-                    || page.language.parse::<language_tags::LanguageTag>().is_err())
-            {
-                return Err("Language must be a BCP47 tag, such as en-US, or empty".into());
-            }
-            for date in [&page.published, &page.modified] {
-                if !date.is_empty()
-                    && (!date.ends_with('Z')
-                        || time::OffsetDateTime::parse(
-                            date,
-                            &time::format_description::well_known::Rfc3339,
-                        )
-                        .is_err())
-                {
-                    return Err(
-                        "Dates must be UTC timestamps, such as 2026-09-11T12:00:00Z, or empty"
-                            .into(),
-                    );
-                }
-            }
-            if page.abstract_source.len() > MAX_PAGE_BYTES
-                || (self.format == SiteFormat::Scroll
-                    && !page
-                        .abstract_source
-                        .lines()
-                        .any(|line| line.starts_with("# ")))
+            validate_page(page)?;
+            if self.format == SiteFormat::Scroll
+                && !page
+                    .abstract_source
+                    .lines()
+                    .any(|line| line.starts_with("# "))
             {
                 return Err("Each abstract needs a level-1 title (# Title), within 1 MiB".into());
             }
@@ -338,7 +346,108 @@ impl Site {
     }
 }
 
-#[derive(Clone)]
+/// One immutable page in a process-neutral saved-site snapshot.
+///
+/// This deliberately contains bytes read from a completed publication, never a
+/// path into the author's working directory. Consumers can validate and retain
+/// it without gaining authority over the editable site.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct PublishedPageV1 {
+    pub metadata: Page,
+    pub source: Vec<u8>,
+}
+
+/// Versioned handoff for an explicit saved publication.
+///
+/// `Publication` is the in-process serving shape. This record is the durable,
+/// process-neutral boundary a resident service may accept after the editor has
+/// selected and completed a saved revision.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct PublishedSnapshotV1 {
+    pub version: u8,
+    pub format: SiteFormat,
+    pub pages: BTreeMap<String, PublishedPageV1>,
+}
+
+impl PublishedSnapshotV1 {
+    pub const VERSION: u8 = 1;
+
+    pub fn validate(&self) -> Result<(), String> {
+        if self.version != Self::VERSION {
+            return Err("Unsupported published snapshot version".into());
+        }
+        if self.pages.is_empty() || self.pages.len() > 64 {
+            return Err("Published snapshot must contain 1–64 pages".into());
+        }
+        let mut total = 0usize;
+        let mut names = std::collections::BTreeSet::new();
+        for (published_path, page) in &self.pages {
+            let expected = format!("/{}", page.metadata.path);
+            if published_path != &expected
+                || !page_name(&page.metadata.path, self.format)
+                || !names.insert(page.metadata.path.to_ascii_lowercase())
+            {
+                return Err(
+                    "Published snapshot page path is invalid or duplicates another name".into(),
+                );
+            }
+            validate_page(&page.metadata)?;
+            if self.format == SiteFormat::Scroll
+                && !page
+                    .metadata
+                    .abstract_source
+                    .lines()
+                    .any(|line| line.starts_with("# "))
+            {
+                return Err("Each Scroll abstract needs a level-1 title (# Title)".into());
+            }
+            if page.source.len() > MAX_PAGE_BYTES {
+                return Err("Published snapshot page exceeds 1 MiB".into());
+            }
+            std::str::from_utf8(&page.source).map_err(|error| error.to_string())?;
+            total = total
+                .checked_add(page.source.len() + page.metadata.abstract_source.len())
+                .ok_or("Published snapshot size overflow")?;
+            if total > MAX_SITE_BYTES {
+                return Err("Published snapshot exceeds 16 MiB".into());
+            }
+        }
+        let index = format!("/{}", self.format.index_file());
+        if !self.pages.contains_key(&index) {
+            return Err("Published snapshot is missing its format index page".into());
+        }
+        Ok(())
+    }
+
+    /// Canonical JSON bytes used for transport custody and deterministic identity.
+    pub fn encode(&self) -> Result<Vec<u8>, String> {
+        self.validate()?;
+        let bytes = serde_json::to_vec(self).map_err(|error| error.to_string())?;
+        if bytes.len() > MAX_ENCODED_SNAPSHOT_BYTES {
+            return Err("Published snapshot encoding exceeds 24 MiB".into());
+        }
+        Ok(bytes)
+    }
+
+    pub fn decode(bytes: &[u8]) -> Result<Self, String> {
+        if bytes.len() > MAX_ENCODED_SNAPSHOT_BYTES {
+            return Err("Published snapshot encoding exceeds 24 MiB".into());
+        }
+        let snapshot = serde_json::from_slice::<Self>(bytes).map_err(|error| error.to_string())?;
+        snapshot.validate()?;
+        if snapshot.encode()? != bytes {
+            return Err("Published snapshot is not canonical JSON".into());
+        }
+        Ok(snapshot)
+    }
+
+    pub fn digest(&self) -> Result<[u8; 32], String> {
+        Ok(*blake3::hash(&self.encode()?).as_bytes())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct PublishedPage {
     metadata: Page,
     source: Vec<u8>,
@@ -351,6 +460,48 @@ pub struct Publication {
 }
 
 impl Publication {
+    pub fn to_snapshot_v1(&self) -> Result<PublishedSnapshotV1, String> {
+        let snapshot = PublishedSnapshotV1 {
+            version: PublishedSnapshotV1::VERSION,
+            format: self.format,
+            pages: self
+                .pages
+                .iter()
+                .map(|(path, page)| {
+                    (
+                        path.clone(),
+                        PublishedPageV1 {
+                            metadata: page.metadata.clone(),
+                            source: page.source.clone(),
+                        },
+                    )
+                })
+                .collect(),
+        };
+        snapshot.validate()?;
+        Ok(snapshot)
+    }
+
+    pub fn from_snapshot_v1(snapshot: PublishedSnapshotV1) -> Result<Self, String> {
+        snapshot.validate()?;
+        Ok(Self {
+            format: snapshot.format,
+            pages: snapshot
+                .pages
+                .into_iter()
+                .map(|(path, page)| {
+                    (
+                        path,
+                        PublishedPage {
+                            metadata: page.metadata,
+                            source: page.source,
+                        },
+                    )
+                })
+                .collect(),
+        })
+    }
+
     fn native_page(&self, path: &str) -> Option<&PublishedPage> {
         if path.is_empty() || path == "/" {
             self.pages.get(&format!("/{}", self.format.index_file()))

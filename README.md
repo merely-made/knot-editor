@@ -149,8 +149,12 @@ Djot and legacy Knot documents also offer an optional live preview beside the
 source. It is read-only, identifies the source it represents, and displays
 renderer diagnostics. Selecting a rendered heading selects that heading's
 exact source syntax and returns focus to the editor. Other rendered blocks do
-not yet expose source ranges, and exact fold ranges are available to consumers
-but the desktop does not yet conceal folded text.
+not yet expose source ranges. The optional **Show folds** view is a read-only
+projection of the same committed source. It preserves each collapsed
+container's opening line, replaces the remainder with a labelled marker, and
+offers Collapse/Expand controls. Choose **Edit source** to return explicitly
+to the ordinary styled textarea; fold state never changes source, dirty state,
+undo history, or saves. Folding is available for Djot and legacy Knot only.
 Appearance controls switch between Tinct light and dark palettes, source
 highlighting, 12–24 px type, compact or relaxed spacing, and narrow or wide
 writing areas. These preferences last for the app session and survive document

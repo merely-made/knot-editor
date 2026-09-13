@@ -1,9 +1,10 @@
 # Native small-web authoring and serving
 
-**Status (2026-09-11):** Gemini/Spartan local publication and reviewed Titan/
+**Status (2026-09-13):** Gemini/Spartan local publication and reviewed Titan/
 Spartan submission implemented and checked through the headed review/send flow.
-Micron has an evidence-qualified partial preview and a native saved-snapshot
-NomadNet server. Unsupported Micron source remains inert and visible.
+Micron has source-preserving syntax, a native preview for text, headings,
+emphasis, ordinary links and tables, and a saved-snapshot NomadNet server.
+Full presentation fidelity, form submission and partial refresh remain open.
 Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
@@ -312,3 +313,36 @@ Resource transfer repeated requests and timed out. That cross-client limitation
 remains open. The capture ledger is
 `C:/t/retinue-nomadnet-capture-20260911.md`. No GPL/AGPL implementation source
 was used to implement the parser or page adapter.
+
+## Broader Micron syntax and client interoperability (2026-09-13)
+
+Knot `317593383a4bacb60600c5532812f7df4757bed9` adopts Mere
+`4ac591c9070b5624d9f58b6b511e3a5485e6c87b` and Retinue
+`ef1c47a602cb742293c109b0c443a9ceb8c1dce7`. The shared `nematic.micron` engine
+uses the stock NomadNet 1.4.2 Guide and captured outputs to preserve syntax
+independently of its portable preview. New Micron sites use native headings
+and same-node page links. Existing files retain their exact source on save.
+
+The desktop projects tables through ordinary cells and preserves diagnostics
+for unsupported presentation and controls. A preview link can open only a page
+in the active site's manifest while the current document belongs to that site.
+Native destination selectors must match the active publication; hex spelling
+is case-insensitive. Parent traversal, foreign nodes and unlisted pages fail
+that lookup. These are local preview rules, not new transport addresses.
+
+Final locked checks on the published code: 44 document tests passed with one
+ignored, all 10 site tests passed, and 53 desktop library tests passed with one
+ignored. Dependency trees resolve the immutable Mere/Genet/Netrender family
+and the Retinue revision above. These checks do not constitute a new headed
+click or complete visual-fidelity receipt.
+
+The Retinue update compresses resource bodies only when smaller. Stock Go
+`view-mu` v0.119.0 now retrieves tested compressible 128 KiB native pages
+exactly. The same deterministic incompressible 128 KiB body fails in that Go
+client against both Retinue and stock NomadNet, while Python succeeds against
+both. Full plain multipart Go interoperability remains open.
+
+Forms and partials remain inert in the preview; colors, underline, alignment,
+folding, indentation and anchor scrolling need further native work. Wide tables
+also expose the retained Smolweb session's lack of horizontal scrolling.
+Djinn's resident serving and Tabard's theme exports remain separate work.

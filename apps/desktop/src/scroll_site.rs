@@ -415,6 +415,42 @@ impl ScrollWorkspace {
     }
 }
 
+/// Parse-or-default for one numeric request bound, clamped to the supported
+/// range. A malformed value falls back to the default rather than refusing.
+fn env_bound<T>(raw: Option<&str>, default: T, min: T, max: T) -> T
+where
+    T: std::str::FromStr + Ord,
+{
+    raw.and_then(|value| value.trim().parse::<T>().ok())
+        .unwrap_or(default)
+        .clamp(min, max)
+}
+
+/// Request bounds for one Micron send. `KNOT_NOMADNET_TIMEOUT_SECS` (seconds,
+/// default 30, clamped 1–120) and `KNOT_NOMADNET_MAX_RESPONSE_BYTES` (default
+/// 4 MiB, clamped 1 byte–64 MiB) override the compile-time defaults.
+fn micron_submission_config() -> MicronSubmissionConfig {
+    let secs = env_bound(
+        std::env::var("KNOT_NOMADNET_TIMEOUT_SECS").ok().as_deref(),
+        30_u64,
+        1,
+        120,
+    );
+    let max_response_bytes = env_bound(
+        std::env::var("KNOT_NOMADNET_MAX_RESPONSE_BYTES")
+            .ok()
+            .as_deref(),
+        4 * 1024 * 1024_usize,
+        1,
+        64 * 1024 * 1024,
+    );
+    MicronSubmissionConfig {
+        timeout: std::time::Duration::from_secs(secs),
+        max_response_bytes,
+        ..MicronSubmissionConfig::default()
+    }
+}
+
 fn response_display(body: &[u8]) -> Option<String> {
     if body.is_empty() {
         return None;
@@ -520,7 +556,7 @@ impl DesktopState {
             );
             return;
         }
-        let config = MicronSubmissionConfig::default();
+        let config = micron_submission_config();
         let request = match PreparedMicronRequest::new(
             prepared.target.clone(),
             prepared.values.clone(),
@@ -1420,7 +1456,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                 (
                     span(format!("Prepared Micron request for {}", prepared.target)),
                     el("pre", values),
-                    span("Send uses the separately configured KNOT_NOMADNET_TCP interface. A local :/ alias cannot be sent, and Knot's static publisher never becomes a request handler."),
+                    span("Send uses the separately configured KNOT_NOMADNET_TCP interface. A local :/ alias cannot be sent, and Knot's static publisher never becomes a request handler. KNOT_NOMADNET_TIMEOUT_SECS (default 30, 1–120) and KNOT_NOMADNET_MAX_RESPONSE_BYTES (default 4 MiB, up to 64 MiB) bound the request."),
                     button("Send reviewed Micron request", |state: &mut DesktopState, _| {
                         state.send_micron_form()
                     }),
@@ -1743,6 +1779,24 @@ mod tests {
         assert_eq!(prepared.values.get("field_checks"), Some(&"blue".into()));
         assert_eq!(prepared.values.get("var_fixed"), Some(&"ready".into()));
         assert!(!source.contains("edited"));
+    }
+
+    #[test]
+    fn micron_request_bounds_parse_or_fall_back_and_clamp() {
+        assert_eq!(env_bound(Some("45"), 30_u64, 1, 120), 45);
+        assert_eq!(env_bound(Some(" 45 "), 30_u64, 1, 120), 45);
+        assert_eq!(env_bound(None, 30_u64, 1, 120), 30);
+        assert_eq!(env_bound(Some("not a number"), 30_u64, 1, 120), 30);
+        assert_eq!(env_bound(Some("-1"), 30_u64, 1, 120), 30);
+        assert_eq!(env_bound(Some("0"), 30_u64, 1, 120), 1);
+        assert_eq!(env_bound(Some("999"), 30_u64, 1, 120), 120);
+        let max = 64 * 1024 * 1024_usize;
+        assert_eq!(env_bound(Some("4096"), 4 * 1024 * 1024_usize, 1, max), 4096);
+        assert_eq!(env_bound(Some("0"), 4 * 1024 * 1024_usize, 1, max), 1);
+        assert_eq!(
+            env_bound(Some("999999999999"), 4 * 1024 * 1024_usize, 1, max),
+            max
+        );
     }
 
     #[test]

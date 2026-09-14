@@ -1877,7 +1877,7 @@ mod tests {
     use super::*;
     use crate::appearance::appearance_css;
     use cambium_genet_winit_host::{Harness, Init, Modifiers, inert_hooks};
-    use genet_probe::Selector;
+    use taproot::Selector;
     use knot_document::KNOT_DOCUMENT_CSS;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex, mpsc};

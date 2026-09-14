@@ -7,7 +7,7 @@
 use std::{sync::Arc, time::Duration};
 
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};
-use genet_probe::Selector;
+use taproot::Selector;
 use genet_scripted_dom::{NodeId, ScriptedDom};
 use knot_capture::{KnotPersonaDisplayV1, KnotRetainPort};
 use knot_desktop::{

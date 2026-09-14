@@ -107,6 +107,17 @@ impl PreparedMicronRequest {
             // Flush the Resource acknowledgement before abrupt Endpoint::Drop.
             // The enclosing timeout bounds this graceful shutdown as well.
             endpoint.shutdown(config.timeout).await;
+            // Check the received bytes before decoding. An oversized reply
+            // arrives as a single Resource that Response::unpack rejects, so a
+            // post-unpack-only cap reported "invalid response" for what is
+            // really a size refusal (2026-09-13 headed acceptance, finding 3).
+            // The envelope allowance is a decode bound, not a wire ceiling.
+            if received.packed.len() > config.max_response_bytes.saturating_add(64) {
+                return Err(format!(
+                    "Remote Micron response exceeds {} bytes",
+                    config.max_response_bytes
+                ));
+            }
             let response = Response::unpack(&received.packed)
                 .map_err(|_| "Remote Micron handler returned an invalid response".to_string())?;
             if response.data.len() > config.max_response_bytes {
@@ -230,6 +241,53 @@ mod tests {
         .await
         .unwrap();
         assert_eq!(response.body, vec![b'x'; 4096]);
+        let _ = done_tx.send(());
+        tokio::time::timeout(Duration::from_secs(10), handler)
+            .await
+            .unwrap()
+            .unwrap();
+        server.close();
+    }
+
+    /// An oversized Resource reply must name the cap, not report a decode
+    /// failure: the pre-decode check runs on the received bytes.
+    #[tokio::test]
+    async fn an_oversized_resource_reply_is_refused_by_size_not_as_invalid() {
+        let server = Arc::new(Endpoint::new(PrivateIdentity::from_secret_bytes(
+            &[0x42; 64],
+        )));
+        let address = server.listen_tcp(([127, 0, 0, 1], 0).into()).await.unwrap();
+        let name = DestinationName::new("nomadnetwork", ["node"]);
+        let destination = name.destination_hash(server.identity());
+        server.register_resource(name, &[]);
+        let (done_tx, done_rx) = tokio::sync::oneshot::channel::<()>();
+        let handler = {
+            let server = Arc::clone(&server);
+            tokio::spawn(async move {
+                let accepted = server.accept_resource().await.unwrap();
+                let mut session = accepted.session;
+                let received = session.receive_raw_request().await.unwrap();
+                session
+                    .respond_auto(received.request_id, vec![b'x'; 4096])
+                    .await
+                    .unwrap();
+                let _ = done_rx.await;
+            })
+        };
+        let config = MicronSubmissionConfig {
+            max_response_bytes: 1024,
+            ..MicronSubmissionConfig::default()
+        };
+        let mut values = BTreeMap::new();
+        values.insert("field_note".into(), "hello".into());
+        let outcome = PreparedMicronRequest::new(format!("{destination}:/capture"), values, config)
+            .unwrap()
+            .send(address, config)
+            .await;
+        match outcome {
+            Err(error) => assert_eq!(error, "Remote Micron response exceeds 1024 bytes"),
+            Ok(response) => panic!("expected a size refusal, got {} bytes", response.body.len()),
+        }
         let _ = done_tx.send(());
         tokio::time::timeout(Duration::from_secs(10), handler)
             .await

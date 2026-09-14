@@ -2160,6 +2160,66 @@ mod tests {
         )
     }
 
+    // The preview pane is not its own scroll container: `.knot-scroll-preview`
+    // grows to content height, so the window viewport carries the offset. The
+    // form panel switching to its sending view must not move that offset.
+    #[test]
+    fn a_micron_submission_redraw_keeps_the_scrolled_preview_where_it_was() {
+        let mut source =
+            String::from("`[Submit`0123456789abcdef0123456789abcdef:/capture`name]
+`<name`seed>
+");
+        for index in 0..400 {
+            source.push_str(&format!("Line {index} of a long Micron page.
+"));
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("long.mu");
+        std::fs::write(&path, &source).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.preview_visible = true;
+        let address = state.document.snapshot().source.address;
+        state
+            .scroll
+            .open_micron_form(source.clone(), address)
+            .unwrap();
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: format!("{DESKTOP_CSS}{CSS}"),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        let (x, y) = host
+            .resolve(&Selector::role("button").containing("Close Micron form"))
+            .expect("the form panel is rendered in the preview");
+        host.move_to(x, y);
+        host.wheel(0.0, 300.0);
+        let scrolled = host.element_scroll_total();
+        assert!(scrolled > 0.0, "the preview did not scroll");
+        let (_sender, receiver) = mpsc::channel();
+        host.update(|state| {
+            state.scroll.micron_submission_receiver = Some(receiver);
+            state.scroll.submission_result = Some("Sending reviewed Micron request".into());
+        });
+        host.relayout();
+        assert_eq!(
+            scrolled,
+            host.element_scroll_total(),
+            "the sending redraw moved the preview"
+        );
+        assert!(
+            host.resolve(&Selector::role("button").containing("Cancel Micron request"))
+                .is_some(),
+            "the cancel control is not reachable while sending"
+        );
+    }
+
     #[test]
     fn spartan_body_injected_text_uses_its_own_clicked_caret_slot() {
         let mut host = submission_harness();

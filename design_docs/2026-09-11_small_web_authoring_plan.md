@@ -174,7 +174,7 @@ send to the stock daemon with default values was recorded as one
 195-byte reply shown in the app; the node passes the `str → str` map verbatim as
 `field_*` environment variables and does no splitting or typing of its own.
 
-Four findings stay open against this consumer. First, a 5 MiB reply fails as
+Four findings came out of this run against the consumer, and follow-up commits closed them. First, a 5 MiB reply fails as
 `Remote Micron handler returned an invalid response` before the 4 MiB cap is
 compared: Retinue's single-segment `MAX_SEGMENT_SIZE` is 1,048,575 bytes and
 Knot unpacks the received Response before checking its size, so the cap is
@@ -184,13 +184,31 @@ ahead of unpacking, so the cap is now compared against the received bytes
 (with a small envelope allowance) and an oversized reply names the size, while
 the decoded body is still checked as before. Multi-segment responses remain a
 separate transport gate. Second,
-Knot's request bounds (30 s, 4 MiB) are compile-time defaults with no
-environment override, unlike Turnstone's `TURNSTONE_NOMADNET_*` knobs; the
-timeout receipt therefore needed a 40 s handler path. Third, the preview pane
-loses its scroll offset during submission redraws, so the cancel control is only
-reliably hittable immediately after a scroll on long pages. Fourth, Knot keeps
-the previous reply text after a form is closed and reopened, though the values
-themselves reset to defaults. Inline form widgets, partial refresh, outgoing
+Knot's request bounds (30 s, 4 MiB) were compile-time defaults with no
+environment override, unlike Turnstone's `TURNSTONE_NOMADNET_*` knobs, so the
+timeout receipt needed a 40 s handler path; the follow-up commit reads
+`KNOT_NOMADNET_TIMEOUT_SECS` (default 30, clamped 1–120) and
+`KNOT_NOMADNET_MAX_RESPONSE_BYTES` (default 4 MiB, clamped up to 64 MiB) in the
+desktop app, named beside `KNOT_NOMADNET_TCP` in the prepared-request text, with
+knot-site left env-free. Third, the preview pane was read as losing its scroll
+offset during submission redraws. It does not: the offset is the window
+viewport's, because `.knot-scroll-preview` grows to content height and its
+`overflow: auto` never makes it a scroll container (the `aside` box itself moves
+with the wheel, from y 145 to y -735 in a harness run at 1100×730). The host
+preserves that offset across a rebuild and only re-clamps it to the new content
+height (`crates/cambium/cambium-rootstock/src/owned_layout.rs`, `layout_resolved`
+line 142; `frame.rs` lines 184-190 copy both scroll planes when the layout is
+rebuilt from scratch). What the headed run saw was that clamp: sending collapses
+the form panel from fields, review and reply to two lines, and on a page that
+short the new maximum offset is near zero, so the document snaps up. A test now
+pins that a submission redraw on a long page moves the offset by nothing and
+leaves the cancel control reachable. The remaining question — whether the
+preview pane should scroll independently of the source pane, which needs a
+bounded height on the flex row rather than a change to the submission path — is
+a layout decision left open. Fourth, Knot kept the previous reply text after a
+form was closed and reopened; `close_micron_form` now clears the result and
+response unless a send is still in flight, so a reopened form starts empty while
+closing only the site panel still leaves a finished reply visible. Inline form widgets, partial refresh, outgoing
 request Resources, multi-segment responses, authentication and dynamic page
 hosting in Djinn all remain outside this receipt.
 

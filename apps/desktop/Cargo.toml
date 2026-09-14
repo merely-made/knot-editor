@@ -22,7 +22,7 @@ knot-capture.workspace = true
 cambium.workspace = true
 cambium-genet-winit-host.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
-tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "91c6238deee39738cf7c0b28cf6b35df52f51caf" }
+tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "0db9d10d6a82c3ad681f2c12c65267029f519b7f" }
 knot-file-catalog.workspace = true
 layout-dom-api.workspace = true
 tokio = { version = "1", features = ["rt", "time"] }

@@ -346,6 +346,12 @@ impl ScrollWorkspace {
 
     fn close_micron_form(&mut self) {
         self.micron_form = None;
+        // A reopened form must not show the previous reply. An in-flight send
+        // keeps its own status, which its completion replaces.
+        if !self.submission_busy() {
+            self.submission_result = None;
+            self.submission_response = None;
+        }
     }
 
     fn cancel_micron_submission(&mut self) {
@@ -1837,6 +1843,33 @@ mod tests {
             )
         );
         assert!(workspace.active_micron_submission.is_none());
+    }
+
+    #[test]
+    fn closing_a_micron_form_drops_the_previous_reply_unless_a_send_is_in_flight() {
+        let source = "`[Submit`0123456789abcdef0123456789abcdef:/capture`name]\n`<name`seed>\n";
+        let mut workspace = ScrollWorkspace::default();
+        workspace
+            .open_micron_form(source.into(), "scratch:reopen".into())
+            .unwrap();
+        workspace.submission_result = Some("Micron reply (8 bytes)".into());
+        workspace.submission_response = Some("accepted".into());
+        workspace.close_micron_form();
+        assert!(workspace.submission_result.is_none());
+        assert!(workspace.submission_response.is_none());
+        workspace
+            .open_micron_form(source.into(), "scratch:reopen".into())
+            .unwrap();
+        assert!(workspace.submission_response.is_none());
+
+        let (_sender, receiver) = mpsc::channel();
+        workspace.micron_submission_receiver = Some(receiver);
+        workspace.submission_result = Some("Sending reviewed Micron request…".into());
+        workspace.close_micron_form();
+        assert_eq!(
+            workspace.submission_result.as_deref(),
+            Some("Sending reviewed Micron request…")
+        );
     }
 
     #[test]

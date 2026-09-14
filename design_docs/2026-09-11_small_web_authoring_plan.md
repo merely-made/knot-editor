@@ -179,8 +179,11 @@ Four findings stay open against this consumer. First, a 5 MiB reply fails as
 compared: Retinue's single-segment `MAX_SEGMENT_SIZE` is 1,048,575 bytes and
 Knot unpacks the received Response before checking its size, so the cap is
 unreachable and the message names the wrong cause. Turnstone caps received bytes
-before decoding and reports correctly; Knot should move the check ahead of
-unpacking, and multi-segment responses remain a separate transport gate. Second,
+before decoding and reports correctly; the follow-up commit moves Knot's check
+ahead of unpacking, so the cap is now compared against the received bytes
+(with a small envelope allowance) and an oversized reply names the size, while
+the decoded body is still checked as before. Multi-segment responses remain a
+separate transport gate. Second,
 Knot's request bounds (30 s, 4 MiB) are compile-time defaults with no
 environment override, unlike Turnstone's `TURNSTONE_NOMADNET_*` knobs; the
 timeout receipt therefore needed a 40 s handler path. Third, the preview pane

@@ -162,7 +162,7 @@ mod tests {
     use super::*;
     use cambium_genet_winit_host::Init;
     use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};
-    use genet_probe::Selector;
+    use taproot::Selector;
     use knot_desktop::host_hooks;
     use knot_document::KNOT_DOCUMENT_CSS;
     use tempfile::tempdir;

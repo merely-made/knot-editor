@@ -1631,7 +1631,7 @@ mod tests {
     use crate::{DESKTOP_CSS, host_hooks, workspace::desktop_view};
     use cambium::TextCommand;
     use cambium_genet_winit_host::{Harness, Init, WindowCommands};
-    use genet_probe::Selector;
+    use taproot::Selector;
     use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
     use layout_dom_api::{LayoutDom, LocalName, Namespace};
 

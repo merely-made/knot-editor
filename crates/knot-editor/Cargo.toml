@@ -84,10 +84,10 @@ zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 gemot.workspace = true
-genet-probe = { workspace = true }
 graphshell.workspace = true
 graphshell-local.workspace = true
 rcgen = "0.14"
+taproot = { workspace = true }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 transport.workspace = true

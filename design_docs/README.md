@@ -5,6 +5,8 @@ to an independently consumable repository.
 
 Current authority:
 
+- [Design pass brief](2026-09-13_knot_design_pass_brief.md): materials, captured baseline frames, planned directions, and the layout questions a design pass over the standalone desktop has to answer before the multi-document slice adds tabs and a navigator.
+
 - [Native small-web authoring](2026-09-11_small_web_authoring_plan.md): Gemini, Titan, Spartan and Micron scope, shared protocol ownership, Turnstone composition and persistent-serving proposal.
 
 - [Scroll site authoring](2026-09-11_scroll_site_authoring_plan.md): native site files, preview, metadata and explicit loopback publication.

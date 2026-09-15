@@ -356,6 +356,21 @@ impl KnotDocumentSession {
             "fold item",
         )
     }
+    /// Selects an arbitrary source range a derived reading proposed, only while
+    /// the exact text that reading ran against is still this session's source.
+    ///
+    /// The caller passes the text it read, not a snapshot type, because a
+    /// reading is host-computed derived state with no snapshot of its own. A
+    /// stale range is refused rather than reinterpreted against moved source.
+    pub fn select_source_span(
+        &mut self,
+        address: &str,
+        source_text: &str,
+        start: usize,
+        end: usize,
+    ) -> Result<(), String> {
+        self.select_source_range(address, source_text, start, end, "source span")
+    }
     fn outline_items(&self) -> Vec<KnotOutlineItemV1> {
         self.editor.outline_items()
     }

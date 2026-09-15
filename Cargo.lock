@@ -4854,6 +4854,7 @@ dependencies = [
  "knot-document",
  "knot-editor",
  "knot-file-catalog",
+ "knot-readings",
  "knot-site",
  "layout-dom-api",
  "nematic",
@@ -4964,6 +4965,17 @@ dependencies = [
  "tempfile",
  "uuid",
  "zeroize",
+]
+
+[[package]]
+name = "knot-readings"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "inker",
+ "knot-document",
+ "script-rhai",
+ "tempfile",
 ]
 
 [[package]]

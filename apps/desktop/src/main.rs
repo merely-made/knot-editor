@@ -150,6 +150,7 @@ fn main() {
         initial_path,
         catalog,
         options.capture_max_bytes,
+        Some(settings_root.join("readings")),
         vec![],
         titan_submission_error,
     ) {
@@ -284,9 +285,10 @@ mod tests {
             ),
             logic: desktop_view as fn(&DesktopState) -> DesktopView,
             sheet: format!(
-                "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}",
+                "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}",
                 knot_desktop::appearance::appearance_css(),
-                knot_desktop::document_preview::CSS
+                knot_desktop::document_preview::CSS,
+                knot_desktop::readings::CSS
             ),
             fonts: Vec::new(),
             images: Vec::new(),

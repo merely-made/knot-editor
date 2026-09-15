@@ -7,6 +7,7 @@
 pub mod appearance;
 pub mod document_folding;
 pub mod document_preview;
+pub mod readings;
 pub mod scroll_site;
 pub mod workspace;
 
@@ -31,6 +32,7 @@ pub fn run_desktop_with_targets(
     initial_path: Option<PathBuf>,
     catalog: Option<KnotFileCatalog>,
     capture_max_bytes: usize,
+    readings_root: Option<PathBuf>,
     targets: Vec<Arc<dyn KnotRetainPort>>,
     titan_submission_error: Option<String>,
 ) -> Result<(), String> {
@@ -50,15 +52,17 @@ pub fn run_desktop_with_targets(
                 state.message = Some(format!("Titan upload disabled: {error}"));
             }
             state.set_capture_limit(capture_max_bytes);
+            state.set_readings_root(readings_root.clone());
             state.set_retention_targets(targets, wake.clone());
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!(
-                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}",
+                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
                     appearance::appearance_css(),
                     document_folding::CSS,
                     document_preview::CSS,
+                    readings::CSS,
                     scroll_site::CSS
                 ),
                 fonts: Vec::new(),

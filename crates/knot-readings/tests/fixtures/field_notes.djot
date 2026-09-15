@@ -1,0 +1,23 @@
+# Field notes
+
+Opening paragraph with a plain nav [index](/index.djot) link.
+
+## Citations
+
+This section cites [Gibson](https://example.test/gibson){rel="cites"} in passing.
+
+## Quiet section
+
+No links at all here, only a fenced block.
+
+```
+let n = [not](a-link);
+```
+
+### Deep note
+
+Only a plain nav link to [notes](/notes.djot).
+
+## Σχόλια
+
+Greek notes that cite [Latour](https://example.test/latour){rel="cites"}.

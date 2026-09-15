@@ -19,6 +19,7 @@ use knot_document::{
     knot_document_view_with_highlighting,
 };
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
+use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::path::{Path, PathBuf};
 use std::sync::{
@@ -86,6 +87,10 @@ fn encryption_label(profile: knot_capture::KnotRetainEncryptionV1) -> &'static s
     }
 }
 pub const DEFAULT_CAPTURE_MAX_BYTES: usize = 1_048_576;
+/// Ceilings on the readings folder listing: enough for a working set, small
+/// enough that a stuffed directory cannot become a startup cost.
+const MAX_READING_SCRIPTS: usize = 64;
+const MAX_READING_SOURCE_BYTES: usize = 64 * 1024;
 
 pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>>;
 pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
@@ -129,6 +134,17 @@ pub struct DesktopState {
     appearance_open: bool,
     outline_snapshot: Option<KnotOutlineSnapshotV1>,
     outline_error: Option<String>,
+    pub(crate) readings_visible: bool,
+    readings_root: Option<PathBuf>,
+    pub(crate) readings: Vec<ReadingScript>,
+    pub(crate) readings_load_notes: Vec<String>,
+    pub(crate) readings_selected: Option<usize>,
+    pub(crate) reading_result: Option<ReadingResult>,
+    pub(crate) reading_error: Option<ReadingError>,
+    /// The exact text the retained reading ran against. A reading is host-side
+    /// derived state with no snapshot type of its own, so the text it was bound
+    /// to is kept here and handed back to the document when a row is selected.
+    reading_source: Option<String>,
     focus_source_requested: bool,
     window: WindowCommands,
     pending: Option<PendingAction>,
@@ -204,6 +220,14 @@ impl DesktopState {
             appearance_open: false,
             outline_snapshot: None,
             outline_error: None,
+            readings_visible: false,
+            readings_root: None,
+            readings: Vec::new(),
+            readings_load_notes: Vec::new(),
+            readings_selected: None,
+            reading_result: None,
+            reading_error: None,
+            reading_source: None,
             focus_source_requested: false,
             window,
             pending: None,
@@ -594,6 +618,142 @@ impl DesktopState {
         }
     }
 
+    /// The readings directory this host offers. The panel never picks a path of
+    /// its own; the launcher supplies one or the lane stays empty.
+    pub fn set_readings_root(&mut self, root: Option<PathBuf>) {
+        self.readings_root = root;
+        self.refresh_readings();
+    }
+
+    pub(crate) fn readings_root_label(&self) -> String {
+        match &self.readings_root {
+            Some(root) => format!("Scripts: {}", root.display()),
+            None => "Scripts: this window has no readings folder".to_owned(),
+        }
+    }
+
+    pub(crate) fn refresh_readings(&mut self) {
+        let Some(root) = self.readings_root.clone() else {
+            self.readings.clear();
+            self.readings_load_notes.clear();
+            self.readings_selected = None;
+            return;
+        };
+        // Selection follows the script's name, not its index, so a refresh that
+        // adds or drops a file cannot silently arm a different reading.
+        let selected = self
+            .readings_selected
+            .and_then(|index| self.readings.get(index))
+            .map(|script| script.name.clone());
+        let (scripts, notes) =
+            knot_readings::load_dir(&root, MAX_READING_SCRIPTS, MAX_READING_SOURCE_BYTES);
+        self.readings = scripts;
+        self.readings_load_notes = notes;
+        self.readings_selected = selected
+            .and_then(|name| self.readings.iter().position(|script| script.name == name));
+    }
+
+    pub(crate) fn toggle_readings(&mut self) {
+        self.readings_visible = !self.readings_visible;
+        if self.readings_visible {
+            self.refresh_readings();
+        }
+    }
+
+    pub(crate) fn select_reading(&mut self, index: usize) {
+        if index < self.readings.len() {
+            self.readings_selected = Some(index);
+            self.reading_error = None;
+        }
+    }
+
+    /// Run the chosen reading over the current source, synchronously. The
+    /// budget is the lane's own; a runaway returns a receipt, not a hang.
+    pub(crate) fn run_reading(&mut self) {
+        let Some(script) = self
+            .readings_selected
+            .and_then(|index| self.readings.get(index))
+            .cloned()
+        else {
+            self.message = Some("Choose a reading before running one.".to_owned());
+            return;
+        };
+        let input = match ReadingInput::from_session(self.document.session()) {
+            Ok(input) => input,
+            Err(error) => {
+                self.clear_readings();
+                self.reading_error = Some(ReadingError::Runtime { message: error });
+                return;
+            },
+        };
+        let source = input.text.clone();
+        match knot_readings::run(&script, &input, ReadingBudget::default()) {
+            Ok(result) => {
+                self.reading_result = Some(result);
+                self.reading_source = Some(source);
+                self.reading_error = None;
+            },
+            Err(error) => {
+                self.clear_readings();
+                self.reading_error = Some(error);
+            },
+        }
+    }
+
+    /// A reading is derived state: it is stale the moment its source moves.
+    /// The panel says so and keeps showing it rather than closing itself.
+    pub(crate) fn reading_is_stale(&self) -> bool {
+        let Some(result) = self.reading_result.as_ref() else {
+            return false;
+        };
+        let current = self.document.snapshot();
+        result.provenance.source.address != current.source.address
+            || self.reading_source.as_deref() != Some(current.text.as_str())
+    }
+
+    pub(crate) fn select_reading_row(&mut self, index: usize) {
+        let Some(result) = self.reading_result.as_ref() else {
+            return;
+        };
+        let Some(row) = result.rows.get(index) else {
+            return;
+        };
+        let Some((start, end)) = row.span else {
+            self.reading_error = Some(ReadingError::Runtime {
+                message: format!("\"{}\" carries no source range.", row.label),
+            });
+            return;
+        };
+        let address = result.provenance.source.address.clone();
+        let Some(text) = self.reading_source.clone() else {
+            return;
+        };
+        match self
+            .document
+            .session_mut()
+            .select_source_span(&address, &text, start, end)
+        {
+            Ok(()) => {
+                self.reading_error = None;
+                self.focus_source_requested = true;
+            },
+            Err(error) => {
+                self.reading_error = Some(ReadingError::Runtime {
+                    message: error.clone(),
+                });
+                self.message = Some(format!("Reading row selection failed: {error}"));
+            },
+        }
+    }
+
+    /// Drop the derived reading. The script list and the panel itself belong to
+    /// the window, not to the document, so they stay.
+    fn clear_readings(&mut self) {
+        self.reading_result = None;
+        self.reading_error = None;
+        self.reading_source = None;
+    }
+
     fn toggle_appearance(&mut self) {
         self.appearance_open = !self.appearance_open;
     }
@@ -686,6 +846,7 @@ impl DesktopState {
                 self.clear_comparison();
                 self.clear_prepared_capture();
                 self.clear_outline();
+                self.clear_readings();
                 self.clear_folding();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
@@ -700,6 +861,7 @@ impl DesktopState {
                     self.clear_comparison();
                     self.clear_prepared_capture();
                     self.clear_outline();
+                    self.clear_readings();
                     self.clear_folding();
                     self.sync_outline_snapshot();
                     self.sync_catalog();
@@ -712,6 +874,7 @@ impl DesktopState {
                     self.clear_comparison();
                     self.clear_prepared_capture();
                     self.clear_outline();
+                    self.clear_readings();
                     self.clear_folding();
                     self.sync_outline_snapshot();
                     self.sync_catalog();
@@ -763,6 +926,7 @@ impl DesktopState {
                 self.clear_comparison();
                 self.clear_prepared_capture();
                 self.clear_outline();
+                self.clear_readings();
                 self.clear_folding();
                 self.sync_outline_snapshot();
                 self.sync_catalog();
@@ -1513,6 +1677,16 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                             },
                             |state: &mut DesktopState, _| state.toggle_outline(),
                         ),
+                        button(
+                            if state.readings_visible {
+                                "Hide Readings"
+                            } else {
+                                "Readings"
+                            },
+                            |state: &mut DesktopState, _| state.toggle_readings(),
+                        )
+                        .attr("aria-expanded", state.readings_visible.to_string())
+                        .attr("aria-controls", "knot-readings"),
                         el(
                             "label",
                             (
@@ -1545,6 +1719,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     (
                         source_wrapper,
                         outline_panel,
+                        crate::readings::view(state),
                         crate::document_preview::view(state),
                         crate::scroll_site::preview(state),
                     ),

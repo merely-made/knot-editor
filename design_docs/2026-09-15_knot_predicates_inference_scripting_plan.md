@@ -1,7 +1,7 @@
 # Knot predicates, inference readings, and scripted readings plan
 
 **Date:** 2026-09-15
-**Status:** Scoped from Mark's three rulings of 2026-09-15. No code. Each
+**Status:** Track 1 and Track 3 slice 1 landed 2026-09-15; Track 2 and the suggestion sink remain scoped. Each
 track has done-conditions; the decisions listed under each are his and are
 not made here.
 **Owner:** Knot Editor
@@ -406,6 +406,45 @@ reference and a shared suggestion sink, so they land last.
   until they do.
 - Model weight custody is undecided, which gates E4 and the BERT default.
 - wasm is not a claimed Knot target; the matrix rows are compile receipts.
+
+## Progress
+
+- **2026-09-15, Track 1 landed** (`5323359`). Predicate reference with
+  core slugs serializing bare and definitions as `{"defined": hex}`;
+  signed `DefinePredicate` operations minting `urn:knot:rel:<did:key>:<hash>`
+  once, superseding and retiring under the same IRI, minting key only;
+  endpoint prefix and suffix verified by containment; Web Annotation export
+  at character offsets; author-asserted time in the signed header behind
+  `KnotAssertedTime`; an undecodable closed event is a rejected record.
+  did:key hand-rolled. lib 123/123; `predicate_definitions`,
+  `asserted_time`, `authored_relations`, `file_relations` green. Defaults
+  taken: `replaced_by` as an enum with `Retired` and `Predicate`; slug
+  immutable across a chain; slug unique per author per scope among live
+  roots. Open: the did:key test pins base58 and shape, not the W3C vector,
+  pending an online check; the commons epoch-removal test now expects the
+  tolerant projection, a semantic change Mark may want strict for commons;
+  `rejected_relations` carries every undecodable closed event and wants
+  splitting before it reaches a writer; authoring against a defined
+  predicate re-folds history like retraction does, where a cached fold
+  starts to pay.
+- **2026-09-15, Track 3 slice 1 landed** (`30aa0c4`). New crate
+  `knot-readings` and the desktop Readings panel; sandbox receipts first
+  (no module resolver, `import` and `eval` disabled, zero budget refused,
+  no file, fetch or write binding, host input immutable); bindings
+  `document`, `outline`, `sections`, `folds`, `links`, `relations`, `span`,
+  `row`, `note`; provenance on every result; `select_source_span` on the
+  document surface; stale readings stay open and label themselves.
+  knot-readings 19/19, knot-document 31/31, knot-desktop 75/75. Deviation:
+  the allowlist receipt is behavioural because rhai's `metadata` feature is
+  off in the shared engine. Upstream defect found: nematic's paragraph link
+  rewrite drops the predicate, so `links()` carries no `rel` for paragraph
+  links and "headings without a citation" reads every section as uncited; a
+  tripwire test names the fix. Mere's `apply_link_statements` is dead for
+  every Djot document for the same reason.
+- **2026-09-15, Mere.** The shared rhai base engine had rhai's default file
+  module resolver, so a fence could import `./x.rhai`; closed with a
+  positive-control test (`444e3fe4`). The CiTO table moved to the evidence
+  sense (`38c60dbc`).
 
 ## Related material
 

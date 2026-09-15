@@ -130,7 +130,8 @@ pub use sync::{
     KNOT_COMMONS_ENCRYPTION_PROFILE, KnotAssertedTime, KnotAutomaticTextMerge,
     KnotCheckpointSnapshot, KnotDocumentConflict, KnotDocumentProjection, KnotDocumentVersion,
     KnotEncryptionProfile, KnotEpochExecutionReceipt, KnotOfflineMemberEpochHold,
-    KnotOfflineMemberRecovery, KnotProjectionCheckpoint, KnotSyncCipher, KnotSyncError,
+    KnotOfflineMemberRecovery, KnotProjectionCheckpoint, KnotProjectionStrictness, KnotSyncCipher,
+    KnotSyncError,
     KnotSyncEvent, KnotSyncExt, KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
 };
 pub use vault::{KnotVault, VaultDocument};

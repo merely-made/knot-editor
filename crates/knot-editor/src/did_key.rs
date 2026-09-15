@@ -136,6 +136,31 @@ mod tests {
         }
     }
 
+    /// The two Ed25519 examples from the W3C CCG did:key specification,
+    /// decoded independently (an unrelated base58 decoder) to their raw keys
+    /// on 2026-09-15 so that both the encoder and the decoder are pinned
+    /// against text neither of them produced.
+    #[test]
+    fn did_key_matches_the_w3c_ed25519_examples() {
+        for (did, key_hex) in [
+            (
+                "did:key:z6MkhaXgBZDvotDkL5257faiztiGiC2QtKLGpbnnEGta2doK",
+                "2e6fcce36701dc791488e0d0b1745cc1e33a4c1c9fcc41c63bd343dbbe0970e6",
+            ),
+            (
+                "did:key:z6Mkf5rGMoatrSj1f4CyvuHBeXJELe9RPdzo2PKGNCKVtZxP",
+                "095f9a1a595dde755d82786864ad03dfa5a4fbd68832566364e2b65e13cc9e44",
+            ),
+        ] {
+            let mut key = [0u8; 32];
+            for (i, byte) in key.iter_mut().enumerate() {
+                *byte = u8::from_str_radix(&key_hex[2 * i..2 * i + 2], 16).unwrap();
+            }
+            assert_eq!(did_key(&key), did);
+            assert_eq!(did_key_verifying_key(did), Some(key));
+        }
+    }
+
     #[test]
     fn foreign_prefixes_are_refused_rather_than_reinterpreted() {
         // secp256k1 (0xe7 0x01) carries a valid multibase and a wrong multicodec.

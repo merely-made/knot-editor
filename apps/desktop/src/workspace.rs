@@ -2153,7 +2153,10 @@ mod tests {
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         assert!(host.click_on(&Selector::role("button").containing("Show folds")));
-        assert!(host.click_on(&Selector::role("button").containing("Second")));
+        // Fold rows name their heading too, so match the outline row exactly.
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("aria-label", "Heading level 2: Second")
+        ));
 
         let snapshot = host.state().document.snapshot();
         assert_eq!(

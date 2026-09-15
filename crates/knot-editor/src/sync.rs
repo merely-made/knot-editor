@@ -33,9 +33,14 @@ use zeroize::{Zeroize, Zeroizing};
 use crate::{
     KnotFileRevisionV1, KnotVault, VaultDocument,
     djot_merge::{automatic_text_merge, automatic_text_merge_head},
+    predicates::{
+        KnotPredicateCatalogV1, KnotPredicateDefinitionV1, KnotPredicateReplacementV1,
+        KnotRejectedPredicateV1, mint_predicate_iri, validate_predicate_definition_payload,
+    },
     relations::{
-        KnotRejectedRelationV1, KnotRelationAssertionV1, KnotRelationEndpointV1,
-        KnotRelationRetractionV1, KnotUnverifiedRelationV1, validate_relation_payload,
+        KnotPredicateRefV1, KnotRejectedRelationV1, KnotRelationAssertionV1,
+        KnotRelationEndpointV1, KnotRelationRetractionV1, KnotUnverifiedRelationV1,
+        validate_relation_payload,
     },
 };
 
@@ -78,6 +83,38 @@ pub struct KnotSyncExt {
     /// Exact per-author frontier observed before this event was authored.
     #[serde(default)]
     pub parents: Vec<[u8; 32]>,
+    /// Author-asserted wall clock, set at authoring and overridable before
+    /// signing. Declared last and skipped when absent so an operation authored
+    /// before this field reserializes to its original CBOR and keeps its hash.
+    /// Inside the signed header bytes; informative only, it never orders a fold.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub asserted_at_ms: Option<u64>,
+}
+
+/// What wall clock an authoring call binds into the signed header.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum KnotAssertedTime {
+    /// This machine's clock now, or nothing at all if the clock fails.
+    #[default]
+    Now,
+    /// An explicit time, so a transcribed note can carry its real date.
+    At(u64),
+    /// Assert no time.
+    None,
+}
+
+impl KnotAssertedTime {
+    fn resolve(self) -> Option<u64> {
+        match self {
+            // A failed clock asserts nothing; a time is never invented.
+            Self::Now => std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .ok()
+                .and_then(|elapsed| u64::try_from(elapsed.as_millis()).ok()),
+            Self::At(milliseconds) => Some(milliseconds),
+            Self::None => None,
+        }
+    }
 }
 
 /// Plaintext event sealed inside the p2panda operation body.
@@ -100,7 +137,7 @@ pub enum KnotSyncEvent {
     },
     /// An attributable relation assertion between two observed document revisions.
     AssertRelation {
-        predicate: String,
+        predicate: KnotPredicateRefV1,
         subject: KnotRelationEndpointV1,
         object: KnotRelationEndpointV1,
         /// Opaque author-supplied reference; this does not fetch or verify evidence.
@@ -110,6 +147,18 @@ pub enum KnotSyncEvent {
     /// Author-only retraction of one signed relation assertion.
     RetractRelation {
         assertion: [u8; 32],
+    },
+    /// One writer's own predicate, minted or superseded. Appended last: an
+    /// un-upgraded peer fails to decode this variant, which is why an
+    /// undecodable closed event is now a rejected record, not a dead projection.
+    DefinePredicate {
+        slug: String,
+        label: String,
+        description: Option<String>,
+        subproperty_of: Option<String>,
+        lowers_to: Option<String>,
+        supersedes: Option<[u8; 32]>,
+        replaced_by: Option<KnotPredicateReplacementV1>,
     },
 }
 
@@ -148,6 +197,8 @@ pub enum KnotSyncError {
     InvalidResolution(String),
     #[error("invalid relation assertion: {0}")]
     InvalidRelation(String),
+    #[error("invalid predicate definition: {0}")]
+    InvalidPredicate(String),
     #[error("invalid file revision capture: {0}")]
     InvalidFileRevision(String),
     #[error("Knot sync has no durable projection checkpoint")]
@@ -264,6 +315,8 @@ pub struct KnotDocumentProjection {
     pub rejected_relations: Vec<KnotRejectedRelationV1>,
     /// Structurally valid assertions whose source captures could not be verified.
     pub unverified_relations: Vec<KnotUnverifiedRelationV1>,
+    /// Writer-defined predicates folded from this space.
+    pub predicates: KnotPredicateCatalogV1,
 }
 
 impl KnotDocumentProjection {
@@ -279,6 +332,19 @@ impl KnotDocumentProjection {
             .into_iter()
             .filter(|relation| relation.retractions.is_empty())
             .collect()
+    }
+
+    /// The label to display for one assertion's predicate.
+    ///
+    /// An assertion signed under an older label displays the current one; the
+    /// stored identity never changes.
+    pub fn predicate_label(&self, relation: &KnotRelationAssertionV1) -> Option<&str> {
+        self.predicates.label_of(&relation.predicate)
+    }
+
+    /// The IRI one assertion's predicate exports as.
+    pub fn predicate_iri(&self, relation: &KnotRelationAssertionV1) -> Option<&str> {
+        self.predicates.iri_of(&relation.predicate)
     }
 
     /// Returns assertion history whose two captured documents are admitted to the caller.
@@ -322,6 +388,13 @@ pub struct KnotCheckpointSnapshot {
     pub rejected_relations: Vec<KnotRejectedRelationV1>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub unverified_relations: Vec<KnotUnverifiedRelationV1>,
+    /// Appended after the relation fields, and skipped when empty, so a
+    /// checkpoint written before predicates reserializes byte-identically and
+    /// keeps its blake3 identity. The checkpoint version stays 1.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub predicates: Vec<KnotPredicateDefinitionV1>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub rejected_predicates: Vec<KnotRejectedPredicateV1>,
 }
 
 /// Durable projection boundary required before domain-authorized pruning.
@@ -531,6 +604,23 @@ where
             .await
     }
 
+    /// [`Self::author`] with an explicit author-asserted time.
+    pub async fn author_at(
+        &self,
+        signing_seed: [u8; 32],
+        vault: &KnotVault,
+        event: &KnotSyncEvent,
+        asserted_at: KnotAssertedTime,
+    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
+        self.author_with_cipher_at(
+            signing_seed,
+            KnotSyncCipher::Personal(vault),
+            event,
+            asserted_at,
+        )
+        .await
+    }
+
     pub async fn author_communal(
         &self,
         signing_seed: [u8; 32],
@@ -541,14 +631,42 @@ where
             .await
     }
 
+    pub async fn author_communal_at(
+        &self,
+        signing_seed: [u8; 32],
+        keys: &DataKeyring,
+        event: &KnotSyncEvent,
+        asserted_at: KnotAssertedTime,
+    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
+        self.author_with_cipher_at(
+            signing_seed,
+            KnotSyncCipher::CommonsData(keys),
+            event,
+            asserted_at,
+        )
+        .await
+    }
+
     pub async fn author_with_cipher(
         &self,
         signing_seed: [u8; 32],
         cipher: KnotSyncCipher<'_>,
         event: &KnotSyncEvent,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
+        self.author_with_cipher_at(signing_seed, cipher, event, KnotAssertedTime::Now)
+            .await
+    }
+
+    pub async fn author_with_cipher_at(
+        &self,
+        signing_seed: [u8; 32],
+        cipher: KnotSyncCipher<'_>,
+        event: &KnotSyncEvent,
+        asserted_at: KnotAssertedTime,
+    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
         let _gate = self.mutation_gate.lock().await;
-        self.author_under_gate(signing_seed, cipher, event).await
+        self.author_under_gate(signing_seed, cipher, event, asserted_at)
+            .await
     }
 
     async fn author_under_gate(
@@ -556,6 +674,7 @@ where
         signing_seed: [u8; 32],
         cipher: KnotSyncCipher<'_>,
         event: &KnotSyncEvent,
+        asserted_at: KnotAssertedTime,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
         self.require_cipher(cipher)?;
         let signing_key = SigningKey::from_bytes(&signing_seed);
@@ -579,6 +698,9 @@ where
         let plaintext = Zeroizing::new(
             serde_json::to_vec(event).map_err(|error| KnotSyncError::Payload(error.to_string()))?,
         );
+        // The AEAD AAD stays at v1: the asserted time is bound by the ed25519
+        // signature over the CBOR header and by the operation hash, and the
+        // body through payload_hash. Changing this would orphan sealed bodies.
         let aad = operation_aad(self.policy.space_id, author.as_bytes(), seq_num);
         let ciphertext = seal_event(cipher, &aad, plaintext.as_slice())?;
         let body = Body::from_bytes(&ciphertext);
@@ -597,6 +719,7 @@ where
                     space_id: self.policy.space_id,
                     encryption: self.policy.encryption,
                     parents,
+                    asserted_at_ms: asserted_at.resolve(),
                 },
             );
         let operation = Operation {
@@ -760,13 +883,24 @@ where
         let records = self.load_operations().await?;
         let entries = causal_entries(&records);
         let projection = causal_projection(&entries)?;
-        let events = projection
-            .order
-            .iter()
-            .map(|&index| {
-                decode_event(cipher, &records[index].operation).map(|event| (index, event))
-            })
-            .collect::<Result<BTreeMap<_, _>, _>>()?;
+        // An undecodable closed event is reported, not fatal: a peer that has
+        // not learned a newer event variant still projects everything it can
+        // read, the same tolerance pending undecipherable history already has.
+        let mut undecodable = Vec::new();
+        let mut events = BTreeMap::new();
+        for &index in &projection.order {
+            let operation = &records[index].operation;
+            match decode_event(cipher, operation) {
+                Ok(event) => {
+                    events.insert(index, event);
+                },
+                Err(error) => undecodable.push(KnotRejectedRelationV1 {
+                    operation: *operation.hash.as_bytes(),
+                    author: *operation.header.verifying_key.as_bytes(),
+                    reason: format!("closed event could not be decoded: {error}"),
+                }),
+            }
+        }
         // Indexed once for the whole fold: the retain below asks a reachability
         // question per surviving version per operation, and rebuilding the hash
         // index inside each of those made a save cost O(n^2 log n) in history.
@@ -786,10 +920,9 @@ where
             let operation = &records[index].operation;
             let writer = *operation.header.verifying_key.as_bytes();
             let operation_id = *operation.hash.as_bytes();
-            let event = events
-                .get(&index)
-                .expect("causal projection order has a decoded event")
-                .clone();
+            let Some(event) = events.get(&index).cloned() else {
+                continue;
+            };
             let (id, document, replaces_observed) = match event {
                 KnotSyncEvent::Put(document) => (document.id.clone(), Some(document), true),
                 KnotSyncEvent::Delete { id } => (id, None, true),
@@ -811,9 +944,11 @@ where
                     }
                     (id, document, false)
                 },
+                // None of these produce a document version.
                 KnotSyncEvent::CaptureFileRevision(_)
                 | KnotSyncEvent::AssertRelation { .. }
-                | KnotSyncEvent::RetractRelation { .. } => {
+                | KnotSyncEvent::RetractRelation { .. }
+                | KnotSyncEvent::DefinePredicate { .. } => {
                     continue;
                 },
             };
@@ -864,6 +999,8 @@ where
                 });
             }
         }
+        let mut rejected_relations = relation_fold.rejected;
+        rejected_relations.extend(undecodable);
         Ok(KnotDocumentProjection {
             documents,
             conflicts,
@@ -871,8 +1008,9 @@ where
             pending: projection.pending,
             document_heads,
             relations: relation_fold.relations,
-            rejected_relations: relation_fold.rejected,
+            rejected_relations,
             unverified_relations: relation_fold.unverified,
+            predicates: relation_fold.catalog,
         })
     }
 
@@ -1043,6 +1181,7 @@ where
                 signing_seed,
                 cipher,
                 &KnotSyncEvent::CaptureFileRevision(revision.clone()),
+                KnotAssertedTime::Now,
             )
             .await?;
         Ok((*operation.hash.as_bytes(), false))
@@ -1145,6 +1284,8 @@ where
             relations: projection.relations.clone(),
             rejected_relations: projection.rejected_relations.clone(),
             unverified_relations: projection.unverified_relations.clone(),
+            predicates: projection.predicates.definitions.clone(),
+            rejected_predicates: projection.predicates.rejected.clone(),
         };
         Ok(KnotProjectionCheckpoint {
             version: 1,
@@ -1261,6 +1402,9 @@ where
                     KnotSyncEvent::CaptureFileRevision(_)
                         | KnotSyncEvent::AssertRelation { .. }
                         | KnotSyncEvent::RetractRelation { .. }
+                        // A definition is replay material: an assertion's
+                        // display and IRI resolve through its chain.
+                        | KnotSyncEvent::DefinePredicate { .. }
                 ) {
                     has_capture_material = true;
                     break;
@@ -1600,6 +1744,7 @@ struct RelationFold {
     relations: Vec<KnotRelationAssertionV1>,
     rejected: Vec<KnotRejectedRelationV1>,
     unverified: Vec<KnotUnverifiedRelationV1>,
+    catalog: KnotPredicateCatalogV1,
 }
 
 #[derive(Clone, Copy)]
@@ -1633,11 +1778,11 @@ fn fold_relations(
         let operation = &records[index].operation;
         let operation_id = *operation.hash.as_bytes();
         let author = *operation.header.verifying_key.as_bytes();
-        match events
-            .get(&index)
-            .expect("causal projection order has a decoded relation event")
-            .clone()
-        {
+        let asserted_at_ms = operation.header.extensions.asserted_at_ms;
+        let Some(event) = events.get(&index).cloned() else {
+            continue;
+        };
+        match event {
             KnotSyncEvent::Put(document) => {
                 documents.insert(operation_id, document);
             },
@@ -1652,6 +1797,39 @@ fn fold_relations(
                     documents.insert(operation_id, file_revision_as_vault_document(&revision));
                 }
             },
+            KnotSyncEvent::DefinePredicate {
+                slug,
+                label,
+                description,
+                subproperty_of,
+                lowers_to,
+                supersedes,
+                replaced_by,
+            } => {
+                let proposal = PredicateProposal {
+                    slug,
+                    label,
+                    description,
+                    subproperty_of,
+                    lowers_to,
+                    supersedes,
+                    replaced_by,
+                };
+                let origin = PredicateOrigin {
+                    operation: operation_id,
+                    author,
+                    scope,
+                    asserted_at_ms,
+                };
+                match fold_predicate_definition(&fold.catalog, causal, origin, proposal) {
+                    Ok(definition) => fold.catalog.definitions.push(definition),
+                    Err(reason) => fold.catalog.rejected.push(KnotRejectedPredicateV1 {
+                        operation: operation_id,
+                        author,
+                        reason,
+                    }),
+                }
+            },
             KnotSyncEvent::AssertRelation {
                 predicate,
                 subject,
@@ -1660,6 +1838,16 @@ fn fold_relations(
                 qualification,
             } => {
                 if let Err(reason) = validate_relation_payload(&predicate, &subject, &object) {
+                    fold.rejected.push(KnotRejectedRelationV1 {
+                        operation: operation_id,
+                        author,
+                        reason,
+                    });
+                    continue;
+                }
+                if let Err(reason) =
+                    validate_asserted_predicate(&fold.catalog, causal, &predicate, operation_id)
+                {
                     fold.rejected.push(KnotRejectedRelationV1 {
                         operation: operation_id,
                         author,
@@ -1678,6 +1866,7 @@ fn fold_relations(
                     evidence,
                     qualification,
                     retractions: Vec::new(),
+                    asserted_at_ms,
                 };
                 match validate_relation_capture(&assertion, &documents, causal) {
                     Ok(()) => {
@@ -1759,6 +1948,127 @@ fn fold_relations(
     Ok(fold)
 }
 
+/// The signed facts a definition takes from its operation rather than its payload.
+#[derive(Clone, Copy)]
+struct PredicateOrigin {
+    operation: [u8; 32],
+    author: [u8; 32],
+    scope: [u8; 32],
+    asserted_at_ms: Option<u64>,
+}
+
+/// One `DefinePredicate` payload.
+struct PredicateProposal {
+    slug: String,
+    label: String,
+    description: Option<String>,
+    subproperty_of: Option<String>,
+    lowers_to: Option<String>,
+    supersedes: Option<[u8; 32]>,
+    replaced_by: Option<KnotPredicateReplacementV1>,
+}
+
+/// Admit one predicate definition into a catalog, or say why not.
+fn fold_predicate_definition(
+    catalog: &KnotPredicateCatalogV1,
+    causal: &CausalIndex<'_, u64>,
+    origin: PredicateOrigin,
+    proposal: PredicateProposal,
+) -> Result<KnotPredicateDefinitionV1, String> {
+    validate_predicate_definition_payload(
+        &proposal.slug,
+        &proposal.label,
+        proposal.description.as_deref(),
+        proposal.subproperty_of.as_deref(),
+        proposal.lowers_to.as_deref(),
+    )?;
+    let (root, iri) = match proposal.supersedes {
+        None => {
+            let root = origin.operation;
+            (root, mint_predicate_iri(&origin.author, root))
+        },
+        Some(previous) => {
+            let previous = catalog.definition(previous).ok_or_else(|| {
+                "definition supersedes an unavailable predicate definition".to_owned()
+            })?;
+            // Only the minting key renames or retires.
+            if previous.author != origin.author {
+                return Err(
+                    "only the minting author may supersede a predicate definition".to_owned(),
+                );
+            }
+            if !causal.happens_before(previous.id, origin.operation) {
+                return Err(
+                    "definition does not causally observe the definition it supersedes".to_owned(),
+                );
+            }
+            // The slug is immutable across a chain; the label is the mutable face.
+            if previous.slug != proposal.slug {
+                return Err("a superseding definition keeps the chain's slug".to_owned());
+            }
+            (previous.root, previous.iri.clone())
+        },
+    };
+    if proposal.supersedes.is_none()
+        && catalog.definitions.iter().any(|definition| {
+            definition.root == definition.id
+                && definition.author == origin.author
+                && definition.scope == origin.scope
+                && definition.slug == proposal.slug
+                && !catalog.is_retired(definition.id)
+        })
+    {
+        // Cross-author collisions are allowed; the minted IRI disambiguates.
+        return Err(format!(
+            "predicate slug '{}' is already minted and live for this author in this scope",
+            proposal.slug
+        ));
+    }
+    Ok(KnotPredicateDefinitionV1 {
+        id: origin.operation,
+        author: origin.author,
+        operation: origin.operation,
+        scope: origin.scope,
+        root,
+        iri,
+        slug: proposal.slug,
+        label: proposal.label,
+        description: proposal.description,
+        subproperty_of: proposal.subproperty_of,
+        lowers_to: proposal.lowers_to,
+        supersedes: proposal.supersedes,
+        replaced_by: proposal.replaced_by,
+        asserted_at_ms: origin.asserted_at_ms,
+    })
+}
+
+/// Catalog questions a `Defined` predicate reference has to answer at replay.
+fn validate_asserted_predicate(
+    catalog: &KnotPredicateCatalogV1,
+    causal: &CausalIndex<'_, u64>,
+    predicate: &KnotPredicateRefV1,
+    assertion: [u8; 32],
+) -> Result<(), String> {
+    let KnotPredicateRefV1::Defined(id) = predicate else {
+        return Ok(());
+    };
+    let Some(root) = catalog.root_of(*id) else {
+        return Err("relation names an unavailable predicate definition".to_owned());
+    };
+    if !causal.happens_before(*id, assertion) {
+        return Err("assertion does not causally observe its predicate definition".to_owned());
+    }
+    // A retirement concurrent with the assertion does not reject it.
+    if catalog.definitions.iter().any(|definition| {
+        definition.root == root
+            && definition.replaced_by.is_some()
+            && causal.happens_before(definition.id, assertion)
+    }) {
+        return Err("relation names a retired predicate definition".to_owned());
+    }
+    Ok(())
+}
+
 fn validate_relation_capture(
     assertion: &KnotRelationAssertionV1,
     documents: &BTreeMap<[u8; 32], VaultDocument>,
@@ -1819,6 +2129,18 @@ fn validate_endpoint_capture(
     if quote != endpoint.quote {
         return Err(RelationCaptureError::Rejected(format!(
             "relation {role} quote does not match the captured source range"
+        )));
+    }
+    // Containment, never exact length: context truncates at the edges of the
+    // source and at the character cap, so only the adjacency is checkable.
+    if !endpoint.prefix.is_empty() && !source[..start].ends_with(&endpoint.prefix) {
+        return Err(RelationCaptureError::Rejected(format!(
+            "relation {role} prefix does not precede the captured source range"
+        )));
+    }
+    if !endpoint.suffix.is_empty() && !source[end..].starts_with(&endpoint.suffix) {
+        return Err(RelationCaptureError::Rejected(format!(
+            "relation {role} suffix does not follow the captured source range"
         )));
     }
     Ok(())
@@ -1888,6 +2210,28 @@ fn validate_local_relation_event(
         } => {
             validate_relation_payload(predicate, subject, object)
                 .map_err(KnotSyncError::InvalidRelation)?;
+            if let KnotPredicateRefV1::Defined(id) = predicate {
+                let catalog = local_predicate_catalog(records, order, cipher, causal, scope)?;
+                let root = catalog.root_of(*id).ok_or_else(|| {
+                    KnotSyncError::InvalidRelation(
+                        "relation names an unavailable predicate definition".into(),
+                    )
+                })?;
+                if !frontier_observes(causal, parents, *id) {
+                    return Err(KnotSyncError::InvalidRelation(
+                        "assertion does not observe its predicate definition".into(),
+                    ));
+                }
+                if catalog.definitions.iter().any(|definition| {
+                    definition.root == root
+                        && definition.replaced_by.is_some()
+                        && frontier_observes(causal, parents, definition.id)
+                }) {
+                    return Err(KnotSyncError::InvalidRelation(
+                        "relation names a retired predicate definition".into(),
+                    ));
+                }
+            }
             let documents = document_versions(records, order, cipher)?;
             for (role, endpoint) in [("subject", subject), ("object", object)] {
                 let document = documents.get(&endpoint.document_head).ok_or_else(|| {
@@ -1947,9 +2291,65 @@ fn validate_local_relation_event(
                 ));
             }
         },
+        KnotSyncEvent::DefinePredicate {
+            slug,
+            label,
+            description,
+            subproperty_of,
+            lowers_to,
+            supersedes,
+            ..
+        } => {
+            validate_predicate_definition_payload(
+                slug,
+                label,
+                description.as_deref(),
+                subproperty_of.as_deref(),
+                lowers_to.as_deref(),
+            )
+            .map_err(KnotSyncError::InvalidPredicate)?;
+            if let Some(previous) = supersedes {
+                let catalog = local_predicate_catalog(records, order, cipher, causal, scope)?;
+                let previous = catalog.definition(*previous).ok_or_else(|| {
+                    KnotSyncError::InvalidPredicate(
+                        "definition supersedes an unavailable predicate definition".into(),
+                    )
+                })?;
+                if previous.author != author {
+                    return Err(KnotSyncError::InvalidPredicate(
+                        "only the minting author may supersede a predicate definition".into(),
+                    ));
+                }
+                if !frontier_observes(causal, parents, previous.id) {
+                    return Err(KnotSyncError::InvalidPredicate(
+                        "definition does not observe the definition it supersedes".into(),
+                    ));
+                }
+                if previous.slug != *slug {
+                    return Err(KnotSyncError::InvalidPredicate(
+                        "a superseding definition keeps the chain's slug".into(),
+                    ));
+                }
+            }
+        },
         _ => {},
     }
     Ok(())
+}
+
+/// Fold the catalog the local writer can currently see.
+fn local_predicate_catalog(
+    records: &[StoredKnotOperation],
+    order: &[usize],
+    cipher: KnotSyncCipher<'_>,
+    causal: &CausalIndex<'_, u64>,
+    scope: [u8; 32],
+) -> Result<KnotPredicateCatalogV1, KnotSyncError> {
+    let events = order
+        .iter()
+        .map(|&index| decode_event(cipher, &records[index].operation).map(|event| (index, event)))
+        .collect::<Result<BTreeMap<_, _>, _>>()?;
+    Ok(fold_relations(records, &events, order, causal, scope)?.catalog)
 }
 
 fn validate_resolution(
@@ -2017,6 +2417,7 @@ mod tests {
     use transport::{P2pandaTransport, PeerID, sync_overlay_topic};
 
     use super::*;
+    use crate::relations::{KnotCorePredicateV1, capture_endpoint_context};
 
     const SPACE: [u8; 32] = [0x81; 32];
     const VAULT_KEY: [u8; 32] = [0x82; 32];
@@ -2053,14 +2454,18 @@ mod tests {
         quote: &str,
     ) -> KnotRelationEndpointV1 {
         let start = source.find(quote).expect("fixture quote is present");
+        let end = start + quote.len();
+        let (prefix, suffix) = capture_endpoint_context(source, start, end);
         KnotRelationEndpointV1 {
             document_id: document_id.into(),
             document_head,
             quote: quote.into(),
             position: Some(crate::relations::KnotRelationPositionV1 {
                 start: start as u64,
-                end: (start + quote.len()) as u64,
+                end: end as u64,
             }),
+            prefix,
+            suffix,
         }
     }
 
@@ -2108,6 +2513,7 @@ mod tests {
                     space_id: store.space_id(),
                     encryption: KnotEncryptionProfile::PersonalVaultV1,
                     parents,
+                    asserted_at_ms: None,
                 },
             );
         let operation = Operation {
@@ -2149,6 +2555,94 @@ mod tests {
         assert_eq!(projection.pending.len(), 1);
     }
 
+    /// The replay half of the unknown-label receipt. It lives here because
+    /// only the crate can author past local validation; the authoring half is
+    /// in tests/predicate_definitions.rs.
+    #[tokio::test]
+    async fn an_unknown_bare_label_decodes_and_is_rejected_at_replay() {
+        let roots = tempdir().unwrap();
+        let alice = InMemoryProvider::from_seed([0x83; 32]);
+        let seed = alice.master_keypair().to_seed();
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [alice.master_public_key().to_bytes()]);
+        let essay = "# Essay\nα holds throughout.\n";
+        let essay_op = store
+            .author(seed, &vault, &KnotSyncEvent::Put(doc("essay", essay)))
+            .await
+            .unwrap();
+        let captured = captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α holds");
+        let event = KnotSyncEvent::AssertRelation {
+            predicate: KnotPredicateRefV1::Unrecognized("corroborates".into()),
+            subject: captured.clone(),
+            object: captured,
+            evidence: None,
+            qualification: None,
+        };
+        assert!(matches!(
+            store.author(seed, &vault, &event).await,
+            Err(KnotSyncError::InvalidRelation(_))
+        ));
+        let remote = author_unchecked(&store, seed, &vault, &event).await;
+
+        let projection = store.projection(&vault).await.unwrap();
+        assert!(projection.relations.is_empty());
+        assert!(
+            projection.rejected_relations.iter().any(|rejected| {
+                rejected.operation == *remote.hash.as_bytes()
+                    && rejected.reason.contains("corroborates")
+            }),
+            "an unknown label decodes rather than killing the projection, then is refused"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_forged_endpoint_context_is_refused_at_authoring_and_rejected_at_replay() {
+        let roots = tempdir().unwrap();
+        let alice = InMemoryProvider::from_seed([0x83; 32]);
+        let seed = alice.master_keypair().to_seed();
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let store = KnotSyncStore::in_memory(SPACE, [alice.master_public_key().to_bytes()]);
+        let essay = "# Essay\nα holds throughout.\n";
+        let essay_op = store
+            .author(seed, &vault, &KnotSyncEvent::Put(doc("essay", essay)))
+            .await
+            .unwrap();
+        let honest = captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α holds");
+        assert_eq!(honest.prefix, "# Essay\n");
+        assert_eq!(honest.suffix, " throughout.\n");
+        let assert_with = |endpoint: KnotRelationEndpointV1| KnotSyncEvent::AssertRelation {
+            predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
+            subject: endpoint.clone(),
+            object: endpoint,
+            evidence: None,
+            qualification: None,
+        };
+        store
+            .author(seed, &vault, &assert_with(honest.clone()))
+            .await
+            .unwrap();
+
+        let forged = KnotRelationEndpointV1 {
+            prefix: "# Preface\n".into(),
+            ..honest
+        };
+        assert!(matches!(
+            store
+                .author(seed, &vault, &assert_with(forged.clone()))
+                .await,
+            Err(KnotSyncError::InvalidRelation(_))
+        ));
+        let remote = author_unchecked(&store, seed, &vault, &assert_with(forged)).await;
+        let projection = store.projection(&vault).await.unwrap();
+        assert_eq!(projection.relations.len(), 1);
+        assert!(
+            projection.rejected_relations.iter().any(|rejected| {
+                rejected.operation == *remote.hash.as_bytes() && rejected.reason.contains("prefix")
+            }),
+            "a forged prefix is rejected against the captured source"
+        );
+    }
+
     #[tokio::test]
     async fn relations_keep_independent_authors_and_retraction_history_across_checkpoint_reopen() {
         let roots = tempdir().unwrap();
@@ -2179,7 +2673,7 @@ mod tests {
             .await
             .unwrap();
         let relation_event = || KnotSyncEvent::AssertRelation {
-            predicate: "supports".into(),
+            predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
             subject: captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α"),
             object: captured_endpoint("source", *source_op.hash.as_bytes(), source, "β"),
             evidence: Some("vault:evidence/one".into()),
@@ -2226,7 +2720,7 @@ mod tests {
         )
         .await;
         let stale_capture = KnotSyncEvent::AssertRelation {
-            predicate: "supports".into(),
+            predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
             subject: KnotRelationEndpointV1 {
                 quote: "stale".into(),
                 ..captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α")
@@ -2359,7 +2853,7 @@ mod tests {
                 alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::AssertRelation {
-                    predicate: "supports".into(),
+                    predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
                     subject: captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α"),
                     object: captured_endpoint("source", *source_op.hash.as_bytes(), source, "β"),
                     evidence: None,
@@ -2489,18 +2983,22 @@ mod tests {
                     alice.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::AssertRelation {
-                        predicate: "supports".into(),
+                        predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
                         subject: KnotRelationEndpointV1 {
                             document_id: "knot:document:malformed".into(),
                             document_head: *unchecked.hash.as_bytes(),
                             quote: String::new(),
                             position: None,
+                            prefix: String::new(),
+                            suffix: String::new(),
                         },
                         object: KnotRelationEndpointV1 {
                             document_id: "knot:document:malformed".into(),
                             document_head: *unchecked.hash.as_bytes(),
                             quote: String::new(),
                             position: None,
+                            prefix: String::new(),
+                            suffix: String::new(),
                         },
                         evidence: None,
                         qualification: None,
@@ -2537,7 +3035,7 @@ mod tests {
                     alice.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::AssertRelation {
-                        predicate: "supports".into(),
+                        predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
                         subject: KnotRelationEndpointV1 {
                             document_id: "knot:document:valid".into(),
                             document_head: *valid.hash.as_bytes(),
@@ -2546,6 +3044,8 @@ mod tests {
                                 start: 0,
                                 end: 4,
                             }),
+                            prefix: String::new(),
+                            suffix: String::new(),
                         },
                         object: KnotRelationEndpointV1 {
                             document_id: "knot:document:valid".into(),
@@ -2555,6 +3055,8 @@ mod tests {
                                 start: 0,
                                 end: 4,
                             }),
+                            prefix: String::new(),
+                            suffix: String::new(),
                         },
                         evidence: None,
                         qualification: None,
@@ -2879,12 +3381,15 @@ mod tests {
             .await
             .unwrap();
         assert!(b.accept(&after_removal).await.unwrap());
-        assert!(matches!(
-            b.communal_projection(&bob_keys).await,
-            Err(KnotSyncError::GroupCrypto(GroupCryptoError::UnknownEpoch(
-                _
-            )))
-        ));
+        // The removed member's key opens nothing from the new epoch. Since the
+        // undecodable-event hardening that is a reported record, not a dead
+        // projection: what Bo could already read stays readable.
+        let removed = b.communal_projection(&bob_keys).await.unwrap();
+        assert_eq!(removed.documents, vec![doc("shared", "before removal")]);
+        assert!(removed.rejected_relations.iter().any(|rejected| {
+            rejected.operation == *after_removal.hash.as_bytes()
+                && rejected.reason.contains("could not be decoded")
+        }));
         assert_eq!(a.communal_documents(&alice_keys).await.unwrap().len(), 2);
     }
 
@@ -3475,7 +3980,7 @@ mod tests {
                 alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::AssertRelation {
-                    predicate: "supports".into(),
+                    predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
                     subject: captured_endpoint(
                         "knot:document:catalog-file",
                         *first.hash.as_bytes(),

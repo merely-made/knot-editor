@@ -14,11 +14,13 @@
 mod authority;
 mod clip_evidence;
 mod content_classes;
+mod did_key;
 mod directory;
 mod djot_merge;
 mod endpoint;
 mod file_revision;
 mod mark;
+mod predicates;
 mod publish;
 mod publish_carrier;
 mod publish_client;
@@ -46,6 +48,7 @@ pub use clip_evidence::{
 pub use content_classes::{
     FILE_CLASS, FILE_DOCUMENT_FACET, KnotContentClasses, NOTE_CLASS, NOTE_DOCUMENT_FACET,
 };
+pub use did_key::{did_key, did_key_verifying_key};
 pub use directory::{DirectorySource, DiskDocument, IgnorePolicy};
 pub use endpoint::{
     KnotCaptureDestination, KnotCaptureError, KnotCaptureGrant, KnotCaptureReceipt,
@@ -73,6 +76,10 @@ pub use mark::{
 /// Knot's publishing carrier. Product hosts should take these through Knot,
 /// not add a second direct Notochord dependency.
 pub use notochord::{NetworkId, ProfileRef, TrustedRoot};
+pub use predicates::{
+    KNOT_PREDICATE_IRI_PREFIX, KnotPredicateCatalogV1, KnotPredicateDefinitionV1,
+    KnotPredicateReplacementV1, KnotRejectedPredicateV1, mint_predicate_iri,
+};
 pub use publish::{
     KNOT_PUBLISH_ALPN, KNOT_PUBLISH_DOMAIN, KNOT_PUBLISH_READ_ACTION, KNOT_PUBLISH_SERVICE,
     KNOT_SHARE_TICKET_VERSION, KnotPublication, KnotPublishCandidate, KnotPublishCatalog,
@@ -98,8 +105,10 @@ pub use publish_wire::{
     encode_request, encode_response,
 };
 pub use relations::{
+    KNOT_REL_VOCAB, KNOT_RELATION_CONTEXT_CHARS, KnotCorePredicateV1, KnotPredicateRefV1,
     KnotRejectedRelationV1, KnotRelationAssertionV1, KnotRelationEndpointV1,
     KnotRelationPositionV1, KnotRelationRetractionV1, KnotUnverifiedRelationV1,
+    capture_endpoint_context,
 };
 pub use resident::{
     KnotEvidenceFetchReceipt, KnotEvidenceFetchStatus, KnotSyncHost, KnotSyncHostConfig,
@@ -118,11 +127,11 @@ pub use startup::{
     StartupUnlockedPersonalVault, local_device_root, persona_vault_root, personal_vault_writer,
 };
 pub use sync::{
-    KNOT_COMMONS_ENCRYPTION_PROFILE, KnotAutomaticTextMerge, KnotCheckpointSnapshot,
-    KnotDocumentConflict, KnotDocumentProjection, KnotDocumentVersion, KnotEncryptionProfile,
-    KnotEpochExecutionReceipt, KnotOfflineMemberEpochHold, KnotOfflineMemberRecovery,
-    KnotProjectionCheckpoint, KnotSyncCipher, KnotSyncError, KnotSyncEvent, KnotSyncExt,
-    KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
+    KNOT_COMMONS_ENCRYPTION_PROFILE, KnotAssertedTime, KnotAutomaticTextMerge,
+    KnotCheckpointSnapshot, KnotDocumentConflict, KnotDocumentProjection, KnotDocumentVersion,
+    KnotEncryptionProfile, KnotEpochExecutionReceipt, KnotOfflineMemberEpochHold,
+    KnotOfflineMemberRecovery, KnotProjectionCheckpoint, KnotSyncCipher, KnotSyncError,
+    KnotSyncEvent, KnotSyncExt, KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
 };
 pub use vault::{KnotVault, VaultDocument};
 pub use watcher::DirectoryWatcher;

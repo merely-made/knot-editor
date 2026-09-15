@@ -104,6 +104,15 @@ fn table_row(cells: &[Vec<InlineSpan>], cell_element: &'static str) -> DesktopVi
     ))
 }
 
+/// Render a document that is not the editor's source — a reading's note, say.
+/// It carries its own address and no headings, so a heading button inside it
+/// can never match the session and any activation is refused, not misapplied.
+pub(crate) fn note_blocks(document: &inker::EngineDocument) -> DesktopView {
+    let address: Arc<str> = Arc::from(document.address.clone());
+    let source_text: Arc<str> = Arc::from("");
+    blocks(&document.blocks, &[], &address, &source_text, &mut 0)
+}
+
 fn blocks(
     items: &[Block],
     headings: &[KnotOutlineItemV1],

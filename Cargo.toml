@@ -5,6 +5,7 @@ members = [
     "crates/knot-capture",
     "crates/knot-file-catalog",
     "crates/knot-editor",
+    "crates/knot-readings",
 ]
 exclude = ["crates/knot-document", "crates/knot-site"]
 default-members = [
@@ -22,6 +23,7 @@ rust-version = "1.97"
 knot-capture = { version = "0.0.1", path = "crates/knot-capture" }
 knot-document = { version = "0.0.1", path = "crates/knot-document" }
 knot-file-catalog = { version = "0.0.1", path = "crates/knot-file-catalog" }
+knot-readings = { version = "0.0.1", path = "crates/knot-readings" }
 
 # Mere contracts and services. This revision matches the current Turnstone
 # consumer line so embedded Knot types have one Cargo source identity.

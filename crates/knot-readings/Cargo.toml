@@ -1,0 +1,20 @@
+[package]
+name = "knot-readings"
+version = "0.0.1"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+description = "Sandboxed rhai reading lane over Knot's typed document snapshots."
+
+[dependencies]
+blake3.workspace = true
+inker.workspace = true
+knot-document = { workspace = true, features = ["engine"] }
+script-rhai.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
+
+[lints]
+workspace = true

@@ -83,12 +83,13 @@ tree, most of it is already built on the Mere side:
 
 - **CiTO alignment exists.** `linked-data/src/vocab.rs` aligns every
   recognized sub-kind in three categories: exact (`owl:equivalentProperty`),
-  approximate (`rdfs:subPropertyOf`), and Mere-only. Committed rows: cites
-  is `cito:cites`, quotes is `cito:includesQuotationFrom`, supports is
-  `cito:agreesWith`, contradicts is `cito:disagreesWith`, same-entity-as is
-  `owl:sameAs`; summarizes, elaborates, and questions are subproperties of
-  `cito:cites`; hyperlink is a subproperty of `rdfs:seeAlso`; user-grouped
-  and agent-derived stand alone. The alignment is emitted as quads in a
+  approximate (`rdfs:subPropertyOf`), and Mere-only. Rows as of the
+  2026-09-15 ruling: cites is `cito:cites`, quotes is
+  `cito:includesQuotationFrom`, supports is `cito:supports`, contradicts is
+  `cito:disputes`, elaborates is `cito:extends`, hyperlink is
+  `cito:linksTo`, same-entity-as is `owl:sameAs`; summarizes and questions
+  are subproperties of `cito:cites`; user-grouped and agent-derived stand
+  alone. The alignment is emitted as quads in a
   vocabulary named graph and dropped on ingest, so instance data is never
   rewritten. That is the survey's second tier, anchored to the 2026-05-22
   statements-over-schema stance.
@@ -98,14 +99,13 @@ tree, most of it is already built on the Mere side:
 - **Web Annotation is not emitted anywhere yet.** Knot's endpoint is the
   material for it.
 
-Where the survey's rows differ from Mere's table, the difference is a Mere
-ruling and is recorded here for the audit, not decided: supports is
-`agreesWith` in Mere and `cito:supports` in the survey; contradicts is
-`disagreesWith` in Mere while CiTO also has `disputes` and `refutes`;
-elaborates is a `cites` subproperty in Mere and `cito:extends` in the survey;
-hyperlink is `rdfs:seeAlso` in Mere while `cito:linksTo` is the exact CiTO
-term. Knot consumes Mere's table as it stands. A change lands in
-`vocab.rs` and its stance doc.
+Four of the survey's rows differed from Mere's table as it stood on the
+morning of 2026-09-15: supports was `agreesWith`, contradicts was
+`disagreesWith`, elaborates a `cites` subproperty, hyperlink a `seeAlso`
+subproperty. Raised with Mere and ruled the same day in the evidence sense;
+the table now reads supports `cito:supports`, contradicts `cito:disputes`,
+elaborates `cito:extends`, hyperlink `cito:linksTo`, all exact. Knot
+consumes the table; the rows above describe it as it is now.
 
 **Three faces.** A predicate has a label, an identity, and a behaviour, kept
 apart: the label is what the writer sees and types and may change; the
@@ -182,7 +182,8 @@ proof restated at the predicate level.
 assert; supersede one definition with a new label; export to JSON-LD; load
 the export in oxigraph, which the tree already carries; and answer a query
 for `cito:agreesWith` statements that returns the core-supports assertion
-through the alignment graph and a query for the defined predicate's
+through the alignment graph, where `cito:agreesWith` was the row before
+the ruling, and a query for the defined predicate's
 superproperty that returns it. Import into a Mere graph shows two
 independent authors' assertions on the same endpoints as distinct
 statements. A Reticulum alias derived from a pseudonym key matches the
@@ -251,15 +252,17 @@ stays off the definition.
 **Rulings, 2026-09-15.**
 
 1. Namespace: the signing key, with pseudonyms as derived keys and optional
-   delegation-certificate linkage. `did:key` encoding proposed above.
+   delegation-certificate linkage, encoded as `did:key`. Ruled.
 2. Contradicts: one writer predicate, specialized by definitions under
-   `cito:refutes` or `cito:disputes`.
+   `cito:refutes`; the base is `cito:disputes` since Mere's ruling below.
 3. Asserted time: automatic, editable before signing, immutable after.
 4. Core set: the eight named above.
 5. Inverse: a G3 reading, no definition field.
 6. Mapping differences: raised with Mere now, in the petgraph-RDF plan's
-   consumer audit of 2026-09-15. Knot is the forcing function for a
-   vocabulary that has had no consumer.
+   consumer audit of 2026-09-15, and ruled there the same day: the evidence
+   sense. `vocab.rs` now maps supports to `cito:supports`, contradicts to
+   `cito:disputes`, elaborates to `cito:extends`, and hyperlink to
+   `cito:linksTo`, all exact.
 
 ## Track 2: esp integration
 

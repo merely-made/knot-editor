@@ -162,9 +162,9 @@ mod tests {
     use super::*;
     use cambium_genet_winit_host::Init;
     use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};
-    use taproot::Selector;
     use knot_desktop::host_hooks;
     use knot_document::KNOT_DOCUMENT_CSS;
+    use taproot::Selector;
     use tempfile::tempdir;
     use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
     fn launch(args: &[&str]) -> Result<LaunchOptions, String> {
@@ -288,6 +288,8 @@ mod tests {
                 knot_desktop::appearance::appearance_css(),
                 knot_desktop::document_preview::CSS
             ),
+            fonts: Vec::new(),
+            images: Vec::new(),
         };
         let mut harness = Harness::with_hooks(init, host_hooks());
         harness.layout_at(900.0, 640.0);

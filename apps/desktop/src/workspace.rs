@@ -1877,10 +1877,10 @@ mod tests {
     use super::*;
     use crate::appearance::appearance_css;
     use cambium_genet_winit_host::{Harness, Init, Modifiers, inert_hooks};
-    use taproot::Selector;
     use knot_document::KNOT_DOCUMENT_CSS;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex, mpsc};
+    use taproot::Selector;
     use tempfile::tempdir;
 
     fn harness(
@@ -1903,6 +1903,8 @@ mod tests {
                     crate::document_folding::CSS,
                     crate::document_preview::CSS
                 ),
+                fonts: Vec::new(),
+                images: Vec::new(),
             },
             {
                 let mut hooks = inert_hooks();

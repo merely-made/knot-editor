@@ -420,13 +420,29 @@ reference and a shared suggestion sink, so they land last.
   `asserted_time`, `authored_relations`, `file_relations` green. Defaults
   taken: `replaced_by` as an enum with `Retired` and `Predicate`; slug
   immutable across a chain; slug unique per author per scope among live
-  roots. Open: the did:key test pins base58 and shape, not the W3C vector,
-  pending an online check; the commons epoch-removal test now expects the
-  tolerant projection, a semantic change Mark may want strict for commons;
+  roots. The did:key test now pins the two W3C CCG Ed25519 examples, decoded
+  independently, encoder and decoder both (online check done 2026-09-15);
   `rejected_relations` carries every undecodable closed event and wants
   splitting before it reaches a writer; authoring against a defined
   predicate re-folds history like retraction does, where a cached fold
   starts to pay.
+
+  **Strictness.** Mark ruled 2026-09-15 that the tolerance `5323359`
+  introduced must be configurable, not a blanket semantic change.
+  `KnotProjectionStrictness { Tolerant, Strict }` is carried by the
+  projection call, never by store state: `Strict` restores the
+  pre-`5323359` behaviour of failing the whole projection with the decode
+  error, `Tolerant` keeps the readable subset plus a rejected record.
+  Entry points: `projection_with_strictness`,
+  `communal_projection_with_strictness`, and
+  `projection_with_cipher_and_strictness`, with the existing three
+  unchanged in signature. Defaults: personal projections tolerate, because
+  an undecodable personal event can only be a newer variant this peer has
+  not learned; `communal_projection` is strict, because a commons member
+  reading past an epoch it no longer holds must see the membership fact
+  rather than a quietly shortened document list. `projection_with_cipher`
+  takes its cipher's default, so the two named entry points and the
+  checkpoint and document helpers built on it agree.
 - **2026-09-15, Track 3 slice 1 landed** (`30aa0c4`). New crate
   `knot-readings` and the desktop Readings panel; sandbox receipts first
   (no module resolver, `import` and `eval` disabled, zero budget refused,

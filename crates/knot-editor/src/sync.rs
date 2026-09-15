@@ -176,6 +176,34 @@ impl KnotSyncCipher<'_> {
             Self::CommonsData(_) => KnotEncryptionProfile::CommonsDataV1,
         }
     }
+
+    /// The strictness a projection uses when the caller does not name one.
+    ///
+    /// Personal history is only ever undecodable because this peer has not
+    /// learned a newer event variant, so it tolerates. Commons history is
+    /// undecodable when the reader no longer holds the epoch, which is a
+    /// membership fact the caller must see rather than silently lose.
+    fn default_strictness(self) -> KnotProjectionStrictness {
+        match self {
+            Self::Personal(_) => KnotProjectionStrictness::Tolerant,
+            Self::CommonsData(_) => KnotProjectionStrictness::Strict,
+        }
+    }
+}
+
+/// What a projection does with a causally closed event it cannot decode.
+///
+/// Carried by the projection call, never by store-wide state: one store is
+/// read both ways, by a peer catching up on an unknown event variant and by a
+/// caller who must learn it has lost an epoch.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+pub enum KnotProjectionStrictness {
+    /// Record the undecodable event as a rejected relation and project the
+    /// readable remainder.
+    #[default]
+    Tolerant,
+    /// Fail the whole projection with the decode error that stopped it.
+    Strict,
 }
 
 /// Knot sync failures.
@@ -859,6 +887,9 @@ where
 
     /// Fold the causally closed subset into documents while preserving
     /// document conflicts and missing-history diagnostics.
+    ///
+    /// Defaults to [`KnotProjectionStrictness::Tolerant`]: an event this peer
+    /// cannot decode is a newer variant it has not learned, not a lost key.
     pub async fn projection(
         &self,
         vault: &KnotVault,
@@ -867,6 +898,24 @@ where
             .await
     }
 
+    /// [`Self::projection`] with an explicit undecodable-event policy.
+    pub async fn projection_with_strictness(
+        &self,
+        vault: &KnotVault,
+        strictness: KnotProjectionStrictness,
+    ) -> Result<KnotDocumentProjection, KnotSyncError> {
+        self.projection_with_cipher_and_strictness(KnotSyncCipher::Personal(vault), strictness)
+            .await
+    }
+
+    /// Fold the causally closed Commons subset under a data keyring.
+    ///
+    /// Defaults to [`KnotProjectionStrictness::Strict`]: a commons member
+    /// reading past an epoch it no longer holds is the case the strict form
+    /// exists for, and a silently shortened document list is the wrong answer
+    /// to it. Callers that want the readable subset plus rejected records ask
+    /// for [`KnotProjectionStrictness::Tolerant`] through
+    /// [`Self::communal_projection_with_strictness`].
     pub async fn communal_projection(
         &self,
         keys: &DataKeyring,
@@ -875,17 +924,39 @@ where
             .await
     }
 
+    /// [`Self::communal_projection`] with an explicit undecodable-event policy.
+    pub async fn communal_projection_with_strictness(
+        &self,
+        keys: &DataKeyring,
+        strictness: KnotProjectionStrictness,
+    ) -> Result<KnotDocumentProjection, KnotSyncError> {
+        self.projection_with_cipher_and_strictness(KnotSyncCipher::CommonsData(keys), strictness)
+            .await
+    }
+
+    /// Project under an explicit cipher, with that cipher's default strictness
+    /// (personal tolerates, Commons is strict).
     pub async fn projection_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
+    ) -> Result<KnotDocumentProjection, KnotSyncError> {
+        self.projection_with_cipher_and_strictness(cipher, cipher.default_strictness())
+            .await
+    }
+
+    pub async fn projection_with_cipher_and_strictness(
+        &self,
+        cipher: KnotSyncCipher<'_>,
+        strictness: KnotProjectionStrictness,
     ) -> Result<KnotDocumentProjection, KnotSyncError> {
         self.require_cipher(cipher)?;
         let records = self.load_operations().await?;
         let entries = causal_entries(&records);
         let projection = causal_projection(&entries)?;
-        // An undecodable closed event is reported, not fatal: a peer that has
-        // not learned a newer event variant still projects everything it can
-        // read, the same tolerance pending undecipherable history already has.
+        // Under Tolerant an undecodable closed event is reported, not fatal: a
+        // peer that has not learned a newer event variant still projects
+        // everything it can read, the same tolerance pending undecipherable
+        // history already has. Under Strict the decode error ends the fold.
         let mut undecodable = Vec::new();
         let mut events = BTreeMap::new();
         for &index in &projection.order {
@@ -894,11 +965,16 @@ where
                 Ok(event) => {
                     events.insert(index, event);
                 },
-                Err(error) => undecodable.push(KnotRejectedRelationV1 {
-                    operation: *operation.hash.as_bytes(),
-                    author: *operation.header.verifying_key.as_bytes(),
-                    reason: format!("closed event could not be decoded: {error}"),
-                }),
+                Err(error) => match strictness {
+                    KnotProjectionStrictness::Strict => return Err(error),
+                    KnotProjectionStrictness::Tolerant => {
+                        undecodable.push(KnotRejectedRelationV1 {
+                            operation: *operation.hash.as_bytes(),
+                            author: *operation.header.verifying_key.as_bytes(),
+                            reason: format!("closed event could not be decoded: {error}"),
+                        })
+                    },
+                },
             }
         }
         // Indexed once for the whole fold: the retain below asks a reachability
@@ -3381,16 +3457,99 @@ mod tests {
             .await
             .unwrap();
         assert!(b.accept(&after_removal).await.unwrap());
-        // The removed member's key opens nothing from the new epoch. Since the
-        // undecodable-event hardening that is a reported record, not a dead
-        // projection: what Bo could already read stays readable.
-        let removed = b.communal_projection(&bob_keys).await.unwrap();
+        // The removed member's key opens nothing from the new epoch, and a
+        // Commons projection is strict by default: losing an epoch is a
+        // membership fact, not a quietly shortened document list.
+        assert!(matches!(
+            b.communal_projection(&bob_keys).await,
+            Err(KnotSyncError::GroupCrypto(GroupCryptoError::UnknownEpoch(_)))
+        ));
+        assert_eq!(a.communal_documents(&alice_keys).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_tolerant_commons_projection_reads_the_subset_before_epoch_removal() {
+        let (alice, bob) = identities();
+        let writers = [
+            alice.master_public_key().to_bytes(),
+            bob.master_public_key().to_bytes(),
+        ];
+        let (mut alice_keys, bob_keys) = paired_group_keys();
+        let a = KnotSyncStore::in_memory_commons(SPACE, writers);
+        let b = KnotSyncStore::in_memory_commons(SPACE, writers);
+
+        let old = a
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &alice_keys,
+                &KnotSyncEvent::Put(doc("shared", "before removal")),
+            )
+            .await
+            .unwrap();
+        b.accept(&old).await.unwrap();
+
+        alice_keys.rotate_random().unwrap();
+        let after_removal = a
+            .author_communal(
+                alice.master_keypair().to_seed(),
+                &alice_keys,
+                &KnotSyncEvent::Put(doc("new", "after removal")),
+            )
+            .await
+            .unwrap();
+        assert!(b.accept(&after_removal).await.unwrap());
+
+        // The same fixture, read tolerantly: what Bo could already read stays
+        // readable, and the epoch it lost is a rejected record it can inspect.
+        let removed = b
+            .communal_projection_with_strictness(&bob_keys, KnotProjectionStrictness::Tolerant)
+            .await
+            .unwrap();
         assert_eq!(removed.documents, vec![doc("shared", "before removal")]);
         assert!(removed.rejected_relations.iter().any(|rejected| {
             rejected.operation == *after_removal.hash.as_bytes()
+                && rejected.author == alice.master_public_key().to_bytes()
                 && rejected.reason.contains("could not be decoded")
         }));
-        assert_eq!(a.communal_documents(&alice_keys).await.unwrap().len(), 2);
+    }
+
+    #[tokio::test]
+    async fn a_personal_projection_defaults_to_tolerant() {
+        let roots = tempdir().unwrap();
+        let alice = InMemoryProvider::from_seed([0x83; 32]);
+        let seed = alice.master_keypair().to_seed();
+        let store = KnotSyncStore::in_memory(SPACE, [alice.master_public_key().to_bytes()]);
+        let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
+        let other = KnotVault::open(roots.path().join("other"), [0x5c; 32]).unwrap();
+        store
+            .author(seed, &vault, &KnotSyncEvent::Put(doc("first", "readable")))
+            .await
+            .unwrap();
+
+        // A default personal projection is the tolerant one; the explicit
+        // Tolerant call is the same projection.
+        assert_eq!(
+            store.projection(&vault).await.unwrap(),
+            store
+                .projection_with_strictness(&vault, KnotProjectionStrictness::Tolerant)
+                .await
+                .unwrap()
+        );
+        assert_eq!(
+            store.projection(&vault).await.unwrap().documents,
+            vec![doc("first", "readable")]
+        );
+        // The same history under a vault key that opens nothing: tolerant by
+        // default records it, strict refuses it.
+        let tolerated = store.projection(&other).await.unwrap();
+        assert!(tolerated.documents.is_empty());
+        assert_eq!(tolerated.rejected_relations.len(), 1);
+        assert!(
+            store
+                .projection_with_strictness(&other, KnotProjectionStrictness::Strict)
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

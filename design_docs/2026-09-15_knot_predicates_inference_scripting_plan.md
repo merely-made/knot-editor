@@ -131,12 +131,13 @@ standard IRI, an optional Mere sub-kind to lower to, and an optional
 changes:
 
 ```
-urn:knot:author:<verifying key hex>:rel:<first definition hash hex>
+urn:knot:rel:<multibase ed25519 key>:<first definition hash hex>
 ```
 
-The namespace is the author's ed25519 verifying key, because that is what
-signs the definition and what a peer verifies. Knot's `PersonaId` is a local
-UUID that never leaves the machine and cannot serve. A rename is a
+The namespace is the minting ed25519 verifying key, because that is what
+signs the definition and what a peer verifies; the key itself is named as a
+`did:key` IRI (see Pseudonyms and aliases below). Knot's `PersonaId` is a
+local UUID that never leaves the machine and cannot serve. A rename is a
 superseding definition with a new label and the same IRI. Retirement is a
 superseding definition carrying `replaced_by`; a retired predicate refuses
 new assertions and keeps old ones readable under their historical label. A
@@ -166,13 +167,12 @@ arrive: a `FragmentSelector` conforming to Media Fragments for `t=` and
 `xywh=`, and to RFC 3778 for `page=`.
 
 **Provenance** exports as PROV-O: the assertion `prov:wasAttributedTo` the
-author key as `urn:knot:author:<hex>` and `prov:wasGeneratedBy` the signing
+author key as its `did:key` IRI and `prov:wasGeneratedBy` the signing
 operation as `urn:knot:op:<hash>`; the scope is the named graph; a
 retraction is `prov:wasInvalidatedBy` its retraction operation. One
-correction to the survey: Knot's operations carry no wall-clock time, only
-signed causal order, so no `prov:invalidatedAtTime` or `generatedAtTime` is
-exported. Export never invents a time. Adding an author-asserted time to the
-operation header is possible but is a trust decision, listed below.
+correction to the survey: Knot's operations carry no wall-clock time today,
+only signed causal order. The asserted time ruled below adds one; until it
+lands, export emits no time, and it never invents one.
 
 **Lowering** into a Mere graph carries the assertion id as the statement id,
 so the kernel's content dedup never collapses two authors. That is the G1
@@ -185,27 +185,81 @@ for `cito:agreesWith` statements that returns the core-supports assertion
 through the alignment graph and a query for the defined predicate's
 superproperty that returns it. Import into a Mere graph shows two
 independent authors' assertions on the same endpoints as distinct
-statements. The exported quote and position selectors re-anchor the quote
+statements. A Reticulum alias derived from a pseudonym key matches the
+identity hash retinue computes for the same keys. The exported quote and position selectors re-anchor the quote
 in the exported source at character positions. Validation refuses an
 unknown bare label. The display shows the current label on an assertion
 signed under the old one. A retired definition cannot be used for a new
-assertion. No exported statement carries a time.
+assertion. An exported statement carries the author-asserted time and nothing else
+as a time.
 
-**Decisions for Mark.**
+**Pseudonyms and aliases.** The namespace is a signing key, and a writer
+may hold many. Two mechanisms already in the tree make that concrete:
 
-1. Namespace form for defined predicates: the author verifying key, as
-   proposed; the space id; or a resolvable HTTPS base once a persona has a
-   published address. Recommendation: the key now, with an HTTPS alias
-   later as a second `owl:equivalentProperty`.
-2. The contradicts split: one writer predicate specialized by definitions,
-   as proposed; or asking Mere for disputes and refutes sub-kinds.
-3. Whether to add an author-asserted time to operation headers so PROV
-   times can be exported, accepting that it is claimed, not verified.
-4. Whether the core set is exactly the eight above.
-5. Whether an inverse is a field on the definition or a reading over
-   direction, as G3 treats it.
-6. Whether to raise the four mapping differences with Mere's table now or
-   leave them for the vocabulary's own audit.
+- **Derived keys.** Knot's writer key is `blake3::derive_key` over the
+  persona's epoch secret and the device root under a context string. A
+  pseudonym is one more context in that derivation, chainable to any depth.
+  Nothing links it to the root without the secret.
+- **Delegation certificates.** Personae's `DelegationCertificate` names a
+  parent (a root key or another certificate), an issuer, a subject, a
+  capability scope, an issuer-asserted `issued_at_ms`, an expiry, and a
+  revocation path. Publishing one makes a pseudonym provably the root's;
+  withholding it keeps the pseudonym unlinkable. Linkage is the writer's
+  choice per pseudonym, and revocable.
+
+A key is named as a `did:key` IRI, the standard self-certifying form for an
+ed25519 public key, so an author IRI resolves with no network and no Knot
+registry. A defined predicate then lives under its minting key:
+
+```
+did:key:<multibase ed25519>            the author or pseudonym
+urn:knot:rel:<multibase>:<def hash>    a predicate minted under it
+```
+
+**Transport aliases** are `owl:sameAs` statements from the key to a
+transport-native name, and they come in four classes:
+
+| Class | Transports | How |
+| --- | --- | --- |
+| Derivable | Reticulum identity and destination hashes, LXMF, NomadNet | A Reticulum identity is an x25519 key plus an ed25519 verifying key, hashed together (`trunc16(sha256(x25519 ‖ ed25519))`). Derive the x25519 half from the same seed and use the pseudonym's ed25519 key as the signing half: the identity hash, every destination hash under it, and the LXMF delivery address follow, and an announce carries the public keys so a peer can check the ed25519 half against the Knot author. |
+| Provable by certificate | Gemini, Titan, Scroll | An ed25519 TLS client certificate carrying the same key; the fingerprint is the alias and the handshake proves it. |
+| Statement only | HTTPS pages, mailto, ActivityPub | The alias is asserted and signed by the key, not provable by the transport (fediverse keys are RSA; a page has no key). |
+| Impossible | Gopher, Finger, Nex, Spartan | No client identity on the wire. |
+
+An alias is a signed statement in the space like a definition, retractable
+the same way. The first slice implements the derivable class for Reticulum,
+because retinue already has the identity and destination types and the
+mesh scene in the design pass needs a peer name that is the author's name.
+
+**Asserted time.** Operations gain an author-asserted `asserted_at_ms`:
+set automatically from the wall clock at authoring, editable before
+signing so a transcribed note can carry its real date, immutable after.
+A correction is a new operation. Export emits it as
+`prov:generatedAtTime` and, on a retraction, `prov:invalidatedAtTime`,
+which is what Mere already does with its statement-level `asserted_at_ms`
+and what personae does with a certificate's `issued_at_ms`. Time is
+informative and never orders a fold; causal order stays authoritative.
+
+**Inverse.** A definition field would read `inverse: Option<PredicateRef>`
+exported as `owl:inverseOf`. It costs two definitions kept consistent and
+gives a writer two directions to assert one fact, which is the ambiguity
+G3's direction audit exists to catch. Inverses are therefore a reading:
+"cited by" is derived at read time from one predicate, and CiTO already
+declares the inverse pairs, so export needs nothing from Knot. The field
+stays off the definition.
+
+**Rulings, 2026-09-15.**
+
+1. Namespace: the signing key, with pseudonyms as derived keys and optional
+   delegation-certificate linkage. `did:key` encoding proposed above.
+2. Contradicts: one writer predicate, specialized by definitions under
+   `cito:refutes` or `cito:disputes`.
+3. Asserted time: automatic, editable before signing, immutable after.
+4. Core set: the eight named above.
+5. Inverse: a G3 reading, no definition field.
+6. Mapping differences: raised with Mere now, in the petgraph-RDF plan's
+   consumer audit of 2026-09-15. Knot is the forcing function for a
+   vocabulary that has had no consumer.
 
 ## Track 2: esp integration
 

@@ -5,6 +5,8 @@ to an independently consumable repository.
 
 Current authority:
 
+- [Predicates, inference readings, scripted readings](2026-09-15_knot_predicates_inference_scripting_plan.md): predicate identity mapping before the first authored relation persists; esp graduation from the lexical provider to embeddings, related-passage readings and suggestions; a rhai reading lane over typed snapshots. All readings, no new authority.
+
 - [Design pass brief](2026-09-13_knot_design_pass_brief.md): materials, captured baseline frames, planned directions, and the layout questions a design pass over the standalone desktop has to answer before the multi-document slice adds tabs and a navigator.
 
 - [Native small-web authoring](2026-09-11_small_web_authoring_plan.md): Gemini, Titan, Spartan and Micron scope, shared protocol ownership, Turnstone composition and persistent-serving proposal.

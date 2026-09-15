@@ -61,6 +61,8 @@ pub fn run_desktop_with_targets(
                     document_preview::CSS,
                     scroll_site::CSS
                 ),
+                fonts: Vec::new(),
+                images: Vec::new(),
             }
         },
         host_hooks(),

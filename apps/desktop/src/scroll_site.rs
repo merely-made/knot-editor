@@ -1631,9 +1631,9 @@ mod tests {
     use crate::{DESKTOP_CSS, host_hooks, workspace::desktop_view};
     use cambium::TextCommand;
     use cambium_genet_winit_host::{Harness, Init, WindowCommands};
-    use taproot::Selector;
     use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
     use layout_dom_api::{LayoutDom, LocalName, Namespace};
+    use taproot::Selector;
 
     #[test]
     fn site_navigation_metadata_and_explicit_publication_keep_separate_authority() {
@@ -1896,6 +1896,8 @@ mod tests {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!("{DESKTOP_CSS}{CSS}"),
+                fonts: Vec::new(),
+                images: Vec::new(),
             },
             host_hooks(),
         );
@@ -2088,6 +2090,8 @@ mod tests {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!("{DESKTOP_CSS}{CSS}"),
+                fonts: Vec::new(),
+                images: Vec::new(),
             },
             host_hooks(),
         );
@@ -2165,13 +2169,16 @@ mod tests {
     // form panel switching to its sending view must not move that offset.
     #[test]
     fn a_micron_submission_redraw_keeps_the_scrolled_preview_where_it_was() {
-        let mut source =
-            String::from("`[Submit`0123456789abcdef0123456789abcdef:/capture`name]
+        let mut source = String::from(
+            "`[Submit`0123456789abcdef0123456789abcdef:/capture`name]
 `<name`seed>
-");
+",
+        );
         for index in 0..400 {
-            source.push_str(&format!("Line {index} of a long Micron page.
-"));
+            source.push_str(&format!(
+                "Line {index} of a long Micron page.
+"
+            ));
         }
         let temp = tempfile::tempdir().unwrap();
         let path = temp.path().join("long.mu");
@@ -2191,6 +2198,8 @@ mod tests {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: format!("{DESKTOP_CSS}{CSS}"),
+                fonts: Vec::new(),
+                images: Vec::new(),
             },
             host_hooks(),
         );

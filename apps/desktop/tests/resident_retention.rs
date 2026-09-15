@@ -7,7 +7,6 @@
 use std::{sync::Arc, time::Duration};
 
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};
-use taproot::Selector;
 use genet_scripted_dom::{NodeId, ScriptedDom};
 use knot_capture::{KnotPersonaDisplayV1, KnotRetainPort};
 use knot_desktop::{
@@ -21,6 +20,7 @@ use knot_editor::{
 use knot_file_catalog::KnotFileCatalog;
 use layout_dom_api::LayoutDom;
 use personae::{IdentityProvider, InMemoryProvider};
+use taproot::Selector;
 use tempfile::tempdir;
 
 fn text_content(dom: &genet_scripted_dom::ScriptedDom, node: genet_scripted_dom::NodeId) -> String {
@@ -116,6 +116,8 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
             state,
             logic: desktop_view as fn(&DesktopState) -> DesktopView,
             sheet: format!("{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}"),
+            fonts: Vec::new(),
+            images: Vec::new(),
         },
         host_hooks(),
     );

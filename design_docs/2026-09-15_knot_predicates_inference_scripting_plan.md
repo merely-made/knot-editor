@@ -76,56 +76,136 @@ yet carry source ranges), and the visible relation projection.
 
 ## Track 1: predicate identity
 
-A predicate has three faces, and the design keeps them apart:
+**Standards first.** A survey on 2026-09-15 proposed a layered adoption:
+CiTO for predicates, Web Annotation for anchors, PROV-O for attribution and
+retraction, Dublin Core Terms for structural relations. Checked against the
+tree, most of it is already built on the Mere side:
 
-- **Label**: what the writer sees and types. Product copy, changeable.
-- **Identity**: what an assertion stores and what export names. Stable.
-- **Behaviour**: the Mere sub-kind a predicate lowers to, if any. Optional.
+- **CiTO alignment exists.** `linked-data/src/vocab.rs` aligns every
+  recognized sub-kind in three categories: exact (`owl:equivalentProperty`),
+  approximate (`rdfs:subPropertyOf`), and Mere-only. Committed rows: cites
+  is `cito:cites`, quotes is `cito:includesQuotationFrom`, supports is
+  `cito:agreesWith`, contradicts is `cito:disagreesWith`, same-entity-as is
+  `owl:sameAs`; summarizes, elaborates, and questions are subproperties of
+  `cito:cites`; hyperlink is a subproperty of `rdfs:seeAlso`; user-grouped
+  and agent-derived stand alone. The alignment is emitted as quads in a
+  vocabulary named graph and dropped on ingest, so instance data is never
+  rewritten. That is the survey's second tier, anchored to the 2026-05-22
+  statements-over-schema stance.
+- **PROV attribution exists.** Export stamps `prov:wasAttributedTo` and
+  `prov:generatedAtTime` on statements, names statements under
+  `urn:mere:statement`, and puts each scope in its own named graph.
+- **Web Annotation is not emitted anywhere yet.** Knot's endpoint is the
+  material for it.
+
+Where the survey's rows differ from Mere's table, the difference is a Mere
+ruling and is recorded here for the audit, not decided: supports is
+`agreesWith` in Mere and `cito:supports` in the survey; contradicts is
+`disagreesWith` in Mere while CiTO also has `disputes` and `refutes`;
+elaborates is a `cites` subproperty in Mere and `cito:extends` in the survey;
+hyperlink is `rdfs:seeAlso` in Mere while `cito:linksTo` is the exact CiTO
+term. Knot consumes Mere's table as it stands. A change lands in
+`vocab.rs` and its stance doc.
+
+**Three faces.** A predicate has a label, an identity, and a behaviour, kept
+apart: the label is what the writer sees and types and may change; the
+identity is an IRI an assertion stores and export names; the behaviour is
+the Mere sub-kind it lowers to, if any.
 
 **Core predicates** are the writer-facing subset of Mere's vocabulary. Their
-identity is the Mere IRI, their behaviour is the matching sub-kind, and Knot
-ships their labels. Proposed set: cites, quotes, supports, contradicts,
-questions, elaborates, example-of, summarizes. Hyperlink and agent-derived
-are origins, not predicates a writer picks; same-entity-as waits for a
-consumer.
+identity is the Mere IRI, their behaviour the matching sub-kind, and their
+standard alignment comes from Mere's table, not from Knot. Proposed set:
+cites, quotes, supports, contradicts, questions, elaborates, example-of,
+summarizes. Hyperlink and agent-derived are origins, not choices;
+same-entity-as waits for a consumer. The contradicts split the survey
+raises is handled by specialization rather than by three writer predicates:
+a defined predicate may declare itself a subproperty of `cito:refutes` and
+still lower to the contradicts sub-kind.
 
 **Defined predicates** are the writer's own. A definition is its own signed
-operation in the space, alongside assertions: `KnotPredicateDefinitionV1`
-with the operation hash as id, author, scope, slug, label, optional
-description, optional inverse, optional Mere sub-kind it lowers to, and an
-optional `supersedes` pointing at an earlier definition. Identity is the
-definition id. A rename is a superseding definition; assertions keep the id
-they were signed with and display the current label. Retraction of a
-definition marks it unusable for new assertions and leaves existing ones
-readable with their historical label.
+operation in the space: `KnotPredicateDefinitionV1` with the operation hash
+as id, the author, the scope, a slug, a label, an optional description, an
+optional inverse, an optional `subproperty_of` naming a core IRI or any
+standard IRI, an optional Mere sub-kind to lower to, and an optional
+`supersedes`. The IRI is minted once, at first definition, and never
+changes:
+
+```
+urn:knot:author:<verifying key hex>:rel:<first definition hash hex>
+```
+
+The namespace is the author's ed25519 verifying key, because that is what
+signs the definition and what a peer verifies. Knot's `PersonaId` is a local
+UUID that never leaves the machine and cannot serve. A rename is a
+superseding definition with a new label and the same IRI. Retirement is a
+superseding definition carrying `replaced_by`; a retired predicate refuses
+new assertions and keeps old ones readable under their historical label. A
+definition's `subproperty_of` exports as `rdfs:subPropertyOf` in the
+vocabulary graph, exactly as Mere exports its own alignments, so a custom
+"corroborates" under `cito:supports` still reads to a stranger.
 
 **Assertions** change `predicate: String` to a reference: a core IRI or a
-definition id. Validation rejects a bare label that is neither, so nothing is
-invented at write time. Existing fixtures that say `supports` map to the core
-IRI; that is the only migration.
+defined IRI. Validation rejects a bare label that is neither, so nothing is
+invented at write time. Fixtures that say `supports` map to the core IRI;
+that is the only migration.
 
-**Export** goes through the linked-data bridge as JSON-LD. Core predicates
-export as Mere IRIs. Defined predicates export as `urn:knot:rel:<definition
-id>` with a context entry carrying the current label and, when present, the
-sub-kind they lower to. The bridge's raw-IRI path is an implementation gap in
-Mere, recorded here, not worked around in Knot.
+**Anchors** export as Web Annotation. Each endpoint becomes an
+`oa:SpecificResource` whose source is the document at its head, with an
+`oa:TextQuoteSelector` and an `oa:TextPositionSelector`. Two corrections to
+the survey, both consequential:
+
+- The position selector counts characters, not bytes. Knot's byte offsets
+  stay the internal truth and are converted at export; the exported source
+  text is the same head the offsets were captured against.
+- A quote selector re-anchors on `prefix` and `suffix`, which Knot's
+  endpoint does not capture. Add both to the endpoint at the same V2 change
+  as the predicate reference, so the endpoint changes once.
+
+Turn 3's reference anchors take the same form when reference endpoints
+arrive: a `FragmentSelector` conforming to Media Fragments for `t=` and
+`xywh=`, and to RFC 3778 for `page=`.
+
+**Provenance** exports as PROV-O: the assertion `prov:wasAttributedTo` the
+author key as `urn:knot:author:<hex>` and `prov:wasGeneratedBy` the signing
+operation as `urn:knot:op:<hash>`; the scope is the named graph; a
+retraction is `prov:wasInvalidatedBy` its retraction operation. One
+correction to the survey: Knot's operations carry no wall-clock time, only
+signed causal order, so no `prov:invalidatedAtTime` or `generatedAtTime` is
+exported. Export never invents a time. Adding an author-asserted time to the
+operation header is possible but is a trust decision, listed below.
 
 **Lowering** into a Mere graph carries the assertion id as the statement id,
 so the kernel's content dedup never collapses two authors. That is the G1
 proof restated at the predicate level.
 
 *Done when* a fixture with one core and two defined predicates round-trips:
-assert, supersede one definition with a new label, export to JSON-LD with the
-mapping, import into a Mere graph, and show two independent authors'
-assertions on the same endpoints as distinct statements; validation refuses
-an unknown bare label; the display shows the current label on an assertion
-signed under the old one; a retracted definition cannot be used for a new
-assertion.
+assert; supersede one definition with a new label; export to JSON-LD; load
+the export in oxigraph, which the tree already carries; and answer a query
+for `cito:agreesWith` statements that returns the core-supports assertion
+through the alignment graph and a query for the defined predicate's
+superproperty that returns it. Import into a Mere graph shows two
+independent authors' assertions on the same endpoints as distinct
+statements. The exported quote and position selectors re-anchor the quote
+in the exported source at character positions. Validation refuses an
+unknown bare label. The display shows the current label on an assertion
+signed under the old one. A retired definition cannot be used for a new
+assertion. No exported statement carries a time.
 
-**Decisions for Mark.** Whether a definition is scoped to the space that
-signed it or travels with the persona across spaces. Whether the core set is
-exactly the eight above. Whether an inverse is a field on the definition or
-a reading over direction, as G3 treats it.
+**Decisions for Mark.**
+
+1. Namespace form for defined predicates: the author verifying key, as
+   proposed; the space id; or a resolvable HTTPS base once a persona has a
+   published address. Recommendation: the key now, with an HTTPS alias
+   later as a second `owl:equivalentProperty`.
+2. The contradicts split: one writer predicate specialized by definitions,
+   as proposed; or asking Mere for disputes and refutes sub-kinds.
+3. Whether to add an author-asserted time to operation headers so PROV
+   times can be exported, accepting that it is claimed, not verified.
+4. Whether the core set is exactly the eight above.
+5. Whether an inverse is a field on the definition or a reading over
+   direction, as G3 treats it.
+6. Whether to raise the four mapping differences with Mere's table now or
+   leave them for the vocabulary's own audit.
 
 ## Track 2: esp integration
 
@@ -278,5 +358,6 @@ reference and a shared suggestion sink, so they land last.
   project's turn 3: the rendering and authority boundary.
 - Mere: `crates/script/rhai`, `crates/conatus/numen/src/rhai_bindings.rs`,
   `crates/graph/linked-data/src/statements.rs`,
+  `crates/graph/linked-data/src/vocab.rs` (the CiTO alignment table),
   `crates/graph/graph-kernel/src/graph/edge_data.rs`, `crates/intel/esp`,
   `design_docs/intel_docs/technical_architecture/2026-08-09_feature_target_matrix.md`.

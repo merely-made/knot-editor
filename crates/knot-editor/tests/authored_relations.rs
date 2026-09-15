@@ -10,8 +10,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use knot_editor::{
-    KnotAutomaticTextMerge, KnotDocumentConflict, KnotProjectionCheckpoint, KnotRelationEndpointV1,
-    KnotRelationPositionV1, KnotSyncEvent, KnotSyncFileStore, KnotVault, VaultDocument,
+    KnotAutomaticTextMerge, KnotCorePredicateV1, KnotDocumentConflict, KnotPredicateRefV1,
+    KnotProjectionCheckpoint, KnotRelationEndpointV1, KnotRelationPositionV1,
+    KnotRelationRetractionV1, KnotSyncEvent, KnotSyncFileStore, KnotVault, VaultDocument,
+    capture_endpoint_context,
 };
 use personae::{IdentityProvider, InMemoryProvider};
 use serde::Serialize;
@@ -29,15 +31,20 @@ fn document(id: &str, body: &str) -> VaultDocument {
     }
 }
 
-fn endpoint(id: &str, head: [u8; 32], quote: &str) -> KnotRelationEndpointV1 {
+fn endpoint(id: &str, head: [u8; 32], source: &str, quote: &str) -> KnotRelationEndpointV1 {
+    let start = source.find(quote).expect("fixture quote is present");
+    let end = start + quote.len();
+    let (prefix, suffix) = capture_endpoint_context(source, start, end);
     KnotRelationEndpointV1 {
         document_id: id.to_owned(),
         document_head: head,
         quote: quote.to_owned(),
         position: Some(KnotRelationPositionV1 {
-            start: 0,
-            end: quote.len() as u64,
+            start: start as u64,
+            end: end as u64,
         }),
+        prefix,
+        suffix,
     }
 }
 
@@ -70,6 +77,42 @@ struct LegacyCheckpointSnapshot {
     conflicts: Vec<KnotDocumentConflict>,
     automatic_merges: Vec<KnotAutomaticTextMerge>,
     document_heads: BTreeMap<String, [u8; 32]>,
+    /// Absent from a document-only checkpoint, present once relations landed.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    relations: Vec<LegacyRelation>,
+}
+
+/// A relation as it was serialized before predicate identity: a bare predicate
+/// string, and endpoints with no captured context or asserted time.
+#[derive(Serialize)]
+struct LegacyRelation {
+    id: [u8; 32],
+    author: [u8; 32],
+    operation: [u8; 32],
+    scope: [u8; 32],
+    predicate: String,
+    subject: LegacyEndpoint,
+    object: LegacyEndpoint,
+    evidence: Option<String>,
+    qualification: Option<String>,
+    retractions: Vec<KnotRelationRetractionV1>,
+}
+
+#[derive(Serialize)]
+struct LegacyEndpoint {
+    document_id: String,
+    document_head: [u8; 32],
+    quote: String,
+    position: Option<KnotRelationPositionV1>,
+}
+
+fn legacy_endpoint(id: &str) -> LegacyEndpoint {
+    LegacyEndpoint {
+        document_id: id.to_owned(),
+        document_head: [0x64; 32],
+        quote: "# Essay".to_owned(),
+        position: Some(KnotRelationPositionV1 { start: 0, end: 7 }),
+    }
 }
 
 #[tokio::test]
@@ -85,8 +128,10 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
     let store = KnotSyncFileStore::open(&database, SPACE, [alice_author, bob_author]).unwrap();
     let vault = open_vault(temp.path());
 
-    let subject = document("essay", "# Essay\n");
-    let object = document("source", "# Source\n");
+    let subject_body = "# Essay\nα holds throughout.\n";
+    let object_body = "# Source\nβ is the claim.\n";
+    let subject = document("essay", subject_body);
+    let object = document("source", object_body);
     let subject_operation = store
         .author(alice_seed, &vault, &KnotSyncEvent::Put(subject.clone()))
         .await
@@ -95,15 +140,27 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
         .author(alice_seed, &vault, &KnotSyncEvent::Put(object.clone()))
         .await
         .unwrap();
-    let subject_endpoint = endpoint(&subject.id, *subject_operation.hash.as_bytes(), "# Essay\n");
-    let object_endpoint = endpoint(&object.id, *object_operation.hash.as_bytes(), "# Source\n");
+    let subject_quote = "α holds throughout.";
+    let object_quote = "β is the claim.";
+    let subject_endpoint = endpoint(
+        &subject.id,
+        *subject_operation.hash.as_bytes(),
+        subject_body,
+        subject_quote,
+    );
+    let object_endpoint = endpoint(
+        &object.id,
+        *object_operation.hash.as_bytes(),
+        object_body,
+        object_quote,
+    );
 
     let alice_assertion_operation = store
         .author(
             alice_seed,
             &vault,
             &KnotSyncEvent::AssertRelation {
-                predicate: "supports".to_owned(),
+                predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
                 subject: subject_endpoint.clone(),
                 object: object_endpoint.clone(),
                 evidence: Some("Ada's reading".to_owned()),
@@ -117,7 +174,7 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
             bob_seed,
             &vault,
             &KnotSyncEvent::AssertRelation {
-                predicate: "contradicts".to_owned(),
+                predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Contradicts),
                 subject: subject_endpoint.clone(),
                 object: object_endpoint.clone(),
                 evidence: Some("Bo's reading".to_owned()),
@@ -147,18 +204,49 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
         .iter()
         .find(|relation| relation.author == bob_author)
         .expect("Bo relation");
-    assert_eq!(alice_relation.predicate, "supports");
-    assert_eq!(bob_relation.predicate, "contradicts");
+    assert_eq!(
+        alice_relation.predicate,
+        KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports)
+    );
+    assert_eq!(
+        bob_relation.predicate,
+        KnotPredicateRefV1::Core(KnotCorePredicateV1::Contradicts)
+    );
+    assert_eq!(
+        before_retraction.predicate_iri(alice_relation),
+        Some(KnotCorePredicateV1::Supports.iri())
+    );
+    assert_eq!(
+        before_retraction.predicate_label(bob_relation),
+        Some("contradicts")
+    );
     assert_eq!(alice_relation.subject, subject_endpoint);
     assert_eq!(alice_relation.object, object_endpoint);
     assert_eq!(alice_relation.subject.document_id, "essay");
-    assert_eq!(alice_relation.subject.quote, "# Essay\n");
-    assert_eq!(alice_relation.subject.position.as_ref().unwrap().start, 0);
-    assert_eq!(alice_relation.subject.position.as_ref().unwrap().end, 8);
+    assert_eq!(alice_relation.subject.quote, subject_quote);
+    let subject_start = subject_body.find(subject_quote).unwrap();
+    assert_eq!(
+        alice_relation.subject.position.as_ref().unwrap().start,
+        subject_start as u64
+    );
+    assert_eq!(
+        alice_relation.subject.position.as_ref().unwrap().end,
+        (subject_start + subject_quote.len()) as u64
+    );
+    assert_eq!(alice_relation.subject.prefix, "# Essay\n");
+    assert_eq!(alice_relation.subject.suffix, "\n");
     assert_eq!(alice_relation.object.document_id, "source");
-    assert_eq!(alice_relation.object.quote, "# Source\n");
-    assert_eq!(alice_relation.object.position.as_ref().unwrap().start, 0);
-    assert_eq!(alice_relation.object.position.as_ref().unwrap().end, 9);
+    assert_eq!(alice_relation.object.quote, object_quote);
+    let object_start = object_body.find(object_quote).unwrap();
+    assert_eq!(
+        alice_relation.object.position.as_ref().unwrap().start,
+        object_start as u64
+    );
+    assert_eq!(
+        alice_relation.object.position.as_ref().unwrap().end,
+        (object_start + object_quote.len()) as u64
+    );
+    assert_eq!(alice_relation.object.prefix, "# Source\n");
     assert_eq!(alice_relation.scope, SPACE);
     assert_ne!(alice_relation.author, bob_relation.author);
     assert_ne!(alice_relation.id, bob_relation.id);
@@ -299,6 +387,7 @@ fn legacy_checkpoint_without_relation_fields_decodes_with_empty_relation_history
             conflicts: Vec::new(),
             automatic_merges: Vec::new(),
             document_heads: BTreeMap::new(),
+            relations: Vec::new(),
         }),
     };
     let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
@@ -313,8 +402,62 @@ fn legacy_checkpoint_without_relation_fields_decodes_with_empty_relation_history
     assert!(!encoded_snapshot.contains_key("relations"));
     assert!(!encoded_snapshot.contains_key("rejected_relations"));
     assert!(!encoded_snapshot.contains_key("unverified_relations"));
+    assert!(!encoded_snapshot.contains_key("predicates"));
+    assert!(!encoded_snapshot.contains_key("rejected_predicates"));
     let snapshot = checkpoint.snapshot.unwrap();
     assert!(snapshot.relations.is_empty());
     assert!(snapshot.rejected_relations.is_empty());
     assert!(snapshot.unverified_relations.is_empty());
+    assert!(snapshot.predicates.is_empty());
+    assert!(snapshot.rejected_predicates.is_empty());
+}
+
+#[test]
+fn a_legacy_core_predicate_checkpoint_keeps_its_bytes_and_its_blake3() {
+    let legacy = LegacyCheckpoint {
+        version: 1,
+        space_id: SPACE,
+        heads: Vec::new(),
+        document_digests: Vec::new(),
+        conflict_ids: Vec::new(),
+        pending: Vec::new(),
+        snapshot: Some(LegacyCheckpointSnapshot {
+            documents: Vec::new(),
+            conflicts: Vec::new(),
+            automatic_merges: Vec::new(),
+            document_heads: BTreeMap::new(),
+            relations: vec![LegacyRelation {
+                id: [0x65; 32],
+                author: [0x61; 32],
+                operation: [0x65; 32],
+                scope: SPACE,
+                predicate: "supports".to_owned(),
+                subject: legacy_endpoint("essay"),
+                object: legacy_endpoint("source"),
+                evidence: None,
+                qualification: Some("quoted passage".to_owned()),
+                retractions: vec![KnotRelationRetractionV1 {
+                    operation: [0x66; 32],
+                    author: [0x61; 32],
+                }],
+            }],
+        }),
+    };
+    let legacy_bytes = serde_json::to_vec(&legacy).unwrap();
+    // The receipt a peer would have taken before this change.
+    let receipt = *blake3::hash(&legacy_bytes).as_bytes();
+
+    let checkpoint: KnotProjectionCheckpoint = serde_json::from_slice(&legacy_bytes).unwrap();
+    let relation = &checkpoint.snapshot.as_ref().unwrap().relations[0];
+    assert_eq!(
+        relation.predicate,
+        KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
+        "a bare core slug decodes to the core predicate"
+    );
+    assert_eq!(relation.asserted_at_ms, None);
+    assert!(relation.subject.prefix.is_empty());
+
+    let current_bytes = serde_json::to_vec(&checkpoint).unwrap();
+    assert_eq!(current_bytes, legacy_bytes);
+    assert_eq!(*blake3::hash(&current_bytes).as_bytes(), receipt);
 }

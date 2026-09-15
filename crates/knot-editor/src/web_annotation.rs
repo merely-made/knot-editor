@@ -13,6 +13,8 @@
 use fleece::TextAnchor;
 use serde::Serialize;
 
+use crate::relations::KnotRelationEndpointV1;
+
 /// A W3C Web Annotation `SpecificResource` target.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct SpecificResource {
@@ -59,6 +61,44 @@ impl SpecificResource {
             ],
         }
     }
+
+    /// Export one relation endpoint as a Web Annotation `SpecificResource`.
+    ///
+    /// Knot's UTF-8 byte offsets are the internal truth; the exported position
+    /// selector counts characters, as the Web Annotation model requires, against
+    /// `source_text` -- the same head the offsets were captured at. Returns
+    /// `None` when the endpoint has no position or its offsets are not
+    /// character boundaries of that text, so a mismatched head exports nothing
+    /// rather than a wrong anchor.
+    pub fn from_relation_endpoint(
+        source: impl Into<String>,
+        endpoint: &KnotRelationEndpointV1,
+        source_text: &str,
+    ) -> Option<Self> {
+        let position = endpoint.position?;
+        let start = usize::try_from(position.start).ok()?;
+        let end = usize::try_from(position.end).ok()?;
+        if !source_text.is_char_boundary(start) || !source_text.is_char_boundary(end) {
+            return None;
+        }
+        let character_start = source_text.get(..start)?.chars().count() as u64;
+        let character_end = source_text.get(..end)?.chars().count() as u64;
+        Some(Self {
+            resource_type: "SpecificResource",
+            source: source.into(),
+            selector: vec![
+                SpecificResourceSelector::TextQuoteSelector {
+                    exact: endpoint.quote.clone(),
+                    prefix: endpoint.prefix.clone(),
+                    suffix: endpoint.suffix.clone(),
+                },
+                SpecificResourceSelector::TextPositionSelector {
+                    start: character_start,
+                    end: character_end,
+                },
+            ],
+        })
+    }
 }
 
 #[cfg(test)]
@@ -66,6 +106,9 @@ mod tests {
     use fleece::{TextAnchor, TextPositionSelector, TextQuoteSelector};
 
     use super::SpecificResource;
+    use crate::relations::{
+        KnotRelationEndpointV1, KnotRelationPositionV1, capture_endpoint_context,
+    };
 
     const DOCUMENT: &str = include_str!("../tests/fixtures/fleece_specific_resource.txt");
 
@@ -127,6 +170,70 @@ mod tests {
         assert_eq!(
             resolve_quote(document, &anchor.quote),
             vec![(anchor.position.start, anchor.position.end)]
+        );
+    }
+
+    #[test]
+    fn a_relation_endpoint_exports_character_offsets_and_re_anchors_its_quote() {
+        // Multibyte source: byte offsets and character offsets must differ.
+        let source = "αβγ Repeat this sentence. Middle. Repeat this sentence. End.";
+        let exact = "Repeat this sentence.";
+        let byte_start = source.match_indices(exact).nth(1).unwrap().0;
+        let byte_end = byte_start + exact.len();
+        let (prefix, suffix) = capture_endpoint_context(source, byte_start, byte_end);
+        let endpoint = KnotRelationEndpointV1 {
+            document_id: "essay".into(),
+            document_head: [0x21; 32],
+            quote: exact.into(),
+            position: Some(KnotRelationPositionV1 {
+                start: byte_start as u64,
+                end: byte_end as u64,
+            }),
+            prefix,
+            suffix,
+        };
+
+        let target =
+            SpecificResource::from_relation_endpoint("urn:knot:doc:essay", &endpoint, source)
+                .unwrap();
+        let serialized = serde_json::to_value(&target).unwrap();
+        assert_eq!(serialized["type"], "SpecificResource");
+        assert_eq!(serialized["source"], "urn:knot:doc:essay");
+        let position = &serialized["selector"][1];
+        let start = position["start"].as_u64().unwrap();
+        let end = position["end"].as_u64().unwrap();
+        assert_ne!(start, byte_start as u64, "characters, not bytes");
+        assert_eq!(resolve_position(source, start, end), exact);
+
+        let quote = fleece::TextQuoteSelector {
+            exact: exact.to_string(),
+            prefix: endpoint.prefix.clone(),
+            suffix: endpoint.suffix.clone(),
+        };
+        assert_eq!(
+            resolve_quote(source, &quote),
+            vec![(start, end)],
+            "the captured context disambiguates the repeated quote"
+        );
+
+        let no_position = KnotRelationEndpointV1 {
+            quote: String::new(),
+            position: None,
+            prefix: String::new(),
+            suffix: String::new(),
+            ..endpoint.clone()
+        };
+        assert!(
+            SpecificResource::from_relation_endpoint("urn:knot:doc:essay", &no_position, source)
+                .is_none()
+        );
+        let off_boundary = KnotRelationEndpointV1 {
+            position: Some(KnotRelationPositionV1 { start: 1, end: 3 }),
+            ..endpoint
+        };
+        assert!(
+            SpecificResource::from_relation_endpoint("urn:knot:doc:essay", &off_boundary, source)
+                .is_none()
         );
     }
 }

@@ -441,6 +441,11 @@ reference and a shared suggestion sink, so they land last.
   links and "headings without a citation" reads every section as uncited; a
   tripwire test names the fix. Mere's `apply_link_statements` is dead for
   every Djot document for the same reason.
+  Headed receipt: `testing/knot-editor/images/2026-09-15_readings_{launch,open,run}.png`
+  show the panel listing the three scripts with hashes and the
+  citation script returning a row per section, Citations included because
+  of that defect. The panel overlaps the status column and editor the same
+  way the outline does (design pass defect 1); it inherits the fix.
 - **2026-09-15, Mere.** The shared rhai base engine had rhai's default file
   module resolver, so a fence could import `./x.rhai`; closed with a
   positive-control test (`444e3fe4`). The CiTO table moved to the evidence

@@ -17,6 +17,7 @@ mod content_classes;
 mod did_key;
 mod directory;
 mod djot_merge;
+mod embedding;
 mod endpoint;
 mod file_revision;
 mod mark;
@@ -50,6 +51,10 @@ pub use content_classes::{
 };
 pub use did_key::{did_key, did_key_verifying_key};
 pub use directory::{DirectorySource, DiskDocument, IgnorePolicy};
+pub use embedding::{
+    KNOT_BERT_ARTIFACTS, KNOT_INDEX_IDENTITY_VERSION, KNOT_LEXICAL_MODEL, KnotEmbeddingPreference,
+    KnotEmbeddingProvider, KnotIndexIdentity, KnotModelWeights,
+};
 pub use endpoint::{
     KnotCaptureDestination, KnotCaptureError, KnotCaptureGrant, KnotCaptureReceipt,
     KnotFileCapturePort, KnotPreparedFileCaptureV1,
@@ -119,7 +124,9 @@ pub use rosette::{
     PronunciationLexicon, RosetteConfig, RosetteInterior, RosetteInteriorKind, RosetteProjection,
     UnresolvedToken, project_rosette,
 };
-pub use search::{KnotSearch, SearchConfig, SearchHit, SearchLane};
+pub use search::{
+    KnotSearch, KnotSearchError, SearchConfig, SearchHit, SearchLane, SearchProgress,
+};
 pub use settings::{
     KnotSettings, KnotSettingsError, KnotSyncSettings, hex32, knot_settings_path, parse_hex32,
 };
@@ -134,7 +141,7 @@ pub use sync::{
     KnotSyncError,
     KnotSyncEvent, KnotSyncExt, KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
 };
-pub use vault::{KnotVault, VaultDocument};
+pub use vault::{KnotSealedSearchIndex, KnotVault, VaultDocument};
 pub use watcher::DirectoryWatcher;
 pub use web_annotation::{SpecificResource, SpecificResourceSelector};
 pub use writer::{AuthoredFile, DocumentFormat, SaveOutcome};

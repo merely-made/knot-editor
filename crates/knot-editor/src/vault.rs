@@ -14,6 +14,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+use crate::embedding::KnotIndexIdentity;
+
 const INDEX_PATH: &str = "knot/documents.json";
 pub(crate) const SEARCH_INDEX_PATH: &str = "knot/search-index.json";
 const DERIVED_CACHE_PATH_CONTEXT: &str = "mere.knot.derived-cache-path.v1";
@@ -45,6 +47,39 @@ struct VaultIndex {
 struct DerivedCacheBlob {
     version: u64,
     bytes: Vec<u8>,
+}
+
+/// The sealed derived search index as it comes back out of the vault.
+#[derive(Clone, Debug)]
+pub struct KnotSealedSearchIndex {
+    /// What produced the vectors. `None` for a record sealed before Knot
+    /// recorded identity; search treats that as lexical at the index's own
+    /// dimensions and metric, which is the only provider that existed then.
+    pub identity: Option<KnotIndexIdentity>,
+    /// Dense vectors keyed by document id.
+    pub index: VectorIndex<String>,
+}
+
+/// Record shape on disk. The identified form nests the index beside its
+/// identity; records sealed before that stored the bare index at the root, and
+/// the untagged fallback keeps them loading. The two shapes share no field
+/// name, so neither can be mistaken for the other.
+#[derive(Deserialize)]
+#[serde(untagged)]
+enum SealedSearchRecord {
+    Identified {
+        identity: KnotIndexIdentity,
+        index: VectorIndex<String>,
+    },
+    Unidentified(VectorIndex<String>),
+}
+
+/// Borrowing twin of [`SealedSearchRecord::Identified`], so sealing never
+/// clones the vectors. Serializes to the identical shape.
+#[derive(Serialize)]
+struct SealedSearchRecordRef<'a> {
+    identity: &'a KnotIndexIdentity,
+    index: &'a VectorIndex<String>,
 }
 
 /// An unlockable sealed document store.
@@ -195,22 +230,58 @@ impl KnotVault {
             .map(|document| document.body.as_slice())
     }
 
-    /// Seal the derived vault search index beside the document index.
-    pub fn store_search_index(&self, index: &VectorIndex<String>) -> Result<(), String> {
+    /// Seal the derived vault search index, with the identity that produced
+    /// it, beside the document index.
+    pub fn store_search_index(
+        &self,
+        identity: &KnotIndexIdentity,
+        index: &VectorIndex<String>,
+    ) -> Result<(), String> {
+        self.store
+            .as_ref()
+            .ok_or_else(|| "Knot vault is locked".to_string())?
+            .save_record(
+                SEARCH_INDEX_PATH,
+                &SealedSearchRecordRef { identity, index },
+            )
+            .map_err(|error| format!("could not save Knot vault search index: {error}"))
+    }
+
+    /// Unseal the derived vault search index while the vault is unlocked.
+    ///
+    /// Both record shapes load. Deciding what an unidentified record means is
+    /// search's call, not storage's, so it comes back as `identity: None`.
+    pub fn load_search_index(&self) -> Result<Option<KnotSealedSearchIndex>, String> {
+        let record = self
+            .store
+            .as_ref()
+            .ok_or_else(|| "Knot vault is locked".to_string())?
+            .load_record::<SealedSearchRecord>(SEARCH_INDEX_PATH)
+            .map_err(|error| format!("could not load Knot vault search index: {error}"))?;
+        Ok(record.map(|record| match record {
+            SealedSearchRecord::Identified { identity, index } => KnotSealedSearchIndex {
+                identity: Some(identity),
+                index,
+            },
+            SealedSearchRecord::Unidentified(index) => KnotSealedSearchIndex {
+                identity: None,
+                index,
+            },
+        }))
+    }
+
+    /// Seal the record shape Knot wrote before it recorded identity, so tests
+    /// can prove an existing vault still opens.
+    #[cfg(test)]
+    pub(crate) fn store_search_index_unidentified(
+        &self,
+        index: &VectorIndex<String>,
+    ) -> Result<(), String> {
         self.store
             .as_ref()
             .ok_or_else(|| "Knot vault is locked".to_string())?
             .save_record(SEARCH_INDEX_PATH, index)
             .map_err(|error| format!("could not save Knot vault search index: {error}"))
-    }
-
-    /// Unseal the derived vault search index while the vault is unlocked.
-    pub fn load_search_index(&self) -> Result<Option<VectorIndex<String>>, String> {
-        self.store
-            .as_ref()
-            .ok_or_else(|| "Knot vault is locked".to_string())?
-            .load_record(SEARCH_INDEX_PATH)
-            .map_err(|error| format!("could not load Knot vault search index: {error}"))
     }
 
     /// Seal one non-authoritative derived-cache record beside the source
@@ -443,6 +514,57 @@ mod tests {
         assert_eq!(
             vault.load_derived_cache::<String>("field-note").unwrap(),
             None
+        );
+    }
+
+    #[test]
+    fn search_index_identity_round_trips_and_an_unidentified_record_still_loads() {
+        use esp::embed::SimilarityMetric;
+
+        use crate::embedding::{KNOT_INDEX_IDENTITY_VERSION, KnotEmbeddingProvider};
+
+        let temp = tempdir().unwrap();
+        let key = [0x75; 32];
+        let vault = KnotVault::open(temp.path(), key).unwrap();
+        let mut index: VectorIndex<String> = VectorIndex::new(4, SimilarityMetric::Cosine);
+        index
+            .insert("field-note".into(), vec![1.0, 0.0, 0.0, 0.0])
+            .unwrap();
+
+        vault.store_search_index_unidentified(&index).unwrap();
+        let legacy = vault.load_search_index().unwrap().unwrap();
+        assert!(legacy.identity.is_none());
+        assert_eq!(legacy.index.dimensions(), 4);
+        assert_eq!(legacy.index.metric(), SimilarityMetric::Cosine);
+        assert_eq!(legacy.index.len(), 1);
+
+        let identity = KnotIndexIdentity {
+            version: KNOT_INDEX_IDENTITY_VERSION,
+            provider: KnotEmbeddingProvider::BertWgpu,
+            model: "bge-micro-v2".into(),
+            weights_digest: Some("9".repeat(64)),
+            dimensions: 4,
+            metric: SimilarityMetric::Cosine,
+        };
+        vault.store_search_index(&identity, &index).unwrap();
+        drop(vault);
+
+        let sealed_bytes = fs::read(temp.path().join(SEARCH_INDEX_PATH)).unwrap();
+        for plaintext in [b"bge-micro-v2".as_slice(), b"bert-wgpu".as_slice()] {
+            assert!(
+                !sealed_bytes
+                    .windows(plaintext.len())
+                    .any(|window| window == plaintext),
+                "identity is sealed with the index"
+            );
+        }
+
+        let vault = KnotVault::open(temp.path(), key).unwrap();
+        let sealed = vault.load_search_index().unwrap().unwrap();
+        assert_eq!(sealed.identity, Some(identity));
+        assert_eq!(
+            sealed.index.get(&"field-note".to_string()),
+            Some(&vec![1.0, 0.0, 0.0, 0.0])
         );
     }
 }

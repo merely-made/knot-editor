@@ -15,6 +15,14 @@ path = "src/bin/knot_endpoint.rs"
 name = "knot_sync_host"
 path = "src/bin/knot_sync_host.rs"
 
+[features]
+default = []
+# Search embedders beyond the lexical default. Off by default so an ordinary
+# build stays on esp's serde-only tree: no burn, no tokenizers. A writer still
+# has to supply the model directory; these only compile the provider in.
+embed-bert = ["esp/bert"]
+embed-bert-wgpu = ["embed-bert", "esp/bert-wgpu"]
+
 [dependencies]
 knot-capture.workspace = true
 base64.workspace = true

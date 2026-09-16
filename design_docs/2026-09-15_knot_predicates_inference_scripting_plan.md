@@ -318,7 +318,20 @@ the writer's: BERT is reachable only when the writer supplies a path,
 which Knot verifies by digest and records as that index's model identity.
 Knot acquires no fetcher, bundles no weights, and redistributes nothing.
 A missing or mismatched digest is a refusal carrying its reason, never a
-silent fall back to lexical under a BERT-labelled index. Still open:
+silent fall back to lexical under a BERT-labelled index. **Further
+rulings, 2026-09-16:** a BERT index's model identity is its weights digest;
+the directory name is a display label, so identical weights moved or renamed
+are the same model. Burn moves forward: Knot keeps `0.22.0-pre.3` and Mere
+repins to match (tracked in Mere's Burn 0.22 migration plan), superseding
+Mere's stable-release gate. Because Cargo `[patch]` does not cross
+workspaces, Knot's root declares `burn-cubecl` from Mere's git source at its
+pinned revision, so WebGPU BERT carries the same-allocation launcher fix
+that keeps LayerNorm correct on browser WebGPU; that waits on Mere's patch
+rebasing onto pre.3. The embedding preference persists in the desktop's app
+preferences file, which round-trips the section without interpreting it
+because the desktop does not link knot-editor; the host that builds search
+deserializes it. That same file settles cross-launch appearance storage.
+Still open:
 whether E2's lexical rank comes from the hashing provider's sparse output
 or from eidetic-search's BM25 index.
 

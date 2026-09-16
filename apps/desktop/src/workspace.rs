@@ -2025,6 +2025,7 @@ pub fn after_dispatch(
     if ctx.runner.state().micron_folds_need_sync() {
         ctx.runner.update(DesktopState::sync_micron_folds);
     }
+    crate::scroll_site::scroll_to_micron_jump(ctx);
     let state = ctx.runner.state();
     let mut focus_requested = state.focus_source_requested;
     let outline_needs_sync = if state.outline_visible {

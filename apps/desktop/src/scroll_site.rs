@@ -1115,6 +1115,8 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     state.message = Some("Enter a Spartan body, review it, then send explicitly.".into());
                 }).attr("class", "knot-spartan-submit"))
             },
+            // Label only: the preview has no element scroll to reach a target with.
+            InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans)).attr("class", "knot-preview-in-page")),
             InlineSpan::LineBreak => Box::new(el("br", ())),
             InlineSpan::SoftBreak => Box::new(span(" ")),
         };
@@ -2018,6 +2020,81 @@ mod tests {
         assert!(styled_button);
         assert_eq!(host.state().document.snapshot().text, source);
         assert!(!host.state().document.snapshot().dirty);
+    }
+
+    type DesktopHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
+
+    /// A saved `.mu` file open in the editor with only its preview shown.
+    fn micron_preview_harness(source: &str) -> (tempfile::TempDir, DesktopHarness) {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("page.mu");
+        std::fs::write(&path, source).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.preview_visible = true;
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: format!("{DESKTOP_CSS}{CSS}"),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        (temp, host)
+    }
+
+    fn preview_text(host: &DesktopHarness) -> String {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let preview = class_nodes(&dom, dom.document(), "knot-scroll-preview");
+        assert_eq!(preview.len(), 1, "one Micron preview pane");
+        text_content(&dom, preview[0])
+    }
+
+    fn class_nodes(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        class: &str,
+    ) -> Vec<genet_scripted_dom::NodeId> {
+        let mut found = Vec::new();
+        if dom.has_class(node, class) {
+            found.push(node);
+        }
+        for child in dom.dom_children(node) {
+            found.extend(class_nodes(dom, child, class));
+        }
+        found
+    }
+
+    // Probe 03's two links, inline: in-page links reach the preview as their
+    // label and nothing else, present target or not.
+    #[test]
+    fn micron_preview_renders_in_page_links_as_inert_labels() {
+        let source = "`[jump to a missing anchor`#no-such-anchor-here]\n`[jump to a present anchor`#present-control]\n`:present-control\nMARKER CONTROL: line bound by the present-control anchor.\n";
+        let (_temp, host) = micron_preview_harness(source);
+        let text = preview_text(&host);
+        assert!(text.contains("jump to a missing anchor"), "{text:?}");
+        assert!(text.contains("jump to a present anchor"), "{text:?}");
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let labels = class_nodes(&dom, dom.document(), "knot-preview-in-page");
+        assert_eq!(labels.len(), 2);
+        for label in labels {
+            let mut node = Some(label);
+            while let Some(current) = node {
+                assert!(
+                    !dom.element_name(current)
+                        .is_some_and(|name| name.local.as_ref() == "button"),
+                    "an in-page label is not an activatable control"
+                );
+                node = dom.parent(current);
+            }
+        }
     }
 
     #[test]

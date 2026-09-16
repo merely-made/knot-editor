@@ -70,6 +70,14 @@ fn rgb(c: Srgb) -> String {
     format!("rgb({}, {}, {})", c.r, c.g, c.b)
 }
 
+/// The one focus selector for every control in a theme `scope` (navigation
+/// plan decision 19). Both root classes outrank the pressed-toggle outline, so
+/// a focused toggle still shows focus. Genet's selectors have `:focus` but not
+/// `:focus-visible`, so a click that focuses a control shows it too.
+pub fn focus_selector(scope: &str) -> String {
+    format!(".knot-workspace{scope} :focus")
+}
+
 /// Both palettes are installed once; a root class switches the active theme.
 pub fn appearance_css() -> String {
     let mut css = String::from(
@@ -102,6 +110,11 @@ pub fn appearance_css() -> String {
         for rule in cambium::syntax_css(&seeds) {
             css.push_str(&format!("{scope} {rule}"));
         }
+        css.push_str(&format!(
+            "{} {{ outline:2px solid {};outline-offset:2px; }}",
+            focus_selector(scope),
+            rgb(p.primary),
+        ));
     }
     css
 }
@@ -121,6 +134,32 @@ mod tests {
                     tinct::contrast(syntax.role(role), p.surface) >= 4.5,
                     "{role:?}"
                 );
+            }
+        }
+    }
+
+    #[test]
+    fn each_theme_has_one_focus_rule_in_its_primary_token() {
+        let css = appearance_css();
+        for dark in [false, true] {
+            let p = derive_palette(&seeds(dark));
+            let scope = if dark {
+                ".knot-theme-dark"
+            } else {
+                ".knot-theme-light"
+            };
+            let rule = format!(
+                "{} {{ outline:2px solid {};outline-offset:2px; }}",
+                focus_selector(scope),
+                rgb(p.primary)
+            );
+            assert_eq!(css.matches(rule.as_str()).count(), 1, "{rule}");
+            assert_eq!(css.matches(":focus").count(), 2, "one rule per theme");
+            // Non-text contrast (WCAG 1.4.11). The 2px offset puts the ring on
+            // the parent's ground, not on the control's own fill.
+            for ground in [p.bg, p.surface] {
+                let ratio = tinct::contrast(p.primary, ground);
+                assert!(ratio >= 3.0, "dark={dark}: {ratio:.2}");
             }
         }
     }

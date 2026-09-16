@@ -152,6 +152,14 @@ DPI-aware click/key script with PrintWindow captures, with
 `KNOT_NOMADNET_TCP=127.0.0.1:42541` for the handler and `…:42543` for the stock
 daemon.
 
+As of 2026-09-16 that artifact tree is gone: `C:\t\micron-headed-20260913` was
+deleted on or before that date along with the rest of the `C:/t` Micron scratch
+family, so the paths named above are dead references, kept as the record of where
+the work was done rather than as somewhere to look. Nothing committed was lost
+and the acceptance stands on the tests and fixtures named in this section, which
+still run and pass. Receipt artifacts now live under `Code/testing/knot-editor/`,
+not `C:/t`.
+
 Opening the page, opening the form and editing fields produced no request beyond
 the ordinary page fetch. **Open Micron form controls** → edit → **Prepare Submit
 all** showed the reviewed map with the masked value redacted; **Send reviewed

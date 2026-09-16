@@ -1,10 +1,14 @@
 // Copyright 2026 Mark Alan Boykin
 // SPDX-License-Identifier: MPL-2.0
 
-//! Session preferences for the desktop host. They never enter document storage.
+//! Appearance preferences for the desktop host. They persist across launches
+//! through [`crate::preferences`] and never enter document storage.
+use serde::{Deserialize, Serialize};
 use tinct::{Seeds, Srgb, derive_palette};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// Fields missing from a stored file take their defaults.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default, rename_all = "kebab-case")]
 pub struct Appearance {
     pub dark: bool,
     pub highlight: bool,
@@ -26,6 +30,9 @@ impl Default for Appearance {
 }
 
 impl Appearance {
+    pub const MIN_FONT_SIZE: u8 = 12;
+    pub const MAX_FONT_SIZE: u8 = 24;
+
     pub fn root_class(&self) -> &'static str {
         if self.dark {
             "knot-workspace knot-theme-dark"
@@ -37,7 +44,8 @@ impl Appearance {
     pub fn writing_style(&self) -> String {
         format!(
             "font-size:{}px;line-height:{};width:100%;max-width:{};margin-left:auto;margin-right:auto;",
-            self.font_size.clamp(12, 24),
+            self.font_size
+                .clamp(Self::MIN_FONT_SIZE, Self::MAX_FONT_SIZE),
             if self.relaxed { "1.7" } else { "1.35" },
             if self.wide { "none" } else { "900px" },
         )
@@ -86,7 +94,7 @@ pub fn appearance_css() -> String {
              {scope} button:hover {{ background:{}; }} \
              {scope} .knot-document-body textarea,{scope} .knot-document-read-only {{ background:{};color:{};border-color:{}; }} \
              {scope} .knot-document-status {{ color:{}; }} \
-             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error {{ color:{}; }}",
+             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error {{ color:{}; }}",
             rgb(p.bg), rgb(p.text), rgb(p.surface_2), rgb(p.text), rgb(p.text_dim),
             rgb(p.surface_hover), rgb(p.surface), rgb(p.text), rgb(p.text_dim),
             rgb(p.text_dim), rgb(p.danger),

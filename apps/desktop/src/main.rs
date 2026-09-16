@@ -151,6 +151,7 @@ fn main() {
         catalog,
         options.capture_max_bytes,
         Some(settings_root.join("readings")),
+        Some(settings_root.join(knot_desktop::preferences::PREFERENCES_FILE)),
         vec![],
         titan_submission_error,
     ) {

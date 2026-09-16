@@ -7,6 +7,7 @@
 pub mod appearance;
 pub mod document_folding;
 pub mod document_preview;
+pub mod preferences;
 pub mod readings;
 pub mod scroll_site;
 pub mod workspace;
@@ -33,6 +34,7 @@ pub fn run_desktop_with_targets(
     catalog: Option<KnotFileCatalog>,
     capture_max_bytes: usize,
     readings_root: Option<PathBuf>,
+    preferences_path: Option<PathBuf>,
     targets: Vec<Arc<dyn KnotRetainPort>>,
     titan_submission_error: Option<String>,
 ) -> Result<(), String> {
@@ -53,6 +55,7 @@ pub fn run_desktop_with_targets(
             }
             state.set_capture_limit(capture_max_bytes);
             state.set_readings_root(readings_root.clone());
+            state.set_preferences_path(preferences_path.clone());
             state.set_retention_targets(targets, wake.clone());
             Init {
                 state,

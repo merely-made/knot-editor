@@ -6597,6 +6597,8 @@ dependencies = [
  "nematic",
  "personae",
  "pollster",
+ "serde",
+ "serde_json",
  "taproot",
  "tempfile",
  "tinct",

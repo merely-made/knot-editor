@@ -26,6 +26,8 @@ tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", re
 knot-file-catalog.workspace = true
 knot-readings.workspace = true
 layout-dom-api.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tokio = { version = "1", features = ["rt", "time"] }
 
 [dev-dependencies]

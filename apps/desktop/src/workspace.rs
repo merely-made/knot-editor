@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::appearance::Appearance;
+use crate::preferences::PreferencesStore;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, TextInput, button, el, lens, span, text_field_typed,
 };
@@ -132,6 +133,7 @@ pub struct DesktopState {
     pub(crate) collapsed_folds: std::collections::BTreeSet<usize>,
     pub(crate) fold_error: Option<String>,
     appearance_open: bool,
+    preferences: Option<PreferencesStore>,
     outline_snapshot: Option<KnotOutlineSnapshotV1>,
     outline_error: Option<String>,
     pub(crate) readings_visible: bool,
@@ -218,6 +220,7 @@ impl DesktopState {
             collapsed_folds: std::collections::BTreeSet::new(),
             fold_error: None,
             appearance_open: false,
+            preferences: None,
             outline_snapshot: None,
             outline_error: None,
             readings_visible: false,
@@ -625,6 +628,50 @@ impl DesktopState {
         self.refresh_readings();
     }
 
+    /// The preferences file this host owns. Loading applies its appearance; a
+    /// file that cannot be read leaves defaults and says why.
+    pub fn set_preferences_path(&mut self, path: Option<PathBuf>) {
+        self.preferences = path.map(PreferencesStore::open);
+        let Some(store) = &self.preferences else {
+            return;
+        };
+        self.appearance = store.preferences().appearance.clone();
+        if let Some(why) = store.unreadable() {
+            let line = format!(
+                "Preferences could not be read, so defaults are in use and changes are not saved: {why}"
+            );
+            self.message = Some(match self.message.take() {
+                Some(earlier) => format!("{earlier} {line}"),
+                None => line,
+            });
+        }
+    }
+
+    pub fn preferences(&self) -> Option<&PreferencesStore> {
+        self.preferences.as_ref()
+    }
+
+    /// Every appearance control goes through here, so each change is saved.
+    pub(crate) fn update_appearance(&mut self, change: impl FnOnce(&mut Appearance)) {
+        change(&mut self.appearance);
+        let Some(store) = self.preferences.as_mut() else {
+            return;
+        };
+        if let Err(error) = store.save_appearance(&self.appearance) {
+            self.message = Some(format!("Appearance not saved: {error}"));
+        }
+    }
+
+    fn reset_preferences(&mut self) {
+        let Some(store) = self.preferences.as_mut() else {
+            return;
+        };
+        self.message = Some(match store.reset(&self.appearance) {
+            Ok(()) => format!("Preferences file reset: {}.", store.path().display()),
+            Err(error) => format!("Preferences reset failed: {error}"),
+        });
+    }
+
     pub(crate) fn readings_root_label(&self) -> String {
         match &self.readings_root {
             Some(root) => format!("Scripts: {}", root.display()),
@@ -649,8 +696,8 @@ impl DesktopState {
             knot_readings::load_dir(&root, MAX_READING_SCRIPTS, MAX_READING_SOURCE_BYTES);
         self.readings = scripts;
         self.readings_load_notes = notes;
-        self.readings_selected = selected
-            .and_then(|name| self.readings.iter().position(|script| script.name == name));
+        self.readings_selected =
+            selected.and_then(|name| self.readings.iter().position(|script| script.name == name));
     }
 
     pub(crate) fn toggle_readings(&mut self) {
@@ -1450,6 +1497,34 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     };
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
+        // Saves refuse while the file is unreadable; say so where the controls
+        // are, and offer the one action that may overwrite it.
+        let preferences_note: DesktopView = match state
+            .preferences
+            .as_ref()
+            .and_then(PreferencesStore::unreadable)
+        {
+            Some(why) => Box::new(
+                el(
+                    "div",
+                    (
+                        span(format!(
+                            "Not saving appearance: the preferences file could not be read ({why})."
+                        )),
+                        button("Reset preferences file", |state: &mut DesktopState, _| {
+                            state.reset_preferences();
+                        })
+                        .attr(
+                            "aria-label",
+                            "Reset preferences file, replacing its unreadable contents",
+                        ),
+                    ),
+                )
+                .attr("class", "knot-appearance-row knot-preferences-error")
+                .attr("role", "status"),
+            ),
+            None => Box::new(el("div", ())),
+        };
         Box::new(
             el(
                 "section",
@@ -1458,15 +1533,17 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         "div",
                         (
                             button("Light", |state: &mut DesktopState, _| {
-                                state.appearance.dark = false;
+                                state.update_appearance(|appearance| appearance.dark = false);
                             })
                             .attr("aria-pressed", (!appearance.dark).to_string()),
                             button("Dark", |state: &mut DesktopState, _| {
-                                state.appearance.dark = true;
+                                state.update_appearance(|appearance| appearance.dark = true);
                             })
                             .attr("aria-pressed", appearance.dark.to_string()),
                             button("Highlight", |state: &mut DesktopState, _| {
-                                state.appearance.highlight = !state.appearance.highlight;
+                                state.update_appearance(|appearance| {
+                                    appearance.highlight = !appearance.highlight;
+                                });
                             })
                             .attr("aria-pressed", appearance.highlight.to_string()),
                         ),
@@ -1476,13 +1553,21 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         "div",
                         (
                             button("Smaller", |state: &mut DesktopState, _| {
-                                state.appearance.font_size =
-                                    state.appearance.font_size.saturating_sub(1).max(12);
+                                state.update_appearance(|appearance| {
+                                    appearance.font_size = appearance
+                                        .font_size
+                                        .saturating_sub(1)
+                                        .max(Appearance::MIN_FONT_SIZE);
+                                });
                             }),
                             span(format!("Text size: {}", appearance.font_size)),
                             button("Larger", |state: &mut DesktopState, _| {
-                                state.appearance.font_size =
-                                    state.appearance.font_size.saturating_add(1).min(24);
+                                state.update_appearance(|appearance| {
+                                    appearance.font_size = appearance
+                                        .font_size
+                                        .saturating_add(1)
+                                        .min(Appearance::MAX_FONT_SIZE);
+                                });
                             }),
                         ),
                     )
@@ -1491,24 +1576,25 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         "div",
                         (
                             button("Narrow", |state: &mut DesktopState, _| {
-                                state.appearance.wide = false;
+                                state.update_appearance(|appearance| appearance.wide = false);
                             })
                             .attr("aria-pressed", (!appearance.wide).to_string()),
                             button("Wide", |state: &mut DesktopState, _| {
-                                state.appearance.wide = true;
+                                state.update_appearance(|appearance| appearance.wide = true);
                             })
                             .attr("aria-pressed", appearance.wide.to_string()),
                             button("Compact", |state: &mut DesktopState, _| {
-                                state.appearance.relaxed = false;
+                                state.update_appearance(|appearance| appearance.relaxed = false);
                             })
                             .attr("aria-pressed", (!appearance.relaxed).to_string()),
                             button("Relaxed", |state: &mut DesktopState, _| {
-                                state.appearance.relaxed = true;
+                                state.update_appearance(|appearance| appearance.relaxed = true);
                             })
                             .attr("aria-pressed", appearance.relaxed.to_string()),
                         ),
                     )
                     .attr("class", "knot-appearance-row"),
+                    preferences_note,
                 ),
             )
             .attr("class", "knot-appearance-panel")

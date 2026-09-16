@@ -10,7 +10,10 @@ use cambium::{
     el, lens, on_key, span, text_field_typed, textarea_typed,
 };
 use cambium_genet_winit_host::HostWake;
-use inker::{Block, Engine, EngineInput, InlineSpan, TableAlignment};
+use inker::{
+    Block, Engine, EngineDocument, EngineError, EngineInput, FoldKey, FoldMarkers, FoldState,
+    InlineSpan, TableAlignment,
+};
 use knot_site::micron_submission::{MicronResponse, MicronSubmissionConfig, PreparedMicronRequest};
 use knot_site::submission::{PreparedSubmission, SubmissionReceipt};
 use knot_site::{LocalServer, Page, Site, SiteFormat};
@@ -45,6 +48,22 @@ struct MicronPreparedRequest {
     values: BTreeMap<String, String>,
     masked: BTreeSet<String>,
     input_snapshot: Vec<String>,
+}
+
+/// The Micron preview's reader fold state (navigation plan decision 3). Like
+/// the form editor it is preview state only: toggling never writes source, the
+/// document, the site manifest or an address.
+#[derive(Default)]
+pub(crate) struct MicronPreviewFolds {
+    folds: FoldState,
+    /// The shared marker token (decision 17); a theme may replace it.
+    pub(crate) markers: FoldMarkers,
+    /// Address and source text `folds` was last reconciled against.
+    reconciled: Option<(String, String)>,
+}
+
+fn lower_micron(address: &str, text: &str) -> Result<EngineDocument, EngineError> {
+    nematic::MicronEngine::new().render(&EngineInput::new(address, text))
 }
 
 pub struct ScrollWorkspace {
@@ -474,6 +493,69 @@ fn response_display(body: &[u8]) -> Option<String> {
 }
 
 impl DesktopState {
+    /// Whether fold overrides exist that the current source has not been
+    /// reconciled against. With no overrides there is nothing to drop.
+    pub(crate) fn micron_folds_need_sync(&self) -> bool {
+        let folds = &self.micron_folds;
+        if folds.folds == FoldState::default() {
+            return false;
+        }
+        let current = self.document.snapshot();
+        folds.reconciled.as_ref().is_none_or(|(address, text)| {
+            current.format != knot_document::DocumentFormat::Micron
+                || *address != current.source.address
+                || *text != current.text
+        })
+    }
+
+    /// Reconcile fold overrides with the current source, as the shared session
+    /// does on replacement: the same address keeps every heading key still
+    /// present (decisions 10 and 11), a new address or a non-Micron document
+    /// starts fresh.
+    pub(crate) fn sync_micron_folds(&mut self) {
+        let current = self.document.snapshot();
+        let folds = &mut self.micron_folds;
+        if current.format != knot_document::DocumentFormat::Micron {
+            folds.folds = FoldState::default();
+            folds.reconciled = None;
+            return;
+        }
+        match &folds.reconciled {
+            Some((address, text)) if *address == current.source.address => {
+                if *text == current.text {
+                    return;
+                }
+                if let Ok(document) = lower_micron(&current.source.address, &current.text) {
+                    folds.folds.reconcile(&document.navigation);
+                }
+            },
+            _ => folds.folds = FoldState::default(),
+        }
+        folds.reconciled = Some((current.source.address, current.text));
+    }
+
+    /// Open or close the preview fold whose heading key is `key`.
+    fn toggle_micron_fold(&mut self, key: &FoldKey) {
+        self.sync_micron_folds();
+        let current = self.document.snapshot();
+        let Ok(document) = lower_micron(&current.source.address, &current.text) else {
+            return;
+        };
+        let navigation = &document.navigation;
+        let fold = navigation
+            .is_current(&document.blocks)
+            .then(|| navigation.fold_keys().iter().position(|each| each == key))
+            .flatten();
+        match fold {
+            Some(fold) => {
+                self.micron_folds.folds.toggle(navigation, fold);
+            },
+            None => {
+                self.message = Some("That heading is no longer in the current source.".into());
+            },
+        }
+    }
+
     fn open_micron_form(&mut self) {
         let source = self.document.snapshot();
         if source.format != knot_document::DocumentFormat::Micron {
@@ -1099,7 +1181,9 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
             InlineSpan::Strong(items) => Box::new(el("strong", inline(items)).attr("class", "knot-preview-strong")),
             InlineSpan::Link { url, spans, predicate, .. } => {
                 let destination = url.clone();
-                Box::new(button_with(inline(spans), move |state: &mut DesktopState,_| {
+                Box::new(button_with(inline(spans), move |state: &mut DesktopState, click| {
+                    // A link inside a collapsible heading wins over its fold toggle.
+                    click.stop_propagation();
                     if let Some(local_name) = preview_manifest_page(state, &destination) {
                         state.scroll_open_page(local_name);
                     } else {
@@ -1174,59 +1258,118 @@ fn blocks(items: &[Block]) -> DesktopView {
     let children = items
         .iter()
         .enumerate()
-        .map(|(i, item)| {
-            let view: DesktopView = match item {
-                Block::Presented {
-                    presentation,
-                    block,
-                } => Box::new(
-                    el("div", blocks(std::slice::from_ref(block.as_ref()))).attr(
-                        "style",
-                        crate::document_preview::block_presentation_css(presentation),
-                    ),
-                ),
-                Block::Heading { level, spans } => Box::new(el(
-                    match level {
-                        1 => "h1",
-                        2 => "h2",
-                        3 => "h3",
-                        4 => "h4",
-                        _ => "h5",
-                    },
-                    inline(spans),
-                )),
-                Block::Paragraph { spans } => Box::new(el("p", inline(spans))),
-                Block::CodeBlock { text, .. } | Block::Preformatted { text } => {
-                    Box::new(el("pre", text.clone()))
-                },
-                Block::Quote { blocks: items } => Box::new(el("blockquote", blocks(items))),
-                // Nematic retains ordered markers in the text; use one bullet list
-                // to avoid assigning a second, invented set of ordered numbers.
-                Block::List { items, .. } => Box::new(el(
-                    "ul",
-                    Keyed::new(
-                        items
-                            .iter()
-                            .enumerate()
-                            .map(|(i, item)| (i, el("li", blocks(item))))
-                            .collect::<Vec<_>>(),
-                    ),
-                )),
-                Block::Rule => Box::new(el("hr", ())),
-                Block::Table {
-                    alignments,
-                    header,
-                    rows,
-                } => table_block(alignments, header, rows),
-                Block::Badge { text } => {
-                    Box::new(el("p", text.clone()).attr("class", "knot-preview-badge"))
-                },
-                _ => Box::new(span("Unsupported preview block")),
-            };
-            (i, view)
+        .map(|(i, item)| (i, block(item, None)))
+        .collect::<Vec<_>>();
+    Box::new(el("div", Keyed::new(children)))
+}
+
+/// A collapsible heading's toggle, resolved for one render.
+struct FoldToggle {
+    key: FoldKey,
+    open: bool,
+    marker: String,
+}
+
+/// A lowered document's top-level blocks. With fold state, closed extents are
+/// skipped and collapsible headings toggle; navigation indices name top-level
+/// blocks only, so nested blocks never carry a fold.
+fn document_blocks(document: &EngineDocument, folds: Option<&MicronPreviewFolds>) -> DesktopView {
+    let navigation = &document.navigation;
+    let folds = folds.filter(|_| navigation.is_current(&document.blocks));
+    let hidden = folds.map_or_else(Vec::new, |folds| folds.folds.hidden(navigation));
+    let keys = navigation.fold_keys();
+    let children = document
+        .blocks
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| !hidden.iter().any(|range| range.contains(index)))
+        .map(|(index, item)| {
+            let toggle = folds.and_then(|folds| {
+                let fold = navigation
+                    .folds
+                    .iter()
+                    .position(|fold| fold.heading == index)?;
+                let open = folds.folds.is_open(navigation, fold);
+                Some(FoldToggle {
+                    key: keys[fold].clone(),
+                    open,
+                    marker: folds.markers.marker(open).to_owned(),
+                })
+            });
+            (index, block(item, toggle.as_ref()))
         })
         .collect::<Vec<_>>();
     Box::new(el("div", Keyed::new(children)))
+}
+
+fn block(item: &Block, fold: Option<&FoldToggle>) -> DesktopView {
+    match item {
+        Block::Presented {
+            presentation,
+            block: inner,
+        } => Box::new(
+            el("div", el("div", Keyed::new(vec![(0, block(inner, fold))]))).attr(
+                "style",
+                crate::document_preview::block_presentation_css(presentation),
+            ),
+        ),
+        Block::Heading { level, spans } => {
+            let tag = match level {
+                1 => "h1",
+                2 => "h2",
+                3 => "h3",
+                4 => "h4",
+                _ => "h5",
+            };
+            match fold {
+                None => Box::new(el(tag, inline(spans))),
+                Some(toggle) => {
+                    let key = toggle.key.clone();
+                    Box::new(el(
+                        tag,
+                        button_with(
+                            (
+                                span(toggle.marker.clone())
+                                    .attr("class", "knot-micron-fold-marker"),
+                                inline(spans),
+                            ),
+                            move |state: &mut DesktopState, _| state.toggle_micron_fold(&key),
+                        )
+                        .attr("class", "knot-micron-fold")
+                        .attr("aria-label", inker::inline_text(spans))
+                        .attr("aria-expanded", if toggle.open { "true" } else { "false" }),
+                    ))
+                },
+            }
+        },
+        Block::Paragraph { spans } => Box::new(el("p", inline(spans))),
+        Block::CodeBlock { text, .. } | Block::Preformatted { text } => {
+            Box::new(el("pre", text.clone()))
+        },
+        Block::Quote { blocks: items } => Box::new(el("blockquote", blocks(items))),
+        // Nematic retains ordered markers in the text; use one bullet list
+        // to avoid assigning a second, invented set of ordered numbers.
+        Block::List { items, .. } => Box::new(el(
+            "ul",
+            Keyed::new(
+                items
+                    .iter()
+                    .enumerate()
+                    .map(|(i, item)| (i, el("li", blocks(item))))
+                    .collect::<Vec<_>>(),
+            ),
+        )),
+        Block::Rule => Box::new(el("hr", ())),
+        Block::Table {
+            alignments,
+            header,
+            rows,
+        } => table_block(alignments, header, rows),
+        Block::Badge { text } => {
+            Box::new(el("p", text.clone()).attr("class", "knot-preview-badge"))
+        },
+        _ => Box::new(span("Unsupported preview block")),
+    }
 }
 
 fn table_cell(
@@ -1532,8 +1675,7 @@ pub fn preview(state: &DesktopState) -> DesktopView {
             &EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/scroll"),
         ),
-        knot_document::DocumentFormat::Micron => nematic::MicronEngine::new()
-            .render(&EngineInput::new(&source.source.address, &source.text)),
+        knot_document::DocumentFormat::Micron => lower_micron(&source.source.address, &source.text),
         knot_document::DocumentFormat::Gemtext => {
             let input = EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/gemini");
@@ -1554,7 +1696,11 @@ pub fn preview(state: &DesktopState) -> DesktopView {
         Ok(document) => Box::new(el(
             "div",
             (
-                blocks(&document.blocks),
+                document_blocks(
+                    &document,
+                    (source.format == knot_document::DocumentFormat::Micron)
+                        .then_some(&state.micron_folds),
+                ),
                 span(if document.diagnostics.is_empty() {
                     String::new()
                 } else {
@@ -1622,6 +1768,7 @@ pub const CSS: &str = r#"
 .knot-preview-strong { font-weight: 700; }
 .knot-preview-emphasis { font-style: italic; }
 .knot-scroll-link { text-decoration: underline; }
+.knot-micron-fold { display: block; width: 100%; text-align: left; }
 #knot-scroll-folder input { width: 350px; }
 #knot-scroll-port input { width: 70px; }
 @media (max-width:700px) { .knot-native-site-mode .knot-source-wrapper, .knot-scroll-preview { width:100%; flex-basis:auto; } #knot-scroll-folder input { width:220px; } }
@@ -1632,7 +1779,7 @@ mod tests {
     use super::*;
     use crate::{DESKTOP_CSS, host_hooks, workspace::desktop_view};
     use cambium::TextCommand;
-    use cambium_genet_winit_host::{Harness, Init, WindowCommands};
+    use cambium_genet_winit_host::{Harness, Init, KeyPress, NamedKey, WindowCommands};
     use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
     use layout_dom_api::{LayoutDom, LocalName, Namespace};
     use taproot::Selector;
@@ -2095,6 +2242,210 @@ mod tests {
                 node = dom.parent(current);
             }
         }
+    }
+
+    // Mere `crates/nematic/nematic/tests/fixtures/micron/nomadnet-1.4.2/`,
+    // inlined: `guide-structure.mu` and the navigation probes 08 and 06b.
+    const GUIDE_STRUCTURE: &str = "# Reference fixture: heading, collapse, divider, and table forms displayed in Guide.\n>Top heading\nTop body.\n---\n>>Nested heading\nNested body.\n\n>Fold examples\n`+>Open fold\nOpen fold body.\n`->Closed fold\nClosed fold body.\n\n>Table example\n`t\n| Name | Price | Qty |\n| ---- | :---: | --: |\n| `F3a3Apple`f | Free | `!5`! |\n| Orange | Ask nicely | 3 |\n`t\n\n>>>>\nAn unnamed depth-four section.\n";
+    const PROBE_08: &str = "# Probe 08: Enter and Space on a focused collapsible heading.\n`!PROBE 08 TOP`!\n`->Enter Target\nMARKER ENTER BODY: revealed only when Enter Target is open.\n>Sentinel One\nMARKER SENTINEL ONE.\n`->Space Target\nMARKER SPACE BODY: revealed only when Space Target is open.\n>Sentinel Two\nMARKER SENTINEL TWO.\n`+>Already Open\nMARKER ALREADY OPEN BODY.\n>Probe 08 end\nEnd of probe 08.\n";
+    const PROBE_06B: &str = "# Probe 06b: a closed section containing depth-two collapsible headings.\n`!PROBE 06B TOP`!\n`->Outer Closed\nMARKER OUTER: body directly under the closed outer heading.\n`+>>Inner Authored Open\nMARKER INNER OPEN: body under the depth-two heading authored open.\n`->>Inner Authored Closed\nMARKER INNER CLOSED: body under the depth-two heading authored closed.\n>Sentinel After\nMARKER SENTINEL: always visible, ends the outer fold.\n";
+
+    fn fold_label(open: bool, heading: &str) -> String {
+        format!("{}{heading}", FoldMarkers::default().marker(open))
+    }
+
+    /// Replace the whole source, then run the dispatch tail as a real edit does.
+    fn replace_source(host: &mut DesktopHarness, text: &str) {
+        host.update(|state| {
+            state
+                .document
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+                .unwrap();
+            state
+                .document
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(text.into())))
+                .unwrap();
+        });
+        host.after_dispatch();
+        host.relayout();
+    }
+
+    #[test]
+    fn micron_preview_skips_closed_extents_and_marks_collapsible_headings() {
+        let (_temp, mut host) = micron_preview_harness(GUIDE_STRUCTURE);
+        let text = preview_text(&host);
+        for shown in [
+            "Top body.",
+            "Nested body.",
+            "Open fold body.",
+            "An unnamed depth-four section.",
+        ] {
+            assert!(text.contains(shown), "{shown:?} missing from {text:?}");
+        }
+        assert!(!text.contains("Closed fold body."), "{text:?}");
+        assert!(text.contains(&fold_label(true, "Open fold")));
+        assert!(text.contains(&fold_label(false, "Closed fold")));
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            assert_eq!(
+                class_nodes(&dom, dom.document(), "knot-micron-fold").len(),
+                2,
+                "only collapsible headings toggle"
+            );
+        }
+
+        replace_source(&mut host, PROBE_06B);
+        let text = preview_text(&host);
+        assert!(text.contains("MARKER SENTINEL"));
+        for hidden in [
+            "MARKER OUTER",
+            "Inner Authored Open",
+            "MARKER INNER OPEN",
+            "MARKER INNER CLOSED",
+        ] {
+            assert!(!text.contains(hidden), "{hidden:?} shown in {text:?}");
+        }
+        assert!(host.click_on(&Selector::role("button").containing("Outer Closed")));
+        let text = preview_text(&host);
+        assert!(text.contains("MARKER OUTER") && text.contains("MARKER INNER OPEN"));
+        assert!(!text.contains("MARKER INNER CLOSED"));
+        assert!(host.click_on(&Selector::role("button").containing("Inner Authored Open")));
+        assert!(!preview_text(&host).contains("MARKER INNER OPEN"));
+        assert!(host.click_on(&Selector::role("button").containing("Outer Closed")));
+        assert!(!preview_text(&host).contains("MARKER OUTER"));
+        assert!(host.click_on(&Selector::role("button").containing("Outer Closed")));
+        let text = preview_text(&host);
+        assert!(text.contains("MARKER OUTER"));
+        assert!(
+            !text.contains("MARKER INNER OPEN"),
+            "a nested fold keeps its own state across the outer fold closing"
+        );
+    }
+
+    #[test]
+    fn micron_preview_folds_toggle_by_click_and_keyboard_without_writing_source() {
+        let (temp, mut host) = micron_preview_harness(PROBE_08);
+        let saved = std::fs::read(temp.path().join("page.mu")).unwrap();
+        let address = host.state().document.snapshot().source.address;
+        let text = preview_text(&host);
+        assert!(!text.contains("MARKER ENTER BODY") && !text.contains("MARKER SPACE BODY"));
+        assert!(text.contains("MARKER ALREADY OPEN BODY"));
+        assert!(text.contains(&fold_label(false, "Enter Target")));
+
+        assert!(host.click_on(&Selector::role("button").containing("Enter Target")));
+        let text = preview_text(&host);
+        assert!(
+            text.contains("MARKER ENTER BODY"),
+            "pointer opens: {text:?}"
+        );
+        assert!(text.contains(&fold_label(true, "Enter Target")));
+        host.press_key(&KeyPress::named(NamedKey::Enter));
+        assert!(
+            !preview_text(&host).contains("MARKER ENTER BODY"),
+            "Enter on the focused heading closes it"
+        );
+
+        assert!(host.click_on(&Selector::role("button").containing("Space Target")));
+        assert!(preview_text(&host).contains("MARKER SPACE BODY"));
+        host.press_key(&KeyPress::named(NamedKey::Space));
+        assert!(
+            !preview_text(&host).contains("MARKER SPACE BODY"),
+            "Space on the focused heading closes it"
+        );
+        host.press_key(&KeyPress::named(NamedKey::Space));
+        assert!(preview_text(&host).contains("MARKER SPACE BODY"));
+
+        let snapshot = host.state().document.snapshot();
+        assert_eq!(snapshot.text, PROBE_08, "toggling never writes source");
+        assert!(!snapshot.dirty);
+        assert_eq!(snapshot.source.address, address);
+        assert_eq!(std::fs::read(temp.path().join("page.mu")).unwrap(), saved);
+    }
+
+    #[test]
+    fn micron_preview_fold_state_survives_unrelated_edits_and_drops_for_an_edited_heading() {
+        let (_temp, mut host) = micron_preview_harness(GUIDE_STRUCTURE);
+        assert!(host.click_on(&Selector::role("button").containing("Closed fold")));
+        assert!(preview_text(&host).contains("Closed fold body."));
+
+        // Lines above shift every source line and block index; the key holds.
+        let unrelated = format!(
+            "Inserted first line.\n{}",
+            GUIDE_STRUCTURE.replace("Top body.", "Top body, edited.")
+        );
+        replace_source(&mut host, &unrelated);
+        let text = preview_text(&host);
+        assert!(text.contains("Top body, edited."));
+        assert!(
+            text.contains("Closed fold body."),
+            "state kept across an unrelated edit"
+        );
+
+        // Editing the heading drops its state, so undoing the edit shows the
+        // authored closed fold rather than the reader's open one.
+        replace_source(
+            &mut host,
+            &unrelated.replace("`->Closed fold", "`->Closed folds"),
+        );
+        replace_source(&mut host, &unrelated);
+        assert!(
+            !preview_text(&host).contains("Closed fold body."),
+            "an edited heading drops its fold state"
+        );
+
+        // A marker flip is a heading edit too (decision 11).
+        assert!(host.click_on(&Selector::role("button").containing("Closed fold")));
+        assert!(preview_text(&host).contains("Closed fold body."));
+        replace_source(
+            &mut host,
+            &unrelated.replace("`->Closed fold", "`+>Closed fold"),
+        );
+        replace_source(&mut host, &unrelated);
+        assert!(
+            !preview_text(&host).contains("Closed fold body."),
+            "a flipped marker drops its fold state"
+        );
+        assert_eq!(host.state().document.snapshot().text, unrelated);
+    }
+
+    #[test]
+    fn micron_preview_link_inside_a_collapsible_heading_does_not_toggle_it() {
+        let (_temp, mut host) = micron_preview_harness(
+            "`->Closed `[About`:/page/about.mu]\nHidden body.\n>After\nAfter body.\n",
+        );
+        assert!(!preview_text(&host).contains("Hidden body."));
+        let link = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            class_nodes(&dom, dom.document(), "knot-scroll-link")
+                .into_iter()
+                .find(|node| text_content(&dom, *node) == "About")
+                .expect("heading link")
+        };
+        let (x, y, width, height) = host.painted_rect(link).expect("link layout");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.relayout();
+        assert!(
+            host.state()
+                .message
+                .as_deref()
+                .is_some_and(|message| message.starts_with("Preview link: :/page/about.mu"))
+        );
+        assert!(
+            !preview_text(&host).contains("Hidden body."),
+            "the link click did not reach the fold toggle"
+        );
+        // The same heading row outside the link does toggle.
+        let marker = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            class_nodes(&dom, dom.document(), "knot-micron-fold-marker")[0]
+        };
+        let (x, y, width, height) = host.painted_rect(marker).expect("marker layout");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.relayout();
+        assert!(preview_text(&host).contains("Hidden body."));
     }
 
     #[test]

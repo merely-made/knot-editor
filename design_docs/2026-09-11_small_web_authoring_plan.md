@@ -252,6 +252,10 @@ ordinary-client restart acceptance belong to Djinn's next gate.
   bumped to `709dfdf2`, collapsible headings toggle in the Micron preview, and
   in-page links stay label text because the desktop host has no programmatic
   scroll. See the dated section at the end.
+- 2026-09-16: Micron navigation follow-up on branch `micron-nav-a1b`: Mere
+  bumped to `5dff2f93` for Cambium's scroll request, in-page links open closed
+  folds and scroll the preview to their target, and every Knot control shows
+  one focus outline. See the follow-up at the end of the dated section.
 
 ## Initial integration receipts (superseded where noted below)
 
@@ -567,29 +571,19 @@ Choices made here, not captured from stock: a Reload or a reopen at the same
 address reconciles rather than resetting, and a heading's accessible name
 omits the marker glyph.
 
-Decision 12's visible focus indicator is not established for these toggles.
-They are in the Tab order, but Knot's stylesheet has no `:focus` rule anywhere,
-the host's own focus overlay draws only the text caret, and no headed check has
-looked. The host does restyle on `:focus`, so one sheet rule would supply an
-indicator. Whether that rule covers only the preview or all of Knot's controls
-is open.
+At `d13343f`, decision 12's visible focus indicator was not established for
+these toggles. They were in the Tab order, but Knot's stylesheet had no `:focus`
+rule anywhere and the host's own focus overlay draws only the text caret.
+Decision 19 settled one rule for all of Knot's controls; the follow-up below
+adds it.
 
-**In-page links: blocked, not done.** Scrolling the preview to an in-page
-target, opening closed ancestors first, needs a programmatic scroll, and
-Knot's desktop view layer has none. `OwnedLayout::set_viewport_scroll` and
-`set_element_scroll` are `pub(crate)` in cambium-rootstock. `HostPointer` has
-only move, press and release. `AppCtx` exposes `painted_rect` read-only. Only
-the test harness's `wheel` scrolls. The preview pane is not its own scroll
-container either: the window viewport carries its offset, as recorded above.
-`InPage` therefore renders as inert label text, with no request and no
-navigation, and nothing opens folds on its behalf. The open options are:
-
-- a public scroll request on Cambium's host, a Mere change outside A1's Knot
-  half;
-- a preview scroll container whose offset Knot owns, which answers the layout
-  question left open above (whether the preview scrolls apart from the source
-  pane);
-- label-only in-page links as a recorded deviation for A1 and R1.
+**In-page links: blocked at `d13343f`.** Scrolling the preview to an in-page
+target needed a programmatic scroll, and Knot's desktop host had none: the
+cambium-rootstock scroll setters are `pub(crate)`, `AppCtx` exposed only
+`painted_rect`, and the preview pane is not its own scroll container. `InPage`
+rendered as inert label text. Decision 18 put a public scroll request in
+Cambium rather than making the preview a scroll container; the follow-up below
+consumes it.
 
 Decision 1 does not apply, since Knot has no address bar.
 
@@ -629,3 +623,124 @@ handler, with the click still working), a toggle that writes source, a reset on
 every edit, no reconcile, no reconcile in `after_dispatch`, and no stop
 propagation on heading links. The marker-flip assertion shares the reconcile
 path with the heading-text assertion and has no control of its own.
+
+### Follow-up: in-page scrolling and the focus rule (2026-09-16)
+
+On branch `micron-nav-a1b`: the bump in `3a6ea01`, in-page scrolling in
+`ba25e1a`, the focus rule in `45752a7`, and this record.
+
+**Bump.** All 35 `merely-made/mere.git` pins moved from `709dfdf2` to
+`5dff2f935ebc50e5324b82875db2c9004439fd5c`, which adds Cambium's scroll
+request (decision 18). No Mere manifest changed between the two revisions, so
+the committed lock swaps only the source revision on its 52 Mere entries, 52
+lines out and 52 in. `cargo metadata --locked --offline` accepts it, and
+`cargo tree -d --workspace` is line-for-line identical to main's once the
+revision is normalized (`a1b-00`, `a1b-03`, `a1b-04c`). The revision was not in
+Cargo's git database: an offline metadata run failed on it (`a1b-01`), and one
+online `cargo metadata --locked` fetched mere.git without changing the lock
+(`a1b-02`). Every other command ran offline. Nothing broke: the desktop library
+ran 79 passed and 1 ignored on the bump alone (`a1b-06`). Main's untracked
+knot-document lock was still on `d075c6be`; the copy used here swaps that to
+`5dff2f93` and passes `--locked --offline` (`a1b-05`).
+
+**In-page links (decision 18).** `InlineSpan::InPage` renders as a preview link
+(`knot-scroll-link knot-preview-in-page`), a button in the Tab order. A click,
+or Enter or Space through the runner's own activation, stops propagation as
+other preview links do and calls `follow_micron_in_page`. A target with no block
+(a missing anchor, or `#` below the last heading) returns before anything
+changes. Otherwise it reconciles the fold state, lowers the current source with
+the same `lower_micron` the preview uses, checks that the navigation table is
+current, opens every closed fold around the target with
+`FoldState::open_ancestors`, and records the `InPageTarget` (block and
+fragment) in `MicronPreviewFolds`. The dispatch rebuilds the preview with those
+folds open, so the target's element exists when `after_dispatch` calls
+`scroll_to_micron_jump`. That takes the pending target, finds the element whose
+`data-block-index` names its block (every top-level preview block carries one,
+nested blocks none), and calls `ctx.scroll_into_view(node, ScrollAlign::Start)`,
+which the host resolves on the next layout. `.knot-scroll-preview` and
+`.knot-workspace` grow to their content, so the window viewport moves. A jump
+never writes source, the document, the site manifest, the selected manifest
+page or an address. The fragment is recorded but not shown, since Knot has no
+address bar. Choices made here: an in-page link looks like any preview link,
+and Space activates it, as it does every button.
+
+**Focus rule (decision 19).** Knot has no CSS colour variables. Its colours
+come from the `tinct` palette that `appearance::appearance_css` writes once
+per theme scope, so the rule lives there rather than in `DESKTOP_CSS` or a
+module constant. Each theme gets exactly one rule,
+`.knot-workspace.knot-theme-light :focus { outline:2px solid <primary>;outline-offset:2px; }`
+and its dark twin, drawn in the palette's `primary` token. The root class pair
+gives specificity (0,3,0), above the (0,2,1) `button[aria-pressed=true]`
+outlines, so a focused pressed toggle still shows focus. Genet `5ae30ca` parses
+`:focus` and `:focus-within` but not `:focus-visible`, so a pointer click that
+focuses a control shows the outline too, and so does the source textarea
+while it has focus. Focus order and behaviour are unchanged. The sheet the app
+installs moved into `desktop_sheet()`, so tests read the same one.
+
+`primary` is the same seed colour in both themes (`a1b-11`). The outline sits
+2px out, on its parent's ground. It measures 4.70 on `bg` and 5.29 on `surface`
+in the light theme, and 3.36 and 3.07 in the dark theme. On a control's own
+`surface_2` fill, which the offset keeps it off, dark would be 2.69. The
+dark-theme margin over 3:1 is thin.
+
+**How focus styling was verified.** The windowless harness exposes geometry,
+not computed style: `AppCtx`'s layout is crate-private and taproot has no style
+query. The harness test therefore checks that `desktop_sheet()` carries the
+rule, then appends a probe on the same selector,
+`<focus selector> { min-height:123px; }`, followed by
+`.knot-workspace button[aria-pressed=true] { min-height:40px; }`. It tabs
+through a fold toggle, an in-page link, an ordinary button (Show Outline), a
+pressed toggle (Light) and the path input, and asserts each is under 100px
+unfocused, over 122.5px while focused, and under 100px once focus leaves. That
+shows the shipped selector parses in Genet, matches wherever keyboard focus
+lands, and outranks the pressed rule even placed after it. It does not show the
+outline paint; no headed check has looked.
+
+**Verification.** Rust 1.97.1 from `C:\t`, `--offline --locked`,
+`CARGO_TARGET_DIR=C:/t/knot-micron-nav-a1-target`, logs `a1b-*` under
+`Code/testing/knot-editor/micron-navigation-a1/`, at `45752a7`:
+
+- `cargo +1.97.1 test --manifest-path <worktree>/apps/desktop/Cargo.toml --lib`:
+  85 passed, 1 ignored (`a1b-20`). With `--tests`: 97 passed, 1 ignored, adding the binary
+  and the preferences and readings-panel suites; the resident-retention suite
+  is feature-gated and ran none (`a1b-21`).
+- `cargo +1.97.1 test --manifest-path <worktree>/Cargo.toml --workspace --exclude knot-desktop`:
+  214 passed, 1 ignored (knot-editor 187, knot-readings 19, knot-file-catalog
+  8, knot-capture 0), as on main (`a1b-22`).
+- `cargo +1.97.1 test --manifest-path <worktree>/crates/knot-site/Cargo.toml`:
+  17 passed, against a copy of main's untracked lock (`a1b-23`).
+- `cargo +1.97.1 test --all-features --manifest-path <worktree>/crates/knot-document/Cargo.toml`:
+  47 passed, 1 ignored, against main's untracked lock with its Mere revision
+  swapped to `5dff2f93` (`a1b-24`).
+- `cargo +1.97.1 fmt --check` is clean on the desktop package and on
+  knot-document, the two packages touched, both before on main and after
+  (`a1b-00`, `a1b-25`).
+
+The in-page tests inline probes 03, 04, 05 and 17 byte for byte (checked with
+`cmp` against Mere `5dff2f93`) and run in a site-backed harness, so each one
+also holds source text, dirty flag, address, saved page bytes, `site.json`
+bytes and the selected manifest page unchanged. They cover: probe 05's heading
+and explicit-anchor links opening the closed section and bringing the target's
+painted top within 0.5px of the viewport top; probe 17 opening both closed
+folds, then scrolling; a missing anchor (probe 03) and `#` below the last
+heading (probe 04) leaving scroll, fold state and preview text unchanged, each
+beside its page's working link as the control; and Enter on an in-page link
+reached by Tab landing exactly where a click does. Neither probe 03 nor 04 has
+a collapsible section, so a composed page (not a stock capture) puts probe
+03's missing link above a closed one to make "no fold opens" testable.
+`micron_preview_renders_in_page_links_as_activatable_links` replaces the
+inert-label test. `each_theme_has_one_focus_rule_in_its_primary_token` and
+`keyboard_focus_matches_the_one_focus_rule_on_every_kind_of_control` cover the
+focus rule.
+
+Sixteen positive controls each broke one rule and watched the named test fail
+at its assertion (`a1b-10-*`, `a1b-13-*`). In-page: no `open_ancestors`; only
+the outermost fold opened (probe 17 fails, probe 05 would pass); no scroll
+request; the hook not called from `after_dispatch`; no block index attribute;
+`Nearest` instead of `Start` (painted top 702); a missing target scrolling to
+block 0; a missing target opening every fold (on the composed page); a jump
+clearing the selected manifest page; a jump writing source; and Enter
+swallowed by a key handler, with the click still working. Focus: the rule
+removed (both tests), a `:focus-visible` selector (the focused button stayed
+35px, so Genet dropped the rule), the scope without the root class (the pressed
+toggle stayed 54px under the later pressed rule), and a hardcoded colour.

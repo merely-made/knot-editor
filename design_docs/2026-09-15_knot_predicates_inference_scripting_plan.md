@@ -310,9 +310,17 @@ the subject cannot read neither appears nor changes the neighbour set;
 and parameters; (4) the esp feature matrix is rerun at Knot's pinned revision
 and passes native, with wasm recorded as a compile receipt.
 
-**Decisions for Mark.** Whether lexical stays the default or BERT on CPU
-does once weights are present. Model weight custody. Whether to adopt
-eidetic-search's BM25 for the lexical rank or keep the hashing provider.
+**Rulings, 2026-09-16.** The default provider stays lexical; BERT is a
+preference a writer turns on. The hashing provider needs no weights, no
+network and no adapter, so an ordinary install indexes its vault on first
+run and the portable default survives a wasm consumer. Weight custody is
+the writer's: BERT is reachable only when the writer supplies a path,
+which Knot verifies by digest and records as that index's model identity.
+Knot acquires no fetcher, bundles no weights, and redistributes nothing.
+A missing or mismatched digest is a refusal carrying its reason, never a
+silent fall back to lexical under a BERT-labelled index. Still open:
+whether E2's lexical rank comes from the hashing provider's sparse output
+or from eidetic-search's BM25 index.
 
 ## Track 3: rhai readings
 
@@ -367,10 +375,15 @@ a reading stale and rerun rederives it. The fence lane is unchanged. A script
 that attempts file or network access fails to resolve the call, proven by a
 test against the binding set.
 
-**Decisions for Mark.** Whether scripts live only in the preference
-directory, also in notes as fences, or both. Whether readings rerun
-automatically on edit within budget or only on demand. Whether this is a
-Readings panel or folds into Lenses.
+**Rulings, 2026-09-16.** A script may live in the preference directory or
+inside a note as a fence, and an in-note script runs only after the writer
+consents for that document. The preference directory is the installed-tool
+lane and needs no consent. A fence is document content that arrived with
+the document, possibly from a peer, so it is gated the way
+`KnotEffectPolicy` already gates a run fence: consent is recorded per
+document, is revocable, and a script whose source changed loses it. Still
+open: whether readings rerun automatically on edit within budget or only
+on demand, and whether this stays a Readings panel or folds into Lenses.
 
 ## Sequencing
 

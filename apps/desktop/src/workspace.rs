@@ -629,17 +629,23 @@ impl DesktopState {
     }
 
     /// The preferences file this host owns. Loading applies its appearance; a
-    /// file that cannot be read leaves defaults and says why.
+    /// file that cannot be read leaves defaults and says why, and a file a
+    /// newer Knot wrote loads what this one knows and says that.
     pub fn set_preferences_path(&mut self, path: Option<PathBuf>) {
         self.preferences = path.map(PreferencesStore::open);
         let Some(store) = &self.preferences else {
             return;
         };
-        self.appearance = store.preferences().appearance.clone();
-        if let Some(why) = store.unreadable() {
-            let line = format!(
-                "Preferences could not be read, so defaults are in use and changes are not saved: {why}"
-            );
+        self.appearance = store.preferences().appearance.known.clone();
+        let line = store
+            .unreadable()
+            .map(|why| {
+                format!(
+                    "Preferences could not be read, so defaults are in use and changes are not saved: {why}"
+                )
+            })
+            .or_else(|| store.written_by_newer());
+        if let Some(line) = line {
             self.message = Some(match self.message.take() {
                 Some(earlier) => format!("{earlier} {line}"),
                 None => line,

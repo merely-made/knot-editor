@@ -10,8 +10,10 @@
 //!
 //! The embedding section is a knot-editor `KnotEmbeddingPreference`. This app
 //! does not link knot-editor, so the section is carried as opaque JSON and
-//! written back as loaded; the host that builds search reads it. Top-level
-//! keys written by a newer Knot survive a save by this one.
+//! written back as loaded; the host that builds search reads it. Keys written
+//! by a newer Knot, at the top level or inside the appearance section, survive
+//! a save by this one. A file whose version is newer than this build writes
+//! loads what this build knows, says so, and keeps saving.
 //!
 //! A missing file is unconfigured: defaults, and nothing is written until a
 //! preference changes. An unreadable or malformed file is an error, and saves
@@ -31,7 +33,7 @@ pub const PREFERENCES_VERSION: u32 = 1;
 pub struct DesktopPreferences {
     /// Kept as loaded, so a file a newer Knot wrote is not relabelled older.
     pub version: u32,
-    pub appearance: Appearance,
+    pub appearance: StoredAppearance,
     /// A knot-editor `KnotEmbeddingPreference`, uninterpreted here.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<Value>,
@@ -40,11 +42,22 @@ pub struct DesktopPreferences {
     pub other: Map<String, Value>,
 }
 
+/// The appearance section as stored: the settings this build knows, plus any
+/// keys a newer Knot wrote there, kept so a save does not drop them.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub struct StoredAppearance {
+    #[serde(flatten)]
+    pub known: Appearance,
+    /// Appearance keys this build does not know.
+    #[serde(flatten)]
+    pub other: Map<String, Value>,
+}
+
 impl Default for DesktopPreferences {
     fn default() -> Self {
         Self {
             version: PREFERENCES_VERSION,
-            appearance: Appearance::default(),
+            appearance: StoredAppearance::default(),
             embedding: None,
             other: Map::new(),
         }
@@ -63,7 +76,7 @@ impl DesktopPreferences {
         };
         let mut preferences: Self =
             serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))?;
-        let appearance = &mut preferences.appearance;
+        let appearance = &mut preferences.appearance.known;
         appearance.font_size = appearance
             .font_size
             .clamp(Appearance::MIN_FONT_SIZE, Appearance::MAX_FONT_SIZE);
@@ -136,10 +149,24 @@ impl PreferencesStore {
         self.unreadable.as_deref()
     }
 
+    /// One line for the writer when the file was written by a newer Knot,
+    /// naming both versions. Nothing is refused: known settings loaded, the
+    /// rest are carried, and saves go ahead with the file's version kept.
+    pub fn written_by_newer(&self) -> Option<String> {
+        let found = self.saved.version;
+        (found > PREFERENCES_VERSION).then(|| {
+            format!(
+                "Preferences were written by a newer Knot (file version {found}, this Knot writes \
+                 version {PREFERENCES_VERSION}); settings this Knot does not know are kept."
+            )
+        })
+    }
+
     /// Write `appearance` when it differs from the file, keeping every other
-    /// section as loaded. `Ok(false)` means there was nothing to write.
+    /// section, and appearance keys this build does not know, as loaded.
+    /// `Ok(false)` means there was nothing to write.
     pub fn save_appearance(&mut self, appearance: &Appearance) -> Result<bool, String> {
-        if self.saved.appearance == *appearance {
+        if self.saved.appearance.known == *appearance {
             return Ok(false);
         }
         if let Some(why) = &self.unreadable {
@@ -147,10 +174,8 @@ impl PreferencesStore {
                 "the preferences file could not be read ({why}); reset it in Appearance to save again"
             ));
         }
-        let next = DesktopPreferences {
-            appearance: appearance.clone(),
-            ..self.saved.clone()
-        };
+        let mut next = self.saved.clone();
+        next.appearance.known = appearance.clone();
         next.save(&self.path)?;
         self.saved = next;
         Ok(true)
@@ -160,10 +185,8 @@ impl PreferencesStore {
     /// defaults for everything else. The only path that overwrites a file
     /// that could not be read.
     pub fn reset(&mut self, appearance: &Appearance) -> Result<(), String> {
-        let next = DesktopPreferences {
-            appearance: appearance.clone(),
-            ..DesktopPreferences::default()
-        };
+        let mut next = DesktopPreferences::default();
+        next.appearance.known = appearance.clone();
         next.save(&self.path)?;
         self.saved = next;
         self.unreadable = None;
@@ -204,17 +227,21 @@ mod tests {
         assert!(!temporary_path(&path).exists(), "temp file left behind");
         let reopened = PreferencesStore::open(path.clone());
         assert_eq!(reopened.unreadable(), None);
-        assert_eq!(reopened.preferences().appearance, changed());
+        assert_eq!(reopened.preferences().appearance.known, changed());
         assert_eq!(reopened.preferences().version, PREFERENCES_VERSION);
+        assert_eq!(reopened.written_by_newer(), None);
 
         // A file missing fields still loads; the rest are defaults.
         std::fs::write(&path, r#"{"appearance":{"dark":true}}"#).unwrap();
         let partial = DesktopPreferences::load(&path).unwrap();
         assert_eq!(
             partial.appearance,
-            Appearance {
-                dark: true,
-                ..Appearance::default()
+            StoredAppearance {
+                known: Appearance {
+                    dark: true,
+                    ..Appearance::default()
+                },
+                other: Map::new(),
             }
         );
         assert_eq!(partial.version, PREFERENCES_VERSION);
@@ -252,7 +279,7 @@ mod tests {
         store.reset(&changed()).unwrap();
         assert_eq!(store.unreadable(), None);
         assert_eq!(
-            DesktopPreferences::load(&path).unwrap().appearance,
+            DesktopPreferences::load(&path).unwrap().appearance.known,
             changed()
         );
     }
@@ -284,10 +311,45 @@ mod tests {
         std::fs::write(&path, file.to_string()).unwrap();
         let mut store = PreferencesStore::open(path.clone());
         assert_eq!(store.unreadable(), None);
+        let note = store.written_by_newer().expect("version 2 is newer than 1");
+        assert!(
+            note.contains("version 2") && note.contains("version 1"),
+            "{note}"
+        );
         assert_eq!(store.save_appearance(&changed()), Ok(true));
         let written = json(&path);
         assert_eq!(written["later-knot"], future);
         assert_eq!(written["version"], 2);
         assert_eq!(written["appearance"]["font-size"], 19);
+    }
+
+    #[test]
+    fn an_unknown_key_inside_appearance_survives_an_appearance_change() {
+        let root = tempdir().unwrap();
+        let path = root.path().join(PREFERENCES_FILE);
+        let accent = serde_json::json!({ "hue": 212, "names": ["slate", null] });
+        let file = serde_json::json!({
+            "version": 1,
+            "appearance": { "dark": false, "font-size": 15, "accent": accent },
+        });
+        std::fs::write(&path, file.to_string()).unwrap();
+        let mut store = PreferencesStore::open(path.clone());
+        assert_eq!(store.unreadable(), None);
+        assert_eq!(store.preferences().appearance.known.font_size, 15);
+        assert_eq!(store.preferences().appearance.other["accent"], accent);
+
+        assert_eq!(store.save_appearance(&changed()), Ok(true));
+        let written = json(&path);
+        assert_eq!(written["appearance"]["accent"], accent);
+        assert_eq!(written["appearance"]["dark"], true);
+        assert_eq!(written["appearance"]["font-size"], 19);
+        let reloaded = DesktopPreferences::load(&path).unwrap();
+        assert_eq!(reloaded.appearance.known, changed());
+        assert_eq!(reloaded.appearance.other.len(), 1);
+        assert!(
+            reloaded.other.is_empty(),
+            "a nested key must not leak to the top level: {:?}",
+            reloaded.other
+        );
     }
 }

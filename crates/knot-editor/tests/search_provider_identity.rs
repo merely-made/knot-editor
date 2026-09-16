@@ -342,7 +342,11 @@ fn a_real_bert_cpu_index_builds_queries_and_is_refused_by_the_lexical_default() 
     .unwrap_or_else(|error| panic!("{error}"));
     eprintln!("  renamed: {}", moved.identity());
     assert_eq!(moved.identity().model, "minilm-renamed");
-    assert_eq!(moved.identity(), &identity);
+    assert!(
+        moved.identity().is_same_model(&identity),
+        "{} vs {identity}",
+        moved.identity()
+    );
     let hits = moved
         .query(
             Some(&vault),

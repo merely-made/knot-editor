@@ -513,13 +513,14 @@ reference and a shared suggestion sink, so they land last.
   Appearance persists across launches for the first time; all nine appearance
   controls save through one path, and a hand-edited font size outside 12 to
   24 is clamped on load. The embedding section is round-tripped opaquely and
-  unknown top-level keys survive a save by an older Knot; unknown keys nested
-  inside `appearance` do not. A malformed file leaves defaults in the open
+  unknown keys survive a save by an older Knot, at the top level and, since
+  the follow-up, inside `appearance` too. A malformed file leaves defaults in the open
   window, names the path and the error, refuses every save, and is only
   overwritten by an explicit Reset preferences file. knot-desktop 83/83
   across targets. Not yet: nothing reads the embedding section (no desktop
-  search surface), and a file written by a newer Knot's higher version is
-  kept, not flagged.
+  search surface). A file written by a newer Knot loads, names both versions
+  in the message line, and keeps saving. Identity `==` is plain record
+  equality again; reuse is decided by `is_same_model`.
 - **2026-09-15, Mere.** The shared rhai base engine had rhai's default file
   module resolver, so a fence could import `./x.rhai`; closed with a
   positive-control test (`444e3fe4`). The CiTO table moved to the evidence

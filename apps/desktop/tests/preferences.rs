@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Windowless receipts for the desktop preferences file, driven through the
-//! real Appearance buttons: a missing file, a malformed one, and a relaunch.
+//! real Appearance buttons: a missing file, a malformed one, one a newer Knot
+//! wrote, and a relaunch.
 
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};
 use genet_scripted_dom::{NodeId, ScriptedDom};
 use knot_desktop::{
     appearance::{Appearance, appearance_css},
     host_hooks,
-    preferences::{DesktopPreferences, PREFERENCES_FILE},
+    preferences::{DesktopPreferences, PREFERENCES_FILE, PREFERENCES_VERSION},
     workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view},
 };
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
@@ -89,7 +90,13 @@ fn a_missing_preferences_file_launches_with_defaults_and_writes_nothing() {
     // Positive control: a real change does write, so the absence above is not
     // an instrument that can never see a file.
     click(&mut harness, "Dark");
-    assert!(DesktopPreferences::load(&path).unwrap().appearance.dark);
+    assert!(
+        DesktopPreferences::load(&path)
+            .unwrap()
+            .appearance
+            .known
+            .dark
+    );
 }
 
 #[test]
@@ -123,10 +130,65 @@ fn a_malformed_preferences_file_uses_defaults_says_why_and_is_not_overwritten() 
             .unreadable()
             .is_none()
     );
-    assert!(DesktopPreferences::load(&path).unwrap().appearance.dark);
+    assert!(
+        DesktopPreferences::load(&path)
+            .unwrap()
+            .appearance
+            .known
+            .dark
+    );
     click(&mut harness, "Wide");
-    let saved = DesktopPreferences::load(&path).unwrap().appearance;
+    let saved = DesktopPreferences::load(&path).unwrap().appearance.known;
     assert!(saved.dark && saved.wide);
+}
+
+#[test]
+fn a_preferences_file_from_a_newer_knot_loads_says_so_and_keeps_saving() {
+    let root = tempdir().unwrap();
+    let path = root.path().join(PREFERENCES_FILE);
+    let newer = PREFERENCES_VERSION + 1;
+    let later = serde_json::json!({ "pane": "left", "recent": [1, null] });
+    std::fs::write(
+        &path,
+        serde_json::json!({
+            "version": newer,
+            "appearance": { "dark": true },
+            "later-knot": later,
+        })
+        .to_string(),
+    )
+    .unwrap();
+
+    let mut harness = launch(&path);
+    assert!(harness.state().appearance.dark, "known settings load");
+    let message = class_text(&harness, "knot-workspace-message").unwrap();
+    assert!(message.contains("newer Knot"), "{message}");
+    assert!(
+        message.contains(&format!("version {newer}"))
+            && message.contains(&format!("version {PREFERENCES_VERSION}")),
+        "{message}"
+    );
+    assert!(message.contains("kept"), "{message}");
+
+    click(&mut harness, "Appearance");
+    assert_eq!(class_text(&harness, "knot-preferences-error"), None);
+    click(&mut harness, "Wide");
+    let written: serde_json::Value =
+        serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
+    assert_eq!(written["version"], newer);
+    assert_eq!(written["later-knot"], later);
+    assert_eq!(written["appearance"]["wide"], true);
+    assert_eq!(written["appearance"]["dark"], true);
+    assert!(
+        !harness
+            .state()
+            .message
+            .as_deref()
+            .unwrap_or_default()
+            .contains("not saved"),
+        "{:?}",
+        harness.state().message
+    );
 }
 
 #[test]

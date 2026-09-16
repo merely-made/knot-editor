@@ -117,7 +117,7 @@ fn every_binding_reads_the_snapshot_it_was_given() {
 ///
 /// The expectation is recomputed here from the same input rather than written
 /// down, because which links carry a `rel` is upstream's answer, not this
-/// crate's — see `paragraph_link_predicates_do_not_survive_the_knot_preview`.
+/// crate's — see `paragraph_link_predicates_survive_the_knot_preview`.
 #[test]
 fn headings_without_a_citation_returns_the_uncited_sections() {
     let source = field_notes();
@@ -301,6 +301,15 @@ fn links_carry_spans_and_rel_in_document_order() {
         ],
         "the fenced code block is not scanned for links"
     );
+    let rels = spanned
+        .iter()
+        .map(|(link, _)| link.rel.as_deref())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        rels,
+        vec![None, Some("cites"), None, Some("cites")],
+        "each rel-annotated link keeps its predicate, plain nav links have none"
+    );
     for (link, (start, end)) in &spanned {
         assert!(source[*start..*end].starts_with(&format!("[{}]", link.text)));
         assert!(source[*start..*end].contains(&link.target));
@@ -318,25 +327,29 @@ fn links_carry_spans_and_rel_in_document_order() {
     );
 }
 
-/// (9b) Tripwire on an upstream defect, not a property this lane wants.
+/// (9b) A paragraph link's `{rel=...}` predicate survives the knot preview,
+/// the same as a heading link's.
 ///
-/// At mere rev 876320fd, nematic's knot expand pass (`rewrite_one_span` in
-/// `knot/expand.rs`) rebuilds every **paragraph** link with `predicate: None`,
-/// so `inker::link_statements` reports nothing for a source that plainly
-/// carries `{rel="cites"}`. Heading links keep theirs. The join in `links.rs`
-/// is therefore correct and currently fed nothing.
-///
-/// When that is fixed upstream this test fails; that is the point. Restore the
-/// real `rel` assertion in `links_carry_spans_and_rel_in_document_order` and
-/// delete this.
+/// nematic's knot expand pass (`rewrite_one_span` in `knot/expand.rs`) used to
+/// rebuild every **paragraph** link with `predicate: None`, so
+/// `inker::link_statements` reported nothing for a source that plainly carries
+/// `{rel="cites"}` and the join in `links.rs` was fed nothing. Fixed upstream
+/// in mere d075c6be; this test holds the fix in place.
 #[test]
-fn paragraph_link_predicates_do_not_survive_the_knot_preview() {
+fn paragraph_link_predicates_survive_the_knot_preview() {
     let source = field_notes();
     assert!(source.contains(r#"{rel="cites"}"#));
     let input = input_from(&source);
-    assert!(
-        input.links.iter().all(|link| link.rel.is_none()),
-        "a paragraph rel survived the preview: upstream is fixed, see this test's note"
+    let cited = input
+        .links
+        .iter()
+        .filter(|link| link.rel.as_deref() == Some("cites"))
+        .map(|link| link.target.as_str())
+        .collect::<Vec<_>>();
+    assert_eq!(
+        cited,
+        vec!["https://example.test/gibson", "https://example.test/latour"],
+        "every paragraph cites-annotated link reached the reader with its rel"
     );
     assert!(
         input.links.iter().all(|link| link.span.is_some()),

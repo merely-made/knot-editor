@@ -25,12 +25,12 @@ engine = [
 
 [dependencies]
 same-file = "1.0.6"
-cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "876320fddd4cecddab8080d5decf2b5d8568d47e" }
-mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "876320fddd4cecddab8080d5decf2b5d8568d47e" }
-illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "876320fddd4cecddab8080d5decf2b5d8568d47e", optional = true }
-inker = { git = "https://github.com/merely-made/mere.git", rev = "876320fddd4cecddab8080d5decf2b5d8568d47e", optional = true }
-knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "876320fddd4cecddab8080d5decf2b5d8568d47e", default-features = false }
-nematic = { git = "https://github.com/merely-made/mere.git", rev = "876320fddd4cecddab8080d5decf2b5d8568d47e", default-features = false, optional = true }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "d075c6be41e8878d86c78adc44e4329986b04cc5" }
+mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "d075c6be41e8878d86c78adc44e4329986b04cc5" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "d075c6be41e8878d86c78adc44e4329986b04cc5", optional = true }
+inker = { git = "https://github.com/merely-made/mere.git", rev = "d075c6be41e8878d86c78adc44e4329986b04cc5", optional = true }
+knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "d075c6be41e8878d86c78adc44e4329986b04cc5", default-features = false }
+nematic = { git = "https://github.com/merely-made/mere.git", rev = "d075c6be41e8878d86c78adc44e4329986b04cc5", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]

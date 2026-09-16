@@ -28,6 +28,19 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
     hooks.key_intercept = Box::new(workspace::key_intercept);
     hooks
 }
+
+/// The desktop stylesheet, in cascade order.
+pub fn desktop_sheet() -> String {
+    format!(
+        "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
+        appearance::appearance_css(),
+        document_folding::CSS,
+        document_preview::CSS,
+        readings::CSS,
+        scroll_site::CSS
+    )
+}
+
 pub fn run_desktop_with_targets(
     session: KnotDocumentSession,
     initial_path: Option<PathBuf>,
@@ -60,14 +73,7 @@ pub fn run_desktop_with_targets(
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!(
-                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
-                    appearance::appearance_css(),
-                    document_folding::CSS,
-                    document_preview::CSS,
-                    readings::CSS,
-                    scroll_site::CSS
-                ),
+                sheet: desktop_sheet(),
                 fonts: Vec::new(),
                 images: Vec::new(),
             }

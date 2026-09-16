@@ -2858,6 +2858,103 @@ mod tests {
         assert!(preview_text(&host).contains("Hidden body."));
     }
 
+    // Decision 19: one focus rule for every control. The harness exposes no
+    // computed style, so beside the shipped rule a probe rule on the same
+    // selector changes geometry: it proves the selector parses and matches
+    // wherever keyboard focus lands, and outranks the pressed-toggle rule even
+    // when that comes later in the sheet.
+    #[test]
+    fn keyboard_focus_matches_the_one_focus_rule_on_every_kind_of_control() {
+        let selector = crate::appearance::focus_selector(".knot-theme-light");
+        let sheet = crate::desktop_sheet();
+        assert_eq!(
+            sheet
+                .matches(&format!("{selector} {{ outline:2px solid "))
+                .count(),
+            1,
+            "the shipped sheet carries the focus rule"
+        );
+        let probe = format!(
+            "{sheet}{selector} {{ min-height:123px; }} .knot-workspace button[aria-pressed=true] {{ min-height:40px; }}"
+        );
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("page.mu");
+        std::fs::write(
+            &path,
+            "`[jump to the heading below`#below]\n`->Closed fold\nHidden body.\n>Below\nBody.\n",
+        )
+        .unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.preview_visible = true;
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: probe,
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+
+        let controls = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let button = |label: &str| {
+                taproot::matching(&dom, &Selector::role("button").containing(label))[0]
+            };
+            let path_field = node_with_id(&dom, dom.document(), "knot-path-field").unwrap();
+            vec![
+                (
+                    "fold toggle",
+                    class_nodes(&dom, dom.document(), "knot-micron-fold")[0],
+                ),
+                ("ordinary button", button("Show Outline")),
+                ("pressed toggle", button("Light")),
+                ("text input", input_node(&dom, path_field).unwrap()),
+            ]
+        };
+        let mut controls = controls
+            .into_iter()
+            .chain([(
+                "in-page link",
+                in_page_link(&host, "jump to the heading below"),
+            )])
+            .collect::<Vec<_>>();
+        // One forward Tab pass visits them all.
+        let order = host.runner().focusables();
+        controls.sort_by_key(|(_, node)| order.iter().position(|each| each == node));
+        let height = |host: &DesktopHarness, node| host.painted_rect(node).expect("paints").3;
+        let mut previous = None;
+        for (what, node) in controls {
+            assert!(height(&host, node) < 100.0, "{what} unfocused");
+            for _ in 0..order.len() {
+                if host.focus() == Some(node) {
+                    break;
+                }
+                host.tab(true);
+            }
+            assert_eq!(host.focus(), Some(node), "Tab reaches the {what}");
+            assert!(
+                height(&host, node) > 122.5,
+                "the focus rule matches the focused {what}: {}",
+                height(&host, node)
+            );
+            if let Some((what, node)) = previous {
+                assert!(height(&host, node) < 100.0, "{what} after focus leaves");
+            }
+            previous = Some((what, node));
+        }
+        let (what, node) = previous.unwrap();
+        host.tab(true);
+        assert!(height(&host, node) < 100.0, "{what} after focus leaves");
+    }
+
     #[test]
     fn selecting_a_spartan_prompt_only_fills_the_local_composer() {
         let mut workspace = ScrollWorkspace::default();

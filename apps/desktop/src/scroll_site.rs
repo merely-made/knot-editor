@@ -6,17 +6,18 @@
 
 use crate::workspace::{DesktopState, DesktopView, PendingAction};
 use cambium::{
-    GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button, button_with,
-    el, lens, on_key, span, text_field_typed, textarea_typed,
+    El, GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button,
+    button_with, el, lens, on_key, span, text_field_typed, textarea_typed,
 };
-use cambium_genet_winit_host::HostWake;
+use cambium_genet_winit_host::{AppCtx, HostWake, ScrollAlign};
 use inker::{
     Block, Engine, EngineDocument, EngineError, EngineInput, FoldKey, FoldMarkers, FoldState,
-    InlineSpan, TableAlignment,
+    InPageTarget, InlineSpan, TableAlignment,
 };
 use knot_site::micron_submission::{MicronResponse, MicronSubmissionConfig, PreparedMicronRequest};
 use knot_site::submission::{PreparedSubmission, SubmissionReceipt};
 use knot_site::{LocalServer, Page, Site, SiteFormat};
+use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use nematic::micron::forms::{FormLimits, FormState};
 use nematic::micron::syntax::FieldKind;
 use std::collections::{BTreeMap, BTreeSet};
@@ -51,8 +52,8 @@ struct MicronPreparedRequest {
 }
 
 /// The Micron preview's reader fold state (navigation plan decision 3). Like
-/// the form editor it is preview state only: toggling never writes source, the
-/// document, the site manifest or an address.
+/// the form editor it is preview state only: toggling or following an in-page
+/// link never writes source, the document, the site manifest or an address.
 #[derive(Default)]
 pub(crate) struct MicronPreviewFolds {
     folds: FoldState,
@@ -60,7 +61,12 @@ pub(crate) struct MicronPreviewFolds {
     pub(crate) markers: FoldMarkers,
     /// Address and source text `folds` was last reconciled against.
     reconciled: Option<(String, String)>,
+    /// An in-page link's target, awaiting its scroll in `after_dispatch`.
+    jump: Option<InPageTarget>,
 }
+
+/// Names a top-level preview block's element by its block index.
+const BLOCK_INDEX_ATTR: &str = "data-block-index";
 
 fn lower_micron(address: &str, text: &str) -> Result<EngineDocument, EngineError> {
     nematic::MicronEngine::new().render(&EngineInput::new(address, text))
@@ -554,6 +560,29 @@ impl DesktopState {
                 self.message = Some("That heading is no longer in the current source.".into());
             },
         }
+    }
+
+    /// Follow an in-page link (decision 18): open the folds hiding its target,
+    /// so this dispatch renders it, and queue the scroll for `after_dispatch`.
+    /// A target with no block is inert.
+    fn follow_micron_in_page(&mut self, target: &InPageTarget) {
+        let Some(block) = target.block else {
+            return;
+        };
+        let current = self.document.snapshot();
+        if current.format != knot_document::DocumentFormat::Micron {
+            return;
+        }
+        self.sync_micron_folds();
+        let Ok(document) = lower_micron(&current.source.address, &current.text) else {
+            return;
+        };
+        let navigation = &document.navigation;
+        if !navigation.is_current(&document.blocks) || block >= document.blocks.len() {
+            return;
+        }
+        self.micron_folds.folds.open_ancestors(navigation, block);
+        self.micron_folds.jump = Some(target.clone());
     }
 
     fn open_micron_form(&mut self) {
@@ -1199,8 +1228,14 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     state.message = Some("Enter a Spartan body, review it, then send explicitly.".into());
                 }).attr("class", "knot-spartan-submit"))
             },
-            // Label only: the preview has no element scroll to reach a target with.
-            InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans)).attr("class", "knot-preview-in-page")),
+            // Preview state only: opens folds and scrolls, never navigates.
+            InlineSpan::InPage { target, spans } => {
+                let target = target.clone();
+                Box::new(button_with(inline(spans), move |state: &mut DesktopState, click| {
+                    click.stop_propagation();
+                    state.follow_micron_in_page(&target);
+                }).attr("class", "knot-scroll-link knot-preview-in-page"))
+            },
             InlineSpan::LineBreak => Box::new(el("br", ())),
             InlineSpan::SoftBreak => Box::new(span(" ")),
         };
@@ -1258,9 +1293,59 @@ fn blocks(items: &[Block]) -> DesktopView {
     let children = items
         .iter()
         .enumerate()
-        .map(|(i, item)| (i, block(item, None)))
+        .map(|(i, item)| (i, block(item, None, None)))
         .collect::<Vec<_>>();
     Box::new(el("div", Keyed::new(children)))
+}
+
+/// A top-level block's element carries its index; nested blocks carry none.
+fn indexed<Seq>(
+    element: El<Seq, DesktopState, ()>,
+    index: Option<usize>,
+) -> El<Seq, DesktopState, ()> {
+    match index {
+        Some(index) => element.attr(BLOCK_INDEX_ATTR, index.to_string()),
+        None => element,
+    }
+}
+
+/// The preview element of top-level block `index`, if rendered.
+fn preview_block_node<D: LayoutDom>(dom: &D, node: D::NodeId, index: &str) -> Option<D::NodeId> {
+    if dom.attribute(
+        node,
+        &Namespace::from(""),
+        &LocalName::from(BLOCK_INDEX_ATTR),
+    ) == Some(index)
+    {
+        return Some(node);
+    }
+    dom.dom_children(node)
+        .find_map(|child| preview_block_node(dom, child, index))
+}
+
+/// Finish an in-page jump queued by this dispatch. The dispatch already rebuilt
+/// the preview with the target's folds open, so its element exists; the host
+/// scrolls it to the top on the next layout.
+pub(crate) fn scroll_to_micron_jump(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if ctx.runner.state().micron_folds.jump.is_none() {
+        return;
+    }
+    let mut jump = None;
+    ctx.runner
+        .update(|state| jump = state.micron_folds.jump.take());
+    let Some(block) = jump.and_then(|target| target.block) else {
+        return;
+    };
+    let node = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        preview_block_node(&*dom, dom.document(), &block.to_string())
+    };
+    if let Some(node) = node {
+        ctx.scroll_into_view(node, ScrollAlign::Start);
+    }
 }
 
 /// A collapsible heading's toggle, resolved for one render.
@@ -1296,23 +1381,28 @@ fn document_blocks(document: &EngineDocument, folds: Option<&MicronPreviewFolds>
                     marker: folds.markers.marker(open).to_owned(),
                 })
             });
-            (index, block(item, toggle.as_ref()))
+            (index, block(item, toggle.as_ref(), Some(index)))
         })
         .collect::<Vec<_>>();
     Box::new(el("div", Keyed::new(children)))
 }
 
-fn block(item: &Block, fold: Option<&FoldToggle>) -> DesktopView {
+fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> DesktopView {
     match item {
         Block::Presented {
             presentation,
             block: inner,
-        } => Box::new(
-            el("div", el("div", Keyed::new(vec![(0, block(inner, fold))]))).attr(
+        } => Box::new(indexed(
+            el(
+                "div",
+                el("div", Keyed::new(vec![(0, block(inner, fold, None))])),
+            )
+            .attr(
                 "style",
                 crate::document_preview::block_presentation_css(presentation),
             ),
-        ),
+            index,
+        )),
         Block::Heading { level, spans } => {
             let tag = match level {
                 1 => "h1",
@@ -1322,53 +1412,60 @@ fn block(item: &Block, fold: Option<&FoldToggle>) -> DesktopView {
                 _ => "h5",
             };
             match fold {
-                None => Box::new(el(tag, inline(spans))),
+                None => Box::new(indexed(el(tag, inline(spans)), index)),
                 Some(toggle) => {
                     let key = toggle.key.clone();
-                    Box::new(el(
-                        tag,
-                        button_with(
-                            (
-                                span(toggle.marker.clone())
-                                    .attr("class", "knot-micron-fold-marker"),
-                                inline(spans),
-                            ),
-                            move |state: &mut DesktopState, _| state.toggle_micron_fold(&key),
-                        )
-                        .attr("class", "knot-micron-fold")
-                        .attr("aria-label", inker::inline_text(spans))
-                        .attr("aria-expanded", if toggle.open { "true" } else { "false" }),
+                    Box::new(indexed(
+                        el(
+                            tag,
+                            button_with(
+                                (
+                                    span(toggle.marker.clone())
+                                        .attr("class", "knot-micron-fold-marker"),
+                                    inline(spans),
+                                ),
+                                move |state: &mut DesktopState, _| state.toggle_micron_fold(&key),
+                            )
+                            .attr("class", "knot-micron-fold")
+                            .attr("aria-label", inker::inline_text(spans))
+                            .attr("aria-expanded", if toggle.open { "true" } else { "false" }),
+                        ),
+                        index,
                     ))
                 },
             }
         },
-        Block::Paragraph { spans } => Box::new(el("p", inline(spans))),
+        Block::Paragraph { spans } => Box::new(indexed(el("p", inline(spans)), index)),
         Block::CodeBlock { text, .. } | Block::Preformatted { text } => {
-            Box::new(el("pre", text.clone()))
+            Box::new(indexed(el("pre", text.clone()), index))
         },
-        Block::Quote { blocks: items } => Box::new(el("blockquote", blocks(items))),
+        Block::Quote { blocks: items } => Box::new(indexed(el("blockquote", blocks(items)), index)),
         // Nematic retains ordered markers in the text; use one bullet list
         // to avoid assigning a second, invented set of ordered numbers.
-        Block::List { items, .. } => Box::new(el(
-            "ul",
-            Keyed::new(
-                items
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| (i, el("li", blocks(item))))
-                    .collect::<Vec<_>>(),
+        Block::List { items, .. } => Box::new(indexed(
+            el(
+                "ul",
+                Keyed::new(
+                    items
+                        .iter()
+                        .enumerate()
+                        .map(|(i, item)| (i, el("li", blocks(item))))
+                        .collect::<Vec<_>>(),
+                ),
             ),
+            index,
         )),
-        Block::Rule => Box::new(el("hr", ())),
+        Block::Rule => Box::new(indexed(el("hr", ()), index)),
         Block::Table {
             alignments,
             header,
             rows,
-        } => table_block(alignments, header, rows),
-        Block::Badge { text } => {
-            Box::new(el("p", text.clone()).attr("class", "knot-preview-badge"))
-        },
-        _ => Box::new(span("Unsupported preview block")),
+        } => table_block(alignments, header, rows, index),
+        Block::Badge { text } => Box::new(indexed(
+            el("p", text.clone()).attr("class", "knot-preview-badge"),
+            index,
+        )),
+        _ => Box::new(indexed(span("Unsupported preview block"), index)),
     }
 }
 
@@ -1394,6 +1491,7 @@ fn table_block(
     alignments: &[TableAlignment],
     header: &[Vec<InlineSpan>],
     rows: &[Vec<Vec<InlineSpan>>],
+    index: Option<usize>,
 ) -> DesktopView {
     let header_view: DesktopView = if header.is_empty() {
         Box::new(el("thead", ()))
@@ -1440,9 +1538,9 @@ fn table_block(
             )
         })
         .collect::<Vec<_>>();
-    Box::new(el(
-        "table",
-        (header_view, el("tbody", Keyed::new(body_rows))),
+    Box::new(indexed(
+        el("table", (header_view, el("tbody", Keyed::new(body_rows)))),
+        index,
     ))
 }
 
@@ -2218,10 +2316,10 @@ mod tests {
         found
     }
 
-    // Probe 03's two links, inline: in-page links reach the preview as their
-    // label and nothing else, present target or not.
+    // Probe 03's two links, inline: both in-page links render as their label
+    // inside an activatable link, present target or not.
     #[test]
-    fn micron_preview_renders_in_page_links_as_inert_labels() {
+    fn micron_preview_renders_in_page_links_as_activatable_links() {
         let source = "`[jump to a missing anchor`#no-such-anchor-here]\n`[jump to a present anchor`#present-control]\n`:present-control\nMARKER CONTROL: line bound by the present-control anchor.\n";
         let (_temp, host) = micron_preview_harness(source);
         let text = preview_text(&host);
@@ -2229,19 +2327,331 @@ mod tests {
         assert!(text.contains("jump to a present anchor"), "{text:?}");
         let dom = host.runner().dom();
         let dom = dom.borrow();
-        let labels = class_nodes(&dom, dom.document(), "knot-preview-in-page");
-        assert_eq!(labels.len(), 2);
-        for label in labels {
-            let mut node = Some(label);
-            while let Some(current) = node {
-                assert!(
-                    !dom.element_name(current)
-                        .is_some_and(|name| name.local.as_ref() == "button"),
-                    "an in-page label is not an activatable control"
-                );
-                node = dom.parent(current);
-            }
+        let links = class_nodes(&dom, dom.document(), "knot-preview-in-page");
+        assert_eq!(links.len(), 2);
+        for link in links {
+            assert!(
+                dom.element_name(link)
+                    .is_some_and(|name| name.local.as_ref() == "button"),
+                "an in-page link is an activatable control"
+            );
+            assert!(host.runner().focusables().contains(&link));
         }
+    }
+
+    /// `pad {series}001` to `pad {series}060`, the filler the navigation probes
+    /// use to push targets below the fold.
+    fn pads(series: char, count: usize) -> String {
+        (1..=count)
+            .map(|line| format!("pad {series}{line:03}\n"))
+            .collect()
+    }
+
+    // Mere `crates/nematic/nematic/tests/fixtures/micron/nomadnet-1.4.2/navigation/`
+    // at 5dff2f93, rebuilt byte for byte (checked with `cmp` when written).
+    fn probe_03() -> String {
+        format!(
+            "# Probe 03: a link to an anchor that is never declared.\n`!PROBE 03 TOP`!\n`[jump to a missing anchor`#no-such-anchor-here]\n`[jump to a present anchor`#present-control]\nThe second link is the positive control for the same gesture.\n{}`:present-control\nMARKER CONTROL: line bound by the present-control anchor.\n{}>Probe 03 end\nEnd of probe 03.\n",
+            pads('a', 60),
+            pads('b', 60)
+        )
+    }
+
+    fn probe_04() -> String {
+        format!(
+            "# Probe 04: the next-heading jump activated from below the last heading.\n`!PROBE 04 TOP`!\n`[next heading from the top`#]\n{}>First Heading\nMARKER FIRST HEADING.\n{}>Last Heading\nMARKER LAST HEADING: no heading follows this one.\n{}`[next heading from the tail`#]\nMARKER TAIL: the link above sits below every heading on this page.\n{}",
+            pads('a', 60),
+            pads('b', 60),
+            pads('c', 60),
+            pads('d', 6)
+        )
+    }
+
+    fn probe_05() -> String {
+        format!(
+            "# Probe 05: an anchor whose target lies inside an initially closed section.\n`!PROBE 05 TOP`!\n`[jump to the hidden heading`#hidden-target]\n`[jump to the hidden explicit anchor`#hidden-explicit]\n{}`->Closed Outer\nMARKER OUTER BODY: first line inside the closed section.\n>>Hidden Target\nMARKER HIDDEN: body under the hidden heading.\n`:hidden-explicit\nMARKER HIDDEN EXPLICIT: line bound inside the closed section.\n>Sentinel After\nMARKER SENTINEL: this heading ends the closed section's fold.\n{}>Probe 05 end\nEnd of probe 05.\n",
+            pads('a', 60),
+            pads('b', 60)
+        )
+    }
+
+    fn probe_17() -> String {
+        format!(
+            "# Probe 17: an anchor inside a closed fold that is itself inside a closed fold.\n`!PROBE 17 TOP`!\n`[jump into two closed sections`#nested-deep]\n{}`->Outer Closed\nMARKER OUTER BODY: inside the outer fold only.\n`->>Inner Closed\nMARKER INNER BODY: inside the inner fold.\n`:nested-deep\nMARKER NESTED DEEP TARGET: bound inside both closed folds.\n>Sentinel After\nMARKER SENTINEL: ends both folds.\n{}>Probe 17 end\nEnd of probe 17.\n",
+            pads('a', 60),
+            pads('b', 60)
+        )
+    }
+
+    /// Everything an in-page jump must leave alone.
+    #[derive(Debug, PartialEq)]
+    struct Authored {
+        text: String,
+        dirty: bool,
+        address: String,
+        saved_page: Vec<u8>,
+        manifest: Vec<u8>,
+        manifest_page: Option<String>,
+    }
+
+    /// A Micron site whose `about.mu` holds `source`, open in the editor with
+    /// its preview shown and its manifest page selected.
+    fn micron_site_preview_harness(source: &str) -> (tempfile::TempDir, DesktopHarness) {
+        let temp = tempfile::tempdir().unwrap();
+        let site = Site::create_for(&temp.path().join("micron"), SiteFormat::Micron).unwrap();
+        let path = site.page_path("about.mu").unwrap();
+        std::fs::write(&path, source).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.site = Some(site);
+        state.scroll.sync_page(Some(&path));
+        state.scroll.preview_visible = true;
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: format!("{DESKTOP_CSS}{CSS}"),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        assert_eq!(authored(&host).manifest_page.as_deref(), Some("about.mu"));
+        (temp, host)
+    }
+
+    fn authored(host: &DesktopHarness) -> Authored {
+        let state = host.state();
+        let snapshot = state.document.snapshot();
+        let site = state.scroll.site.as_ref().expect("a site-backed harness");
+        Authored {
+            saved_page: std::fs::read(site.page_path("about.mu").unwrap()).unwrap(),
+            manifest: std::fs::read(site.root().join(knot_site::CONFIG)).unwrap(),
+            manifest_page: state.scroll.page.clone(),
+            text: snapshot.text,
+            dirty: snapshot.dirty,
+            address: snapshot.source.address,
+        }
+    }
+
+    /// The preview element of the block `anchor` names in `source`.
+    fn anchor_block(
+        host: &DesktopHarness,
+        source: &str,
+        anchor: &str,
+    ) -> genet_scripted_dom::NodeId {
+        let address = host.state().document.snapshot().source.address;
+        let document = lower_micron(&address, source).unwrap();
+        let block = document
+            .navigation
+            .resolve(anchor)
+            .unwrap_or_else(|| panic!("#{anchor} resolves"));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        preview_block_node(&*dom, dom.document(), &block.to_string())
+            .unwrap_or_else(|| panic!("block {block} for #{anchor} is rendered"))
+    }
+
+    /// The in-page link labelled `label`. Its label sits in nested spans, which
+    /// a taproot selector's shallow text match does not read.
+    fn in_page_link(host: &DesktopHarness, label: &str) -> genet_scripted_dom::NodeId {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        class_nodes(&dom, dom.document(), "knot-preview-in-page")
+            .into_iter()
+            .find(|node| text_content(&dom, *node) == label)
+            .unwrap_or_else(|| panic!("no in-page link {label:?}"))
+    }
+
+    /// Click the centre of the in-page link labelled `label`, then lay out.
+    fn click_in_page_link(host: &mut DesktopHarness, label: &str) {
+        let (x, y, width, height) = host
+            .painted_rect(in_page_link(host, label))
+            .expect("the in-page link paints");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.relayout();
+    }
+
+    #[track_caller]
+    fn at_viewport_top(host: &DesktopHarness, node: genet_scripted_dom::NodeId, what: &str) {
+        let (_, top, _, _) = host.painted_rect(node).expect("the target paints");
+        assert!(
+            top.abs() < 0.5,
+            "{what}: painted top {top}, window scroll {:?}",
+            host.viewport_scroll()
+        );
+        assert!(
+            host.viewport_scroll().1 > 0.0,
+            "{what}: the window scrolled"
+        );
+    }
+
+    // Probe 05: stock opens the closed section and puts the target at the top
+    // of the viewport, for a heading and for an explicit anchor alike.
+    #[test]
+    fn micron_in_page_link_opens_the_closed_section_and_scrolls_its_target_to_the_top() {
+        let source = probe_05();
+        let (_temp, mut host) = micron_site_preview_harness(&source);
+        let before = authored(&host);
+        let text = preview_text(&host);
+        assert!(!text.contains("MARKER HIDDEN"), "authored closed: {text:?}");
+        assert!(text.contains(&fold_label(false, "Closed Outer")));
+        assert_eq!(host.viewport_scroll(), (0.0, 0.0));
+
+        click_in_page_link(&mut host, "jump to the hidden heading");
+        let text = preview_text(&host);
+        assert!(
+            text.contains("MARKER HIDDEN: body under the hidden heading."),
+            "the closed ancestor opened: {text:?}"
+        );
+        assert!(text.contains(&fold_label(true, "Closed Outer")));
+        let target = anchor_block(&host, &source, "hidden-target");
+        at_viewport_top(&host, target, "#hidden-target");
+        assert!(
+            host.state().micron_folds.jump.is_none(),
+            "the jump is spent"
+        );
+
+        // Back to the top, then the explicit anchor in the now-open section.
+        host.wheel(0.0, -100_000.0);
+        assert_eq!(host.viewport_scroll().1, 0.0);
+        click_in_page_link(&mut host, "jump to the hidden explicit anchor");
+        let target = anchor_block(&host, &source, "hidden-explicit");
+        at_viewport_top(&host, target, "#hidden-explicit");
+
+        assert_eq!(
+            authored(&host),
+            before,
+            "an in-page jump is preview state only"
+        );
+    }
+
+    // Probe 17: both closed folds around the target open before the scroll.
+    #[test]
+    fn micron_in_page_link_into_two_closed_sections_opens_both_then_scrolls() {
+        let source = probe_17();
+        let (_temp, mut host) = micron_site_preview_harness(&source);
+        let before = authored(&host);
+        let text = preview_text(&host);
+        assert!(!text.contains("MARKER OUTER BODY") && !text.contains("MARKER NESTED DEEP"));
+        assert!(
+            !text.contains("Inner Closed"),
+            "the inner heading is hidden too"
+        );
+
+        click_in_page_link(&mut host, "jump into two closed sections");
+        let text = preview_text(&host);
+        assert!(text.contains(&fold_label(true, "Outer Closed")), "{text:?}");
+        assert!(text.contains(&fold_label(true, "Inner Closed")), "{text:?}");
+        assert!(text.contains("MARKER NESTED DEEP TARGET"), "{text:?}");
+        let target = anchor_block(&host, &source, "nested-deep");
+        at_viewport_top(&host, target, "#nested-deep");
+        assert_eq!(authored(&host), before);
+    }
+
+    // Probes 03 and 04: a missing anchor and a `#` below the last heading are
+    // inert. Each page's working link is the control for the same gesture.
+    #[test]
+    fn micron_in_page_link_to_a_missing_target_is_inert() {
+        let source = probe_03();
+        let (_temp, mut host) = micron_site_preview_harness(&source);
+        let before = authored(&host);
+        let (x, y, width, height) = host
+            .painted_rect(in_page_link(&host, "jump to a missing anchor"))
+            .expect("the link paints");
+        host.move_to(x + width / 2.0, y + height / 2.0);
+        host.wheel(0.0, 20.0);
+        let scrolled = host.viewport_scroll();
+        assert!(scrolled.1 > 0.0, "a starting offset the jump could disturb");
+        let text = preview_text(&host);
+        let folds = host.state().micron_folds.folds.clone();
+
+        click_in_page_link(&mut host, "jump to a missing anchor");
+        assert_eq!(host.viewport_scroll(), scrolled, "no scroll");
+        assert_eq!(host.state().micron_folds.folds, folds, "no fold change");
+        assert!(host.state().micron_folds.jump.is_none());
+        assert_eq!(preview_text(&host), text);
+        assert_eq!(authored(&host), before);
+
+        click_in_page_link(&mut host, "jump to a present anchor");
+        let target = anchor_block(&host, &source, "present-control");
+        at_viewport_top(&host, target, "probe 03 control");
+
+        let source = probe_04();
+        let (_temp, mut host) = micron_site_preview_harness(&source);
+        let before = authored(&host);
+        let (x, y, width, height) = host
+            .painted_rect(in_page_link(&host, "next heading from the top"))
+            .expect("the link paints");
+        host.move_to(x + width / 2.0, y + height / 2.0);
+        host.wheel(0.0, 100_000.0);
+        let bottom = host.viewport_scroll();
+        assert!(bottom.1 > 0.0);
+        click_in_page_link(&mut host, "next heading from the tail");
+        assert_eq!(
+            host.viewport_scroll(),
+            bottom,
+            "`#` below every heading is inert"
+        );
+        assert!(host.state().micron_folds.jump.is_none());
+        assert_eq!(authored(&host), before);
+        host.wheel(0.0, -100_000.0);
+        click_in_page_link(&mut host, "next heading from the top");
+        let target = anchor_block(&host, &source, "first-heading");
+        at_viewport_top(&host, target, "probe 04 control");
+
+        // Neither probe has a collapsible section, so this composed page (not a
+        // stock capture) puts probe 03's missing link above a closed one.
+        let source = format!(
+            "`[jump to a missing anchor`#no-such-anchor-here]\n{}`->Closed Outer\nMARKER OUTER BODY.\n",
+            pads('a', 60)
+        );
+        let (_temp, mut host) = micron_site_preview_harness(&source);
+        click_in_page_link(&mut host, "jump to a missing anchor");
+        assert_eq!(
+            host.state().micron_folds.folds,
+            FoldState::default(),
+            "no fold opens"
+        );
+        assert!(!preview_text(&host).contains("MARKER OUTER BODY"));
+        assert_eq!(host.viewport_scroll(), (0.0, 0.0));
+    }
+
+    // Enter on a focused in-page link lands exactly where a click does.
+    #[test]
+    fn micron_in_page_link_activates_with_enter_like_a_click() {
+        let source = probe_05();
+        let (_clicked_temp, mut clicked) = micron_site_preview_harness(&source);
+        click_in_page_link(&mut clicked, "jump to the hidden heading");
+
+        let (_temp, mut host) = micron_site_preview_harness(&source);
+        let before = authored(&host);
+        let link = in_page_link(&host, "jump to the hidden heading");
+        for _ in 0..host.runner().focusables().len() {
+            if host.focus() == Some(link) {
+                break;
+            }
+            host.tab(true);
+        }
+        assert_eq!(host.focus(), Some(link), "Tab reaches the in-page link");
+        assert!(
+            !preview_text(&host).contains("MARKER HIDDEN"),
+            "focus alone does nothing"
+        );
+
+        host.press_key(&KeyPress::named(NamedKey::Enter));
+        let target = anchor_block(&host, &source, "hidden-target");
+        at_viewport_top(&host, target, "Enter");
+        assert_eq!(preview_text(&host), preview_text(&clicked));
+        assert_eq!(host.viewport_scroll(), clicked.viewport_scroll());
+        assert_eq!(
+            host.state().micron_folds.folds,
+            clicked.state().micron_folds.folds
+        );
+        assert_eq!(authored(&host), before);
     }
 
     // Mere `crates/nematic/nematic/tests/fixtures/micron/nomadnet-1.4.2/`,

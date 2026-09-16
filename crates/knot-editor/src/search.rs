@@ -755,10 +755,84 @@ mod tests {
         let mut requested = sealed.clone();
         requested.weights_digest = Some("e".repeat(64));
         let error = admit(vault.load_search_index().unwrap().unwrap(), &requested).unwrap_err();
+        assert!(
+            matches!(error, KnotSearchError::IdentityMismatch { .. }),
+            "{error}"
+        );
+        assert!(error.offers_rebuild());
+        assert_eq!(error.rebuild_identity(), Some(&requested));
         let message = error.to_string();
         assert!(
             message.contains("dddddddddddddddd") && message.contains("eeeeeeeeeeeeeeee"),
             "{message}"
+        );
+
+        // Moved and renamed: each side is still named by its own label.
+        requested.model = "bge-micro-v2".into();
+        let message = admit(vault.load_search_index().unwrap().unwrap(), &requested)
+            .unwrap_err()
+            .to_string();
+        assert!(
+            message.contains("all-MiniLM-L6-v2") && message.contains("bge-micro-v2"),
+            "{message}"
+        );
+    }
+
+    #[test]
+    fn a_record_sealed_by_b7168a3_still_loads_and_compares_by_digest() {
+        let temp = tempdir().unwrap();
+        let vault = orchard_vault(temp.path(), 0x6c);
+        let digest = "d".repeat(64);
+
+        // The record b7168a3 sealed, written by hand rather than by today's
+        // serializer, so a drift in either direction shows up here.
+        let identity = serde_json::json!({
+            "version": 1,
+            "provider": "bert-cpu",
+            "model": "all-MiniLM-L6-v2",
+            "weights-digest": digest,
+            "dimensions": 4,
+            "metric": "Cosine",
+        });
+        vault
+            .store_search_record_verbatim(&serde_json::json!({
+                "identity": identity,
+                "index": {
+                    "dimensions": 4,
+                    "metric": "Cosine",
+                    "entries": { "orchard": [1.0, 0.0, 0.0, 0.0] },
+                },
+            }))
+            .unwrap();
+
+        let sealed = vault.load_search_index().unwrap().unwrap();
+        let recorded = sealed.identity.clone().expect("an identified record");
+        assert_eq!(recorded.model, "all-MiniLM-L6-v2");
+        assert_eq!(recorded.weights_digest.as_deref(), Some(digest.as_str()));
+        assert_eq!(recorded.version, KNOT_INDEX_IDENTITY_VERSION);
+        assert_eq!(serde_json::to_value(&recorded).unwrap(), identity);
+
+        // The same weights under another directory name answer from it.
+        let renamed = KnotIndexIdentity {
+            model: "minilm".into(),
+            dimensions: 4,
+            ..canned_bert_identity(&digest)
+        };
+        let index = admit(sealed.clone(), &renamed).unwrap_or_else(|error| panic!("{error}"));
+        assert_eq!(
+            index.get(&"orchard".to_string()),
+            Some(&vec![1.0, 0.0, 0.0, 0.0])
+        );
+
+        // The same name over other weights does not.
+        let reweighted = KnotIndexIdentity {
+            dimensions: 4,
+            ..canned_bert_identity(&"e".repeat(64))
+        };
+        let error = admit(sealed, &reweighted).unwrap_err();
+        assert!(
+            matches!(error, KnotSearchError::IdentityMismatch { .. }),
+            "{error}"
         );
         assert!(error.offers_rebuild());
     }

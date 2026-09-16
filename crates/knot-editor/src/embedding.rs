@@ -131,9 +131,10 @@ impl KnotModelWeights {
         }
     }
 
-    /// Name recorded as the index's model id: the directory's own name, never
-    /// the absolute path. A writer who moves the directory keeps the identity;
-    /// a sealed record never carries their filesystem layout.
+    /// Label recorded beside the digest: the directory's own name, never the
+    /// absolute path, so a sealed record never carries the writer's filesystem
+    /// layout. It names the model in refusals; the digest is the identity, so
+    /// renaming or moving the directory changes neither.
     pub fn model_name(&self) -> String {
         self.path
             .file_name()
@@ -242,18 +243,23 @@ impl KnotEmbeddingPreference {
 /// Deliberately not `deny_unknown_fields`: a record written by a later Knot
 /// should reach the [`version`](Self::version) check and be refused there, by
 /// name, rather than fail as a parse error.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+///
+/// Equality is identity, not record equality: see the `PartialEq` impl.
+#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct KnotIndexIdentity {
     /// [`KNOT_INDEX_IDENTITY_VERSION`] at the time the index was sealed.
     pub version: u32,
     /// Which embedder produced the vectors.
     pub provider: KnotEmbeddingProvider,
-    /// Model id: the writer's model directory name, or
-    /// [`KNOT_LEXICAL_MODEL`].
+    /// The writer's model directory name, or [`KNOT_LEXICAL_MODEL`].
+    ///
+    /// Beside a [`weights_digest`](Self::weights_digest) this is a display
+    /// label only: refusals show it so a writer can tell the two sides apart,
+    /// but identity never compares it.
     pub model: String,
-    /// blake3 of the model artifacts. `None` for providers that take no
-    /// weights.
+    /// blake3 of the model artifacts, and the model's identity. `None` for
+    /// providers that take no weights.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub weights_digest: Option<String>,
     /// Vector length.
@@ -280,6 +286,22 @@ impl KnotIndexIdentity {
     /// `requested`.
     pub fn answers(&self, requested: &Self) -> bool {
         self == requested
+    }
+}
+
+/// A model is its weights digest: identical weights are the same model under
+/// any directory name. Without a digest the name is all that distinguishes a
+/// model, so it is compared, which keeps lexical identity exactly as strict as
+/// before.
+impl PartialEq for KnotIndexIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        let label_identifies = self.weights_digest.is_none();
+        self.version == other.version
+            && self.provider == other.provider
+            && self.weights_digest == other.weights_digest
+            && self.dimensions == other.dimensions
+            && self.metric == other.metric
+            && (!label_identifies || self.model == other.model)
     }
 }
 
@@ -598,10 +620,10 @@ pub(crate) mod tests {
         };
         let encoded = serde_json::to_string(&bert).unwrap();
         assert!(encoded.contains("bert-cpu"), "{encoded}");
-        assert_eq!(
-            serde_json::from_str::<KnotIndexIdentity>(&encoded).unwrap(),
-            bert
-        );
+        let decoded = serde_json::from_str::<KnotIndexIdentity>(&encoded).unwrap();
+        assert_eq!(decoded, bert);
+        // Equality skips a digest's label, so the label's round trip is its own check.
+        assert_eq!(decoded.model, bert.model);
 
         assert!(lexical.answers(&lexical.clone()));
         assert!(!lexical.answers(&bert));
@@ -609,6 +631,66 @@ pub(crate) mod tests {
         let mut later = lexical.clone();
         later.version += 1;
         assert!(!lexical.answers(&later), "a version bump is a mismatch");
+    }
+
+    #[test]
+    fn identical_weights_are_the_same_model_under_any_directory_name() {
+        let sealed = KnotIndexIdentity {
+            version: KNOT_INDEX_IDENTITY_VERSION,
+            provider: KnotEmbeddingProvider::BertCpu,
+            model: "all-MiniLM-L6-v2".into(),
+            weights_digest: Some("a".repeat(64)),
+            dimensions: 384,
+            metric: SimilarityMetric::Cosine,
+        };
+        let renamed = KnotIndexIdentity {
+            model: "minilm-moved".into(),
+            ..sealed.clone()
+        };
+        assert_eq!(sealed, renamed);
+        assert!(sealed.answers(&renamed) && renamed.answers(&sealed));
+        assert!(renamed.to_string().contains("minilm-moved"), "{renamed}");
+
+        let reweighted = KnotIndexIdentity {
+            weights_digest: Some("b".repeat(64)),
+            ..sealed.clone()
+        };
+        assert!(!sealed.answers(&reweighted), "same name, other weights");
+
+        // Every field but the label is still identity.
+        for differs in [
+            KnotIndexIdentity {
+                provider: KnotEmbeddingProvider::BertWgpu,
+                ..renamed.clone()
+            },
+            KnotIndexIdentity {
+                dimensions: 768,
+                ..renamed.clone()
+            },
+            KnotIndexIdentity {
+                metric: SimilarityMetric::DotProduct,
+                ..renamed.clone()
+            },
+            KnotIndexIdentity {
+                version: KNOT_INDEX_IDENTITY_VERSION + 1,
+                ..renamed.clone()
+            },
+            KnotIndexIdentity {
+                weights_digest: None,
+                ..renamed.clone()
+            },
+        ] {
+            assert!(!sealed.answers(&differs), "{differs}");
+            assert!(!differs.answers(&sealed), "{differs}");
+        }
+
+        // No digest, no stand-in for the name: lexical compares it as before.
+        let lexical = KnotIndexIdentity::lexical(384, SimilarityMetric::Cosine);
+        let relabelled = KnotIndexIdentity {
+            model: "another-hashing".into(),
+            ..lexical.clone()
+        };
+        assert!(!lexical.answers(&relabelled));
     }
 
     #[test]

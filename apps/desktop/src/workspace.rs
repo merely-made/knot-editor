@@ -113,6 +113,8 @@ pub struct DesktopState {
     pub document: KnotDocumentSurfaceState,
     pub appearance: Appearance,
     pub scroll: crate::scroll_site::ScrollWorkspace,
+    /// Reader fold state of the Micron preview, reconciled after each dispatch.
+    pub(crate) micron_folds: crate::scroll_site::MicronPreviewFolds,
     pub path: TextInput,
     pub message: Option<String>,
     catalog: Option<KnotFileCatalog>,
@@ -200,6 +202,7 @@ impl DesktopState {
             document: KnotDocumentSurfaceState::new(session),
             appearance: Appearance::default(),
             scroll: Default::default(),
+            micron_folds: Default::default(),
             path,
             message: None,
             catalog,
@@ -2016,6 +2019,11 @@ pub fn after_dispatch(
                 .scroll
                 .drain_submission(&current.text, &current.source.address);
         });
+    }
+    // An edit or page change since the last dispatch: drop the fold state of
+    // headings the source no longer has before the next toggle can see it.
+    if ctx.runner.state().micron_folds_need_sync() {
+        ctx.runner.update(DesktopState::sync_micron_folds);
     }
     let state = ctx.runner.state();
     let mut focus_requested = state.focus_source_requested;

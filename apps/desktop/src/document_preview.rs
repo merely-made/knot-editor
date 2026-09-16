@@ -82,6 +82,8 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                         ),
                     )
                 },
+                // An in-page link is its label here; this preview has no anchors.
+                InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans))),
                 InlineSpan::LineBreak => Box::new(el("br", ())),
                 InlineSpan::SoftBreak => Box::new(span(" ")),
             };
@@ -330,4 +332,54 @@ pub fn view(state: &DesktopState) -> DesktopView {
             .attr("role", "complementary")
             .attr("aria-label", "Djot or Knot document preview"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cambium_genet_winit_host::{Harness, WindowCommands};
+    use inker::{Engine, EngineInput};
+    use knot_document::KnotDocumentSession;
+    use layout_dom_api::LayoutDom;
+
+    fn in_page_note(_: &DesktopState) -> DesktopView {
+        let document = nematic::MicronEngine::new()
+            .render(&EngineInput::new(
+                "scratch:note",
+                "`[Jump to notes`#notes]\n`:notes\nNotes body.\n",
+            ))
+            .unwrap();
+        note_blocks(&document)
+    }
+
+    fn text_content(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> String {
+        format!(
+            "{}{}",
+            dom.text(node).unwrap_or_default(),
+            dom.dom_children(node)
+                .map(|child| text_content(dom, child))
+                .collect::<String>()
+        )
+    }
+
+    #[test]
+    fn note_preview_renders_an_in_page_link_as_its_label() {
+        let mut host = Harness::new(
+            CSS,
+            DesktopState::new(
+                KnotDocumentSession::scratch("scratch:note-host", ""),
+                WindowCommands::new(),
+            ),
+            in_page_note as fn(&DesktopState) -> DesktopView,
+        );
+        host.layout_at(800.0, 600.0);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let text = text_content(&dom, dom.document());
+        assert!(text.contains("Jump to notes"), "label missing: {text:?}");
+        assert!(text.contains("Notes body."));
+    }
 }

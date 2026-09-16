@@ -578,7 +578,7 @@ mod tests {
         assert_eq!(
             sealed.identity.as_ref().map(|found| found.model.as_str()),
             Some("bge-micro-v2"),
-            "the label is sealed too, though identity does not compare it"
+            "the label is sealed too, though is_same_model does not compare it"
         );
         assert_eq!(sealed.identity, Some(identity));
         assert_eq!(

@@ -244,8 +244,10 @@ impl KnotEmbeddingPreference {
 /// should reach the [`version`](Self::version) check and be refused there, by
 /// name, rather than fail as a parse error.
 ///
-/// Equality is identity, not record equality: see the `PartialEq` impl.
-#[derive(Clone, Debug, Eq, Serialize, Deserialize)]
+/// `==` is plain record equality, label included. Whether two records name
+/// the same model is [`is_same_model`](Self::is_same_model), and that is what
+/// every reuse-or-refuse decision asks.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct KnotIndexIdentity {
     /// [`KNOT_INDEX_IDENTITY_VERSION`] at the time the index was sealed.
@@ -256,7 +258,7 @@ pub struct KnotIndexIdentity {
     ///
     /// Beside a [`weights_digest`](Self::weights_digest) this is a display
     /// label only: refusals show it so a writer can tell the two sides apart,
-    /// but identity never compares it.
+    /// but [`is_same_model`](Self::is_same_model) never compares it.
     pub model: String,
     /// blake3 of the model artifacts, and the model's identity. `None` for
     /// providers that take no weights.
@@ -285,16 +287,17 @@ impl KnotIndexIdentity {
     /// Whether an index sealed under `self` can answer a query embedded under
     /// `requested`.
     pub fn answers(&self, requested: &Self) -> bool {
-        self == requested
+        self.is_same_model(requested)
     }
-}
 
-/// A model is its weights digest: identical weights are the same model under
-/// any directory name. Without a digest the name is all that distinguishes a
-/// model, so it is compared, which keeps lexical identity exactly as strict as
-/// before.
-impl PartialEq for KnotIndexIdentity {
-    fn eq(&self, other: &Self) -> bool {
+    /// Whether two records name the same vector space.
+    ///
+    /// A model is its weights digest: identical weights are the same model
+    /// under any directory name, so beside a digest the label is ignored.
+    /// Without a digest the name is all that distinguishes a model, so every
+    /// field is compared, which keeps lexical identity exactly as strict as
+    /// record equality.
+    pub fn is_same_model(&self, other: &Self) -> bool {
         let label_identifies = self.weights_digest.is_none();
         self.version == other.version
             && self.provider == other.provider
@@ -622,7 +625,6 @@ pub(crate) mod tests {
         assert!(encoded.contains("bert-cpu"), "{encoded}");
         let decoded = serde_json::from_str::<KnotIndexIdentity>(&encoded).unwrap();
         assert_eq!(decoded, bert);
-        // Equality skips a digest's label, so the label's round trip is its own check.
         assert_eq!(decoded.model, bert.model);
 
         assert!(lexical.answers(&lexical.clone()));
@@ -647,7 +649,7 @@ pub(crate) mod tests {
             model: "minilm-moved".into(),
             ..sealed.clone()
         };
-        assert_eq!(sealed, renamed);
+        assert!(sealed.is_same_model(&renamed) && renamed.is_same_model(&sealed));
         assert!(sealed.answers(&renamed) && renamed.answers(&sealed));
         assert!(renamed.to_string().contains("minilm-moved"), "{renamed}");
 
@@ -655,6 +657,10 @@ pub(crate) mod tests {
             weights_digest: Some("b".repeat(64)),
             ..sealed.clone()
         };
+        assert!(
+            !sealed.is_same_model(&reweighted),
+            "same name, other weights"
+        );
         assert!(!sealed.answers(&reweighted), "same name, other weights");
 
         // Every field but the label is still identity.
@@ -680,8 +686,9 @@ pub(crate) mod tests {
                 ..renamed.clone()
             },
         ] {
+            assert!(!sealed.is_same_model(&differs), "{differs}");
+            assert!(!differs.is_same_model(&sealed), "{differs}");
             assert!(!sealed.answers(&differs), "{differs}");
-            assert!(!differs.answers(&sealed), "{differs}");
         }
 
         // No digest, no stand-in for the name: lexical compares it as before.
@@ -690,7 +697,27 @@ pub(crate) mod tests {
             model: "another-hashing".into(),
             ..lexical.clone()
         };
+        assert!(!lexical.is_same_model(&relabelled));
         assert!(!lexical.answers(&relabelled));
+    }
+
+    #[test]
+    fn record_equality_sees_the_label_that_is_same_model_ignores() {
+        let sealed = KnotIndexIdentity {
+            version: KNOT_INDEX_IDENTITY_VERSION,
+            provider: KnotEmbeddingProvider::BertCpu,
+            model: "all-MiniLM-L6-v2".into(),
+            weights_digest: Some("a".repeat(64)),
+            dimensions: 384,
+            metric: SimilarityMetric::Cosine,
+        };
+        let relabelled = KnotIndexIdentity {
+            model: "minilm-moved".into(),
+            ..sealed.clone()
+        };
+        assert_ne!(sealed, relabelled, "== is record equality");
+        assert!(sealed.is_same_model(&relabelled), "the digest is the model");
+        assert_eq!(sealed, sealed.clone());
     }
 
     #[test]

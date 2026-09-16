@@ -1,7 +1,7 @@
 # Knot predicates, inference readings, and scripted readings plan
 
 **Date:** 2026-09-15
-**Status:** Track 1 and Track 3 slice 1 landed 2026-09-15; Track 2 and the suggestion sink remain scoped. Each
+**Status:** Track 1 and Track 3 slice 1 landed 2026-09-15; Track 2 E1 landed 2026-09-16; E2, E3 and the suggestion sink remain scoped. Each
 track has done-conditions; the decisions listed under each are his and are
 not made here.
 **Owner:** Knot Editor
@@ -475,6 +475,23 @@ reference and a shared suggestion sink, so they land last.
   citation script returning a row per section, Citations included because
   of that defect. The panel overlaps the status column and editor the same
   way the outline does (design pass defect 1); it inherits the fix.
+- **2026-09-16, Track 2 E1 landed** (`b7168a3`). `KnotEmbeddingProvider`
+  (lexical default, BERT CPU and WebGPU behind `embed-bert` and
+  `embed-bert-wgpu`, so the default build carries no burn); weights only
+  from a writer-supplied directory, digest-verified, every refusal named,
+  no fall back to lexical; the sealed vault index records
+  `KnotIndexIdentity` and refuses a query under a different identity with
+  both named and a rebuild offered, never reusing or discarding it; older
+  bare records load as lexical. Building is synchronous with a
+  `SearchProgress` callback because esp has no embedding actor; the types
+  are proven `Send` for a host thread. lib 144/144, `search_provider_identity`
+  2/2. Real-weights receipt, not headed: `mere/models/all-MiniLM-L6-v2`
+  built a 384d index in about 2 s and ranked the right note first for two
+  queries sharing no words with either note. Outstanding: the headed
+  receipt waits on a desktop search surface; burn resolved to
+  `0.22.0-pre.3` with the feature on while mere's lock holds `pre.2`; where
+  the preference persists is undecided; a renamed model directory changes
+  identity even with identical weights.
 - **2026-09-15, Mere.** The shared rhai base engine had rhai's default file
   module resolver, so a fence could import `./x.rhai`; closed with a
   positive-control test (`444e3fe4`). The CiTO table moved to the evidence

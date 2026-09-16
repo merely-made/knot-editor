@@ -318,4 +318,49 @@ fn a_real_bert_cpu_index_builds_queries_and_is_refused_by_the_lexical_default() 
         )
         .unwrap();
     assert_eq!(hits[0].id, "quince");
+
+    // The writer renames the directory. The same bytes under another name are
+    // the same model, so the sealed index answers with no rebuild. Hard links,
+    // so the weights are not duplicated unless temp is on another volume.
+    let renamed = temp.path().join("minilm-renamed");
+    fs::create_dir_all(&renamed).unwrap();
+    for artifact in KNOT_BERT_ARTIFACTS {
+        let (from, to) = (model.join(artifact), renamed.join(artifact));
+        if let Err(error) = fs::hard_link(&from, &to) {
+            eprintln!("  could not link {artifact} ({error}); copying");
+            fs::copy(&from, &to).unwrap();
+        }
+    }
+    let moved = KnotSearch::build(
+        None,
+        None,
+        SearchConfig {
+            embedding: KnotEmbeddingPreference::bert_cpu(KnotModelWeights::at(&renamed)),
+            ..SearchConfig::default()
+        },
+    )
+    .unwrap_or_else(|error| panic!("{error}"));
+    eprintln!("  renamed: {}", moved.identity());
+    assert_eq!(moved.identity().model, "minilm-renamed");
+    assert_eq!(moved.identity(), &identity);
+    let hits = moved
+        .query(
+            Some(&vault),
+            "wading bird near water",
+            1,
+            subject(),
+            &vault_reader(),
+        )
+        .unwrap_or_else(|error| panic!("a rename must not force a rebuild: {error}"));
+    assert_eq!(hits[0].id, "heron");
+    assert_eq!(
+        vault
+            .load_search_index()
+            .unwrap()
+            .unwrap()
+            .identity
+            .map(|sealed| sealed.model),
+        Some(identity.model.clone()),
+        "answering leaves the sealed record, label included, as it was"
+    );
 }

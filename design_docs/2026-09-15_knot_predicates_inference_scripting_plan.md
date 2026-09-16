@@ -503,8 +503,11 @@ reference and a shared suggestion sink, so they land last.
   queries sharing no words with either note. Outstanding: the headed
   receipt waits on a desktop search surface; burn resolved to
   `0.22.0-pre.3` with the feature on while mere's lock holds `pre.2`; where
-  the preference persists is undecided; a renamed model directory changes
-  identity even with identical weights.
+  the preference persists is undecided (since ruled: the desktop preferences
+  file). A renamed model directory no longer changes identity: identity is
+  the weights digest as of the 2026-09-16 follow-up, with records sealed by
+  `b7168a3` still loading; the real-weights test rebuilds the directory
+  under a new name from hard links and queries without a rebuild.
 - **2026-09-15, Mere.** The shared rhai base engine had rhai's default file
   module resolver, so a fence could import `./x.rhai`; closed with a
   positive-control test (`444e3fe4`). The CiTO table moved to the evidence

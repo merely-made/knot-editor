@@ -284,6 +284,20 @@ impl KnotVault {
             .map_err(|error| format!("could not save Knot vault search index: {error}"))
     }
 
+    /// Seal a search record exactly as given, so tests can pin the shape an
+    /// earlier Knot wrote without going through today's serializer.
+    #[cfg(test)]
+    pub(crate) fn store_search_record_verbatim(
+        &self,
+        record: &serde_json::Value,
+    ) -> Result<(), String> {
+        self.store
+            .as_ref()
+            .ok_or_else(|| "Knot vault is locked".to_string())?
+            .save_record(SEARCH_INDEX_PATH, record)
+            .map_err(|error| format!("could not save Knot vault search index: {error}"))
+    }
+
     /// Seal one non-authoritative derived-cache record beside the source
     /// index. The record id is keyed with vault material before it becomes a
     /// path, so it can neither escape the namespace nor act as a public
@@ -561,6 +575,11 @@ mod tests {
 
         let vault = KnotVault::open(temp.path(), key).unwrap();
         let sealed = vault.load_search_index().unwrap().unwrap();
+        assert_eq!(
+            sealed.identity.as_ref().map(|found| found.model.as_str()),
+            Some("bge-micro-v2"),
+            "the label is sealed too, though identity does not compare it"
+        );
         assert_eq!(sealed.identity, Some(identity));
         assert_eq!(
             sealed.index.get(&"field-note".to_string()),

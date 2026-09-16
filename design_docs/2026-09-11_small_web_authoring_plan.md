@@ -248,6 +248,10 @@ ordinary-client restart acceptance belong to Djinn's next gate.
   saved bodies (64/62/62 bytes), TLS 1.3 close notification, root index mapping
   and unpublished-path refusal. The example process then stopped. This is a
   site-library interoperability receipt; desktop UI verification is separate.
+- 2026-09-16: Micron navigation consumer on branch `micron-nav-a1`: Mere
+  bumped to `709dfdf2`, collapsible headings toggle in the Micron preview, and
+  in-page links stay label text because the desktop host has no programmatic
+  scroll. See the dated section at the end.
 
 ## Initial integration receipts (superseded where noted below)
 
@@ -510,3 +514,118 @@ layout, while asserting unchanged source bytes and a clean editor buffer.
 This is an automated projection receipt; headed appearance and interaction
 comparisons remain open. Djinn's CLI publication/restart receipt lives in its
 resident-services plan. A desktop publish-to-Djinn action is still separate.
+
+## Micron navigation consumer (2026-09-16)
+
+This is Knot's half of phase A1 in Mere's
+`design_docs/nematic_docs/implementation_strategy/2026-09-15_micron_navigation_plan.md`.
+It is on branch `micron-nav-a1`: the bump in `6157a0c`, preview folding in
+`4680eb5`, and this record. Stock behaviour, the fold-extent rules and the
+decision numbers below are that plan's.
+
+**Bump.** All 35 `merely-made/mere.git` pins moved from `d075c6be` to
+`709dfdf2218cf31afdca86987fa6a59d056b83ed`. That commit carries N1 (the
+navigation table and `InlineSpan::InPage`), P1 (`inker::FoldState`), P1b
+(`inker::FoldMarkers`) and P1c. It was not in the local Cargo git database, so
+mere.git was fetched once, online; every other command ran offline. A targeted
+`cargo update -p inker` rewrote the 52 Mere lock entries, but it also changed
+the dependency lists of 14 unrelated packages, adding and removing none:
+twelve crates moved onto windows-sys 0.60.2, pliron onto hashbrown 0.17.1 and
+spin 0.12.3, and hashbrown 0.14.5 dropped its two dependencies. Main's lock is
+stable under `--locked`, so those edges were not stale. That lock was
+discarded. The committed lock changes only the Mere revision on its 52
+entries, and `cargo metadata --locked --offline` accepts it. `cargo tree -d --workspace` is line-for-line identical to main's
+once paths and revisions are normalized. Retinue appears once (`2563202b`,
+through knot-site), so no pin moved.
+
+The bump broke two things: the exhaustive `inline()` matches in
+`apps/desktop/src/document_preview.rs` and `apps/desktop/src/scroll_site.rs`
+(E0004). Both now render `InPage` as its label. Knot has no `EngineDocument`
+literal, and no Knot test asserted the Nematic diagnostics N1 renamed.
+
+**Folds (decision 3).** `DesktopState.micron_folds` holds the preview's
+`inker::FoldState` and a `FoldMarkers` token (decision 17), beside the document
+and never inside it. After each dispatch, `after_dispatch` reconciles it
+against the current source whenever overrides exist and the address or text
+has moved. The rule matches `SmolwebDocumentSession::replace_document`. At the
+same address every heading key still present keeps its state (decisions 10 and
+11), so an edit elsewhere, even one that shifts every line, keeps it, while
+editing that heading, marker flip included, drops it. A new address or a
+non-Micron document starts fresh.
+
+The preview and the reconcile use the same `lower_micron`. With a current
+navigation table, top-level blocks inside `FoldState::hidden` are not built at
+all. Each collapsible heading renders as a full-row button showing the marker
+glyph, with the heading text as `aria-label` and `aria-expanded`. Cambium's
+runner activates a focused button on Enter and Space, so the keyboard path is
+the host's own. A toggle re-lowers the source, finds its fold by key, and
+changes only `micron_folds`: never source, the document, the site manifest or
+an address. A link inside a collapsible heading stops propagation, so the link
+wins the click, as the fold region's hit test does in document-canvas.
+
+Choices made here, not captured from stock: a Reload or a reopen at the same
+address reconciles rather than resetting, and a heading's accessible name
+omits the marker glyph.
+
+Decision 12's visible focus indicator is not established for these toggles.
+They are in the Tab order, but Knot's stylesheet has no `:focus` rule anywhere,
+the host's own focus overlay draws only the text caret, and no headed check has
+looked. The host does restyle on `:focus`, so one sheet rule would supply an
+indicator. Whether that rule covers only the preview or all of Knot's controls
+is open.
+
+**In-page links: blocked, not done.** Scrolling the preview to an in-page
+target, opening closed ancestors first, needs a programmatic scroll, and
+Knot's desktop view layer has none. `OwnedLayout::set_viewport_scroll` and
+`set_element_scroll` are `pub(crate)` in cambium-rootstock. `HostPointer` has
+only move, press and release. `AppCtx` exposes `painted_rect` read-only. Only
+the test harness's `wheel` scrolls. The preview pane is not its own scroll
+container either: the window viewport carries its offset, as recorded above.
+`InPage` therefore renders as inert label text, with no request and no
+navigation, and nothing opens folds on its behalf. The open options are:
+
+- a public scroll request on Cambium's host, a Mere change outside A1's Knot
+  half;
+- a preview scroll container whose offset Knot owns, which answers the layout
+  question left open above (whether the preview scrolls apart from the source
+  pane);
+- label-only in-page links as a recorded deviation for A1 and R1.
+
+Decision 1 does not apply, since Knot has no address bar.
+
+**Verification.** Rust 1.97.1 from `C:\t`, `--offline --locked`,
+`CARGO_TARGET_DIR=C:/t/knot-micron-nav-a1-target`, logs under
+`Code/testing/knot-editor/micron-navigation-a1/`:
+
+- `cargo +1.97.1 test --manifest-path <worktree>/apps/desktop/Cargo.toml --lib`:
+  75 passed and 1 ignored at the bump commit, 79 passed and 1 ignored with
+  folding (`a1-07`, `a1-15`).
+- `cargo +1.97.1 test --manifest-path <worktree>/Cargo.toml --workspace --exclude knot-desktop`
+  at the bump commit: 214 passed, 1 ignored (knot-editor 187, knot-readings 19,
+  knot-file-catalog 8, knot-capture 0) (`a1-10`).
+- `cargo +1.97.1 test --manifest-path <worktree>/crates/knot-site/Cargo.toml`:
+  17 passed, against a copy of main's untracked lock; knot-site has no Mere
+  dependency (`a1-21`).
+- `cargo +1.97.1 test --all-features --manifest-path <worktree>/crates/knot-document/Cargo.toml`:
+  47 passed, 1 ignored, against main's untracked lock with the same revision
+  swap (`a1-23`). Turnstone consumes this crate.
+- `cargo +1.97.1 fmt --check` is clean on the desktop package before and
+  after. knot-site fails only in `tests/submission.rs`, already at `fe550eb`
+  (`a1-00`).
+
+The new desktop tests inline the Mere fixture sources they use, byte-identical
+to `guide-structure.mu` and probes 08 and 06b. They cover: the in-page label in
+both inline paths (probe 03's links); closed extents absent from the DOM,
+markers on collapsible headings only, and nested state kept across an outer
+close (guide-structure, 06b); pointer, Enter and Space toggles with source, the
+dirty flag, address and saved bytes unchanged (08); state kept across an edit
+that shifts every line and dropped for an edited heading and a flipped marker
+(guide-structure); and a link inside a collapsible heading not toggling it.
+
+Eleven positive controls each broke one rule and watched the named test fail
+at its assertion (`a1-08`, `a1-09`, `a1-20-*`): both label arms, the hidden
+filter, the marker, the pointer toggle, keyboard activation (a no-op key
+handler, with the click still working), a toggle that writes source, a reset on
+every edit, no reconcile, no reconcile in `after_dispatch`, and no stop
+propagation on heading links. The marker-flip assertion shares the reconcile
+path with the heading-text assertion and has no control of its own.

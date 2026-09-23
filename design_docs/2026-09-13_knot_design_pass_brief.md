@@ -3,7 +3,8 @@
 **Date:** 2026-09-13
 **Status:** Brief. Collects the material a design pass over the standalone
 Knot desktop can work from, records what the current surface looks like, and
-names the decisions the pass has to make. It does not decide them.
+names the decisions the pass has to make. It does not decide them. Answered
+2026-09-23 in [the design pass](2026-09-23_knot_design_pass.md).
 **Owner:** Knot Editor
 
 ## Why now

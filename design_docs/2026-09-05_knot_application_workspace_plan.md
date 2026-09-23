@@ -203,6 +203,16 @@ relations to passages.
 
 ### Scoped next sequence: multi-document workspace
 
+**Ordered by the design pass, ruled 2026-09-23.** Implementation follows
+[the design pass slice order](2026-09-23_knot_design_pass.md#slice-order):
+frame, tiles and status first, carrying the first workspace slice and the
+navigator slice below; then local recovery; then commands; then the
+document-to-document relation workflow; then typography, collapse, fonts and
+macOS menus. The design pass also widens the first slice's "one
+`workbench::Workspace` tab stack" to three stacks (the Navigator, documents
+and readings), with readings and the Navigator as tiles. The done-conditions
+below stand.
+
 The next implementation slice begins with a Knot-owned in-memory
 `DocumentWorkspace`, not a new generic container. It retains runtime document
 keys, open `KnotDocumentSession`s, the active document, per-document derived
@@ -852,6 +862,20 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-09-23 design pass: the layout rulings, frames and stylesheet proposal
+  are in [the design pass](2026-09-23_knot_design_pass.md), and its slice
+  order, ruled the same day, now orders the "Scoped next sequence" above.
+  Layout defects confirmed from the baseline frames, each fixed by the slice
+  that touches it: D1, Outline and Readings drawn over the status column and
+  editor (the editor paints the full row while its wrapper collapses; the
+  hand-built region retires with reading tiles, and the first slice needs a
+  headed check that editor surfaces follow their tile's width); D2, the
+  preview header runs the source address into the diagnostics; D3, preview
+  headings wear chrome button styling; D4, the folded reading's Collapse rows
+  push the projected source off-screen; D5, the site path field shows the
+  Windows `\\?\` verbatim prefix from `knot_site`'s canonical paths; D6, the
+  single-line path and site-folder fields wrap long values, the latter past
+  its border (Cambium text field or Livery input layout, cause not confirmed).
 - 2026-09-12 A2 source-linked preview-heading and fold contract: ordinary Djot and
   legacy Knot documents now have an optional live, read-only desktop preview
   derived from the retained source buffer. Rendered headings select their exact

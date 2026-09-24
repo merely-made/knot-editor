@@ -120,6 +120,7 @@ behaviour and geometry are headless tests. For headed runs, the host exposes
 | Instrument | Build the self-drive lane first. |
 | Where the lane lives | A generic scenario module in `cambium-genet-winit-host`; Knot is its first consumer and the smoke example moves onto it. Woodshed may migrate later. |
 | Graph scope | Catalog documents and open documents as nodes; links extracted from available documents as edges; a cartography strategy lays it out, Spectral by default, with the strategy as a preference. |
+| The mere view (later the same day) | One Cambium component, V2b of the reservoir plan, embedded by every application; no app-local mere view. Step 8 re-scoped accordingly. |
 
 ## Design calls this plan makes
 
@@ -163,11 +164,12 @@ Each has an obvious default; reject any of them in review.
   the top of the window.
 - **Launcher.** Several document paths open several tabs; a site folder opens
   its site tile and index page.
-- **Graph tile.** Unavailable documents are dimmed and labelled. Links are
-  read on a worker within the capture limit, and the reading is labelled with
-  the catalog revision it read. Without a catalog, the graph shows open
-  documents and says no catalog is configured. Activating a node opens or
-  activates its document.
+- **What Knot hands the mere view** (the component itself is Cambium's; see
+  step 8). Unavailable documents are dimmed and labelled. Links are read on a
+  worker within the capture limit, and the reading is labelled with the
+  catalog revision it read. Without a catalog, the view shows open documents
+  and says no catalog is configured. Activating a node opens or activates its
+  document.
 
 ## Steps and done-conditions
 
@@ -237,13 +239,20 @@ tile follows the focused page in its format's presentation; Micron forms stay
 with their page; the existing site and Micron tests pass; and paths display
 without the verbatim prefix.
 
-**8. Graph.** The graph tile, opened when the last document closes and from
-the command row. *Done when* the graph shows catalog and open documents with
-edges from extracted links, read on a worker within the capture limit and
-labelled with the revision read; the layout strategy is a preference with
-Spectral the default; activating a node opens or activates its document;
-unavailable documents are dimmed and labelled; every node is reachable by
-keyboard and screen reader; and a launch without a catalog is labelled.
+**8. Graph.** *Re-scoped 2026-09-23 by Mark's ruling on the mere view,
+relayed by the Cleromancy session:* "3 by way of 2. cambium should be the
+solution for all". The mere view is one Cambium component, built as V2b of
+Mere's reservoir plan beside V2's session lifecycle; Graphshell presents it
+and every application embeds it, so Knot builds no graph view of its own.
+Step 8 becomes embedding V2b as the tile shown when the last document closes
+and from the command row. Knot's requirements were sent to that session for
+V2b's design: embedding behind a keyed lens at any tile size, host-owned
+activation and lifecycle requests, a host action slot for New and Open,
+host-supplied node states, distinct edge provenance, the layout strategy as a
+preference, native labelled hit targets with stable keys, truthful empty and
+error states, and host theming. Whether Knot shows a throwaway interim before
+V2b lands, or step 8 waits for it, is Mark's call when step 8 comes up; the
+catalog-and-links scope ruled earlier describes what Knot hands the component.
 
 **9. Headed receipts.** Scenarios for focused writing, source beside preview,
 research with references, the last-tab graph and a two-site session, with

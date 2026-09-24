@@ -102,10 +102,20 @@ pub fn appearance_css() -> String {
              {scope} button:hover {{ background:{}; }} \
              {scope} .knot-document-body textarea,{scope} .knot-document-read-only {{ background:{};color:{};border-color:{}; }} \
              {scope} .knot-document-status {{ color:{}; }} \
-             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error {{ color:{}; }}",
+             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error {{ color:{}; }} \
+             {scope} .frisket-tabbar {{ background:{};border-color:{}; }} \
+             {scope} .frisket-divider {{ background:{}; }} \
+             {scope} .frisket-tab {{ background:transparent;color:{}; }} \
+             {scope} .frisket-tab.active {{ background:{};color:{};border-color:{}; }} \
+             {scope} .frisket-content {{ background:{};color:{}; }} \
+             {scope} .frisket-close {{ color:{}; }} \
+             {scope} .tab-mark {{ color:{}; }}",
             rgb(p.bg), rgb(p.text), rgb(p.surface_2), rgb(p.text), rgb(p.text_dim),
             rgb(p.surface_hover), rgb(p.surface), rgb(p.text), rgb(p.text_dim),
             rgb(p.text_dim), rgb(p.danger),
+            rgb(p.bg), rgb(p.surface_hover), rgb(p.surface_hover), rgb(p.text_dim),
+            rgb(p.surface), rgb(p.text), rgb(p.surface_hover), rgb(p.surface), rgb(p.text),
+            rgb(p.text_dim), rgb(p.primary),
         ));
         for rule in cambium::syntax_css(&seeds) {
             css.push_str(&format!("{scope} {rule}"));

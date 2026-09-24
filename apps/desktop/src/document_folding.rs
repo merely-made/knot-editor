@@ -161,9 +161,10 @@ pub(crate) fn collapse_all_indices(snapshot: &KnotFoldSnapshotV1) -> BTreeSet<us
 
 pub(crate) fn view(state: &DesktopState) -> DesktopView {
     let snapshot = state
+        .entry()
         .fold_snapshot
         .as_ref()
-        .filter(|snapshot| snapshot_matches(state.document.session(), snapshot));
+        .filter(|snapshot| snapshot_matches(state.document().session(), snapshot));
     let Some(snapshot) = snapshot else {
         return Box::new(
             el(
@@ -177,7 +178,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
         );
     };
     let folds = normalized_folds(snapshot);
-    let conceal_ranges = conceal_ranges(snapshot, &state.collapsed_folds);
+    let conceal_ranges = conceal_ranges(snapshot, &state.entry().collapsed_folds);
     let styles = if state.appearance.highlight {
         cambium::note_styles(snapshot.source_text.as_str())
     } else {
@@ -207,7 +208,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
         .iter()
         .map(|fold| {
             let source_index = fold.source_index;
-            let collapsed = state.collapsed_folds.contains(&source_index);
+            let collapsed = state.entry().collapsed_folds.contains(&source_index);
             let label = fold_label(snapshot, *fold);
             let action = if collapsed { "Expand" } else { "Collapse" };
             let fold_snapshot = snapshot.clone();
@@ -234,6 +235,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
         Box::new(el("div", Keyed::new(controls)).attr("class", "knot-folding-controls"))
     };
     let error = state
+        .entry()
         .fold_error
         .as_ref()
         .map(|error| span(format!("Fold error: {error}")).attr("class", "knot-folding-error"));

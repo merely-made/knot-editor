@@ -124,18 +124,20 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
         );
     let stale = state.reading_is_stale();
     let provenance = state
+        .entry()
         .reading_result
         .as_ref()
         .map(|result| span(provenance_line(result)).attr("class", "knot-readings-provenance"));
-    let stale_line = (stale && state.reading_result.is_some()).then(|| {
+    let stale_line = (stale && state.entry().reading_result.is_some()).then(|| {
         span("This reading is stale: the source moved since it ran. Run it again.")
             .attr("class", "knot-readings-stale")
     });
     let error = state
+        .entry()
         .reading_error
         .as_ref()
         .map(|error| span(error_line(error)).attr("class", "knot-readings-error"));
-    let rows_view: DesktopView = match state.reading_result.as_ref() {
+    let rows_view: DesktopView = match state.entry().reading_result.as_ref() {
         None => Box::new(span("No reading has run yet.")),
         Some(result) if result.rows.is_empty() => Box::new(span("This reading returned no rows.")),
         Some(result) => {
@@ -165,7 +167,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
             Box::new(el("div", Keyed::new(rows)).attr("class", "knot-readings-rows"))
         },
     };
-    let notes = state.reading_result.as_ref().map(|result| {
+    let notes = state.entry().reading_result.as_ref().map(|result| {
         el(
             "div",
             Keyed::new(

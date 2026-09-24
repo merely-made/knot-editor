@@ -149,7 +149,7 @@ fn a_reading_lists_runs_and_selects_its_source_range() {
         "the third reading row is missing"
     );
     fixture.harness.after_dispatch();
-    let selection = fixture.harness.state().document.snapshot().selection;
+    let selection = fixture.harness.state().document().snapshot().selection;
     let selected = &SOURCE[selection.anchor.byte.min(selection.focus.byte)
         ..selection.anchor.byte.max(selection.focus.byte)];
     assert!(
@@ -174,7 +174,7 @@ fn a_source_edit_makes_a_reading_stale_until_it_is_rerun() {
 
     fixture.harness.update(|state| {
         state
-            .document
+            .document_mut()
             .session_mut()
             .input_mut()
             .unwrap()
@@ -190,7 +190,7 @@ fn a_source_edit_makes_a_reading_stale_until_it_is_rerun() {
         "a stale reading is still shown, not closed"
     );
 
-    let selection_before = fixture.harness.state().document.snapshot().selection;
+    let selection_before = fixture.harness.state().document().snapshot().selection;
     assert!(
         fixture
             .harness
@@ -199,7 +199,7 @@ fn a_source_edit_makes_a_reading_stale_until_it_is_rerun() {
     );
     fixture.harness.after_dispatch();
     assert_eq!(
-        fixture.harness.state().document.snapshot().selection,
+        fixture.harness.state().document().snapshot().selection,
         selection_before,
         "a stale row moved the selection"
     );
@@ -233,7 +233,7 @@ fn a_runaway_reading_reports_a_budget_without_a_hang() {
     assert!(error.starts_with("Budget:"), "{error}");
     assert!(class_text(&fixture.harness, "knot-readings-provenance").is_none());
     assert_eq!(std::fs::read_to_string(&fixture.document).unwrap(), SOURCE);
-    assert_eq!(fixture.harness.state().document.snapshot().text, SOURCE);
+    assert_eq!(fixture.harness.state().document().snapshot().text, SOURCE);
 }
 
 /// (20) A missing readings directory is an empty list, not an error.

@@ -100,7 +100,7 @@ pub fn appearance_css() -> String {
             "{scope} {{ background:{};color:{}; }} \
              {scope} button,{scope} input {{ background:{};color:{};border-color:{}; }} \
              {scope} button:hover {{ background:{}; }} \
-             {scope} .knot-document-body textarea,{scope} .knot-document-read-only {{ background:{};color:{};border-color:{}; }} \
+             {scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover {{ background:{};color:{};border-color:{}; }} \
              {scope} .knot-document-status {{ color:{}; }} \
              {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error {{ color:{}; }} \
              {scope} .frisket-tabbar {{ background:{};border-color:{}; }} \

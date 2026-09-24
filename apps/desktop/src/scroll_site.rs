@@ -823,7 +823,7 @@ impl DesktopState {
                 self.scroll.page = None;
                 self.scroll.site = Some(site);
                 self.scroll.format = self.scroll.site.as_ref().unwrap().config.format;
-                self.open_path(path);
+                let _ = self.open_path(path);
             },
             Err(error) => self.message = Some(format!("Site: {error}")),
         }
@@ -853,7 +853,9 @@ impl DesktopState {
             .ok_or("Open a site first".to_owned())
             .and_then(|site| site.page_path(name));
         match path {
-            Ok(path) => self.open_path(path),
+            Ok(path) => {
+                self.open_path(path);
+            },
             Err(error) => self.message = Some(error),
         }
     }
@@ -2991,6 +2993,7 @@ mod tests {
             WindowCommands::new(),
         );
         state.scroll.preview_visible = true;
+        state.scroll.visible = true;
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -3010,7 +3013,7 @@ mod tests {
             let button = |label: &str| {
                 taproot::matching(&dom, &Selector::role("button").containing(label))[0]
             };
-            let path_field = node_with_id(&dom, dom.document(), "knot-path-field").unwrap();
+            let folder_field = node_with_id(&dom, dom.document(), "knot-scroll-folder").unwrap();
             vec![
                 (
                     "fold toggle",
@@ -3018,7 +3021,7 @@ mod tests {
                 ),
                 ("ordinary button", button("Show Outline")),
                 ("pressed toggle", button("Light")),
-                ("text input", input_node(&dom, path_field).unwrap()),
+                ("text input", input_node(&dom, folder_field).unwrap()),
             ]
         };
         let mut controls = controls

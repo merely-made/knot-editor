@@ -153,9 +153,14 @@ Each has an obvious default; reject any of them in review.
   open an `overlay_surface` holding a `detail_panel`. Knot's chips: format,
   save state, posture, catalog, retention, and serving when a site page is
   focused.
-- **Tab marks.** A `mark` on the Workbench `Tile` (dirty, refused), defaulted
-  and skipped in serde so older trees load, and a matching `TabItem` marker
-  that Frisket renders with an accessible description.
+- **Tab marks.** *Changed in step 2:* marks are a host-supplied lookup
+  (`TileId` to an optional `TabMark`) passed to `frisket_with_marks` and
+  `workspace_view_with_marks`, not a field on the Workbench `Tile`. A `Tile`
+  field would have broken every struct literal that builds one (about fifteen
+  files across mere, woodshed and isometry), and dirty or refused is live
+  document state that must never be saved into a layout. `TabItem` carries the
+  mark; the glyph is hidden from assistive technology and the tab announces
+  "Unsaved changes" or "Needs attention" as its `aria-description`.
 - **Changes tile.** The disk comparison and the saved-revision review move
   there from the blocks above the editor.
 - **Command row** (provisional until slice 2): New, Open, Save, Save As,
@@ -297,6 +302,39 @@ design frames either fixed or recorded.
   component is assigned yet; Cleromancy's session is raising it with Mark,
   and suggests step 8 build over pandect's reservoir types (committed
   locally at mere `fe5adc1a`, unpushed and early).
+
+- **2026-09-23, step 1.** In the mere worktree: `cambium-genet-winit-host`
+  gains a `scenario` module (`ScenarioLane`, `LaneApp`, `LaneConfig`,
+  `CaptureRecord`, and `ProbeSnapshot` re-exported so applications need no
+  direct taproot dependency). Selectors resolve through the host's live layout,
+  as `Harness::resolve` does; captures are PNG through `png 0.18`, already in
+  mere's lock; steps hold while a capture is in flight, and a capture that never
+  lands fails the receipt after 120 frames instead of hanging. The smoke
+  example moved onto it, keeping its alpha receipt lines in the form
+  `x11-shadow-receipt.ps1` matches; its captures are now PNG, which no script
+  reads. Six headless lane tests pass; the unchanged `smoke.scn` passes headed.
+  In Knot: `KNOT_SCENARIO`, `KNOT_CAPTURE_DIR` and `KNOT_RECEIPT` wire the lane,
+  `DesktopState::scenario_snapshot` supplies the facts, `scenarios/lane_smoke.scn`
+  clicks Appearance by role and label and captures two 2200 x 1400 frames
+  headed, and `tests/scenario_lane.rs` runs the same scenario headless. The
+  desktop suite is unchanged against the worktree (85 and 1 ignored, 4, 4, 4,
+  plus the new lane test). Uncommitted until Checkpoint A: Knot builds against
+  the worktree through a gitignored `.cargo/config.toml` that patches all 52
+  mere packages together. The headed capture shows the editor box running past
+  the window's right edge, the D1 symptom, now documented from inside the app.
+- **2026-09-23, step 2.** Cambium gains `status_bar` (a labelled region, a
+  polite `status` message, chips as buttons with `data-severity` and
+  `aria-expanded`, a popover anchored above its chip by CSS over a fixed
+  outside-click layer, Escape and outside click returning focus to the chip,
+  and `STATUS_BAR_CSS`) with five tests, and tab marks as described under the
+  design calls, with a test each in `tabs.rs` and `frisket.rs`. The popover is
+  anchored in CSS because `overlay_surface` needs measured trigger and panel
+  geometry, which a chip docked at the bottom of any application does not have
+  before layout; Livery supports `position: fixed`. Cambium's 223 unit tests,
+  Workbench's 19 and the host's suites pass. Two `ui_zoom` host tests fail
+  identically on a pristine checkout of `250fd238` (a painted box of 132 x 42
+  where the test expects 120 x 40), so they predate this work. Clippy is clean
+  in every touched file; only touched files were formatted.
 
 ## Related material
 

@@ -416,7 +416,7 @@ mod tests {
         initiate_session, read_frame, write_frame,
     };
     use personae::delegation::{
-        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation,
+        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation, Issue,
         SignedDelegationCertificate, SignedDelegationRevocation,
     };
     use personae::{IdentityProvider, InMemoryProvider};

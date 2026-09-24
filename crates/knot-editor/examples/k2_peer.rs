@@ -60,7 +60,7 @@ use graphshell::network_carrier::{
 };
 use notochord::{NetworkId, ProfileRef, TrustedRoot};
 use personae::delegation::{
-    CapabilityScope, DelegationCertificate, DelegationParent, SignedDelegationCertificate,
+    CapabilityScope, DelegationCertificate, DelegationParent, Issue, SignedDelegationCertificate,
 };
 use personae::{IdentityProvider, InMemoryProvider};
 use transport::p2panda_transport::{MdnsDiscoveryMode, P2pandaTransport};

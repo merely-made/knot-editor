@@ -7,6 +7,7 @@
 pub mod appearance;
 pub mod document_folding;
 pub mod document_preview;
+pub mod documents;
 pub mod preferences;
 pub mod readings;
 pub mod scenario;

@@ -2829,7 +2829,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
     ".knot-document { flex:1; min-width:0; }",
-    ".knot-document-body textarea { width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
+    ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
     ".knot-outline { flex:0 0 280px; width:280px; box-sizing:border-box; max-height:480px; overflow:auto; padding:12px; border:1px solid; }",
     ".knot-outline-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }",
     ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
@@ -2945,6 +2945,32 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| class_node(dom, child, class))
+    }
+
+    /// D1: the editor paints the width of the column its tile gives it, not
+    /// the window's.
+    #[test]
+    fn the_editor_fills_its_column_and_no_more() {
+        for width in [1100.0, 640.0] {
+            let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Notes\n"));
+            host.layout_at(width, 700.0);
+            let (body, editor) = {
+                let dom = host.runner().dom();
+                let dom = dom.borrow();
+                let body = class_node(&dom, dom.document(), "knot-document-body")
+                    .expect("the document body");
+                (
+                    body,
+                    named_node(&dom, body, "textarea").expect("the editor"),
+                )
+            };
+            let (column_x, _, column_width, _) = host.painted_rect(body).expect("column layout");
+            let (x, _, editor_width, _) = host.painted_rect(editor).expect("editor layout");
+            assert!(
+                (x - column_x).abs() <= 1.0 && (editor_width - column_width).abs() <= 1.0,
+                "at {width}px the editor paints {x} + {editor_width} in a {column_x} + {column_width} column",
+            );
+        }
     }
 
     #[test]

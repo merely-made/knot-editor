@@ -461,6 +461,24 @@ design frames either fixed or recorded.
   went to the Genet roadmap session. genet-parley's test target does not
   build, and cambium-nematic's has the known `views.rs:513` break. Scratch
   tabs still read `scratch:untitled`.
+- **2026-09-24, step 3d.** D1 had one cause behind both of its faces. Genet
+  lays every inline-block out in a pre-pass against the viewport, before its
+  real containing block is known, so the editor textarea's `width:100%`
+  meant the window: 1100 wide in its 900 column, and under the outline when
+  that was shown. The editor textarea is now `display:block`, as an editor
+  surface is anyway, and Genet sizes a block against its column. Mark ruled
+  to close D1 here and to take the Genet fix next, before step 4.
+
+  A test holds the editor to its column within a pixel at 1100 x 700 and at
+  640 x 700; before the change it painted 1100 in a 900 column. Desktop
+  library 106 with 1 ignored. Headed, the editor ends at its column's edge
+  and narrows beside the outline instead of running under it (frames under
+  `Code/testing/knot-editor/images/2026-09-24_3d/`). With 3d, every step 3
+  done-condition holds.
+
+  Noticed: the caret still paints while a selection shows, which browsers
+  do not do, and the outline's item buttons run into its panel's right
+  border, which step 4's tile replaces.
 
 ## Related material
 

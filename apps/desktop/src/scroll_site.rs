@@ -2217,6 +2217,44 @@ mod tests {
     }
 
     #[test]
+    fn launch_documents_open_behind_the_first() {
+        let temp = tempfile::tempdir().unwrap();
+        let first = temp.path().join("first.djot");
+        let second = temp.path().join("second.djot");
+        std::fs::write(&first, "first\n").unwrap();
+        std::fs::write(&second, "second\n").unwrap();
+        let folder = temp.path().join("site");
+        let site = Site::create_for(&folder, SiteFormat::Scroll).unwrap();
+        let index = site.page_path(site.config.format.index_file()).unwrap();
+        let mut state = DesktopState::with_path(
+            KnotDocumentSession::open(&first).unwrap(),
+            WindowCommands::new(),
+            Some(first.clone()),
+        );
+        let front = state.focused_key();
+        assert!(state.attach_site(&folder).is_some());
+        state.open_behind(
+            vec![
+                KnotDocumentSession::open(&second).unwrap(),
+                KnotDocumentSession::open(&index).unwrap(),
+            ],
+            &["missing.djot: not found".to_owned()],
+        );
+        assert_eq!(state.docs.len(), 3);
+        assert_eq!(state.focused_key(), front);
+        assert_eq!(state.path.text(), first.to_string_lossy().as_ref());
+        assert!(state.scroll.site.is_some());
+        assert_eq!(
+            state.scroll.page, None,
+            "the panel follows the file in front"
+        );
+        assert_eq!(
+            state.message.as_deref(),
+            Some("Not opened: missing.djot: not found")
+        );
+    }
+
+    #[test]
     fn micron_preview_links_require_site_manifest_and_matching_authority() {
         let temp = tempfile::tempdir().unwrap();
         let site = Site::create_for(&temp.path().join("micron"), SiteFormat::Micron).unwrap();

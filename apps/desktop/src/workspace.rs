@@ -288,27 +288,54 @@ impl DesktopState {
             retention_error: None,
         };
         state.open_entry(DocumentEntry::new(session));
-        if let Some(folder) = site_folder {
-            match knot_site::Site::open(&folder) {
-                Ok(site) => {
-                    let page = site.page_path(site.config.format.index_file()).ok();
-                    state.scroll.folder = TextInput::new(folder.to_string_lossy());
-                    state.scroll.format = site.config.format;
-                    if let Some(port) = site.config.format.default_port() {
-                        state.scroll.port = TextInput::new(port.to_string());
-                    }
-                    state.scroll.site = Some(site);
-                    state.scroll.visible = true;
-                    state.scroll.sync_page(page.as_deref());
-                    if let Some(page) = page {
-                        state.path = TextInput::new(page.to_string_lossy());
-                    }
-                },
-                Err(error) => state.message = Some(format!("Site: {error}")),
-            }
+        if let Some(page) = site_folder.and_then(|folder| state.attach_site(&folder)) {
+            state.path = TextInput::new(page.to_string_lossy());
         }
         state.sync_catalog();
         state
+    }
+
+    /// Hold the site at `folder` in the site panel, returning its index
+    /// page's path. Opening that page is the caller's business.
+    pub fn attach_site(&mut self, folder: &Path) -> Option<PathBuf> {
+        match knot_site::Site::open(folder) {
+            Ok(site) => {
+                let page = site.page_path(site.config.format.index_file()).ok();
+                self.scroll.folder = TextInput::new(folder.to_string_lossy());
+                self.scroll.format = site.config.format;
+                if let Some(port) = site.config.format.default_port() {
+                    self.scroll.port = TextInput::new(port.to_string());
+                }
+                self.scroll.site = Some(site);
+                self.scroll.visible = true;
+                self.scroll.sync_page(page.as_deref());
+                page
+            },
+            Err(error) => {
+                self.message = Some(format!("Site: {error}"));
+                None
+            },
+        }
+    }
+
+    /// Open the launcher's further documents as tabs behind the focused one,
+    /// which stays in front, and say which paths would not open.
+    pub fn open_behind(&mut self, sessions: Vec<KnotDocumentSession>, failures: &[String]) {
+        let front = self.focused_key();
+        for session in sessions {
+            self.open_entry(DocumentEntry::new(session));
+        }
+        if let Some(key) = front {
+            self.docs.focus(key);
+        }
+        self.after_focus_change();
+        if !failures.is_empty() {
+            let line = format!("Not opened: {}", failures.join("; "));
+            self.message = Some(match self.message.take() {
+                Some(earlier) => format!("{earlier} {line}"),
+                None => line,
+            });
+        }
     }
 
     /// The focused document's key, if a document is open.

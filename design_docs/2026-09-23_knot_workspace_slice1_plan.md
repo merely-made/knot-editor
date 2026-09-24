@@ -396,6 +396,24 @@ design frames either fixed or recorded.
   the canonical rustfmt policy's sweep; the policy wants that sweep in its own
   commit on a quiet tree, so it was reverted here and only desktop files were
   formatted.
+- **2026-09-24, a fix to 3b-2** (`52a4957`). The site panel's page, which
+  picks the metadata shown and the config entry Save metadata writes, was
+  synced only on open, so after a tab switch it named the previous page. It
+  now follows every focus change, and unsaved metadata edits hold the focus:
+  another tab, closing the focused tab, and the quit prompt's Review all
+  refuse with Open's message. Its test fails without the sync.
+- **2026-09-24, step 3b-3.** The launcher takes several paths and opens them
+  as tabs in the order named. Mark ruled the three open questions: the first
+  path stays in front; a path that fails is reported in the message line
+  while the rest open, and only a launch where nothing opens stops with the
+  error; and two site folders are refused ("one site folder at a time until
+  sites get their own tiles") until step 7. A site folder named after a file
+  holds the site panel and opens its index page behind. The failure line
+  names each path once: document errors already carry it, site errors get it
+  added. `run_desktop_with_targets` now takes a `DesktopLaunch`. Desktop
+  library 102 with 1 ignored, launcher 7; a headed launch with two files and
+  a missing path between them showed both tabs, the first in front, and the
+  failure line.
 
 ## Related material
 

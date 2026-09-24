@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::appearance::Appearance;
+use crate::documents::{DocIdentity, DocKey, DocumentWorkspace};
 use crate::preferences::PreferencesStore;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, TextInput, button, el, lens, span, text_field_typed,
@@ -104,20 +105,11 @@ pub(crate) enum PendingAction {
     Reload,
 }
 
-/// State owned by the standalone application around the reusable document surface.
-///
-/// The path field is an explicit capability supplied by this desktop host. It is
-/// intentionally not part of `knot.document.v1`, whose source admission remains
-/// the embedding host's responsibility.
-pub struct DesktopState {
+/// What the desktop keeps per open document: its surface and every reading
+/// and binding derived from it. The window's own state stays on
+/// [`DesktopState`].
+pub struct DocumentEntry {
     pub document: KnotDocumentSurfaceState,
-    pub appearance: Appearance,
-    pub scroll: crate::scroll_site::ScrollWorkspace,
-    /// Reader fold state of the Micron preview, reconciled after each dispatch.
-    pub(crate) micron_folds: crate::scroll_site::MicronPreviewFolds,
-    pub path: TextInput,
-    pub message: Option<String>,
-    catalog: Option<KnotFileCatalog>,
     catalog_source_path: Option<PathBuf>,
     catalog_sync_attempted: bool,
     catalog_id: Option<String>,
@@ -125,24 +117,13 @@ pub struct DesktopState {
     prepared_capture: Option<KnotFileRevisionV1>,
     prepared_capture_source_path: Option<PathBuf>,
     prepared_capture_error: Option<String>,
-    capture_limit: usize,
     comparison: Option<KnotDiskComparisonV1>,
     comparison_error: Option<String>,
-    outline_visible: bool,
-    pub(crate) document_preview_visible: bool,
-    pub(crate) fold_visible: bool,
     pub(crate) fold_snapshot: Option<knot_document::KnotFoldSnapshotV1>,
     pub(crate) collapsed_folds: std::collections::BTreeSet<usize>,
     pub(crate) fold_error: Option<String>,
-    appearance_open: bool,
-    preferences: Option<PreferencesStore>,
     outline_snapshot: Option<KnotOutlineSnapshotV1>,
     outline_error: Option<String>,
-    pub(crate) readings_visible: bool,
-    readings_root: Option<PathBuf>,
-    pub(crate) readings: Vec<ReadingScript>,
-    pub(crate) readings_load_notes: Vec<String>,
-    pub(crate) readings_selected: Option<usize>,
     pub(crate) reading_result: Option<ReadingResult>,
     pub(crate) reading_error: Option<ReadingError>,
     /// The exact text the retained reading ran against. A reading is host-side
@@ -150,6 +131,79 @@ pub struct DesktopState {
     /// to is kept here and handed back to the document when a row is selected.
     reading_source: Option<String>,
     focus_source_requested: bool,
+    /// Reader fold state of the Micron preview, reconciled after each dispatch.
+    pub(crate) micron_folds: crate::scroll_site::MicronPreviewFolds,
+}
+
+impl DocumentEntry {
+    pub fn new(session: KnotDocumentSession) -> Self {
+        Self {
+            document: KnotDocumentSurfaceState::new(session),
+            catalog_source_path: None,
+            catalog_sync_attempted: false,
+            catalog_id: None,
+            catalog_error: None,
+            prepared_capture: None,
+            prepared_capture_source_path: None,
+            prepared_capture_error: None,
+            comparison: None,
+            comparison_error: None,
+            fold_snapshot: None,
+            collapsed_folds: std::collections::BTreeSet::new(),
+            fold_error: None,
+            outline_snapshot: None,
+            outline_error: None,
+            reading_result: None,
+            reading_error: None,
+            reading_source: None,
+            focus_source_requested: false,
+            micron_folds: Default::default(),
+        }
+    }
+
+    /// The tab title and duplicate-open identity of this entry's source.
+    fn tab(&self) -> (String, DocIdentity) {
+        let session = self.document.session();
+        let title = self.document.snapshot().display_label;
+        match session.source_path() {
+            Some(path) => (
+                title,
+                DocIdentity::Path(
+                    std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf()),
+                ),
+            ),
+            None => (title, DocIdentity::Scratch),
+        }
+    }
+}
+
+/// State owned by the standalone application around the reusable document surface.
+///
+/// The path field is an explicit capability supplied by this desktop host. It is
+/// intentionally not part of `knot.document.v1`, whose source admission remains
+/// the embedding host's responsibility.
+pub struct DesktopState {
+    /// The open documents and the tiles that show them.
+    pub docs: DocumentWorkspace<DocumentEntry>,
+    /// What readers see while no document is open: an empty read-only source,
+    /// never a save target.
+    placeholder: DocumentEntry,
+    pub appearance: Appearance,
+    pub scroll: crate::scroll_site::ScrollWorkspace,
+    pub path: TextInput,
+    pub message: Option<String>,
+    catalog: Option<KnotFileCatalog>,
+    capture_limit: usize,
+    outline_visible: bool,
+    pub(crate) document_preview_visible: bool,
+    pub(crate) fold_visible: bool,
+    appearance_open: bool,
+    preferences: Option<PreferencesStore>,
+    pub(crate) readings_visible: bool,
+    readings_root: Option<PathBuf>,
+    pub(crate) readings: Vec<ReadingScript>,
+    pub(crate) readings_load_notes: Vec<String>,
+    pub(crate) readings_selected: Option<usize>,
     window: WindowCommands,
     pending: Option<PendingAction>,
     discard_close: bool,
@@ -199,42 +253,24 @@ impl DesktopState {
             TextInput::new(path.to_string_lossy())
         });
         let mut state = Self {
-            document: KnotDocumentSurfaceState::new(session),
+            docs: DocumentWorkspace::new(),
+            placeholder: DocumentEntry::new(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "")),
             appearance: Appearance::default(),
             scroll: Default::default(),
-            micron_folds: Default::default(),
             path,
             message: None,
             catalog,
-            catalog_source_path: None,
-            catalog_sync_attempted: false,
-            catalog_id: None,
-            catalog_error: None,
-            prepared_capture: None,
-            prepared_capture_source_path: None,
-            prepared_capture_error: None,
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
-            comparison: None,
-            comparison_error: None,
             outline_visible: false,
             document_preview_visible: false,
             fold_visible: false,
-            fold_snapshot: None,
-            collapsed_folds: std::collections::BTreeSet::new(),
-            fold_error: None,
             appearance_open: false,
             preferences: None,
-            outline_snapshot: None,
-            outline_error: None,
             readings_visible: false,
             readings_root: None,
             readings: Vec::new(),
             readings_load_notes: Vec::new(),
             readings_selected: None,
-            reading_result: None,
-            reading_error: None,
-            reading_source: None,
-            focus_source_requested: false,
             window,
             pending: None,
             discard_close: false,
@@ -246,6 +282,7 @@ impl DesktopState {
             retention_receipt: None,
             retention_error: None,
         };
+        state.open_entry(DocumentEntry::new(session));
         if let Some(folder) = site_folder {
             match knot_site::Site::open(&folder) {
                 Ok(site) => {
@@ -269,6 +306,55 @@ impl DesktopState {
         state
     }
 
+    /// The focused document's key, if a document is open.
+    pub fn focused_key(&self) -> Option<DocKey> {
+        self.docs.focused()
+    }
+
+    /// The focused document's entry, or the empty read-only placeholder while
+    /// no document is open.
+    pub(crate) fn entry(&self) -> &DocumentEntry {
+        self.docs
+            .focused()
+            .and_then(|key| self.docs.doc(key))
+            .unwrap_or(&self.placeholder)
+    }
+
+    pub(crate) fn entry_mut(&mut self) -> &mut DocumentEntry {
+        match self.docs.focused() {
+            Some(key) if self.docs.doc(key).is_some() => {
+                self.docs.doc_mut(key).expect("focused entry")
+            },
+            _ => &mut self.placeholder,
+        }
+    }
+
+    /// The focused document's surface.
+    pub fn document(&self) -> &KnotDocumentSurfaceState {
+        &self.entry().document
+    }
+
+    pub fn document_mut(&mut self) -> &mut KnotDocumentSurfaceState {
+        &mut self.entry_mut().document
+    }
+
+    /// Open `entry` in a new tab, or focus the tab already showing the same
+    /// source. Returns the entry's key.
+    fn open_entry(&mut self, entry: DocumentEntry) -> DocKey {
+        let (title, identity) = entry.tab();
+        self.docs.open(identity, title, entry).0
+    }
+
+    /// Replace the focused document with `entry` in the same place: the
+    /// single-document lifecycle of New, Open and Reload, kept until tabs add
+    /// documents instead.
+    fn replace_focused(&mut self, entry: DocumentEntry) {
+        if let Some(tile) = self.docs.focused().and_then(|key| self.docs.tile_of(key)) {
+            self.docs.close(tile);
+        }
+        self.open_entry(entry);
+    }
+
     pub fn set_retention_targets(&mut self, targets: Vec<Arc<dyn KnotRetainPort>>, wake: HostWake) {
         self.scroll.set_submission_wake(wake.clone());
         self.retention_targets = targets;
@@ -290,7 +376,7 @@ impl DesktopState {
                 Some("Retention is already in progress for the reviewed request.".to_owned());
             return;
         }
-        let Some(revision) = self.prepared_capture.clone() else {
+        let Some(revision) = self.entry().prepared_capture.clone() else {
             self.retention_error = Some("Review a saved revision before retaining it.".to_owned());
             return;
         };
@@ -387,12 +473,12 @@ impl DesktopState {
     }
 
     fn dirty(&self) -> bool {
-        self.document.snapshot().dirty
+        self.document().snapshot().dirty
     }
 
     /// The facts a scenario asserts on. Grows as scenarios need more.
     pub(crate) fn scenario_snapshot(&self) -> cambium_genet_winit_host::ProbeSnapshot {
-        let snapshot = self.document.snapshot();
+        let snapshot = self.document().snapshot();
         cambium_genet_winit_host::ProbeSnapshot::default()
             .with_field("document", snapshot.display_label)
             .with_field("format", format!("{:?}", snapshot.format))
@@ -408,28 +494,34 @@ impl DesktopState {
     }
 
     fn clear_prepared_capture(&mut self) {
-        self.prepared_capture = None;
-        self.prepared_capture_source_path = None;
-        self.prepared_capture_error = None;
+        self.entry_mut().prepared_capture = None;
+        self.entry_mut().prepared_capture_source_path = None;
+        self.entry_mut().prepared_capture_error = None;
     }
 
     fn prepare_capture(&mut self) {
         self.clear_prepared_capture();
-        let Some(id) = self.catalog_id.clone() else {
-            self.prepared_capture_error = Some(
-                self.catalog_error
+        let Some(id) = self.entry().catalog_id.clone() else {
+            self.entry_mut().prepared_capture_error = Some(
+                self.entry()
+                    .catalog_error
                     .clone()
                     .unwrap_or_else(|| "Current document is not catalogued.".to_owned()),
             );
             return;
         };
-        let Some(source_path) = self.document.session().source_path().map(Path::to_path_buf) else {
-            self.prepared_capture_error =
+        let Some(source_path) = self
+            .document()
+            .session()
+            .source_path()
+            .map(Path::to_path_buf)
+        else {
+            self.entry_mut().prepared_capture_error =
                 Some("Current document has no saved source path.".to_owned());
             return;
         };
         if !source_path.is_file() {
-            self.prepared_capture_error =
+            self.entry_mut().prepared_capture_error =
                 Some("Current saved source path is unavailable.".to_owned());
             return;
         }
@@ -439,31 +531,33 @@ impl DesktopState {
         match catalog.lookup(&source_path) {
             Ok(Some(record)) if record.id == id => {},
             Ok(_) => {
-                self.prepared_capture_error = Some(
+                self.entry_mut().prepared_capture_error = Some(
                     "Current source no longer matches its catalog binding. Retry catalog registration."
                         .to_owned(),
                 );
                 return;
             },
             Err(error) => {
-                self.prepared_capture_error = Some(format!("Catalog lookup failed: {error}"));
+                self.entry_mut().prepared_capture_error =
+                    Some(format!("Catalog lookup failed: {error}"));
                 return;
             },
         }
         match catalog.capture_file_revision(&id, self.capture_limit) {
             Ok(revision) => match std::str::from_utf8(&revision.body) {
                 Ok(_) => {
-                    self.prepared_capture_source_path = Some(source_path);
-                    self.prepared_capture = Some(revision);
+                    self.entry_mut().prepared_capture_source_path = Some(source_path);
+                    self.entry_mut().prepared_capture = Some(revision);
                 },
                 Err(_) => {
-                    self.prepared_capture_error = Some(
+                    self.entry_mut().prepared_capture_error = Some(
                         "Saved revision is not valid UTF-8; source text is unavailable.".to_owned(),
                     );
                 },
             },
             Err(error) => {
-                self.prepared_capture_error = Some(format!("Preparation failed: {error}"))
+                self.entry_mut().prepared_capture_error =
+                    Some(format!("Preparation failed: {error}"))
             },
         }
     }
@@ -485,21 +579,25 @@ impl DesktopState {
         if self.catalog.is_none() {
             return;
         }
-        let source_path = self.document.session().source_path().map(Path::to_path_buf);
-        if self.catalog_sync_attempted && self.catalog_source_path == source_path {
+        let source_path = self
+            .document()
+            .session()
+            .source_path()
+            .map(Path::to_path_buf);
+        if self.entry().catalog_sync_attempted && self.entry().catalog_source_path == source_path {
             return;
         }
-        self.catalog_sync_attempted = true;
-        self.catalog_source_path = source_path.clone();
-        self.catalog_id = None;
-        self.catalog_error = None;
+        self.entry_mut().catalog_sync_attempted = true;
+        self.entry_mut().catalog_source_path = source_path.clone();
+        self.entry_mut().catalog_id = None;
+        self.entry_mut().catalog_error = None;
         let Some(source_path) = source_path else {
             return;
         };
         if let Some(catalog) = self.catalog.as_mut() {
             match catalog.bind(source_path) {
-                Ok(id) => self.catalog_id = Some(id),
-                Err(error) => self.catalog_error = Some(error),
+                Ok(id) => self.entry_mut().catalog_id = Some(id),
+                Err(error) => self.entry_mut().catalog_error = Some(error),
             }
         }
     }
@@ -508,36 +606,36 @@ impl DesktopState {
         if self.catalog.is_none() {
             return;
         }
-        self.catalog_sync_attempted = false;
+        self.entry_mut().catalog_sync_attempted = false;
         self.sync_catalog();
     }
 
     fn clear_comparison(&mut self) {
-        self.comparison = None;
-        self.comparison_error = None;
+        self.entry_mut().comparison = None;
+        self.entry_mut().comparison_error = None;
     }
 
     fn clear_outline(&mut self) {
-        self.outline_snapshot = None;
-        self.outline_error = None;
+        self.entry_mut().outline_snapshot = None;
+        self.entry_mut().outline_error = None;
     }
 
     pub(crate) fn clear_folding(&mut self) {
         self.fold_visible = false;
-        self.fold_snapshot = None;
-        self.collapsed_folds.clear();
-        self.fold_error = None;
+        self.entry_mut().fold_snapshot = None;
+        self.entry_mut().collapsed_folds.clear();
+        self.entry_mut().fold_error = None;
     }
 
     fn toggle_folding(&mut self) {
-        if !crate::document_folding::supported(self.document.snapshot().format) {
+        if !crate::document_folding::supported(self.document().snapshot().format) {
             return;
         }
         self.fold_visible = !self.fold_visible;
         if self.fold_visible {
-            self.fold_snapshot = Some(self.document.session().fold_snapshot());
-            self.collapsed_folds.clear();
-            self.fold_error = None;
+            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
+            self.entry_mut().collapsed_folds.clear();
+            self.entry_mut().fold_error = None;
         } else {
             self.clear_folding();
         }
@@ -545,7 +643,7 @@ impl DesktopState {
 
     pub(crate) fn edit_source(&mut self) {
         self.clear_folding();
-        self.focus_source_requested = true;
+        self.entry_mut().focus_source_requested = true;
     }
 
     pub(crate) fn toggle_fold(
@@ -554,27 +652,33 @@ impl DesktopState {
         source_index: usize,
     ) {
         if !self
+            .entry()
             .fold_snapshot
             .as_ref()
             .is_some_and(|snapshot| snapshot == &action_snapshot)
-            || !crate::document_folding::snapshot_matches(self.document.session(), &action_snapshot)
+            || !crate::document_folding::snapshot_matches(
+                self.document().session(),
+                &action_snapshot,
+            )
         {
-            self.fold_snapshot = Some(self.document.session().fold_snapshot());
-            self.collapsed_folds.clear();
-            self.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
+            self.entry_mut().collapsed_folds.clear();
+            self.entry_mut().fold_error =
+                Some("Fold snapshot is stale for the current source.".to_owned());
             return;
         }
         if !crate::document_folding::normalized_folds(&action_snapshot)
             .iter()
             .any(|fold| fold.source_index == source_index)
         {
-            self.fold_error = Some("That fold is no longer part of the current source.".to_owned());
+            self.entry_mut().fold_error =
+                Some("That fold is no longer part of the current source.".to_owned());
             return;
         }
-        if !self.collapsed_folds.insert(source_index) {
-            self.collapsed_folds.remove(&source_index);
+        if !self.entry_mut().collapsed_folds.insert(source_index) {
+            self.entry_mut().collapsed_folds.remove(&source_index);
         }
-        self.fold_error = None;
+        self.entry_mut().fold_error = None;
     }
 
     pub(crate) fn collapse_all_folds(
@@ -582,33 +686,44 @@ impl DesktopState {
         action_snapshot: knot_document::KnotFoldSnapshotV1,
     ) {
         if !self
+            .entry()
             .fold_snapshot
             .as_ref()
             .is_some_and(|snapshot| snapshot == &action_snapshot)
-            || !crate::document_folding::snapshot_matches(self.document.session(), &action_snapshot)
+            || !crate::document_folding::snapshot_matches(
+                self.document().session(),
+                &action_snapshot,
+            )
         {
-            self.fold_snapshot = Some(self.document.session().fold_snapshot());
-            self.collapsed_folds.clear();
-            self.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
+            self.entry_mut().collapsed_folds.clear();
+            self.entry_mut().fold_error =
+                Some("Fold snapshot is stale for the current source.".to_owned());
             return;
         }
-        self.collapsed_folds = crate::document_folding::collapse_all_indices(&action_snapshot);
-        self.fold_error = None;
+        self.entry_mut().collapsed_folds =
+            crate::document_folding::collapse_all_indices(&action_snapshot);
+        self.entry_mut().fold_error = None;
     }
 
     pub(crate) fn expand_all_folds(&mut self, action_snapshot: knot_document::KnotFoldSnapshotV1) {
         if self
+            .entry()
             .fold_snapshot
             .as_ref()
             .is_some_and(|snapshot| snapshot == &action_snapshot)
-            && crate::document_folding::snapshot_matches(self.document.session(), &action_snapshot)
+            && crate::document_folding::snapshot_matches(
+                self.document().session(),
+                &action_snapshot,
+            )
         {
-            self.collapsed_folds.clear();
-            self.fold_error = None;
+            self.entry_mut().collapsed_folds.clear();
+            self.entry_mut().fold_error = None;
         } else {
-            self.fold_snapshot = Some(self.document.session().fold_snapshot());
-            self.collapsed_folds.clear();
-            self.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
+            self.entry_mut().collapsed_folds.clear();
+            self.entry_mut().fold_error =
+                Some("Fold snapshot is stale for the current source.".to_owned());
         }
     }
 
@@ -616,20 +731,24 @@ impl DesktopState {
         if !self.outline_visible {
             return;
         }
-        let current = self.document.snapshot();
-        let stale = self.outline_snapshot.as_ref().is_none_or(|snapshot| {
-            snapshot.address != current.source.address || snapshot.source_text != current.text
-        });
+        let current = self.document().snapshot();
+        let stale = self
+            .entry()
+            .outline_snapshot
+            .as_ref()
+            .is_none_or(|snapshot| {
+                snapshot.address != current.source.address || snapshot.source_text != current.text
+            });
         if stale {
-            self.outline_snapshot = Some(self.document.session().outline_snapshot());
+            self.entry_mut().outline_snapshot = Some(self.document().session().outline_snapshot());
         }
     }
 
     fn toggle_outline(&mut self) {
         self.outline_visible = !self.outline_visible;
         if self.outline_visible {
-            self.outline_snapshot = Some(self.document.session().outline_snapshot());
-            self.outline_error = None;
+            self.entry_mut().outline_snapshot = Some(self.document().session().outline_snapshot());
+            self.entry_mut().outline_error = None;
         } else {
             self.clear_outline();
         }
@@ -730,7 +849,7 @@ impl DesktopState {
     pub(crate) fn select_reading(&mut self, index: usize) {
         if index < self.readings.len() {
             self.readings_selected = Some(index);
-            self.reading_error = None;
+            self.entry_mut().reading_error = None;
         }
     }
 
@@ -745,24 +864,24 @@ impl DesktopState {
             self.message = Some("Choose a reading before running one.".to_owned());
             return;
         };
-        let input = match ReadingInput::from_session(self.document.session()) {
+        let input = match ReadingInput::from_session(self.document().session()) {
             Ok(input) => input,
             Err(error) => {
                 self.clear_readings();
-                self.reading_error = Some(ReadingError::Runtime { message: error });
+                self.entry_mut().reading_error = Some(ReadingError::Runtime { message: error });
                 return;
             },
         };
         let source = input.text.clone();
         match knot_readings::run(&script, &input, ReadingBudget::default()) {
             Ok(result) => {
-                self.reading_result = Some(result);
-                self.reading_source = Some(source);
-                self.reading_error = None;
+                self.entry_mut().reading_result = Some(result);
+                self.entry_mut().reading_source = Some(source);
+                self.entry_mut().reading_error = None;
             },
             Err(error) => {
                 self.clear_readings();
-                self.reading_error = Some(error);
+                self.entry_mut().reading_error = Some(error);
             },
         }
     }
@@ -770,42 +889,42 @@ impl DesktopState {
     /// A reading is derived state: it is stale the moment its source moves.
     /// The panel says so and keeps showing it rather than closing itself.
     pub(crate) fn reading_is_stale(&self) -> bool {
-        let Some(result) = self.reading_result.as_ref() else {
+        let Some(result) = self.entry().reading_result.as_ref() else {
             return false;
         };
-        let current = self.document.snapshot();
+        let current = self.document().snapshot();
         result.provenance.source.address != current.source.address
-            || self.reading_source.as_deref() != Some(current.text.as_str())
+            || self.entry().reading_source.as_deref() != Some(current.text.as_str())
     }
 
     pub(crate) fn select_reading_row(&mut self, index: usize) {
-        let Some(result) = self.reading_result.as_ref() else {
+        let Some(result) = self.entry().reading_result.as_ref() else {
             return;
         };
         let Some(row) = result.rows.get(index) else {
             return;
         };
         let Some((start, end)) = row.span else {
-            self.reading_error = Some(ReadingError::Runtime {
+            self.entry_mut().reading_error = Some(ReadingError::Runtime {
                 message: format!("\"{}\" carries no source range.", row.label),
             });
             return;
         };
         let address = result.provenance.source.address.clone();
-        let Some(text) = self.reading_source.clone() else {
+        let Some(text) = self.entry().reading_source.clone() else {
             return;
         };
         match self
-            .document
+            .document_mut()
             .session_mut()
             .select_source_span(&address, &text, start, end)
         {
             Ok(()) => {
-                self.reading_error = None;
-                self.focus_source_requested = true;
+                self.entry_mut().reading_error = None;
+                self.entry_mut().focus_source_requested = true;
             },
             Err(error) => {
-                self.reading_error = Some(ReadingError::Runtime {
+                self.entry_mut().reading_error = Some(ReadingError::Runtime {
                     message: error.clone(),
                 });
                 self.message = Some(format!("Reading row selection failed: {error}"));
@@ -816,9 +935,9 @@ impl DesktopState {
     /// Drop the derived reading. The script list and the panel itself belong to
     /// the window, not to the document, so they stay.
     fn clear_readings(&mut self) {
-        self.reading_result = None;
-        self.reading_error = None;
-        self.reading_source = None;
+        self.entry_mut().reading_result = None;
+        self.entry_mut().reading_error = None;
+        self.entry_mut().reading_source = None;
     }
 
     fn toggle_appearance(&mut self) {
@@ -832,7 +951,7 @@ impl DesktopState {
         heading: &KnotOutlineItemV1,
         index: usize,
     ) {
-        let result = self.document.session().preview_snapshot();
+        let result = self.document().session().preview_snapshot();
         let result = result.and_then(|snapshot| {
             if snapshot.address != address
                 || snapshot.source_text != source_text
@@ -840,46 +959,47 @@ impl DesktopState {
             {
                 return Err("preview heading is stale for the current source".to_owned());
             }
-            self.document
+            self.document_mut()
                 .session_mut()
                 .select_preview_heading(&snapshot, index)
         });
         match result {
-            Ok(()) => self.focus_source_requested = true,
+            Ok(()) => self.entry_mut().focus_source_requested = true,
             Err(error) => self.message = Some(format!("Preview heading selection failed: {error}")),
         }
     }
 
     fn select_outline_item(&mut self, index: usize) {
-        let Some(snapshot) = self.outline_snapshot.as_ref() else {
-            self.outline_error = Some("Outline is not ready; show it again.".to_owned());
+        let Some(snapshot) = self.entry().outline_snapshot.clone() else {
+            self.entry_mut().outline_error =
+                Some("Outline is not ready; show it again.".to_owned());
             return;
         };
         let result = self
-            .document
+            .document_mut()
             .session_mut()
-            .select_outline_item(snapshot, index);
+            .select_outline_item(&snapshot, index);
         match result {
             Ok(()) => {
-                self.outline_error = None;
-                self.focus_source_requested = true;
+                self.entry_mut().outline_error = None;
+                self.entry_mut().focus_source_requested = true;
             },
             Err(error) => {
-                self.outline_error = Some(error.clone());
+                self.entry_mut().outline_error = Some(error.clone());
                 self.message = Some(format!("Outline selection failed: {error}"));
             },
         }
     }
 
     fn compare_disk(&mut self) {
-        match self.document.session().compare_disk() {
+        match self.document().session().compare_disk() {
             Ok(comparison) => {
-                self.comparison = Some(comparison);
-                self.comparison_error = None;
+                self.entry_mut().comparison = Some(comparison);
+                self.entry_mut().comparison_error = None;
             },
             Err(error) => {
-                self.comparison = None;
-                self.comparison_error = Some(error);
+                self.entry_mut().comparison = None;
+                self.entry_mut().comparison_error = Some(error);
             },
         }
     }
@@ -904,10 +1024,10 @@ impl DesktopState {
         match action {
             PendingAction::Close => self.window.close(),
             PendingAction::New => {
-                self.document = KnotDocumentSurfaceState::new(KnotDocumentSession::scratch(
+                self.replace_focused(DocumentEntry::new(KnotDocumentSession::scratch(
                     SCRATCH_ADDRESS,
                     "",
-                ));
+                )));
                 self.path = TextInput::default();
                 self.scroll.sync_page(None);
                 self.clear_comparison();
@@ -922,7 +1042,7 @@ impl DesktopState {
             PendingAction::Open(path) => match KnotDocumentSession::open(&path) {
                 Ok(session) => {
                     self.path = TextInput::new(path.to_string_lossy().into_owned());
-                    self.document = KnotDocumentSurfaceState::new(session);
+                    self.replace_focused(DocumentEntry::new(session));
                     let resolved = std::fs::canonicalize(&path).ok();
                     self.scroll.sync_page(resolved.as_deref());
                     self.clear_comparison();
@@ -936,18 +1056,20 @@ impl DesktopState {
                 },
                 Err(error) => self.message = Some(format!("Open failed: {error}")),
             },
-            PendingAction::Reload => match self.document.apply(KnotDocumentIntentV1::Reload) {
-                Ok(_) => {
-                    self.clear_comparison();
-                    self.clear_prepared_capture();
-                    self.clear_outline();
-                    self.clear_readings();
-                    self.clear_folding();
-                    self.sync_outline_snapshot();
-                    self.sync_catalog();
-                    self.message = Some("Reloaded from disk.".to_owned());
-                },
-                Err(error) => self.message = Some(intent_error_label(error)),
+            PendingAction::Reload => {
+                match self.document_mut().apply(KnotDocumentIntentV1::Reload) {
+                    Ok(_) => {
+                        self.clear_comparison();
+                        self.clear_prepared_capture();
+                        self.clear_outline();
+                        self.clear_readings();
+                        self.clear_folding();
+                        self.sync_outline_snapshot();
+                        self.sync_catalog();
+                        self.message = Some("Reloaded from disk.".to_owned());
+                    },
+                    Err(error) => self.message = Some(intent_error_label(error)),
+                }
             },
         }
     }
@@ -964,7 +1086,7 @@ impl DesktopState {
     }
 
     fn save(&mut self) {
-        match self.document.apply(KnotDocumentIntentV1::Save) {
+        match self.document_mut().apply(KnotDocumentIntentV1::Save) {
             Ok(_) => {
                 self.sync_catalog();
                 self.message = Some("Saved.".to_owned());
@@ -986,7 +1108,7 @@ impl DesktopState {
             },
         };
         match self
-            .document
+            .document_mut()
             .apply(KnotDocumentIntentV1::SaveAs(path.clone()))
         {
             Ok(_) => {
@@ -1023,7 +1145,7 @@ impl DesktopState {
         };
         match action {
             PendingAction::Close => {
-                if self.document.snapshot().write_posture
+                if self.document().snapshot().write_posture
                     == knot_document::KnotDocumentWritePostureV1::Scratch
                 {
                     if self.save_as() {
@@ -1031,7 +1153,7 @@ impl DesktopState {
                     } else {
                         self.pending = Some(PendingAction::Close);
                     }
-                } else if let Err(error) = self.document.apply(KnotDocumentIntentV1::Save) {
+                } else if let Err(error) = self.document_mut().apply(KnotDocumentIntentV1::Save) {
                     self.message = Some(intent_error_label(error));
                     self.pending = Some(PendingAction::Close);
                 } else {
@@ -1040,12 +1162,12 @@ impl DesktopState {
                 }
             },
             other => {
-                let saved = if self.document.snapshot().write_posture
+                let saved = if self.document().snapshot().write_posture
                     == knot_document::KnotDocumentWritePostureV1::Scratch
                 {
                     self.save_as()
                 } else {
-                    match self.document.apply(KnotDocumentIntentV1::Save) {
+                    match self.document_mut().apply(KnotDocumentIntentV1::Save) {
                         Ok(_) => {
                             self.sync_catalog();
                             true
@@ -1128,9 +1250,9 @@ fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let outline_panel: DesktopView = if !state.outline_visible {
         Box::new(el("div", ()))
-    } else if state.document.snapshot().format.native_source() {
+    } else if state.document().snapshot().format.native_source() {
         Box::new(span("A source outline is not available for this native protocol format yet. Use its preview when available.").attr("class", "knot-outline"))
-    } else if let Some(snapshot) = &state.outline_snapshot {
+    } else if let Some(snapshot) = &state.entry().outline_snapshot {
         let rows = snapshot
             .items
             .iter()
@@ -1157,7 +1279,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         } else {
             Box::new(el("div", Keyed::new(rows)).attr("class", "knot-outline-rows")) as DesktopView
         };
-        let error = state.outline_error.as_ref().map(|error| {
+        let error = state.entry().outline_error.as_ref().map(|error| {
             span(format!("Outline error: {error}")).attr("class", "knot-outline-error")
         });
         Box::new(
@@ -1205,7 +1327,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("aria-label", "Document outline"),
         )
     };
-    let comparison_panel: DesktopView = if let Some(error) = &state.comparison_error {
+    let comparison_panel: DesktopView = if let Some(error) = &state.entry().comparison_error {
         Box::new(
             el(
                 "section",
@@ -1225,8 +1347,8 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("role", "region")
             .attr("aria-label", "Disk comparison error"),
         )
-    } else if let Some(comparison) = &state.comparison {
-        let snapshot = state.document.snapshot();
+    } else if let Some(comparison) = &state.entry().comparison {
+        let snapshot = state.document().snapshot();
         let stale = comparison.buffer_text != snapshot.text
             || comparison.address != snapshot.source.address;
         let status = if stale {
@@ -1379,7 +1501,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("class", "knot-retention-receipt")
         });
         let retain_button = if state.retention_busy.is_none()
-            && state.prepared_capture.is_some()
+            && state.entry().prepared_capture.is_some()
             && state.retention_selected.is_some()
         {
             state.retention_wake.clone().map(|wake| {
@@ -1417,7 +1539,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     };
     let review_panel: DesktopView = if state.catalog.is_none() {
         Box::new(el("div", ()))
-    } else if let Some(error) = &state.prepared_capture_error {
+    } else if let Some(error) = &state.entry().prepared_capture_error {
         Box::new(
             el(
                 "section",
@@ -1431,7 +1553,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     )
                     .attr("class", "knot-review-header"),
                     span(format!("Review unavailable: {error}")).attr("class", "knot-review-error"),
-                    state.catalog_id.as_ref().map(|_| {
+                    state.entry().catalog_id.as_ref().map(|_| {
                         button("Refresh saved revision", |state: &mut DesktopState, _| {
                             state.prepare_capture()
                         })
@@ -1445,12 +1567,16 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("role", "region")
             .attr("aria-label", "Saved revision review error"),
         )
-    } else if let Some(revision) = &state.prepared_capture {
-        let source_path = state.prepared_capture_source_path.as_ref().map_or_else(
-            || "(source path unavailable)".to_owned(),
-            |path| path.display().to_string(),
-        );
-        let current = state.document.snapshot();
+    } else if let Some(revision) = &state.entry().prepared_capture {
+        let source_path = state
+            .entry()
+            .prepared_capture_source_path
+            .as_ref()
+            .map_or_else(
+                || "(source path unavailable)".to_owned(),
+                |path| path.display().to_string(),
+            );
+        let current = state.document().snapshot();
         let differs = current.text.as_bytes() != revision.body.as_slice();
         let status = if differs {
             "Editor differs from prepared revision; refresh to read disk again"
@@ -1491,7 +1617,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("role", "region")
             .attr("aria-label", "Saved revision review"),
         )
-    } else if let Some(id) = &state.catalog_id {
+    } else if let Some(id) = &state.entry().catalog_id {
         Box::new(
             el(
                 "section",
@@ -1630,10 +1756,10 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         move |state: &mut KnotDocumentSurfaceState| {
             knot_document_view_with_highlighting(state, highlight)
         },
-        |state: &mut DesktopState| &mut state.document,
+        |state: &mut DesktopState| state.document_mut(),
     ));
     let source_wrapper: DesktopView = if state.fold_visible
-        && crate::document_folding::supported(state.document.snapshot().format)
+        && crate::document_folding::supported(state.document().snapshot().format)
     {
         Box::new(
             el("div", crate::document_folding::view(state))
@@ -1684,13 +1810,13 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     );
     let catalog_status: DesktopView = if state.catalog.is_none() {
         Box::new(el("div", ()))
-    } else if let Some(id) = &state.catalog_id {
+    } else if let Some(id) = &state.entry().catalog_id {
         Box::new(
             span(format!("Document ID: {id}"))
                 .attr("class", "knot-catalog-status")
                 .attr("aria-live", "polite"),
         )
-    } else if let Some(error) = &state.catalog_error {
+    } else if let Some(error) = &state.entry().catalog_error {
         Box::new(
             el(
                 "div",
@@ -1712,7 +1838,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         )
     };
     let document_preview_button: DesktopView = if matches!(
-        state.document.snapshot().format,
+        state.document().snapshot().format,
         knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
     ) {
         Box::new(
@@ -1733,7 +1859,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         Box::new(el("div", ()))
     };
     let document_folding_button: DesktopView =
-        if crate::document_folding::supported(state.document.snapshot().format) {
+        if crate::document_folding::supported(state.document().snapshot().format) {
             Box::new(
                 button(
                     if state.fold_visible {
@@ -1812,7 +1938,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 crate::scroll_site::site_panel(state),
                 catalog_status,
                 review_panel,
-                if state.document.snapshot().format.native_source()
+                if state.document().snapshot().format.native_source()
                     && state.retention_targets.is_empty()
                 {
                     Box::new(el("div", ())) as DesktopView
@@ -1840,14 +1966,14 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             format!(
                 "{}{}{}{}",
                 state.appearance.root_class(),
-                if state.document.snapshot().format.native_source() {
+                if state.document().snapshot().format.native_source() {
                     " knot-native-site-mode"
                 } else {
                     ""
                 },
                 if state.document_preview_visible
                     && matches!(
-                        state.document.snapshot().format,
+                        state.document().snapshot().format,
                         knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
                     )
                 {
@@ -1856,7 +1982,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     ""
                 },
                 if state.fold_visible
-                    && crate::document_folding::supported(state.document.snapshot().format)
+                    && crate::document_folding::supported(state.document().snapshot().format)
                 {
                     " knot-document-folding-mode"
                 } else {
@@ -1968,17 +2094,17 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
         });
     }
     if is_document_textarea {
-        if runner.state().document.snapshot().write_posture
+        if runner.state().document().snapshot().write_posture
             == knot_document::KnotDocumentWritePostureV1::ReadOnly
         {
             return None;
         }
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|state| state.document.session().input()),
+            get: Box::new(|state| state.document().session().input()),
             get_mut: Box::new(|state| {
                 state
-                    .document
+                    .document_mut()
                     .session_mut()
                     .input_mut()
                     .expect("editable document focus")
@@ -2025,7 +2151,7 @@ pub fn after_dispatch(
     }
     if ctx.runner.state().scroll.submission_busy() {
         ctx.runner.update(|state| {
-            let current = state.document.snapshot();
+            let current = state.document().snapshot();
             state
                 .scroll
                 .drain_submission(&current.text, &current.source.address);
@@ -2038,21 +2164,25 @@ pub fn after_dispatch(
     }
     crate::scroll_site::scroll_to_micron_jump(ctx);
     let state = ctx.runner.state();
-    let mut focus_requested = state.focus_source_requested;
+    let mut focus_requested = state.entry().focus_source_requested;
     let outline_needs_sync = if state.outline_visible {
-        let current = state.document.snapshot();
-        state.outline_snapshot.as_ref().is_none_or(|snapshot| {
-            snapshot.address != current.source.address || snapshot.source_text != current.text
-        })
+        let current = state.document().snapshot();
+        state
+            .entry()
+            .outline_snapshot
+            .as_ref()
+            .is_none_or(|snapshot| {
+                snapshot.address != current.source.address || snapshot.source_text != current.text
+            })
     } else {
         false
     };
     let fold_needs_sync = if state.fold_visible {
-        let current = state.document.snapshot();
-        state.fold_snapshot.as_ref().is_none_or(|snapshot| {
+        let current = state.document().snapshot();
+        state.entry().fold_snapshot.as_ref().is_none_or(|snapshot| {
             snapshot.address != current.source.address
                 || snapshot.source_text != current.text
-                || !crate::document_folding::snapshot_matches(state.document.session(), snapshot)
+                || !crate::document_folding::snapshot_matches(state.document().session(), snapshot)
         })
     } else {
         false
@@ -2069,7 +2199,7 @@ pub fn after_dispatch(
     }
     ctx.runner.update(|state| {
         if focus_requested {
-            state.focus_source_requested = false;
+            state.entry_mut().focus_source_requested = false;
         }
         if outline_needs_sync {
             state.sync_outline_snapshot();
@@ -2104,7 +2234,7 @@ pub fn after_wake(
     }
     if ctx.runner.state().scroll.submission_busy() {
         ctx.runner.update(|state| {
-            let current = state.document.snapshot();
+            let current = state.document().snapshot();
             state
                 .scroll
                 .drain_submission(&current.text, &current.source.address);
@@ -2273,7 +2403,7 @@ mod tests {
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         assert!(host.click_on(&Selector::role("button").containing("Second")));
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         assert!(!before.dirty);
         assert_ne!(before.selection.anchor.byte, before.selection.focus.byte);
         assert!(host.click_on(&Selector::role("button").containing("Appearance")));
@@ -2281,7 +2411,7 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Highlight")));
         assert!(host.click_on(&Selector::role("button").containing("Wide")));
         assert!(host.click_on(&Selector::role("button").containing("Relaxed")));
-        let after = host.state().document.snapshot();
+        let after = host.state().document().snapshot();
         assert_eq!(after.text, before.text);
         assert_eq!(after.selection, before.selection);
         assert_eq!(after.dirty, before.dirty);
@@ -2298,10 +2428,10 @@ mod tests {
             "# Héading\n\nBody",
         ));
         host.layout_at(900.0, 640.0);
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2312,11 +2442,14 @@ mod tests {
         assert!(class_node(&dom, dom.document(), "knot-document-preview").is_none());
         drop(dom);
         assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
-        let after = host.state().document.snapshot();
+        let after = host.state().document().snapshot();
         assert_eq!(after.text, before.text);
         assert_eq!(after.selection, before.selection);
         assert_eq!(after.dirty, before.dirty);
-        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        assert_eq!(
+            host.state().document().session().input().preedit(),
+            "仮入力"
+        );
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
@@ -2331,7 +2464,7 @@ mod tests {
         let source = "# α\n\n## 二\nbody\n\n- first\n- second\n";
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, source));
         host.layout_at(900.0, 640.0);
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         {
             let dom = host.runner().dom();
             let dom = dom.borrow();
@@ -2340,16 +2473,19 @@ mod tests {
         }
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
                 .set_preedit("仮入力");
         });
         assert!(host.click_on(&Selector::role("button").containing("Show folds")));
-        let after_show = host.state().document.snapshot();
+        let after_show = host.state().document().snapshot();
         assert_eq!(after_show, before);
-        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        assert_eq!(
+            host.state().document().session().input().preedit(),
+            "仮入力"
+        );
         {
             let dom = host.runner().dom();
             let dom = dom.borrow();
@@ -2361,13 +2497,13 @@ mod tests {
         assert!(
             host.click_on(&Selector::role("button").with_attr("aria-label", "Collapse all folds"))
         );
-        let after_collapse = host.state().document.snapshot();
+        let after_collapse = host.state().document().snapshot();
         assert_eq!(after_collapse, before);
         assert!(
-            !host.state().collapsed_folds.is_empty(),
+            !host.state().entry().collapsed_folds.is_empty(),
             "fold error: {:?}; snapshot: {:?}",
-            host.state().fold_error,
-            host.state().fold_snapshot
+            host.state().entry().fold_error,
+            host.state().entry().fold_snapshot
         );
         {
             let dom = host.runner().dom();
@@ -2378,8 +2514,8 @@ mod tests {
         assert!(
             host.click_on(&Selector::role("button").with_attr("aria-label", "Expand all folds"))
         );
-        assert!(host.state().collapsed_folds.is_empty());
-        assert_eq!(host.state().document.snapshot(), before);
+        assert!(host.state().entry().collapsed_folds.is_empty());
+        assert_eq!(host.state().document().snapshot(), before);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let folding = class_node(&dom, dom.document(), "knot-folding").unwrap();
@@ -2404,31 +2540,31 @@ mod tests {
             host.click_on(&Selector::role("button").with_attr("aria-label", "Collapse all folds"))
         );
         assert!(
-            !host.state().collapsed_folds.is_empty(),
+            !host.state().entry().collapsed_folds.is_empty(),
             "fold error: {:?}; snapshot: {:?}",
-            host.state().fold_error,
-            host.state().fold_snapshot
+            host.state().entry().fold_error,
+            host.state().entry().fold_snapshot
         );
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .apply(knot_document::KnotDocumentIntentV1::Edit(
                     cambium::TextCommand::SelectAll,
                 ))
                 .unwrap();
             state
-                .document
+                .document_mut()
                 .apply(knot_document::KnotDocumentIntentV1::Edit(
                     cambium::TextCommand::Insert("# Changed\n\nnew body\n".into()),
                 ))
                 .unwrap();
         });
         host.after_dispatch();
-        assert!(host.state().collapsed_folds.is_empty());
+        assert!(host.state().entry().collapsed_folds.is_empty());
         assert!(!host.state().fold_visible);
-        assert!(host.state().fold_snapshot.is_none());
+        assert!(host.state().entry().fold_snapshot.is_none());
         assert_eq!(
-            host.state().document.snapshot().text,
+            host.state().document().snapshot().text,
             "# Changed\n\nnew body\n"
         );
     }
@@ -2447,7 +2583,7 @@ mod tests {
             &Selector::role("button").with_attr("aria-label", "Heading level 2: Second")
         ));
 
-        let snapshot = host.state().document.snapshot();
+        let snapshot = host.state().document().snapshot();
         assert_eq!(
             &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte],
             "## Second\n"
@@ -2464,25 +2600,26 @@ mod tests {
         ));
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show folds")));
-        let stale = host.state().fold_snapshot.clone().unwrap();
+        let stale = host.state().entry().fold_snapshot.clone().unwrap();
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .apply(knot_document::KnotDocumentIntentV1::Edit(
                     cambium::TextCommand::SelectAll,
                 ))
                 .unwrap();
             state
-                .document
+                .document_mut()
                 .apply(knot_document::KnotDocumentIntentV1::Edit(
                     cambium::TextCommand::Insert("# New\n\nchanged\n".into()),
                 ))
                 .unwrap();
         });
         host.update(|state| state.toggle_fold(stale, 0));
-        assert!(host.state().collapsed_folds.is_empty());
+        assert!(host.state().entry().collapsed_folds.is_empty());
         assert!(
             host.state()
+                .entry()
                 .fold_error
                 .as_deref()
                 .is_some_and(|error| error.contains("stale"))
@@ -2500,7 +2637,7 @@ mod tests {
         assert!(host.click_on(
             &Selector::role("button").with_attr("aria-label", "Select source heading: Héading")
         ));
-        let snapshot = host.state().document.snapshot();
+        let snapshot = host.state().document().snapshot();
         assert_eq!(
             &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte],
             "# Héading\n"
@@ -2514,7 +2651,7 @@ mod tests {
         host.layout_at(900.0, 640.0);
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2570,7 +2707,7 @@ mod tests {
         let native_preview = class_node(&dom, dom.document(), "knot-scroll-preview").unwrap();
         assert!(text_content(&dom, native_preview).contains("Native"));
         assert!(!text_content(&dom, dom.document()).contains("Show folds"));
-        assert!(host.state().fold_snapshot.is_none());
+        assert!(host.state().entry().fold_snapshot.is_none());
     }
 
     #[test]
@@ -2587,18 +2724,18 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Compact")));
         assert!(host.click_on(&Selector::role("button").containing("Larger")));
         assert!(host.click_on(&Selector::role("button").containing("New")));
-        assert_eq!(host.state().document.snapshot().text, "");
-        assert_eq!(host.state().document.session().source_path(), None);
+        assert_eq!(host.state().document().snapshot().text, "");
+        assert_eq!(host.state().document().session().source_path(), None);
         host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
         assert!(host.click_on(&Selector::role("button").containing("Open")));
-        assert_eq!(host.state().document.snapshot().text, "# Opened\n");
+        assert_eq!(host.state().document().snapshot().text, "# Opened\n");
         assert_eq!(
-            host.state().document.session().source_path(),
+            host.state().document().session().source_path(),
             Some(path.canonicalize().unwrap().as_path())
         );
         std::fs::write(&path, "# Reloaded\n").unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Reload")));
-        assert_eq!(host.state().document.snapshot().text, "# Reloaded\n");
+        assert_eq!(host.state().document().snapshot().text, "# Reloaded\n");
         let appearance = &host.state().appearance;
         assert!(appearance.dark);
         assert!(!appearance.highlight);
@@ -2616,16 +2753,22 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Appearance")));
         assert!(host.click_on(&Selector::role("button").containing("Highlight")));
         host.update(|state| {
-            let input = state.document.session_mut().input_mut().unwrap();
+            let input = state.document_mut().session_mut().input_mut().unwrap();
             input.set_preedit("仮入力");
         });
-        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        assert_eq!(
+            host.state().document().session().input().preedit(),
+            "仮入力"
+        );
         assert!(host.click_on(&Selector::role("button").containing("Highlight")));
-        assert_eq!(host.state().document.session().input().preedit(), "仮入力");
+        assert_eq!(
+            host.state().document().session().input().preedit(),
+            "仮入力"
+        );
         host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
         assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
         host.key_injected("確定");
-        assert_eq!(host.state().document.snapshot().text, "確定");
+        assert_eq!(host.state().document().snapshot().text, "確定");
         assert!(host.click_on(&Selector::role("button").containing("Save As")));
         assert_eq!(std::fs::read(&path).unwrap(), "確定".as_bytes());
     }
@@ -2687,7 +2830,7 @@ mod tests {
         host.layout_at(900.0, 640.0);
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2707,7 +2850,7 @@ mod tests {
         let mut host = harness(KnotDocumentSession::open(&path).unwrap());
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2719,7 +2862,7 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
         assert!(host.close_requested());
         assert!(std::fs::read_to_string(&path).unwrap().contains("draft"));
-        assert!(!host.state().document.snapshot().dirty);
+        assert!(!host.state().document().snapshot().dirty);
     }
 
     #[test]
@@ -2727,7 +2870,7 @@ mod tests {
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "draft"));
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2737,8 +2880,14 @@ mod tests {
         request_native_close(&mut host);
         assert!(host.click_on(&Selector::role("button").containing("Cancel")));
         assert!(!host.close_requested());
-        assert!(host.state().document.snapshot().text.contains("draft edit"));
-        assert!(host.state().document.snapshot().dirty);
+        assert!(
+            host.state()
+                .document()
+                .snapshot()
+                .text
+                .contains("draft edit")
+        );
+        assert!(host.state().document().snapshot().dirty);
     }
 
     #[test]
@@ -2749,7 +2898,7 @@ mod tests {
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "draft"));
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2759,8 +2908,8 @@ mod tests {
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Open")));
         assert!(host.click_on(&Selector::role("button").containing("Cancel")));
-        assert_eq!(host.state().document.snapshot().text, "draft edit");
-        assert!(host.state().document.snapshot().dirty);
+        assert_eq!(host.state().document().snapshot().text, "draft edit");
+        assert!(host.state().document().snapshot().dirty);
     }
 
     #[test]
@@ -2772,18 +2921,18 @@ mod tests {
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         assert!(host.click_on(&Selector::role("button").containing("Café")));
-        let snapshot = host.state().document.session().outline_snapshot();
+        let snapshot = host.state().document().session().outline_snapshot();
         let item = snapshot
             .items
             .iter()
             .find(|item| item.label == "Café")
             .expect("unicode heading");
         assert_eq!(
-            host.state().document.snapshot().selection.anchor.byte,
+            host.state().document().snapshot().selection.anchor.byte,
             item.start
         );
         assert_eq!(
-            host.state().document.snapshot().selection.focus.byte,
+            host.state().document().snapshot().selection.focus.byte,
             item.end
         );
         let textarea = {
@@ -2805,7 +2954,7 @@ mod tests {
         assert_eq!(host.focus(), Some(textarea));
         host.key_injected("!");
         assert_eq!(host.state().path.text(), "");
-        assert_eq!(host.state().document.snapshot().text, "# Café\n\n!");
+        assert_eq!(host.state().document().snapshot().text, "# Café\n\n!");
     }
 
     #[test]
@@ -2815,7 +2964,7 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2830,7 +2979,7 @@ mod tests {
 
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2853,17 +3002,17 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
                 .insert_str("changed");
         });
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         // Deliberately omit the normal after-dispatch refresh: this click uses
         // the old retained row and exercises the exact-source guard.
         assert!(host.click_on(&Selector::role("button").containing("First")));
-        assert_eq!(host.state().document.snapshot(), before);
+        assert_eq!(host.state().document().snapshot(), before);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
@@ -2911,7 +3060,7 @@ mod tests {
         let edit_started = Instant::now();
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2934,7 +3083,7 @@ mod tests {
         host.layout_at(900.0, 640.0);
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2950,12 +3099,12 @@ mod tests {
         host.set_modifiers(Modifiers::NONE);
         assert!(path.exists());
         assert!(std::fs::read_to_string(&path).unwrap().contains("edit"));
-        assert!(!host.state().document.snapshot().dirty);
+        assert!(!host.state().document().snapshot().dirty);
         assert!(host.state().path.text().ends_with("shortcut.djot"));
 
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -2967,7 +3116,7 @@ mod tests {
         });
         host.key_char("s");
         host.set_modifiers(Modifiers::NONE);
-        assert!(!host.state().document.snapshot().dirty);
+        assert!(!host.state().document().snapshot().dirty);
         assert!(std::fs::read_to_string(&path).unwrap().contains("again"));
     }
 
@@ -2980,7 +3129,7 @@ mod tests {
         host.layout_at(900.0, 640.0);
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -3008,34 +3157,35 @@ mod tests {
         let mut host = harness(KnotDocumentSession::open(&path).unwrap());
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
                 .insert_str(" edited");
         });
-        let buffer_before = host.state().document.snapshot();
+        let buffer_before = host.state().document().snapshot();
         std::fs::write(&path, "disk\n").unwrap();
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
         let comparison = host
             .state()
+            .entry()
             .comparison
             .as_ref()
             .expect("comparison snapshot");
         assert_eq!(comparison.buffer_text, buffer_before.text);
         assert_eq!(comparison.disk_text, "disk\n");
         assert!(comparison.disk_changed_since_baseline);
-        assert_eq!(host.state().document.snapshot().text, buffer_before.text);
+        assert_eq!(host.state().document().snapshot().text, buffer_before.text);
         assert_eq!(
-            host.state().document.snapshot().selection,
+            host.state().document().snapshot().selection,
             buffer_before.selection
         );
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "disk\n");
 
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -3063,17 +3213,17 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
         std::fs::write(&path, "second\n").unwrap();
         assert_eq!(
-            host.state().comparison.as_ref().unwrap().disk_text,
+            host.state().entry().comparison.as_ref().unwrap().disk_text,
             "first\n"
         );
         assert!(host.click_on(&Selector::role("button").containing("Refresh comparison")));
         assert_eq!(
-            host.state().comparison.as_ref().unwrap().disk_text,
+            host.state().entry().comparison.as_ref().unwrap().disk_text,
             "second\n"
         );
         assert!(host.click_on(&Selector::role("button").containing("New")));
-        assert!(host.state().comparison.is_none());
-        assert!(host.state().comparison_error.is_none());
+        assert!(host.state().entry().comparison.is_none());
+        assert!(host.state().entry().comparison_error.is_none());
     }
 
     #[test]
@@ -3086,9 +3236,10 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
         std::fs::remove_file(&path).unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
-        assert!(host.state().comparison.is_none());
+        assert!(host.state().entry().comparison.is_none());
         assert!(
             host.state()
+                .entry()
                 .comparison_error
                 .as_deref()
                 .is_some_and(|error| error.contains("read"))
@@ -3118,7 +3269,7 @@ mod tests {
         let mut host = harness(KnotDocumentSession::open(&path).unwrap());
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -3126,11 +3277,14 @@ mod tests {
         });
         host.layout_at(900.0, 640.0);
         request_native_close(&mut host);
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
         assert_eq!(host.state().pending, Some(PendingAction::Close));
-        assert_eq!(host.state().document.snapshot().text, before.text);
-        assert_eq!(host.state().document.snapshot().selection, before.selection);
+        assert_eq!(host.state().document().snapshot().text, before.text);
+        assert_eq!(
+            host.state().document().snapshot().selection,
+            before.selection
+        );
     }
 
     #[test]
@@ -3141,7 +3295,7 @@ mod tests {
         let mut host = harness(KnotDocumentSession::open(&path).unwrap());
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -3151,9 +3305,9 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
         assert!(host.click_on(&Selector::class("knot-document-save")));
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "original\n edited");
-        assert!(!host.state().document.snapshot().dirty);
+        assert!(!host.state().document().snapshot().dirty);
         assert_eq!(
-            host.state().comparison.as_ref().unwrap().disk_text,
+            host.state().entry().comparison.as_ref().unwrap().disk_text,
             "original\n"
         );
         let dom = host.runner().dom();
@@ -3174,7 +3328,7 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Save As")));
         assert!(!path.exists());
         assert_eq!(
-            host.state().document.snapshot().write_posture,
+            host.state().document().snapshot().write_posture,
             knot_document::KnotDocumentWritePostureV1::ReadOnly
         );
         assert!(host.state().message.as_deref().unwrap().contains("refused"));
@@ -3194,26 +3348,36 @@ mod tests {
         let mut host =
             harness_with_catalog(KnotDocumentSession::open(&original).unwrap(), Some(catalog));
         host.layout_at(900.0, 640.0);
-        let original_id = host.state().catalog_id.clone().expect("initial catalog id");
+        let original_id = host
+            .state()
+            .entry()
+            .catalog_id
+            .clone()
+            .expect("initial catalog id");
 
         host.update(|state| state.path = TextInput::new("path field edit"));
         host.after_dispatch();
         assert_eq!(
-            host.state().catalog_id.as_deref(),
+            host.state().entry().catalog_id.as_deref(),
             Some(original_id.as_str())
         );
 
         host.update(|state| state.path = TextInput::new(saved_as.to_string_lossy()));
         assert!(host.click_on(&Selector::role("button").containing("Save As")));
-        let saved_id = host.state().catalog_id.clone().expect("Save As catalog id");
+        let saved_id = host
+            .state()
+            .entry()
+            .catalog_id
+            .clone()
+            .expect("Save As catalog id");
         assert_ne!(saved_id, original_id);
         assert_eq!(
-            host.state().document.session().source_path(),
+            host.state().document().session().source_path(),
             Some(std::fs::canonicalize(&saved_as).unwrap().as_path())
         );
         assert!(saved_as.exists());
         assert!(
-            host.state().catalog_error.is_none(),
+            host.state().entry().catalog_error.is_none(),
             "successful in-root Save As must not report a catalog error"
         );
 
@@ -3223,8 +3387,8 @@ mod tests {
         assert!(text_content(&dom, workspace).contains(&format!("Document ID: {saved_id}")));
         drop(dom);
         assert!(host.click_on(&Selector::role("button").containing("New")));
-        assert!(host.state().catalog_id.is_none());
-        assert!(host.state().catalog_error.is_none());
+        assert!(host.state().entry().catalog_id.is_none());
+        assert!(host.state().entry().catalog_error.is_none());
     }
 
     #[test]
@@ -3242,22 +3406,23 @@ mod tests {
         );
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
                 .insert_str("draft");
             state.path = TextInput::new(outside.to_string_lossy());
         });
-        assert!(host.state().document.snapshot().dirty);
+        assert!(host.state().document().snapshot().dirty);
         host.layout_at(900.0, 640.0);
         request_native_close(&mut host);
         assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
         assert!(host.close_requested());
         assert_eq!(std::fs::read_to_string(&outside).unwrap(), "draft");
-        assert!(host.state().catalog_id.is_none());
+        assert!(host.state().entry().catalog_id.is_none());
         assert!(
             host.state()
+                .entry()
                 .catalog_error
                 .as_deref()
                 .is_some_and(|error| error.contains("outside catalog root"))
@@ -3281,21 +3446,21 @@ mod tests {
         std::fs::remove_file(&path).unwrap();
         let catalog = KnotFileCatalog::open(&root, catalog_root.join("catalog.redb")).unwrap();
         let mut host = harness_with_catalog(session, Some(catalog));
-        assert!(host.state().catalog_id.is_none());
-        assert!(host.state().catalog_error.is_some());
-        let before = host.state().document.snapshot();
+        assert!(host.state().entry().catalog_id.is_none());
+        assert!(host.state().entry().catalog_error.is_some());
+        let before = host.state().document().snapshot();
 
         host.update(|state| state.path = TextInput::new("temporary path edit"));
         host.after_dispatch();
-        assert!(host.state().catalog_id.is_none());
-        assert_eq!(host.state().document.snapshot(), before);
+        assert!(host.state().entry().catalog_id.is_none());
+        assert_eq!(host.state().document().snapshot(), before);
 
         std::fs::write(&path, "recover me\n").unwrap();
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Retry catalog")));
-        assert!(host.state().catalog_id.is_some());
-        assert!(host.state().catalog_error.is_none());
-        assert_eq!(host.state().document.snapshot(), before);
+        assert!(host.state().entry().catalog_id.is_some());
+        assert!(host.state().entry().catalog_error.is_none());
+        assert_eq!(host.state().document().snapshot(), before);
     }
 
     #[test]
@@ -3347,25 +3512,25 @@ mod tests {
         let (_temp, path, mut host) = review_fixture(source);
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
                 .insert_str("UNSAVED");
             state.path = TextInput::new("unrelated future target");
         });
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         assert!(before.dirty);
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         assert_eq!(
-            host.state().prepared_capture.as_ref().unwrap().body,
+            host.state().entry().prepared_capture.as_ref().unwrap().body,
             source.as_bytes()
         );
         assert_eq!(
-            host.state().prepared_capture_source_path.as_deref(),
+            host.state().entry().prepared_capture_source_path.as_deref(),
             Some(std::fs::canonicalize(&path).unwrap().as_path())
         );
-        assert_eq!(host.state().document.snapshot(), before);
+        assert_eq!(host.state().document().snapshot(), before);
         assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
         let rendered = review_text(&host);
         assert!(rendered.contains(source));
@@ -3373,52 +3538,56 @@ mod tests {
         assert!(rendered.contains("Unsaved changes are excluded"));
         assert!(rendered.contains("Reviewing does not store or share bytes."));
         host.update(|state| {
-            state.document.apply(KnotDocumentIntentV1::Save).unwrap();
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Save)
+                .unwrap();
         });
         host.after_dispatch();
         assert_eq!(
-            host.state().prepared_capture.as_ref().unwrap().body,
+            host.state().entry().prepared_capture.as_ref().unwrap().body,
             source.as_bytes()
         );
         assert!(review_text(&host).contains("Editor differs"));
         assert!(host.click_on(&Selector::role("button").containing("Refresh saved revision")));
         assert_eq!(
-            host.state().prepared_capture.as_ref().unwrap().body,
+            host.state().entry().prepared_capture.as_ref().unwrap().body,
             std::fs::read(&path).unwrap()
         );
         assert!(review_text(&host).contains("UNSAVED"));
         assert!(host.click_on(&Selector::role("button").containing("Discard saved revision")));
-        assert!(host.state().prepared_capture.is_none());
-        assert!(host.state().prepared_capture_error.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture_error.is_none());
     }
 
     #[test]
     fn saved_revision_failed_refresh_replaces_old_bytes_and_preserves_document() {
         let (_temp, path, mut host) = review_fixture("old reading");
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
-        let before = host.state().document.snapshot();
+        let before = host.state().document().snapshot();
         for bytes in [vec![0xff, 0xfe], b"larger than the cap".to_vec()] {
             std::fs::write(&path, &bytes).unwrap();
             host.update(|state| state.set_capture_limit(4));
             assert!(host.click_on(&Selector::role("button").containing("Refresh saved revision")));
-            assert!(host.state().prepared_capture.is_none());
-            assert!(host.state().prepared_capture_source_path.is_none());
-            assert!(host.state().prepared_capture_error.is_some());
+            assert!(host.state().entry().prepared_capture.is_none());
+            assert!(host.state().entry().prepared_capture_source_path.is_none());
+            assert!(host.state().entry().prepared_capture_error.is_some());
             assert!(!review_text(&host).contains("old reading"));
-            assert_eq!(host.state().document.snapshot(), before);
+            assert_eq!(host.state().document().snapshot(), before);
             assert_eq!(std::fs::read(&path).unwrap(), bytes);
         }
         std::fs::remove_file(&path).unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Refresh saved revision")));
-        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
         assert!(
             host.state()
+                .entry()
                 .prepared_capture_error
                 .as_deref()
                 .unwrap()
                 .contains("unavailable")
         );
-        assert_eq!(host.state().document.snapshot(), before);
+        assert_eq!(host.state().document().snapshot(), before);
     }
 
     #[test]
@@ -3428,22 +3597,22 @@ mod tests {
         let saved_as = path.with_file_name("copy.djot");
         host.update(|state| state.path = TextInput::new(saved_as.to_string_lossy()));
         assert!(host.click_on(&Selector::role("button").containing("Save As")));
-        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         host.update(|state| {
             state.path = TextInput::new(path.with_file_name("absent.djot").to_string_lossy())
         });
         assert!(host.click_on(&Selector::role("button").containing("Open")));
-        assert!(host.state().prepared_capture.is_some());
+        assert!(host.state().entry().prepared_capture.is_some());
         host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
         assert!(host.click_on(&Selector::role("button").containing("Open")));
-        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         assert!(host.click_on(&Selector::role("button").containing("Reload")));
-        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         assert!(host.click_on(&Selector::role("button").containing("New")));
-        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
         assert!(!host.click_on(&Selector::role("button").containing("Review saved revision")));
     }
 
@@ -3453,14 +3622,15 @@ mod tests {
         let moved = path.with_file_name("moved.djot");
         std::fs::rename(&path, &moved).unwrap();
         host.update(|state| {
-            let id = state.catalog_id.clone().unwrap();
+            let id = state.entry().catalog_id.clone().unwrap();
             state.catalog.as_mut().unwrap().rebind(&id, &moved).unwrap();
         });
         std::fs::write(&path, "replacement").unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
-        assert!(host.state().prepared_capture.is_none());
+        assert!(host.state().entry().prepared_capture.is_none());
         assert!(
             host.state()
+                .entry()
                 .prepared_capture_error
                 .as_deref()
                 .unwrap()
@@ -3554,7 +3724,7 @@ mod tests {
         let wake = host.wake();
         host.update(|state| {
             state.set_retention_targets(ports, wake);
-            state.prepared_capture = Some(reviewed);
+            state.entry_mut().prepared_capture = Some(reviewed);
             state.retention_selected = Some(0);
         });
         host
@@ -3588,7 +3758,7 @@ mod tests {
         host.update(|state| {
             state.retain_reviewed(duplicate_wake);
             state.retention_selected = Some(1);
-            state.prepared_capture = Some(revision("file:replacement", b"new review"));
+            state.entry_mut().prepared_capture = Some(revision("file:replacement", b"new review"));
         });
         assert_eq!(first.calls.load(Ordering::SeqCst), 1);
         assert!(
@@ -3602,7 +3772,7 @@ mod tests {
 
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .session_mut()
                 .input_mut()
                 .unwrap()
@@ -3637,7 +3807,12 @@ mod tests {
         );
         assert_eq!(host.state().retention_selected, Some(1));
         assert_eq!(
-            host.state().prepared_capture.as_ref().unwrap().document_id,
+            host.state()
+                .entry()
+                .prepared_capture
+                .as_ref()
+                .unwrap()
+                .document_id,
             "file:replacement"
         );
         assert_eq!(
@@ -3732,7 +3907,7 @@ mod tests {
         let wake = host.wake();
         host.update(|state| {
             state.set_retention_targets(vec![port.clone()], wake.clone());
-            state.prepared_capture = Some(reviewed);
+            state.entry_mut().prepared_capture = Some(reviewed);
             state.retain_reviewed(wake);
         });
         assert!(host.state().retention_selected.is_none());
@@ -3802,7 +3977,7 @@ mod tests {
         let wake = host.wake();
         host.update(|state| {
             state.set_retention_targets(vec![], wake);
-            state.prepared_capture = Some(revision("file:manual", b"saved"));
+            state.entry_mut().prepared_capture = Some(revision("file:manual", b"saved"));
         });
         assert!(!host.click_on(&Selector::role("button").containing("Retain reviewed revision")));
         assert!(host.state().retention_busy.is_none());

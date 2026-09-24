@@ -131,7 +131,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     std::fs::write(&path, later_disk).unwrap();
     harness.update(|state| {
         state
-            .document
+            .document_mut()
             .session_mut()
             .input_mut()
             .unwrap()
@@ -193,7 +193,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     assert!(retry_text.contains("Desktop receipt renewed"));
     assert!(retry_text.contains("already retained"));
     assert_eq!(std::fs::read(&path).unwrap(), later_disk);
-    assert!(harness.state().document.snapshot().dirty);
+    assert!(harness.state().document().snapshot().dirty);
 
     drop(harness);
     drop(capture);

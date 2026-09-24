@@ -302,13 +302,13 @@ mod tests {
         assert!(harness.focus().is_some());
         harness.key_injected("Body");
         harness.press_key(&KeyPress::named(NamedKey::Enter));
-        assert!(harness.state().document.snapshot().dirty);
+        assert!(harness.state().document().snapshot().dirty);
         harness.set_modifiers(Modifiers {
             ctrl: true,
             ..Modifiers::NONE
         });
         harness.key_char("s");
-        assert!(!harness.state().document.snapshot().dirty);
+        assert!(!harness.state().document().snapshot().dirty);
         harness.request_close(CloseRequest::Native);
         assert!(harness.close_requested());
         drop(harness);

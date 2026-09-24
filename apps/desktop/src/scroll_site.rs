@@ -502,11 +502,11 @@ impl DesktopState {
     /// Whether fold overrides exist that the current source has not been
     /// reconciled against. With no overrides there is nothing to drop.
     pub(crate) fn micron_folds_need_sync(&self) -> bool {
-        let folds = &self.micron_folds;
+        let folds = &self.entry().micron_folds;
         if folds.folds == FoldState::default() {
             return false;
         }
-        let current = self.document.snapshot();
+        let current = self.document().snapshot();
         folds.reconciled.as_ref().is_none_or(|(address, text)| {
             current.format != knot_document::DocumentFormat::Micron
                 || *address != current.source.address
@@ -519,8 +519,8 @@ impl DesktopState {
     /// present (decisions 10 and 11), a new address or a non-Micron document
     /// starts fresh.
     pub(crate) fn sync_micron_folds(&mut self) {
-        let current = self.document.snapshot();
-        let folds = &mut self.micron_folds;
+        let current = self.document().snapshot();
+        let folds = &mut self.entry_mut().micron_folds;
         if current.format != knot_document::DocumentFormat::Micron {
             folds.folds = FoldState::default();
             folds.reconciled = None;
@@ -543,7 +543,7 @@ impl DesktopState {
     /// Open or close the preview fold whose heading key is `key`.
     fn toggle_micron_fold(&mut self, key: &FoldKey) {
         self.sync_micron_folds();
-        let current = self.document.snapshot();
+        let current = self.document().snapshot();
         let Ok(document) = lower_micron(&current.source.address, &current.text) else {
             return;
         };
@@ -554,7 +554,7 @@ impl DesktopState {
             .flatten();
         match fold {
             Some(fold) => {
-                self.micron_folds.folds.toggle(navigation, fold);
+                self.entry_mut().micron_folds.folds.toggle(navigation, fold);
             },
             None => {
                 self.message = Some("That heading is no longer in the current source.".into());
@@ -569,7 +569,7 @@ impl DesktopState {
         let Some(block) = target.block else {
             return;
         };
-        let current = self.document.snapshot();
+        let current = self.document().snapshot();
         if current.format != knot_document::DocumentFormat::Micron {
             return;
         }
@@ -581,12 +581,15 @@ impl DesktopState {
         if !navigation.is_current(&document.blocks) || block >= document.blocks.len() {
             return;
         }
-        self.micron_folds.folds.open_ancestors(navigation, block);
-        self.micron_folds.jump = Some(target.clone());
+        self.entry_mut()
+            .micron_folds
+            .folds
+            .open_ancestors(navigation, block);
+        self.entry_mut().micron_folds.jump = Some(target.clone());
     }
 
     fn open_micron_form(&mut self) {
-        let source = self.document.snapshot();
+        let source = self.document().snapshot();
         if source.format != knot_document::DocumentFormat::Micron {
             self.message = Some("Micron forms are available only for a Micron document.".into());
             return;
@@ -606,7 +609,7 @@ impl DesktopState {
     }
 
     fn prepare_micron_form(&mut self, action: usize) {
-        let source = self.document.snapshot();
+        let source = self.document().snapshot();
         match self
             .scroll
             .prepare_micron_form(&source.text, &source.source.address, action)
@@ -643,7 +646,7 @@ impl DesktopState {
                 return;
             },
         };
-        let current_document = self.document.snapshot();
+        let current_document = self.document().snapshot();
         let Some(editor) = self.scroll.micron_form.as_mut() else {
             self.message = Some("Open and prepare a Micron form first.".into());
             return;
@@ -725,11 +728,11 @@ impl DesktopState {
             self.message = Some(format!("Titan upload is unavailable: {error}"));
             return;
         }
-        if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
             self.message = Some("Save source and metadata before preparing Titan upload.".into());
             return;
         }
-        let Some(path) = self.document.session().source_path() else {
+        let Some(path) = self.document().session().source_path() else {
             self.message = Some("Save the source file before preparing Titan upload.".into());
             return;
         };
@@ -799,7 +802,7 @@ impl DesktopState {
         });
     }
     fn enter_site(&mut self, create: bool) {
-        if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
             self.message =
                 Some("Save or discard document and metadata changes before changing sites.".into());
             return;
@@ -827,7 +830,7 @@ impl DesktopState {
     }
 
     fn close_site(&mut self) {
-        if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
             self.message = Some(
                 "Save or discard document and metadata changes before closing this site.".into(),
             );
@@ -856,7 +859,7 @@ impl DesktopState {
     }
 
     fn publish_site(&mut self) {
-        if self.document.snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
             self.message = Some("Save source and metadata before publishing locally.".into());
             return;
         }
@@ -1329,12 +1332,12 @@ fn preview_block_node<D: LayoutDom>(dom: &D, node: D::NodeId, index: &str) -> Op
 pub(crate) fn scroll_to_micron_jump(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
-    if ctx.runner.state().micron_folds.jump.is_none() {
+    if ctx.runner.state().entry().micron_folds.jump.is_none() {
         return;
     }
     let mut jump = None;
     ctx.runner
-        .update(|state| jump = state.micron_folds.jump.take());
+        .update(|state| jump = state.entry_mut().micron_folds.jump.take());
     let Some(block) = jump.and_then(|target| target.block) else {
         return;
     };
@@ -1758,7 +1761,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
 }
 
 pub fn preview(state: &DesktopState) -> DesktopView {
-    let source = state.document.snapshot();
+    let source = state.document().snapshot();
     if !matches!(
         source.format,
         knot_document::DocumentFormat::Scroll
@@ -1797,7 +1800,7 @@ pub fn preview(state: &DesktopState) -> DesktopView {
                 document_blocks(
                     &document,
                     (source.format == knot_document::DocumentFormat::Micron)
-                        .then_some(&state.micron_folds),
+                        .then_some(&state.entry().micron_folds),
                 ),
                 span(if document.diagnostics.is_empty() {
                     String::new()
@@ -1893,7 +1896,7 @@ mod tests {
         state.scroll.folder = TextInput::new(root.to_string_lossy());
         state.enter_site(true);
         assert_eq!(
-            state.document.snapshot().format,
+            state.document().snapshot().format,
             knot_document::DocumentFormat::Scroll
         );
         assert_eq!(state.scroll.page.as_deref(), Some("index.scroll"));
@@ -1913,14 +1916,17 @@ mod tests {
         assert!(state.scroll.server.is_some());
         assert_eq!(state.scroll.publication_number, 1);
         state
-            .document
+            .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
                 "Unsaved ".into(),
             )))
             .unwrap();
         state.publish_site();
         assert_eq!(state.scroll.publication_number, 1);
-        state.document.apply(KnotDocumentIntentV1::Save).unwrap();
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Save)
+            .unwrap();
         assert_eq!(state.scroll.publication_number, 1);
         state.publish_site();
         assert_eq!(state.scroll.publication_number, 2);
@@ -1941,7 +1947,7 @@ mod tests {
         state.scroll.folder = TextInput::new(temp.path().join("gemini").to_string_lossy());
         state.enter_site(true);
         assert_eq!(
-            state.document.snapshot().format,
+            state.document().snapshot().format,
             knot_document::DocumentFormat::Gemtext
         );
         assert_eq!(state.scroll.page.as_deref(), Some("index.gmi"));
@@ -1950,12 +1956,15 @@ mod tests {
             SiteFormat::Gemini
         );
 
-        state.document.apply(KnotDocumentIntentV1::Save).unwrap();
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Save)
+            .unwrap();
         state.scroll.format = SiteFormat::Micron;
         state.scroll.folder = TextInput::new(temp.path().join("micron").to_string_lossy());
         state.enter_site(true);
         assert_eq!(
-            state.document.snapshot().format,
+            state.document().snapshot().format,
             knot_document::DocumentFormat::Micron
         );
         assert_eq!(state.scroll.page.as_deref(), Some("index.mu"));
@@ -1975,11 +1984,11 @@ mod tests {
         state.scroll.folder = TextInput::new(temp.path().join("micron").to_string_lossy());
         state.enter_site(true);
         state
-            .document
+            .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
             .unwrap();
         state
-            .document
+            .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
                 ">Heading\n---\nplain\n`[Local`:/page/next.mu]\n".into(),
             )))
@@ -2130,7 +2139,7 @@ mod tests {
             WindowCommands::new(),
         );
         state.scroll.preview_visible = true;
-        let address = state.document.snapshot().source.address;
+        let address = state.document().snapshot().source.address;
         state
             .scroll
             .open_micron_form(source.into(), address)
@@ -2263,8 +2272,8 @@ mod tests {
                     && style.contains("padding-inline-start:calc(1 *"))
         );
         assert!(styled_button);
-        assert_eq!(host.state().document.snapshot().text, source);
-        assert!(!host.state().document.snapshot().dirty);
+        assert_eq!(host.state().document().snapshot().text, source);
+        assert!(!host.state().document().snapshot().dirty);
     }
 
     type DesktopHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
@@ -2425,7 +2434,7 @@ mod tests {
 
     fn authored(host: &DesktopHarness) -> Authored {
         let state = host.state();
-        let snapshot = state.document.snapshot();
+        let snapshot = state.document().snapshot();
         let site = state.scroll.site.as_ref().expect("a site-backed harness");
         Authored {
             saved_page: std::fs::read(site.page_path("about.mu").unwrap()).unwrap(),
@@ -2443,7 +2452,7 @@ mod tests {
         source: &str,
         anchor: &str,
     ) -> genet_scripted_dom::NodeId {
-        let address = host.state().document.snapshot().source.address;
+        let address = host.state().document().snapshot().source.address;
         let document = lower_micron(&address, source).unwrap();
         let block = document
             .navigation
@@ -2511,7 +2520,7 @@ mod tests {
         let target = anchor_block(&host, &source, "hidden-target");
         at_viewport_top(&host, target, "#hidden-target");
         assert!(
-            host.state().micron_folds.jump.is_none(),
+            host.state().entry().micron_folds.jump.is_none(),
             "the jump is spent"
         );
 
@@ -2567,12 +2576,16 @@ mod tests {
         let scrolled = host.viewport_scroll();
         assert!(scrolled.1 > 0.0, "a starting offset the jump could disturb");
         let text = preview_text(&host);
-        let folds = host.state().micron_folds.folds.clone();
+        let folds = host.state().entry().micron_folds.folds.clone();
 
         click_in_page_link(&mut host, "jump to a missing anchor");
         assert_eq!(host.viewport_scroll(), scrolled, "no scroll");
-        assert_eq!(host.state().micron_folds.folds, folds, "no fold change");
-        assert!(host.state().micron_folds.jump.is_none());
+        assert_eq!(
+            host.state().entry().micron_folds.folds,
+            folds,
+            "no fold change"
+        );
+        assert!(host.state().entry().micron_folds.jump.is_none());
         assert_eq!(preview_text(&host), text);
         assert_eq!(authored(&host), before);
 
@@ -2596,7 +2609,7 @@ mod tests {
             bottom,
             "`#` below every heading is inert"
         );
-        assert!(host.state().micron_folds.jump.is_none());
+        assert!(host.state().entry().micron_folds.jump.is_none());
         assert_eq!(authored(&host), before);
         host.wheel(0.0, -100_000.0);
         click_in_page_link(&mut host, "next heading from the top");
@@ -2612,7 +2625,7 @@ mod tests {
         let (_temp, mut host) = micron_site_preview_harness(&source);
         click_in_page_link(&mut host, "jump to a missing anchor");
         assert_eq!(
-            host.state().micron_folds.folds,
+            host.state().entry().micron_folds.folds,
             FoldState::default(),
             "no fold opens"
         );
@@ -2648,8 +2661,8 @@ mod tests {
         assert_eq!(preview_text(&host), preview_text(&clicked));
         assert_eq!(host.viewport_scroll(), clicked.viewport_scroll());
         assert_eq!(
-            host.state().micron_folds.folds,
-            clicked.state().micron_folds.folds
+            host.state().entry().micron_folds.folds,
+            clicked.state().entry().micron_folds.folds
         );
         assert_eq!(authored(&host), before);
     }
@@ -2668,11 +2681,11 @@ mod tests {
     fn replace_source(host: &mut DesktopHarness, text: &str) {
         host.update(|state| {
             state
-                .document
+                .document_mut()
                 .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
                 .unwrap();
             state
-                .document
+                .document_mut()
                 .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(text.into())))
                 .unwrap();
         });
@@ -2737,7 +2750,7 @@ mod tests {
     fn micron_preview_folds_toggle_by_click_and_keyboard_without_writing_source() {
         let (temp, mut host) = micron_preview_harness(PROBE_08);
         let saved = std::fs::read(temp.path().join("page.mu")).unwrap();
-        let address = host.state().document.snapshot().source.address;
+        let address = host.state().document().snapshot().source.address;
         let text = preview_text(&host);
         assert!(!text.contains("MARKER ENTER BODY") && !text.contains("MARKER SPACE BODY"));
         assert!(text.contains("MARKER ALREADY OPEN BODY"));
@@ -2766,7 +2779,7 @@ mod tests {
         host.press_key(&KeyPress::named(NamedKey::Space));
         assert!(preview_text(&host).contains("MARKER SPACE BODY"));
 
-        let snapshot = host.state().document.snapshot();
+        let snapshot = host.state().document().snapshot();
         assert_eq!(snapshot.text, PROBE_08, "toggling never writes source");
         assert!(!snapshot.dirty);
         assert_eq!(snapshot.source.address, address);
@@ -2816,7 +2829,7 @@ mod tests {
             !preview_text(&host).contains("Closed fold body."),
             "a flipped marker drops its fold state"
         );
-        assert_eq!(host.state().document.snapshot().text, unrelated);
+        assert_eq!(host.state().document().snapshot().text, unrelated);
     }
 
     #[test]
@@ -3123,7 +3136,7 @@ mod tests {
             WindowCommands::new(),
         );
         state.scroll.preview_visible = true;
-        let address = state.document.snapshot().source.address;
+        let address = state.document().snapshot().source.address;
         state
             .scroll
             .open_micron_form(source.clone(), address)
@@ -3179,7 +3192,7 @@ mod tests {
         host.click_at(x + 1.0, y + 24.0);
         host.key_injected("署名");
         assert_eq!(host.state().scroll.submission_body.text(), "署名body");
-        assert_eq!(host.state().document.snapshot().text, "document source");
+        assert_eq!(host.state().document().snapshot().text, "document source");
     }
 
     #[test]
@@ -3194,11 +3207,11 @@ mod tests {
         state.scroll.folder = TextInput::new(root.to_string_lossy());
         state.enter_site(true);
         state
-            .document
+            .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
             .unwrap();
         state
-            .document
+            .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
                 "=: spartan://localhost:65025/upload Submit locally\n".into(),
             )))

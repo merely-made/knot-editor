@@ -283,13 +283,13 @@ fn diagnostic_text(diagnostic: &DocumentDiagnostic) -> String {
 pub fn view(state: &DesktopState) -> DesktopView {
     if !state.document_preview_visible
         || !matches!(
-            state.document.snapshot().format,
+            state.document().snapshot().format,
             knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
         )
     {
         return Box::new(el("div", ()));
     }
-    let preview: DesktopView = match state.document.session().preview_snapshot() {
+    let preview: DesktopView = match state.document().session().preview_snapshot() {
         Ok(snapshot) => {
             let address: Arc<str> = Arc::from(snapshot.address.clone());
             let source_text: Arc<str> = Arc::from(snapshot.source_text.clone());

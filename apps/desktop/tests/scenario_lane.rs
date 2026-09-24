@@ -65,5 +65,8 @@ fn the_lane_drives_the_desktop_by_role_and_label() {
     }
     let text = std::fs::read_to_string(&receipt).expect("the lane wrote its receipt");
     assert!(text.starts_with("RESULT ok"), "{text}");
-    assert!(h.close_requested(), "a finished lane asks the host to close");
+    assert!(
+        h.close_requested(),
+        "a finished lane asks the host to close"
+    );
 }

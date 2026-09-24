@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::workspace::{DesktopState, DesktopView, PendingAction};
+use crate::workspace::{DesktopState, DesktopView};
 use cambium::{
     El, GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button,
     button_with, el, lens, on_key, span, text_field_typed, textarea_typed,
@@ -823,7 +823,7 @@ impl DesktopState {
                 self.scroll.page = None;
                 self.scroll.site = Some(site);
                 self.scroll.format = self.scroll.site.as_ref().unwrap().config.format;
-                self.request(PendingAction::Open(path));
+                self.open_path(path);
             },
             Err(error) => self.message = Some(format!("Site: {error}")),
         }
@@ -853,7 +853,7 @@ impl DesktopState {
             .ok_or("Open a site first".to_owned())
             .and_then(|site| site.page_path(name));
         match path {
-            Ok(path) => self.request(PendingAction::Open(path)),
+            Ok(path) => self.open_path(path),
             Err(error) => self.message = Some(error),
         }
     }

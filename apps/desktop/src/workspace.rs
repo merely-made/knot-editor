@@ -5,10 +5,11 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::appearance::Appearance;
-use crate::documents::{DocIdentity, DocKey, DocumentWorkspace};
+use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, TileRole};
 use crate::preferences::PreferencesStore;
 use cambium::{
-    AnyView, GenetCtx, GenetElement, Keyed, TextInput, button, el, lens, span, text_field_typed,
+    AnyView, GenetCtx, GenetElement, Keyed, Slot, TabMark, TextInput, WorkspaceModel, button, el,
+    lens, span, text_field_typed, workspace_view_with_marks,
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
@@ -28,6 +29,7 @@ use std::sync::{
     Arc,
     mpsc::{self, Receiver, TryRecvError},
 };
+use workbench::{TileEvent, WorkspaceEvent};
 
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 
@@ -99,9 +101,12 @@ pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, 
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PendingAction {
-    Close,
-    New,
-    Open(PathBuf),
+    /// Closing the window while documents have unsaved changes: one prompt
+    /// for all of them.
+    Quit,
+    /// Closing one document's tab over its unsaved changes.
+    CloseDocument(DocKey),
+    /// Reloading the focused document over its unsaved changes.
     Reload,
 }
 
@@ -345,14 +350,20 @@ impl DesktopState {
         self.docs.open(identity, title, entry).0
     }
 
-    /// Replace the focused document with `entry` in the same place: the
-    /// single-document lifecycle of New, Open and Reload, kept until tabs add
-    /// documents instead.
-    fn replace_focused(&mut self, entry: DocumentEntry) {
-        if let Some(tile) = self.docs.focused().and_then(|key| self.docs.tile_of(key)) {
-            self.docs.close(tile);
+    /// A document's surface by key, or the placeholder's once that document
+    /// has closed: a tile's editor edits its own document, focused or not.
+    pub(crate) fn surface_for(&self, key: DocKey) -> &KnotDocumentSurfaceState {
+        self.docs
+            .doc(key)
+            .map_or(&self.placeholder.document, |entry| &entry.document)
+    }
+
+    pub(crate) fn surface_mut_for(&mut self, key: DocKey) -> &mut KnotDocumentSurfaceState {
+        if self.docs.doc(key).is_some() {
+            &mut self.docs.doc_mut(key).expect("open entry").document
+        } else {
+            &mut self.placeholder.document
         }
-        self.open_entry(entry);
     }
 
     pub fn set_retention_targets(&mut self, targets: Vec<Arc<dyn KnotRetainPort>>, wake: HostWake) {
@@ -1022,40 +1033,8 @@ impl DesktopState {
 
     fn perform(&mut self, action: PendingAction) {
         match action {
-            PendingAction::Close => self.window.close(),
-            PendingAction::New => {
-                self.replace_focused(DocumentEntry::new(KnotDocumentSession::scratch(
-                    SCRATCH_ADDRESS,
-                    "",
-                )));
-                self.path = TextInput::default();
-                self.scroll.sync_page(None);
-                self.clear_comparison();
-                self.clear_prepared_capture();
-                self.clear_outline();
-                self.clear_readings();
-                self.clear_folding();
-                self.sync_outline_snapshot();
-                self.sync_catalog();
-                self.message = Some("New untitled Djot document.".to_owned());
-            },
-            PendingAction::Open(path) => match KnotDocumentSession::open(&path) {
-                Ok(session) => {
-                    self.path = TextInput::new(path.to_string_lossy().into_owned());
-                    self.replace_focused(DocumentEntry::new(session));
-                    let resolved = std::fs::canonicalize(&path).ok();
-                    self.scroll.sync_page(resolved.as_deref());
-                    self.clear_comparison();
-                    self.clear_prepared_capture();
-                    self.clear_outline();
-                    self.clear_readings();
-                    self.clear_folding();
-                    self.sync_outline_snapshot();
-                    self.sync_catalog();
-                    self.message = Some(format!("Opened {}.", path.display()));
-                },
-                Err(error) => self.message = Some(format!("Open failed: {error}")),
-            },
+            PendingAction::Quit => self.window.close(),
+            PendingAction::CloseDocument(key) => self.close_document(key),
             PendingAction::Reload => {
                 match self.document_mut().apply(KnotDocumentIntentV1::Reload) {
                     Ok(_) => {
@@ -1074,18 +1053,69 @@ impl DesktopState {
         }
     }
 
+    /// Readings and bindings follow the focused document: bring them up to
+    /// date after the focus moves.
+    fn after_focus_change(&mut self) {
+        self.clear_folding();
+        self.sync_outline_snapshot();
+        self.sync_catalog();
+    }
+
     fn new_document(&mut self) {
-        self.request(PendingAction::New);
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before changing documents.".into());
+            return;
+        }
+        self.open_entry(DocumentEntry::new(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "",
+        )));
+        self.path = TextInput::default();
+        self.scroll.sync_page(None);
+        self.after_focus_change();
+        self.message = Some("New untitled Djot document.".to_owned());
     }
 
     fn open_document(&mut self) {
         match self.path_value() {
-            Ok(path) => self.request(PendingAction::Open(path)),
+            Ok(path) => self.open_path(path),
             Err(error) => self.message = Some(error),
         }
     }
 
+    /// Open `path` in a new tab, or switch to the tab already showing it.
+    pub(crate) fn open_path(&mut self, path: PathBuf) {
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before changing documents.".into());
+            return;
+        }
+        let resolved = std::fs::canonicalize(&path).ok();
+        let identity = DocIdentity::Path(resolved.clone().unwrap_or_else(|| path.clone()));
+        if let Some(key) = self.docs.find(&identity) {
+            self.docs.focus(key);
+            self.scroll.sync_page(resolved.as_deref());
+            self.after_focus_change();
+            let label = self.document().snapshot().display_label;
+            self.message = Some(format!("{label} is already open."));
+            return;
+        }
+        match KnotDocumentSession::open(&path) {
+            Ok(session) => {
+                self.path = TextInput::new(path.to_string_lossy().into_owned());
+                self.open_entry(DocumentEntry::new(session));
+                self.scroll.sync_page(resolved.as_deref());
+                self.after_focus_change();
+                self.message = Some(format!("Opened {}.", path.display()));
+            },
+            Err(error) => self.message = Some(format!("Open failed: {error}")),
+        }
+    }
+
     fn save(&mut self) {
+        if self.focused_key().is_none() {
+            self.message = Some("No document is open.".to_owned());
+            return;
+        }
         match self.document_mut().apply(KnotDocumentIntentV1::Save) {
             Ok(_) => {
                 self.sync_catalog();
@@ -1100,6 +1130,10 @@ impl DesktopState {
             self.message = Some("Save or discard metadata edits before Save As.".into());
             return false;
         }
+        let Some(key) = self.focused_key() else {
+            self.message = Some("No document is open.".to_owned());
+            return false;
+        };
         let path = match self.path_value() {
             Ok(path) => path,
             Err(error) => {
@@ -1120,6 +1154,9 @@ impl DesktopState {
                 self.sync_outline_snapshot();
                 self.sync_catalog();
                 let resolved = std::fs::canonicalize(&path).ok();
+                let (title, identity) = self.entry().tab();
+                self.docs.set_identity(key, identity);
+                self.docs.set_title(key, title);
                 self.scroll.sync_page(resolved.as_deref());
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
@@ -1132,7 +1169,41 @@ impl DesktopState {
     }
 
     fn reload(&mut self) {
+        if self.focused_key().is_none() {
+            self.message = Some("No document is open.".to_owned());
+            return;
+        }
         self.request(PendingAction::Reload);
+    }
+
+    /// Save the focused document for a pending action: Save As from the path
+    /// field for scratch, an ordinary save otherwise.
+    fn save_for_pending(&mut self) -> bool {
+        if self.document().snapshot().write_posture
+            == knot_document::KnotDocumentWritePostureV1::Scratch
+        {
+            self.save_as()
+        } else {
+            match self.document_mut().apply(KnotDocumentIntentV1::Save) {
+                Ok(_) => {
+                    self.sync_catalog();
+                    true
+                },
+                Err(error) => {
+                    self.message = Some(intent_error_label(error));
+                    false
+                },
+            }
+        }
+    }
+
+    /// Documents with unsaved changes, in the order they were opened.
+    pub(crate) fn dirty_documents(&self) -> Vec<DocKey> {
+        self.docs
+            .docs()
+            .filter(|(_, entry)| entry.document.snapshot().dirty)
+            .map(|(key, _)| key)
+            .collect()
     }
 
     fn confirm_save(&mut self) {
@@ -1144,44 +1215,51 @@ impl DesktopState {
             return;
         };
         match action {
-            PendingAction::Close => {
-                if self.document().snapshot().write_posture
-                    == knot_document::KnotDocumentWritePostureV1::Scratch
-                {
-                    if self.save_as() {
-                        self.window.close();
-                    } else {
-                        self.pending = Some(PendingAction::Close);
+            PendingAction::Quit => {
+                // Save every file-backed document. A scratch document or a
+                // refused save stays listed, and the window stays open.
+                let focused = self.focused_key();
+                let mut failures = Vec::new();
+                for key in self.dirty_documents() {
+                    self.docs.focus(key);
+                    if self.document().snapshot().write_posture
+                        == knot_document::KnotDocumentWritePostureV1::Scratch
+                    {
+                        continue;
                     }
-                } else if let Err(error) = self.document_mut().apply(KnotDocumentIntentV1::Save) {
-                    self.message = Some(intent_error_label(error));
-                    self.pending = Some(PendingAction::Close);
-                } else {
-                    self.sync_catalog();
+                    match self.document_mut().apply(KnotDocumentIntentV1::Save) {
+                        Ok(_) => self.sync_catalog(),
+                        Err(error) => failures.push(intent_error_label(error)),
+                    }
+                }
+                if let Some(key) = focused {
+                    self.docs.focus(key);
+                }
+                if self.dirty_documents().is_empty() {
                     self.window.close();
+                } else {
+                    self.pending = Some(PendingAction::Quit);
+                    self.message = Some(match failures.last() {
+                        Some(error) => error.clone(),
+                        None => {
+                            "Scratch documents need Save As or a discard before closing.".to_owned()
+                        },
+                    });
                 }
             },
-            other => {
-                let saved = if self.document().snapshot().write_posture
-                    == knot_document::KnotDocumentWritePostureV1::Scratch
-                {
-                    self.save_as()
+            PendingAction::CloseDocument(key) => {
+                self.docs.focus(key);
+                if self.save_for_pending() {
+                    self.close_document(key);
                 } else {
-                    match self.document_mut().apply(KnotDocumentIntentV1::Save) {
-                        Ok(_) => {
-                            self.sync_catalog();
-                            true
-                        },
-                        Err(error) => {
-                            self.message = Some(intent_error_label(error));
-                            false
-                        },
-                    }
-                };
-                if saved {
-                    self.perform(other);
+                    self.pending = Some(PendingAction::CloseDocument(key));
+                }
+            },
+            PendingAction::Reload => {
+                if self.save_for_pending() {
+                    self.perform(PendingAction::Reload);
                 } else {
-                    self.pending = Some(other);
+                    self.pending = Some(PendingAction::Reload);
                 }
             },
         }
@@ -1195,7 +1273,7 @@ impl DesktopState {
         let Some(action) = self.pending.take() else {
             return;
         };
-        if matches!(action, PendingAction::Close) {
+        if matches!(action, PendingAction::Quit) {
             self.discard_close = true;
             self.window.close();
         } else {
@@ -1203,8 +1281,89 @@ impl DesktopState {
         }
     }
 
+    /// Leave the quit prompt and show the first document it listed.
+    fn review_pending(&mut self) {
+        self.pending = None;
+        if let Some(key) = self.dirty_documents().first().copied() {
+            self.docs.focus(key);
+            self.after_focus_change();
+        }
+    }
+
     fn cancel_pending(&mut self) {
         self.pending = None;
+    }
+
+    /// Apply a gesture from the frame: activation moves the focus, a close
+    /// preflights its document, a divider move applies. Drags between stacks
+    /// are declined until the workspace adopts them.
+    fn on_workspace_event(&mut self, event: WorkspaceEvent) {
+        match &event {
+            WorkspaceEvent::Tile(TileEvent::Activated(tile)) => {
+                let before = self.focused_key();
+                self.docs.activate(*tile);
+                if self.focused_key() != before {
+                    self.after_focus_change();
+                }
+            },
+            WorkspaceEvent::Tile(TileEvent::Closed(tile)) => self.request_close_tile(*tile),
+            WorkspaceEvent::Tile(TileEvent::DividerMoved { .. }) => {
+                self.docs.apply_layout(&event);
+            },
+            _ => {
+                self.message = Some("Moving tabs between stacks is not available yet.".to_owned());
+            },
+        }
+    }
+
+    fn request_close_tile(&mut self, tile: workbench::TileId) {
+        let Some(TileRole::Document(key)) = self.docs.role(tile).cloned() else {
+            self.docs.close(tile);
+            return;
+        };
+        if self
+            .docs
+            .doc(key)
+            .is_some_and(|entry| entry.document.snapshot().dirty)
+        {
+            self.docs.focus(key);
+            self.after_focus_change();
+            self.pending = Some(PendingAction::CloseDocument(key));
+        } else {
+            self.close_document(key);
+        }
+    }
+
+    /// Close a document's tab without asking; its entry goes with it.
+    fn close_document(&mut self, key: DocKey) {
+        let retaining = self
+            .retention_busy
+            .as_ref()
+            .zip(
+                self.docs
+                    .doc(key)
+                    .and_then(|entry| entry.catalog_id.as_ref()),
+            )
+            .is_some_and(|(busy, id)| &busy.document_id == id);
+        if retaining {
+            self.message =
+                Some("Wait for retention to finish before closing this document.".to_owned());
+            return;
+        }
+        let label = self
+            .docs
+            .doc(key)
+            .map(|entry| entry.document.snapshot().display_label);
+        let before = self.focused_key();
+        if let Some(tile) = self.docs.tile_of(key) {
+            self.docs.close(tile);
+        }
+        if self.focused_key() != before {
+            self.after_focus_change();
+        }
+        if let Some(label) = label {
+            self.message = Some(format!("Closed {label}."));
+        }
     }
 
     fn close_request(&mut self, request: CloseRequest) -> CloseDisposition {
@@ -1222,8 +1381,8 @@ impl DesktopState {
             self.discard_close = false;
             return CloseDisposition::Exit;
         }
-        if self.dirty() {
-            self.pending = Some(PendingAction::Close);
+        if !self.dirty_documents().is_empty() {
+            self.pending = Some(PendingAction::Quit);
             return CloseDisposition::KeepVisible;
         }
         if matches!(request, CloseRequest::Native | CloseRequest::Command) {
@@ -1248,167 +1407,6 @@ fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
 }
 
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
-    let outline_panel: DesktopView = if !state.outline_visible {
-        Box::new(el("div", ()))
-    } else if state.document().snapshot().format.native_source() {
-        Box::new(span("A source outline is not available for this native protocol format yet. Use its preview when available.").attr("class", "knot-outline"))
-    } else if let Some(snapshot) = &state.entry().outline_snapshot {
-        let rows = snapshot
-            .items
-            .iter()
-            .enumerate()
-            .map(|(index, item)| {
-                let label = item.label.clone();
-                let level = item.level;
-                let key = item.start;
-                let accessible_label = format!("Heading level {level}: {label}");
-                (
-                    key,
-                    button(label, move |state: &mut DesktopState, _| {
-                        state.select_outline_item(index);
-                    })
-                    .attr("class", "knot-outline-row")
-                    .attr("data-outline-index", index.to_string())
-                    .attr("data-outline-level", level.to_string())
-                    .attr("aria-label", accessible_label),
-                )
-            })
-            .collect::<Vec<_>>();
-        let rows_view = if rows.is_empty() {
-            Box::new(span("No headings in this document.")) as DesktopView
-        } else {
-            Box::new(el("div", Keyed::new(rows)).attr("class", "knot-outline-rows")) as DesktopView
-        };
-        let error = state.entry().outline_error.as_ref().map(|error| {
-            span(format!("Outline error: {error}")).attr("class", "knot-outline-error")
-        });
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Outline"),
-                            button("Hide Outline", |state: &mut DesktopState, _| {
-                                state.toggle_outline();
-                            }),
-                        ),
-                    )
-                    .attr("class", "knot-outline-header"),
-                    error,
-                    rows_view,
-                ),
-            )
-            .attr("class", "knot-outline")
-            .attr("role", "region")
-            .attr("aria-label", "Document outline"),
-        )
-    } else {
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Outline"),
-                            button("Hide Outline", |state: &mut DesktopState, _| {
-                                state.toggle_outline();
-                            }),
-                        ),
-                    )
-                    .attr("class", "knot-outline-header"),
-                    span("Outline is updating; try again shortly."),
-                ),
-            )
-            .attr("class", "knot-outline")
-            .attr("role", "region")
-            .attr("aria-label", "Document outline"),
-        )
-    };
-    let comparison_panel: DesktopView = if let Some(error) = &state.entry().comparison_error {
-        Box::new(
-            el(
-                "section",
-                (
-                    span("Comparison unavailable"),
-                    span(error.clone()).attr("class", "knot-comparison-error"),
-                    span("Disk text could not be read; refresh to try again."),
-                    button("Refresh comparison", |state: &mut DesktopState, _| {
-                        state.compare_disk();
-                    }),
-                    button("Hide comparison", |state: &mut DesktopState, _| {
-                        state.hide_comparison();
-                    }),
-                ),
-            )
-            .attr("class", "knot-comparison knot-comparison-error-panel")
-            .attr("role", "region")
-            .attr("aria-label", "Disk comparison error"),
-        )
-    } else if let Some(comparison) = &state.entry().comparison {
-        let snapshot = state.document().snapshot();
-        let stale = comparison.buffer_text != snapshot.text
-            || comparison.address != snapshot.source.address;
-        let status = if stale {
-            "Snapshot: stale because the source or address changed since comparison"
-        } else {
-            "Buffer snapshot matches current source"
-        };
-        let disk_status = if comparison.disk_changed_since_baseline {
-            "Disk changed since the saved baseline at comparison: yes"
-        } else {
-            "Disk changed since the saved baseline at comparison: no"
-        };
-        Box::new(
-            el(
-                "section",
-                (
-                    el("header", (span("Disk comparison"), span(status)))
-                        .attr("class", "knot-comparison-header"),
-                    span(format!("Compared address: {}", comparison.address)),
-                    span(disk_status),
-                    span("Disk text was read when compared; refresh to read it again."),
-                    button("Refresh comparison", |state: &mut DesktopState, _| {
-                        state.compare_disk();
-                    }),
-                    button("Hide comparison", |state: &mut DesktopState, _| {
-                        state.hide_comparison();
-                    }),
-                    el(
-                        "div",
-                        (
-                            el(
-                                "section",
-                                (
-                                    span("Buffer at comparison"),
-                                    el("pre", comparison.buffer_text.clone()),
-                                ),
-                            )
-                            .attr("class", "knot-comparison-version")
-                            .attr("aria-label", "Buffer source at comparison"),
-                            el(
-                                "section",
-                                (
-                                    span("Disk at comparison"),
-                                    el("pre", comparison.disk_text.clone()),
-                                ),
-                            )
-                            .attr("class", "knot-comparison-version")
-                            .attr("aria-label", "Disk source at comparison"),
-                        ),
-                    )
-                    .attr("class", "knot-comparison-versions"),
-                ),
-            )
-            .attr("class", "knot-comparison")
-            .attr("role", "region")
-            .attr("aria-label", "Disk comparison"),
-        )
-    } else {
-        Box::new(el("div", ()))
-    };
     let retention_panel: DesktopView = {
         let destinations = if state.retention_targets.is_empty() {
             Box::new(span("No storage destinations available.")) as DesktopView
@@ -1751,35 +1749,63 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", ()))
     };
-    let highlight = state.appearance.highlight;
-    let document: DesktopView = Box::new(lens(
-        move |state: &mut KnotDocumentSurfaceState| {
-            knot_document_view_with_highlighting(state, highlight)
-        },
-        |state: &mut DesktopState| state.document_mut(),
-    ));
-    let source_wrapper: DesktopView = if state.fold_visible
-        && crate::document_folding::supported(state.document().snapshot().format)
-    {
-        Box::new(
-            el("div", crate::document_folding::view(state))
-                .attr("class", "knot-source-wrapper")
-                .attr("style", state.appearance.writing_style()),
-        )
-    } else {
-        Box::new(
-            el("div", document)
-                .attr("class", "knot-source-wrapper")
-                .attr("style", state.appearance.writing_style()),
-        )
-    };
     let prompt: DesktopView = match state.pending.as_ref() {
+        Some(PendingAction::Quit) => {
+            let dirty = state.dirty_documents();
+            let title = match dirty.as_slice() {
+                [key] => format!(
+                    "{} has unsaved changes.",
+                    state
+                        .docs
+                        .doc(*key)
+                        .map_or_else(String::new, |entry| entry.document.snapshot().display_label)
+                ),
+                keys => format!("{} documents have unsaved changes.", keys.len()),
+            };
+            let listed = dirty
+                .iter()
+                .filter_map(|key| {
+                    let entry = state.docs.doc(*key)?;
+                    Some((key.0, span(entry.document.snapshot().display_label)))
+                })
+                .collect::<Vec<_>>();
+            Box::new(
+                el(
+                    "aside",
+                    (
+                        span(title).attr("id", "knot-confirm-message"),
+                        el("div", Keyed::new(listed)).attr("class", "knot-confirm-list"),
+                        button("Save all", |state: &mut DesktopState, _| {
+                            state.confirm_save()
+                        })
+                        .attr("id", "knot-confirm-save"),
+                        button("Discard all", |state: &mut DesktopState, _| {
+                            state.confirm_discard()
+                        }),
+                        button("Review", |state: &mut DesktopState, _| {
+                            state.review_pending()
+                        })
+                        .attr("id", "knot-confirm-review"),
+                        button("Cancel", |state: &mut DesktopState, _| {
+                            state.cancel_pending()
+                        }),
+                    ),
+                )
+                .attr("class", "knot-confirm")
+                .attr("role", "dialog")
+                .attr("aria-label", "Unsaved changes"),
+            )
+        },
         Some(action) => {
             let title = match action {
-                PendingAction::Close => "This document has unsaved changes.",
-                PendingAction::New => "New document will replace unsaved changes.",
-                PendingAction::Open(_) => "Opening will replace unsaved changes.",
-                PendingAction::Reload => "Reload will replace unsaved changes with disk text.",
+                PendingAction::CloseDocument(key) => format!(
+                    "{} has unsaved changes.",
+                    state
+                        .docs
+                        .doc(*key)
+                        .map_or_else(String::new, |entry| entry.document.snapshot().display_label)
+                ),
+                _ => "Reload will replace unsaved changes with disk text.".to_owned(),
             };
             Box::new(
                 el(
@@ -1946,18 +1972,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     retention_panel
                 },
                 appearance_panel,
-                el(
-                    "div",
-                    (
-                        source_wrapper,
-                        outline_panel,
-                        crate::readings::view(state),
-                        crate::document_preview::view(state),
-                        crate::scroll_site::preview(state),
-                    ),
-                )
-                .attr("class", "knot-writing-area"),
-                comparison_panel,
+                document_frame(state),
                 prompt,
             ),
         )
@@ -1993,6 +2008,273 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     )
 }
 
+/// One document tile: its editor and the panels read from it, the writing
+/// area the window had before tabs. The panels read the focused entry, which
+/// is the document a single stack shows.
+fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
+    let outline_panel: DesktopView = if !state.outline_visible {
+        Box::new(el("div", ()))
+    } else if state.document().snapshot().format.native_source() {
+        Box::new(span("A source outline is not available for this native protocol format yet. Use its preview when available.").attr("class", "knot-outline"))
+    } else if let Some(snapshot) = &state.entry().outline_snapshot {
+        let rows = snapshot
+            .items
+            .iter()
+            .enumerate()
+            .map(|(index, item)| {
+                let label = item.label.clone();
+                let level = item.level;
+                let key = item.start;
+                let accessible_label = format!("Heading level {level}: {label}");
+                (
+                    key,
+                    button(label, move |state: &mut DesktopState, _| {
+                        state.select_outline_item(index);
+                    })
+                    .attr("class", "knot-outline-row")
+                    .attr("data-outline-index", index.to_string())
+                    .attr("data-outline-level", level.to_string())
+                    .attr("aria-label", accessible_label),
+                )
+            })
+            .collect::<Vec<_>>();
+        let rows_view = if rows.is_empty() {
+            Box::new(span("No headings in this document.")) as DesktopView
+        } else {
+            Box::new(el("div", Keyed::new(rows)).attr("class", "knot-outline-rows")) as DesktopView
+        };
+        let error = state.entry().outline_error.as_ref().map(|error| {
+            span(format!("Outline error: {error}")).attr("class", "knot-outline-error")
+        });
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Outline"),
+                            button("Hide Outline", |state: &mut DesktopState, _| {
+                                state.toggle_outline();
+                            }),
+                        ),
+                    )
+                    .attr("class", "knot-outline-header"),
+                    error,
+                    rows_view,
+                ),
+            )
+            .attr("class", "knot-outline")
+            .attr("role", "region")
+            .attr("aria-label", "Document outline"),
+        )
+    } else {
+        Box::new(
+            el(
+                "section",
+                (
+                    el(
+                        "header",
+                        (
+                            span("Outline"),
+                            button("Hide Outline", |state: &mut DesktopState, _| {
+                                state.toggle_outline();
+                            }),
+                        ),
+                    )
+                    .attr("class", "knot-outline-header"),
+                    span("Outline is updating; try again shortly."),
+                ),
+            )
+            .attr("class", "knot-outline")
+            .attr("role", "region")
+            .attr("aria-label", "Document outline"),
+        )
+    };
+    let comparison_panel: DesktopView = if let Some(error) = &state.entry().comparison_error {
+        Box::new(
+            el(
+                "section",
+                (
+                    span("Comparison unavailable"),
+                    span(error.clone()).attr("class", "knot-comparison-error"),
+                    span("Disk text could not be read; refresh to try again."),
+                    button("Refresh comparison", |state: &mut DesktopState, _| {
+                        state.compare_disk();
+                    }),
+                    button("Hide comparison", |state: &mut DesktopState, _| {
+                        state.hide_comparison();
+                    }),
+                ),
+            )
+            .attr("class", "knot-comparison knot-comparison-error-panel")
+            .attr("role", "region")
+            .attr("aria-label", "Disk comparison error"),
+        )
+    } else if let Some(comparison) = &state.entry().comparison {
+        let snapshot = state.document().snapshot();
+        let stale = comparison.buffer_text != snapshot.text
+            || comparison.address != snapshot.source.address;
+        let status = if stale {
+            "Snapshot: stale because the source or address changed since comparison"
+        } else {
+            "Buffer snapshot matches current source"
+        };
+        let disk_status = if comparison.disk_changed_since_baseline {
+            "Disk changed since the saved baseline at comparison: yes"
+        } else {
+            "Disk changed since the saved baseline at comparison: no"
+        };
+        Box::new(
+            el(
+                "section",
+                (
+                    el("header", (span("Disk comparison"), span(status)))
+                        .attr("class", "knot-comparison-header"),
+                    span(format!("Compared address: {}", comparison.address)),
+                    span(disk_status),
+                    span("Disk text was read when compared; refresh to read it again."),
+                    button("Refresh comparison", |state: &mut DesktopState, _| {
+                        state.compare_disk();
+                    }),
+                    button("Hide comparison", |state: &mut DesktopState, _| {
+                        state.hide_comparison();
+                    }),
+                    el(
+                        "div",
+                        (
+                            el(
+                                "section",
+                                (
+                                    span("Buffer at comparison"),
+                                    el("pre", comparison.buffer_text.clone()),
+                                ),
+                            )
+                            .attr("class", "knot-comparison-version")
+                            .attr("aria-label", "Buffer source at comparison"),
+                            el(
+                                "section",
+                                (
+                                    span("Disk at comparison"),
+                                    el("pre", comparison.disk_text.clone()),
+                                ),
+                            )
+                            .attr("class", "knot-comparison-version")
+                            .attr("aria-label", "Disk source at comparison"),
+                        ),
+                    )
+                    .attr("class", "knot-comparison-versions"),
+                ),
+            )
+            .attr("class", "knot-comparison")
+            .attr("role", "region")
+            .attr("aria-label", "Disk comparison"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
+    let highlight = state.appearance.highlight;
+    let document: DesktopView = Box::new(lens(
+        move |state: &mut KnotDocumentSurfaceState| {
+            knot_document_view_with_highlighting(state, highlight)
+        },
+        move |state: &mut DesktopState| state.surface_mut_for(key),
+    ));
+    let source_wrapper: DesktopView = if state.fold_visible
+        && crate::document_folding::supported(state.document().snapshot().format)
+    {
+        Box::new(
+            el("div", crate::document_folding::view(state))
+                .attr("class", "knot-source-wrapper")
+                .attr("style", state.appearance.writing_style()),
+        )
+    } else {
+        Box::new(
+            el("div", document)
+                .attr("class", "knot-source-wrapper")
+                .attr("style", state.appearance.writing_style()),
+        )
+    };
+    Box::new(
+        el(
+            "div",
+            (
+                el(
+                    "div",
+                    (
+                        source_wrapper,
+                        outline_panel,
+                        crate::readings::view(state),
+                        crate::document_preview::view(state),
+                        crate::scroll_site::preview(state),
+                    ),
+                )
+                .attr("class", "knot-writing-area"),
+                comparison_panel,
+            ),
+        )
+        .attr("class", "knot-document-tile")
+        .attr("data-knot-document", key.0.to_string()),
+    )
+}
+
+/// The Workbench frame: every open document as a tab, its tile rendered on
+/// demand through an identity lens so the tile can read the whole window's
+/// state. A dirty document's tab carries the unsaved mark.
+fn document_frame(state: &DesktopState) -> DesktopView {
+    let current = state.docs.focused().and_then(|key| state.docs.tile_of(key));
+    let model = WorkspaceModel {
+        workspace: state.docs.workspace(),
+        current,
+        float_layer_visible: false,
+    };
+    let marks = |tile: workbench::TileId| match state.docs.role(tile) {
+        Some(TileRole::Document(key)) => state
+            .docs
+            .doc(*key)
+            .filter(|entry| entry.document.snapshot().dirty)
+            .map(|_| TabMark::Modified),
+        _ => None,
+    };
+    if state.docs.is_empty() {
+        return Box::new(
+            el(
+                "div",
+                span("No document is open. Use New or Open to start one.")
+                    .attr("class", "knot-empty-frame"),
+            )
+            .attr("class", "knot-frame"),
+        );
+    }
+    Box::new(
+        el(
+            "div",
+            workspace_view_with_marks(
+                &model,
+                &marks,
+                |state: &mut DesktopState, event| state.on_workspace_event(event),
+                tile_fill,
+            ),
+        )
+        .attr("class", "knot-frame"),
+    )
+}
+
+fn tile_fill(tile: &workbench::Tile) -> Slot<DesktopState, ()> {
+    let id = tile.id;
+    Slot::View(Box::new(lens(
+        move |state: &mut DesktopState| tile_view(state, id),
+        |state: &mut DesktopState| state,
+    )))
+}
+
+fn tile_view(state: &DesktopState, tile: workbench::TileId) -> DesktopView {
+    match state.docs.role(tile) {
+        Some(TileRole::Document(key)) => document_tile(state, *key),
+        _ => Box::new(el("div", ())),
+    }
+}
+
 fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool {
     let namespace = Namespace::from("");
     let local = LocalName::from("id");
@@ -2004,6 +2286,21 @@ fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool 
         node = dom.parent(current);
     }
     false
+}
+
+/// The document whose tile holds `node`, read off the tile's
+/// `data-knot-document`.
+fn document_key_of<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<DocKey> {
+    let namespace = Namespace::from("");
+    let local = LocalName::from("data-knot-document");
+    let mut node = Some(node);
+    while let Some(current) = node {
+        if let Some(value) = dom.attribute(current, &namespace, &local) {
+            return value.parse().ok().map(DocKey);
+        }
+        node = dom.parent(current);
+    }
+    None
 }
 
 fn ancestor_has_class<D: LayoutDom>(dom: &D, focused: D::NodeId, class: &str) -> bool {
@@ -2036,6 +2333,7 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     let metadata =
         (0..6).find(|i| ancestor_has_id(&*dom_ref, focused, &format!("knot-scroll-meta-{i}")));
     let path = ancestor_has_id(&*dom_ref, focused, "knot-path-field");
+    let document = document_key_of(&*dom_ref, focused);
     drop(dom_ref);
     if folder {
         return Some(FocusedTextSlot {
@@ -2094,17 +2392,18 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
         });
     }
     if is_document_textarea {
-        if runner.state().document().snapshot().write_posture
+        let key = document.or_else(|| runner.state().focused_key())?;
+        if runner.state().surface_for(key).snapshot().write_posture
             == knot_document::KnotDocumentWritePostureV1::ReadOnly
         {
             return None;
         }
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|state| state.document().session().input()),
-            get_mut: Box::new(|state| {
+            get: Box::new(move |state| state.surface_for(key).session().input()),
+            get_mut: Box::new(move |state| {
                 state
-                    .document_mut()
+                    .surface_mut_for(key)
                     .session_mut()
                     .input_mut()
                     .expect("editable document focus")
@@ -2211,6 +2510,7 @@ pub fn after_dispatch(
     if !focus_requested {
         return;
     }
+    let focused_key = ctx.runner.state().focused_key();
     let target = {
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
@@ -2218,6 +2518,7 @@ pub fn after_dispatch(
             LayoutDom::element_name(&*dom_ref, *node)
                 .is_some_and(|name| name.local.as_ref() == "textarea")
                 && ancestor_has_class(&*dom_ref, *node, "knot-document-body")
+                && document_key_of(&*dom_ref, *node) == focused_key
         })
     };
     if let Some(target) = target {
@@ -2268,6 +2569,18 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-retention-receipt, .knot-retention-busy, .knot-retention-error, .knot-retention-targets button { overflow-wrap:anywhere; max-width:100%; }",
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
+    ".knot-confirm-list { display:flex; flex-direction:column; gap:2px; }",
+    ".knot-frame { position:relative; min-width:0; }",
+    ".knot-frame .frisket-stack { height:auto; }",
+    ".knot-frame .frisket-tabbar { flex:0 0 30px; height:30px; align-items:flex-end; gap:2px; padding:0 6px; border-bottom:1px solid; overflow:hidden; }",
+    ".knot-frame .frisket-tab { flex:0 1 auto; max-width:240px; height:26px; margin-right:0; padding:0 6px 0 12px; gap:6px; font-size:13px; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }",
+    ".knot-frame .frisket-tab.active { height:27px; margin-bottom:-1px; }",
+    ".knot-frame .frisket-label { flex:0 1 auto; text-overflow:ellipsis; }",
+    ".knot-frame .frisket-close { flex:0 0 18px; width:18px; height:auto; margin-left:0; padding:0; font-size:13px; visibility:hidden; }",
+    ".knot-frame .frisket-tab.active .frisket-close, .knot-frame .frisket-tab:hover .frisket-close { visibility:visible; }",
+    ".knot-frame .frisket-content { flex:0 0 auto; padding:12px; }",
+    ".knot-empty-frame { display:block; padding:24px 0; }",
+    ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
     ".knot-document { flex:1; min-width:0; }",
     ".knot-document-body textarea { width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
@@ -2292,9 +2605,8 @@ pub const DESKTOP_CSS: &str = concat!(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::appearance::appearance_css;
+    use cambium::TextCommand;
     use cambium_genet_winit_host::{Harness, Init, Modifiers, inert_hooks};
-    use knot_document::KNOT_DOCUMENT_CSS;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex, mpsc};
     use taproot::Selector;
@@ -2314,12 +2626,7 @@ mod tests {
             Init {
                 state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!(
-                    "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}",
-                    appearance_css(),
-                    crate::document_folding::CSS,
-                    crate::document_preview::CSS
-                ),
+                sheet: crate::desktop_sheet(),
                 fonts: Vec::new(),
                 images: Vec::new(),
             },
@@ -2891,7 +3198,7 @@ mod tests {
     }
 
     #[test]
-    fn canceled_open_preserves_the_dirty_document() {
+    fn open_adds_a_tab_beside_the_dirty_document() {
         let temp = tempdir().unwrap();
         let replacement = temp.path().join("replacement.djot");
         std::fs::write(&replacement, "replacement").unwrap();
@@ -2906,10 +3213,296 @@ mod tests {
             state.path = TextInput::new(replacement.to_string_lossy().into_owned());
         });
         host.layout_at(900.0, 640.0);
+        let draft = host.state().focused_key().unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Open")));
-        assert!(host.click_on(&Selector::role("button").containing("Cancel")));
-        assert_eq!(host.state().document().snapshot().text, "draft edit");
+        assert!(host.state().pending.is_none());
+        assert_eq!(host.state().docs.len(), 2);
+        assert_eq!(host.state().document().snapshot().text, "replacement");
+        let kept = &host.state().docs.doc(draft).unwrap().document;
+        assert_eq!(kept.snapshot().text, "draft edit");
+        assert!(kept.snapshot().dirty);
+    }
+
+    type DesktopHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
+
+    fn insert(host: &mut DesktopHarness, text: &str) {
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    text.to_owned(),
+                )))
+                .unwrap();
+        });
+    }
+
+    fn open_through_path(host: &mut DesktopHarness, path: &Path) {
+        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Open")));
+    }
+
+    fn close_tab(host: &mut DesktopHarness, label: &str) -> bool {
+        host.click_on(&Selector::role("button").with_attr("aria-label", format!("Close {label}")))
+    }
+
+    fn confirm_text(host: &DesktopHarness) -> String {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        class_node(&dom, dom.document(), "knot-confirm")
+            .map(|node| text_content(&dom, node))
+            .unwrap_or_default()
+    }
+
+    fn document_fixture() -> (tempfile::TempDir, PathBuf, PathBuf) {
+        let temp = tempdir().unwrap();
+        let first = temp.path().join("first.djot");
+        let second = temp.path().join("second.djot");
+        std::fs::write(&first, "first\n").unwrap();
+        std::fs::write(&second, "second\n").unwrap();
+        (temp, first, second)
+    }
+
+    #[test]
+    fn two_files_and_a_scratch_keep_their_state_across_activation() {
+        let (_temp, first, second) = document_fixture();
+        let mut host = harness(KnotDocumentSession::open(&first).unwrap());
+        host.layout_at(900.0, 640.0);
+        insert(&mut host, "one ");
+        let first_key = host.state().focused_key().unwrap();
+        let selection = host.state().document().snapshot().selection;
+        open_through_path(&mut host, &second);
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        insert(&mut host, "draft");
+        assert_eq!(host.state().docs.len(), 3);
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            assert_eq!(count_class(&dom, dom.document(), "frisket-tab"), 3);
+            // The edited file and the draft carry the unsaved mark; the
+            // untouched file does not.
+            assert_eq!(count_class(&dom, dom.document(), "tab-mark"), 2);
+            let marked = attr_node(&dom, dom.document(), "data-mark", "modified");
+            assert!(marked.is_some());
+        }
+
+        assert!(host.click_on(&Selector::role("tab").containing("first.djot")));
+        assert_eq!(host.state().focused_key(), Some(first_key));
+        let snapshot = host.state().document().snapshot();
+        assert_eq!(snapshot.text, "first\none ");
+        assert_eq!(snapshot.selection, selection);
+        assert!(snapshot.dirty);
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let tile = attr_node(
+                &dom,
+                dom.document(),
+                "data-knot-document",
+                &first_key.0.to_string(),
+            );
+            assert!(tile.is_some(), "the tile in view carries its document key");
+        }
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+                .unwrap();
+        });
+        assert_eq!(host.state().document().snapshot().text, "first\n");
+
+        assert!(host.click_on(&Selector::role("tab").containing("second.djot")));
+        assert_eq!(host.state().document().snapshot().text, "second\n");
+        assert!(!host.state().document().snapshot().dirty);
+        assert!(host.click_on(&Selector::role("tab").containing(SCRATCH_ADDRESS)));
+        assert_eq!(host.state().document().snapshot().text, "draft");
         assert!(host.state().document().snapshot().dirty);
+    }
+
+    #[test]
+    fn typing_after_switching_tabs_edits_the_shown_document() {
+        let (_temp, first, second) = document_fixture();
+        let mut host = harness(KnotDocumentSession::open(&first).unwrap());
+        host.layout_at(900.0, 640.0);
+        open_through_path(&mut host, &second);
+        let second_key = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("tab").containing("first.djot")));
+        assert!(host.click_on(&Selector::role("tab").containing("second.djot")));
+        let editor = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let tile = attr_node(
+                &dom,
+                dom.document(),
+                "data-knot-document",
+                &second_key.0.to_string(),
+            )
+            .expect("second tile");
+            named_node(&dom, tile, "textarea").expect("second editor")
+        };
+        let (x, y, width, height) = host.painted_rect(editor).expect("editor layout");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.key_injected("typed ");
+        let second_text = &host.state().docs.doc(second_key).unwrap().document;
+        assert!(second_text.snapshot().text.contains("typed "));
+        let first_text = host
+            .state()
+            .docs
+            .docs()
+            .find(|(key, _)| *key != second_key)
+            .map(|(_, entry)| entry.document.snapshot().text)
+            .unwrap();
+        assert_eq!(first_text, "first\n");
+    }
+
+    #[test]
+    fn a_duplicate_open_activates_the_existing_tab() {
+        let (temp, first, second) = document_fixture();
+        let mut host = harness(KnotDocumentSession::open(&first).unwrap());
+        host.layout_at(900.0, 640.0);
+        let first_key = host.state().focused_key().unwrap();
+        open_through_path(&mut host, &second);
+        open_through_path(&mut host, &temp.path().join(".").join("first.djot"));
+        assert_eq!(host.state().docs.len(), 2);
+        assert_eq!(host.state().focused_key(), Some(first_key));
+        assert!(
+            host.state()
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("first.djot is already open"))
+        );
+    }
+
+    #[test]
+    fn a_clean_tab_closes_at_once_and_a_dirty_one_asks() {
+        let (_temp, first, second) = document_fixture();
+        let mut host = harness(KnotDocumentSession::open(&first).unwrap());
+        host.layout_at(900.0, 640.0);
+        let first_key = host.state().focused_key().unwrap();
+        open_through_path(&mut host, &second);
+        assert!(close_tab(&mut host, "second.djot"));
+        assert_eq!(host.state().docs.len(), 1);
+        assert!(host.state().pending.is_none());
+        assert_eq!(host.state().message.as_deref(), Some("Closed second.djot."));
+
+        insert(&mut host, "unsaved ");
+        assert!(close_tab(&mut host, "first.djot"));
+        assert_eq!(
+            host.state().pending,
+            Some(PendingAction::CloseDocument(first_key))
+        );
+        assert_eq!(host.state().docs.len(), 1);
+        assert!(confirm_text(&host).contains("first.djot has unsaved changes."));
+        assert!(host.click_on(&Selector::role("button").containing("Cancel")));
+        assert!(host.state().pending.is_none());
+        assert_eq!(host.state().docs.len(), 1);
+        assert!(host.state().document().snapshot().dirty);
+
+        // A refused save keeps both the prompt and the tab.
+        std::fs::write(&first, "external\n").unwrap();
+        assert!(close_tab(&mut host, "first.djot"));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
+        assert_eq!(
+            host.state().pending,
+            Some(PendingAction::CloseDocument(first_key))
+        );
+        assert_eq!(host.state().docs.len(), 1);
+        assert!(
+            host.state()
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("changed on disk"))
+        );
+
+        assert!(host.click_on(&Selector::role("button").containing("Discard")));
+        assert!(host.state().docs.is_empty());
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "external\n");
+    }
+
+    #[test]
+    fn saving_a_dirty_tab_on_close_writes_it_and_closes_it() {
+        let (_temp, first, second) = document_fixture();
+        let mut host = harness(KnotDocumentSession::open(&first).unwrap());
+        host.layout_at(900.0, 640.0);
+        open_through_path(&mut host, &second);
+        insert(&mut host, "kept ");
+        assert!(close_tab(&mut host, "second.djot"));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
+        assert!(host.state().pending.is_none());
+        assert_eq!(host.state().docs.len(), 1);
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "second\nkept ");
+        assert_eq!(
+            host.state().document().snapshot().display_label,
+            "first.djot"
+        );
+    }
+
+    #[test]
+    fn closing_the_last_tab_leaves_an_empty_frame_that_new_refills() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        host.layout_at(900.0, 640.0);
+        assert!(close_tab(&mut host, SCRATCH_ADDRESS));
+        assert!(host.state().docs.is_empty());
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let frame = class_node(&dom, dom.document(), "knot-frame").expect("frame");
+            assert!(text_content(&dom, frame).contains("No document is open."));
+            assert_eq!(count_class(&dom, dom.document(), "frisket-tab"), 0);
+        }
+        assert!(host.click_on(&Selector::role("button").containing("Save")));
+        assert_eq!(
+            host.state().message.as_deref(),
+            Some("No document is open.")
+        );
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert_eq!(host.state().docs.len(), 1);
+    }
+
+    #[test]
+    fn quitting_asks_once_for_every_dirty_document() {
+        let (_temp, first, second) = document_fixture();
+        let mut host = harness(KnotDocumentSession::open(&first).unwrap());
+        host.layout_at(900.0, 640.0);
+        insert(&mut host, "a ");
+        open_through_path(&mut host, &second);
+        insert(&mut host, "b ");
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        insert(&mut host, "scratch");
+        let scratch = host.state().focused_key().unwrap();
+
+        request_native_close(&mut host);
+        assert_eq!(host.state().pending, Some(PendingAction::Quit));
+        let prompt = confirm_text(&host);
+        assert!(prompt.contains("3 documents have unsaved changes."));
+        for label in ["first.djot", "second.djot", SCRATCH_ADDRESS] {
+            assert!(prompt.contains(label), "{label} is listed");
+        }
+
+        // Cancel changes nothing.
+        assert!(host.click_on(&Selector::role("button").containing("Cancel")));
+        assert!(host.state().pending.is_none());
+        assert_eq!(host.state().dirty_documents().len(), 3);
+
+        // Save all writes the files; the scratch stays listed and the window stays.
+        request_native_close(&mut host);
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
+        assert!(!host.close_requested());
+        assert_eq!(std::fs::read_to_string(&first).unwrap(), "first\na ");
+        assert_eq!(std::fs::read_to_string(&second).unwrap(), "second\nb ");
+        assert_eq!(host.state().dirty_documents(), vec![scratch]);
+        assert_eq!(host.state().pending, Some(PendingAction::Quit));
+        assert!(confirm_text(&host).contains(&format!("{SCRATCH_ADDRESS} has unsaved changes.")));
+
+        // Review shows the first listed document and dismisses the prompt.
+        assert!(host.click_on(&Selector::role("tab").containing("first.djot")));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-review")));
+        assert!(host.state().pending.is_none());
+        assert_eq!(host.state().focused_key(), Some(scratch));
+
+        // Discard all closes the window over the remaining scratch.
+        request_native_close(&mut host);
+        assert!(host.click_on(&Selector::role("button").containing("Discard all")));
+        assert!(host.close_requested());
     }
 
     #[test]
@@ -3204,7 +3797,7 @@ mod tests {
     }
 
     #[test]
-    fn comparison_refreshes_explicitly_and_clears_after_new() {
+    fn comparison_refreshes_explicitly_and_stays_with_its_document() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("refresh.djot");
         std::fs::write(&path, "first\n").unwrap();
@@ -3221,9 +3814,18 @@ mod tests {
             host.state().entry().comparison.as_ref().unwrap().disk_text,
             "second\n"
         );
+        let compared = host.state().focused_key().unwrap();
         assert!(host.click_on(&Selector::role("button").containing("New")));
         assert!(host.state().entry().comparison.is_none());
         assert!(host.state().entry().comparison_error.is_none());
+        assert_eq!(
+            host.state()
+                .docs
+                .doc(compared)
+                .and_then(|entry| entry.comparison.as_ref())
+                .map(|comparison| comparison.disk_text.as_str()),
+            Some("second\n")
+        );
     }
 
     #[test]
@@ -3279,7 +3881,7 @@ mod tests {
         request_native_close(&mut host);
         let before = host.state().document().snapshot();
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
-        assert_eq!(host.state().pending, Some(PendingAction::Close));
+        assert_eq!(host.state().pending, Some(PendingAction::Quit));
         assert_eq!(host.state().document().snapshot().text, before.text);
         assert_eq!(
             host.state().document().snapshot().selection,
@@ -3399,11 +4001,10 @@ mod tests {
         std::fs::create_dir(&root).unwrap();
         std::fs::create_dir(&catalog_root).unwrap();
         let outside = temp.path().join("outside.djot");
+        std::fs::write(&outside, "").unwrap();
         let catalog = KnotFileCatalog::open(&root, catalog_root.join("catalog.redb")).unwrap();
-        let mut host = harness_with_catalog(
-            KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""),
-            Some(catalog),
-        );
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&outside).unwrap(), Some(catalog));
         host.update(|state| {
             state
                 .document_mut()
@@ -3411,7 +4012,6 @@ mod tests {
                 .input_mut()
                 .unwrap()
                 .insert_str("draft");
-            state.path = TextInput::new(outside.to_string_lossy());
         });
         assert!(host.state().document().snapshot().dirty);
         host.layout_at(900.0, 640.0);
@@ -3604,16 +4204,30 @@ mod tests {
         });
         assert!(host.click_on(&Selector::role("button").containing("Open")));
         assert!(host.state().entry().prepared_capture.is_some());
+        let copy = host.state().focused_key().unwrap();
         host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
         assert!(host.click_on(&Selector::role("button").containing("Open")));
         assert!(host.state().entry().prepared_capture.is_none());
+        assert!(
+            host.state()
+                .docs
+                .doc(copy)
+                .is_some_and(|entry| entry.prepared_capture.is_some())
+        );
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         assert!(host.click_on(&Selector::role("button").containing("Reload")));
         assert!(host.state().entry().prepared_capture.is_none());
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
+        let reviewed = host.state().focused_key().unwrap();
         assert!(host.click_on(&Selector::role("button").containing("New")));
         assert!(host.state().entry().prepared_capture.is_none());
         assert!(!host.click_on(&Selector::role("button").containing("Review saved revision")));
+        assert!(
+            host.state()
+                .docs
+                .doc(reviewed)
+                .is_some_and(|entry| entry.prepared_capture.is_some())
+        );
     }
 
     #[test]
@@ -3825,7 +4439,7 @@ mod tests {
         );
         host.request_close(CloseRequest::Native);
         assert!(!host.close_requested());
-        assert!(matches!(host.state().pending, Some(PendingAction::Close)));
+        assert!(matches!(host.state().pending, Some(PendingAction::Quit)));
     }
 
     #[test]

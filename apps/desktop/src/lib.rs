@@ -14,6 +14,7 @@ pub mod scenario;
 pub mod scroll_site;
 pub mod workspace;
 
+use cambium::{FRISKET_CSS, WORKSPACE_CSS};
 use cambium_genet_winit_host::{
     HostHooks, HostOptions, Init, LaneConfig, ScenarioLane, inert_hooks, run,
 };
@@ -33,10 +34,11 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
     hooks
 }
 
-/// The desktop stylesheet, in cascade order.
+/// The desktop stylesheet, in cascade order: Cambium's frame first, so Knot's
+/// rules dress it.
 pub fn desktop_sheet() -> String {
     format!(
-        "{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
+        "{FRISKET_CSS}{WORKSPACE_CSS}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
         appearance::appearance_css(),
         document_folding::CSS,
         document_preview::CSS,

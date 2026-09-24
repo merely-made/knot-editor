@@ -335,6 +335,67 @@ design frames either fixed or recorded.
   identically on a pristine checkout of `250fd238` (a painted box of 132 x 42
   where the test expects 120 x 40), so they predate this work. Clippy is clean
   in every touched file; only touched files were formatted.
+- **2026-09-23, Checkpoint A.** With Mark's sign-off the Cambium branch was
+  rebased onto `origin/main` and pushed as three commits: `ad7f63e2` (the
+  scenario lane), `2a93c836` (tab marks) and `9ad5990b` (the status bar).
+  Knot moved all 35 mere pins to `9ad5990b` in `fec7c63`, which also carries
+  the step 1 wiring; the gitignored patch config is gone. Turnstone stays on
+  `250fd238` until it repins. The two `ui_zoom` failures remain in mere,
+  unfixed.
+- **2026-09-23, step 3a** (`75cf5cc`). `DocumentWorkspace` keeps open
+  documents by a runtime `DocKey` that no Save As changes, maps each tile to
+  what it shows, resolves a duplicate open by identity, and moves the focus
+  when a tile closes. Eight unit tests, generic over the payload.
+- **2026-09-23, step 3b-1** (`ce20159`). Everything the desktop derived from
+  its one document moved into a per-document entry, behaviour unchanged. The
+  suite passed at 93, and the feature-gated resident retention test, which
+  the baseline had not run, passed too.
+- **2026-09-23, step 3b-2.** Tabs. The frame is `workspace_view_with_marks`;
+  its fill closure sees no host state, so each tile renders through an
+  identity lens that hands the tile view the whole window state. A document
+  tile carries `data-knot-document`, the text focus routes by that key, and
+  focus return after an outline activation looks for the focused document's
+  editor. New and Open add tabs, and opening a path already open activates
+  its tab and says so. A clean tab closes at once; a dirty one asks Save,
+  Discard or Cancel and keeps its tile until the decision, and a refused save
+  keeps both. Quitting asks once, as specified above, and Save all leaves the
+  focus where it was. Closing the last tab shows a one-line empty frame until
+  step 8's graph. A dirty document's tab carries the unsaved mark. The tab
+  bar follows the design pass stylesheet: a 30px bar, 13px chrome, the active
+  tab on the surface joined to its content, inactive tabs transparent, and
+  the close control shown on the active or hovered tab, with colours from
+  the Tinct palette through `appearance_css`. The window still scrolls as a
+  page: the frame takes its natural height, so the Micron viewport tests pass
+  unchanged, and scrolling inside tiles arrives with the reading tiles in
+  step 4.
+
+  The desktop library passes 100 with 1 ignored; the other desktop suites
+  pass as before, the resident retention test included. Seven tests are new:
+  two files and a scratch keeping text, selection, undo, dirty state and
+  marks across activation; typing after switching tabs; a duplicate open
+  through another spelling of the path; clean and dirty tab close through
+  Cancel, a refused save and Discard; save on close; the empty frame and
+  New; and the quit summary. Rewritten for the new semantics: Open no longer
+  prompts but adds a tab; the comparison and the reviewed revision stay with
+  their own document; and the catalog-failure test saves a file outside the
+  root, since Save all does not Save As a scratch. The suite now builds its
+  sheet from `desktop_sheet()` instead of a partial copy.
+
+  Headed, a throwaway scenario (launch with a file, New, back to the file,
+  and the same in the dark theme with a scratch `APPDATA` so no real
+  preference was written) passed with distinct frames, kept under
+  `Code/testing/knot-editor/images/2026-09-23_tabs/`. The frames still show
+  D1 and D6, which 3d and 3c own. Still to come in step 3: the multi-file
+  launcher, planned with this step and following as its own commit; the
+  command row and the Open popover (3c); and the D1 geometry test and fix
+  (3d).
+
+  Two things noticed on the way. Scratch tabs read `scratch:untitled`, the
+  surface's own label, so two scratch tabs look alike. And `cargo fmt --all`
+  rewrites 19 files in `knot-editor` and `knot-site`, since the tree predates
+  the canonical rustfmt policy's sweep; the policy wants that sweep in its own
+  commit on a quiet tree, so it was reverted here and only desktop files were
+  formatted.
 
 ## Related material
 

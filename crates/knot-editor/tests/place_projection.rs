@@ -44,7 +44,7 @@ use notochord::{
     LocalNetworkPolicy, NetworkId, ProfileRef, RevocationLedger, TrafficClass, TrustedRoot,
 };
 use personae::delegation::{
-    CapabilityScope, DelegationCertificate, DelegationParent, SignedDelegationCertificate,
+    CapabilityScope, DelegationCertificate, DelegationParent, Issue, SignedDelegationCertificate,
 };
 use personae::{IdentityProvider, InMemoryProvider};
 use tempfile::tempdir;

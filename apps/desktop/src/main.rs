@@ -5,19 +5,14 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Thin standalone host for the reusable Knot document surface.
-use knot_desktop::{run_desktop_with_targets, workspace};
+use knot_desktop::{DesktopLaunch, run_desktop_with_targets, workspace};
 
 use knot_document::KnotDocumentSession;
 use knot_file_catalog::KnotFileCatalog;
 use std::ffi::OsString;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use workspace::DEFAULT_CAPTURE_MAX_BYTES;
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
-#[derive(Debug, PartialEq, Eq)]
-enum DocumentSelection {
-    Scratch,
-    File(PathBuf),
-}
 #[derive(Debug, PartialEq, Eq)]
 struct CatalogOptions {
     root: PathBuf,
@@ -25,14 +20,15 @@ struct CatalogOptions {
 }
 #[derive(Debug, PartialEq, Eq)]
 struct LaunchOptions {
-    document: DocumentSelection,
+    /// Document paths in the order named; none opens a scratch document.
+    documents: Vec<PathBuf>,
     catalog: Option<CatalogOptions>,
     capture_max_bytes: usize,
 }
 fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOptions, String> {
     let mut args = args.into_iter();
     let _ = args.next();
-    let mut path = None;
+    let mut documents = Vec::new();
     let mut root = None;
     let mut catalog_path = None;
     let mut capture_max_bytes = None;
@@ -87,8 +83,8 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
                 "unknown option {}; use -- before a document path starting with -",
                 arg.to_string_lossy()
             ));
-        } else if path.replace(PathBuf::from(arg)).is_some() {
-            return Err("expected zero or one document path".into());
+        } else {
+            documents.push(PathBuf::from(arg));
         }
     }
     let catalog = match (root, catalog_path) {
@@ -100,21 +96,61 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
         return Err("--capture-max-bytes requires --catalog-root and --catalog".into());
     }
     Ok(LaunchOptions {
-        document: path
-            .map(DocumentSelection::File)
-            .unwrap_or(DocumentSelection::Scratch),
+        documents,
         catalog,
         capture_max_bytes: capture_max_bytes.unwrap_or(DEFAULT_CAPTURE_MAX_BYTES),
     })
 }
-fn open_selection(selection: DocumentSelection) -> Result<KnotDocumentSession, String> {
-    match selection {
-        DocumentSelection::Scratch => Ok(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "")),
-        DocumentSelection::File(path) if path.is_dir() => {
-            let site = knot_site::Site::open(&path)?;
-            KnotDocumentSession::open(site.page_path(site.config.format.index_file())?)
-        },
-        DocumentSelection::File(path) => KnotDocumentSession::open(path),
+/// Open the named documents in order, the first in front. A site folder
+/// opens its index page, and one folder is the limit until sites get their
+/// own tiles. A path that fails is reported unless none opens.
+fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
+    if paths.iter().filter(|path| path.is_dir()).count() > 1 {
+        return Err("one site folder at a time until sites get their own tiles".into());
+    }
+    let mut opened = Vec::new();
+    let mut failures = Vec::new();
+    for path in paths {
+        match open_path(&path) {
+            Ok(session) => opened.push((session, path)),
+            Err(error) => {
+                // Name the path unless the error already does.
+                let shown = path.display().to_string();
+                failures.push(if error.contains(&shown) {
+                    error
+                } else {
+                    format!("{shown}: {error}")
+                });
+            },
+        }
+    }
+    if opened.is_empty() && !failures.is_empty() {
+        return Err(failures.join("; "));
+    }
+    let site = opened
+        .iter()
+        .skip(1)
+        .find(|(_, path)| path.is_dir())
+        .map(|(_, path)| path.clone());
+    let mut opened = opened.into_iter();
+    let (first, first_path) = match opened.next() {
+        Some((session, path)) => (session, Some(path)),
+        None => (KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""), None),
+    };
+    Ok(DesktopLaunch {
+        first,
+        first_path,
+        behind: opened.map(|(session, _)| session).collect(),
+        site,
+        failures,
+    })
+}
+fn open_path(path: &Path) -> Result<KnotDocumentSession, String> {
+    if path.is_dir() {
+        let site = knot_site::Site::open(path)?;
+        KnotDocumentSession::open(site.page_path(site.config.format.index_file())?)
+    } else {
+        KnotDocumentSession::open(path)
     }
 }
 fn main() {
@@ -137,17 +173,12 @@ fn main() {
             eprintln!("knot: catalog could not be opened: {error}");
             std::process::exit(1)
         });
-    let initial_path = match &options.document {
-        DocumentSelection::Scratch => None,
-        DocumentSelection::File(path) => Some(path.clone()),
-    };
-    let session = open_selection(options.document).unwrap_or_else(|error| {
+    let launch = open_documents(options.documents).unwrap_or_else(|error| {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
     if let Err(error) = run_desktop_with_targets(
-        session,
-        initial_path,
+        launch,
         catalog,
         options.capture_max_bytes,
         Some(settings_root.join("readings")),
@@ -177,14 +208,14 @@ mod tests {
         assert_eq!(
             launch(&["knot"]).unwrap(),
             LaunchOptions {
-                document: DocumentSelection::Scratch,
+                documents: Vec::new(),
                 catalog: None,
                 capture_max_bytes: DEFAULT_CAPTURE_MAX_BYTES,
             }
         );
         assert_eq!(
-            launch(&["knot", "my essay.djot"]).unwrap().document,
-            DocumentSelection::File(PathBuf::from("my essay.djot"))
+            launch(&["knot", "my essay.djot"]).unwrap().documents,
+            [PathBuf::from("my essay.djot")]
         );
         let options = launch(&[
             "knot",
@@ -196,10 +227,7 @@ mod tests {
             "--essay.djot",
         ])
         .unwrap();
-        assert_eq!(
-            options.document,
-            DocumentSelection::File(PathBuf::from("--essay.djot"))
-        );
+        assert_eq!(options.documents, [PathBuf::from("--essay.djot")]);
         assert_eq!(
             options.catalog,
             Some(CatalogOptions {
@@ -222,7 +250,6 @@ mod tests {
             ],
             vec!["knot", "--catalog-root", "notes", "--catalog-root", "other"],
             vec!["knot", "--unknown"],
-            vec!["knot", "one.djot", "two.djot"],
         ] {
             assert!(launch(&args).is_err(), "unexpectedly accepted {args:?}");
         }
@@ -269,8 +296,70 @@ mod tests {
         assert_eq!(
             launch(&["knot", "--", "--capture-max-bytes"])
                 .unwrap()
-                .document,
-            DocumentSelection::File(PathBuf::from("--capture-max-bytes"))
+                .documents,
+            [PathBuf::from("--capture-max-bytes")]
+        );
+    }
+    #[test]
+    fn several_document_paths_keep_their_order() {
+        assert_eq!(
+            launch(&["knot", "a.djot", "b.gmi", "--", "-c.djot"])
+                .unwrap()
+                .documents,
+            [
+                PathBuf::from("a.djot"),
+                PathBuf::from("b.gmi"),
+                PathBuf::from("-c.djot")
+            ]
+        );
+    }
+    #[test]
+    fn launch_opens_every_path_it_can_and_reports_the_rest() {
+        let temp = tempdir().unwrap();
+        let first = temp.path().join("first.djot");
+        let second = temp.path().join("second.djot");
+        std::fs::write(&first, "first\n").unwrap();
+        std::fs::write(&second, "second\n").unwrap();
+        let missing = temp.path().join("missing.djot");
+        let opened = open_documents(vec![missing.clone(), first.clone(), second.clone()]).unwrap();
+        assert_eq!(opened.first.snapshot().text, "first\n");
+        assert_eq!(opened.first_path.as_deref(), Some(first.as_path()));
+        assert_eq!(opened.behind.len(), 1);
+        assert_eq!(opened.behind[0].snapshot().text, "second\n");
+        assert_eq!(opened.failures.len(), 1);
+        assert!(opened.failures[0].contains("missing.djot"));
+
+        let error = open_documents(vec![missing]).err().unwrap();
+        assert!(error.contains("missing.djot"), "{error}");
+
+        let scratch = open_documents(Vec::new()).unwrap();
+        assert_eq!(scratch.first.snapshot().source.address, SCRATCH_ADDRESS);
+        assert!(scratch.first_path.is_none() && scratch.behind.is_empty());
+    }
+    #[test]
+    fn launch_takes_one_site_folder_until_sites_get_tiles() {
+        let temp = tempdir().unwrap();
+        let one = temp.path().join("one");
+        let two = temp.path().join("two");
+        knot_site::Site::create_for(&one, knot_site::SiteFormat::Scroll).unwrap();
+        knot_site::Site::create_for(&two, knot_site::SiteFormat::Scroll).unwrap();
+        let error = open_documents(vec![one.clone(), two]).err().unwrap();
+        assert_eq!(
+            error,
+            "one site folder at a time until sites get their own tiles"
+        );
+
+        let loose = temp.path().join("loose.djot");
+        std::fs::write(&loose, "loose\n").unwrap();
+        let opened = open_documents(vec![loose, one.clone()]).unwrap();
+        assert_eq!(opened.site.as_deref(), Some(one.as_path()));
+        assert_eq!(opened.behind.len(), 1);
+        assert_eq!(opened.behind[0].snapshot().display_label, "index.scroll");
+        let front = open_documents(vec![one.clone()]).unwrap();
+        assert_eq!(front.first_path.as_deref(), Some(one.as_path()));
+        assert!(
+            front.site.is_none(),
+            "a leading folder opens through first_path"
         );
     }
     #[test]

@@ -47,9 +47,24 @@ pub fn desktop_sheet() -> String {
     )
 }
 
+/// The documents a launch opens, in the order they were named.
+pub struct DesktopLaunch {
+    /// The document in front: the first path that opened, else a scratch.
+    pub first: KnotDocumentSession,
+    /// The path it was named by, which the path field shows. A site folder
+    /// here also opens that site, whose index page `first` is.
+    pub first_path: Option<PathBuf>,
+    /// The documents named after it, opened behind it in order.
+    pub behind: Vec<KnotDocumentSession>,
+    /// A site folder named after the first path; its index page is among
+    /// `behind`.
+    pub site: Option<PathBuf>,
+    /// One line for each path that would not open.
+    pub failures: Vec<String>,
+}
+
 pub fn run_desktop_with_targets(
-    session: KnotDocumentSession,
-    initial_path: Option<PathBuf>,
+    launch: DesktopLaunch,
     catalog: Option<KnotFileCatalog>,
     capture_max_bytes: usize,
     readings_root: Option<PathBuf>,
@@ -69,8 +84,18 @@ pub fn run_desktop_with_targets(
             ..HostOptions::default()
         },
         move |_, commands, wake| {
+            let DesktopLaunch {
+                first,
+                first_path,
+                behind,
+                site,
+                failures,
+            } = launch;
             let mut state =
-                DesktopState::with_catalog(session, commands.clone(), initial_path, catalog);
+                DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
+            if let Some(folder) = site {
+                state.attach_site(&folder);
+            }
             state
                 .scroll
                 .set_titan_submission_error(titan_submission_error.clone());
@@ -81,6 +106,7 @@ pub fn run_desktop_with_targets(
             state.set_readings_root(readings_root.clone());
             state.set_preferences_path(preferences_path.clone());
             state.set_retention_targets(targets, wake.clone());
+            state.open_behind(behind, &failures);
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,

@@ -8,8 +8,9 @@ use crate::appearance::Appearance;
 use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, TileRole};
 use crate::preferences::PreferencesStore;
 use cambium::{
-    AnyView, GenetCtx, GenetElement, Keyed, Slot, TabMark, TextInput, WorkspaceModel, button, el,
-    lens, span, text_field_typed, workspace_view_with_marks,
+    AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
+    Slot, TabMark, TextInput, WorkspaceModel, button, el, lens, on_key, popover, span,
+    text_field_typed, workspace_view_with_marks,
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
@@ -98,6 +99,13 @@ const MAX_READING_SOURCE_BYTES: usize = 64 * 1024;
 
 pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>>;
 pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
+
+/// The commands that take a path, each from its own popover field.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PathCommand {
+    Open,
+    SaveAs,
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum PendingAction {
@@ -195,7 +203,16 @@ pub struct DesktopState {
     placeholder: DocumentEntry,
     pub appearance: Appearance,
     pub scroll: crate::scroll_site::ScrollWorkspace,
+    /// The Open popover's path field.
     pub path: TextInput,
+    /// The Save As popover's path field, filled from the focused document
+    /// when the popover opens.
+    pub save_as_path: TextInput,
+    pub(crate) open_popover: PopoverState,
+    pub(crate) save_as_popover: PopoverState,
+    /// One-shot: the path popover whose field takes focus after this
+    /// dispatch, set when it opens.
+    focus_path_field: Option<PathCommand>,
     pub message: Option<String>,
     catalog: Option<KnotFileCatalog>,
     capture_limit: usize,
@@ -263,6 +280,10 @@ impl DesktopState {
             appearance: Appearance::default(),
             scroll: Default::default(),
             path,
+            save_as_path: TextInput::default(),
+            open_popover: PopoverState::default(),
+            save_as_popover: PopoverState::default(),
+            focus_path_field: None,
             message: None,
             catalog,
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
@@ -605,11 +626,62 @@ impl DesktopState {
     }
 
     fn path_value(&self) -> Result<PathBuf, String> {
-        let value = self.path.text().trim();
-        if value.is_empty() {
-            Err("Enter a file path first.".to_owned())
+        field_path(&self.path)
+    }
+
+    /// Show `command`'s popover, and only it. Save As starts from the focused
+    /// document's own path.
+    pub(crate) fn show_path_popover(&mut self, command: PathCommand) {
+        let shown = PopoverState {
+            open: true,
+            return_focus: false,
+        };
+        self.focus_path_field = Some(command);
+        match command {
+            PathCommand::Open => {
+                self.save_as_popover = PopoverState::default();
+                self.open_popover = shown;
+            },
+            PathCommand::SaveAs => {
+                self.open_popover = PopoverState::default();
+                self.save_as_popover = shown;
+                let path = self
+                    .document()
+                    .session()
+                    .source_path()
+                    .map(display_path)
+                    .unwrap_or_default();
+                self.save_as_path = TextInput::new(path);
+            },
+        }
+    }
+
+    pub(crate) fn path_popover_event(&mut self, command: PathCommand, event: PopoverEvent) {
+        let state = match command {
+            PathCommand::Open => &mut self.open_popover,
+            PathCommand::SaveAs => &mut self.save_as_popover,
+        };
+        if event == PopoverEvent::Toggle && !state.open {
+            self.show_path_popover(command);
         } else {
-            Ok(PathBuf::from(value))
+            state.apply(event);
+        }
+    }
+
+    /// Run `command` on its popover's path, closing the popover once it
+    /// succeeds.
+    pub(crate) fn confirm_path(&mut self, command: PathCommand) {
+        match command {
+            PathCommand::Open => {
+                if self.open_document() {
+                    self.open_popover.close();
+                }
+            },
+            PathCommand::SaveAs => {
+                if self.save_as() {
+                    self.save_as_popover.close();
+                }
+            },
         }
     }
 
@@ -1117,18 +1189,22 @@ impl DesktopState {
         self.message = Some("New untitled Djot document.".to_owned());
     }
 
-    fn open_document(&mut self) {
+    fn open_document(&mut self) -> bool {
         match self.path_value() {
             Ok(path) => self.open_path(path),
-            Err(error) => self.message = Some(error),
+            Err(error) => {
+                self.message = Some(error);
+                false
+            },
         }
     }
 
     /// Open `path` in a new tab, or switch to the tab already showing it.
-    pub(crate) fn open_path(&mut self, path: PathBuf) {
+    /// `false` when it could not.
+    pub(crate) fn open_path(&mut self, path: PathBuf) -> bool {
         if self.scroll.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
-            return;
+            return false;
         }
         let resolved = std::fs::canonicalize(&path).ok();
         let identity = DocIdentity::Path(resolved.clone().unwrap_or_else(|| path.clone()));
@@ -1137,7 +1213,7 @@ impl DesktopState {
             self.after_focus_change();
             let label = self.document().snapshot().display_label;
             self.message = Some(format!("{label} is already open."));
-            return;
+            return true;
         }
         match KnotDocumentSession::open(&path) {
             Ok(session) => {
@@ -1145,8 +1221,12 @@ impl DesktopState {
                 self.open_entry(DocumentEntry::new(session));
                 self.after_focus_change();
                 self.message = Some(format!("Opened {}.", path.display()));
+                true
             },
-            Err(error) => self.message = Some(format!("Open failed: {error}")),
+            Err(error) => {
+                self.message = Some(format!("Open failed: {error}"));
+                false
+            },
         }
     }
 
@@ -1173,7 +1253,7 @@ impl DesktopState {
             self.message = Some("No document is open.".to_owned());
             return false;
         };
-        let path = match self.path_value() {
+        let path = match field_path(&self.save_as_path) {
             Ok(path) => path,
             Err(error) => {
                 self.message = Some(error);
@@ -1221,6 +1301,12 @@ impl DesktopState {
         if self.document().snapshot().write_posture
             == knot_document::KnotDocumentWritePostureV1::Scratch
         {
+            if self.save_as_path.text().trim().is_empty() {
+                let label = self.document().snapshot().display_label;
+                self.show_path_popover(PathCommand::SaveAs);
+                self.message = Some(format!("Choose where to save {label}."));
+                return false;
+            }
             self.save_as()
         } else {
             match self.document_mut().apply(KnotDocumentIntentV1::Save) {
@@ -1967,10 +2053,9 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                             state.scroll.visible = !state.scroll.visible
                         }),
                         button("New", |state: &mut DesktopState, _| state.new_document()),
-                        button("Open", |state: &mut DesktopState, _| state.open_document()),
-                        button("Save As", |state: &mut DesktopState, _| {
-                            state.save_as();
-                        }),
+                        path_popover(state, PathCommand::Open),
+                        button("Save", |state: &mut DesktopState, _| state.save()),
+                        path_popover(state, PathCommand::SaveAs),
                         button("Reload", |state: &mut DesktopState, _| state.reload()),
                         button("Compare", |state: &mut DesktopState, _| {
                             state.compare_disk();
@@ -2000,21 +2085,10 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         )
                         .attr("aria-expanded", state.readings_visible.to_string())
                         .attr("aria-controls", "knot-readings"),
-                        el(
-                            "label",
-                            (
-                                "Path",
-                                lens(
-                                    |input: &mut TextInput| text_field_typed(input),
-                                    |state: &mut DesktopState| &mut state.path,
-                                ),
-                            ),
-                        )
-                        .attr("id", "knot-path-field")
-                        .attr("class", "knot-path-field"),
                     ),
                 )
-                .attr("class", "knot-workspace-toolbar"),
+                .attr("class", "knot-workspace-toolbar")
+                .attr("aria-label", "Commands"),
                 message,
                 crate::scroll_site::site_panel(state),
                 catalog_status,
@@ -2061,6 +2135,87 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             ),
         ),
     )
+}
+
+/// A command that takes a path: its button opens a popover holding a
+/// single-line path field and the command's own button; Enter runs it too.
+fn path_popover(state: &DesktopState, command: PathCommand) -> DesktopView {
+    let (label, shown, field_id, trigger_id, confirm_id) = match command {
+        PathCommand::Open => (
+            "Open",
+            &state.open_popover,
+            "knot-path-field",
+            "knot-open",
+            "knot-open-confirm",
+        ),
+        PathCommand::SaveAs => (
+            "Save As",
+            &state.save_as_popover,
+            "knot-save-as-field",
+            "knot-save-as",
+            "knot-save-as-confirm",
+        ),
+    };
+    let field: fn(&mut DesktopState) -> &mut TextInput = match command {
+        PathCommand::Open => |state| &mut state.path,
+        PathCommand::SaveAs => |state| &mut state.save_as_path,
+    };
+    popover(
+        Popover::new(label, shown)
+            .with_placement(PopoverPlacement::BelowStart)
+            .with_trigger_attr("id", trigger_id),
+        move |state: &mut DesktopState, event| state.path_popover_event(command, event),
+        || {
+            let body = el(
+                "div",
+                (
+                    el(
+                        "label",
+                        (
+                            "Path",
+                            lens(|input: &mut TextInput| text_field_typed(input), field),
+                        ),
+                    )
+                    .attr("id", field_id)
+                    .attr("class", "knot-path-field"),
+                    button(label, move |state: &mut DesktopState, _| {
+                        state.confirm_path(command)
+                    })
+                    .attr("id", confirm_id),
+                ),
+            )
+            .attr("class", "knot-path-popover");
+            Some(Box::new(
+                on_key(body, move |state: &mut DesktopState, event| {
+                    if matches!(event.key, cambium::Key::Named(cambium::NamedKey::Enter)) {
+                        event.prevent_default();
+                        state.confirm_path(command);
+                    }
+                })
+                .focusable(false),
+            ) as DesktopView)
+        },
+    )
+}
+
+/// A typed path, or the sentence that asks for one.
+fn field_path(field: &TextInput) -> Result<PathBuf, String> {
+    let value = field.text().trim();
+    if value.is_empty() {
+        Err("Enter a file path first.".to_owned())
+    } else {
+        Ok(PathBuf::from(value))
+    }
+}
+
+/// A path as a person reads it: without the Windows verbatim prefix a
+/// canonical path carries (D5).
+fn display_path(path: &Path) -> String {
+    let text = path.display().to_string();
+    match text.strip_prefix(r"\\?\") {
+        Some(rest) if rest.get(1..2) == Some(":") => rest.to_owned(),
+        _ => text,
+    }
 }
 
 /// One document tile: its editor and the panels read from it, the writing
@@ -2388,6 +2543,7 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     let metadata =
         (0..6).find(|i| ancestor_has_id(&*dom_ref, focused, &format!("knot-scroll-meta-{i}")));
     let path = ancestor_has_id(&*dom_ref, focused, "knot-path-field");
+    let save_as_path = ancestor_has_id(&*dom_ref, focused, "knot-save-as-field");
     let document = document_key_of(&*dom_ref, focused);
     drop(dom_ref);
     if folder {
@@ -2446,6 +2602,13 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
             get_mut: Box::new(|state| &mut state.path),
         });
     }
+    if save_as_path {
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(|state| &state.save_as_path),
+            get_mut: Box::new(|state| &mut state.save_as_path),
+        });
+    }
     if is_document_textarea {
         let key = document.or_else(|| runner.state().focused_key())?;
         if runner.state().surface_for(key).snapshot().write_posture
@@ -2478,10 +2641,8 @@ pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
     let key = key.to_ascii_lowercase();
     match (key.as_str(), press.modifiers.shift) {
         ("n", false) => runner.update(DesktopState::new_document),
-        ("o", false) => runner.update(DesktopState::open_document),
-        ("s", true) => runner.update(|state| {
-            state.save_as();
-        }),
+        ("o", false) => runner.update(|state| state.show_path_popover(PathCommand::Open)),
+        ("s", true) => runner.update(|state| state.show_path_popover(PathCommand::SaveAs)),
         ("s", false) => runner.update(DesktopState::save),
         _ => return false,
     }
@@ -2517,6 +2678,7 @@ pub fn after_dispatch(
         ctx.runner.update(DesktopState::sync_micron_folds);
     }
     crate::scroll_site::scroll_to_micron_jump(ctx);
+    focus_path_field(ctx);
     let state = ctx.runner.state();
     let mut focus_requested = state.entry().focus_source_requested;
     let outline_needs_sync = if state.outline_visible {
@@ -2581,6 +2743,32 @@ pub fn after_dispatch(
     }
 }
 
+/// Put focus in the field of a path popover that has just opened.
+fn focus_path_field(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    let Some(command) = ctx.runner.state().focus_path_field else {
+        return;
+    };
+    ctx.runner.update(|state| state.focus_path_field = None);
+    let id = match command {
+        PathCommand::Open => "knot-path-field",
+        PathCommand::SaveAs => "knot-save-as-field",
+    };
+    let target = {
+        let dom = ctx.runner.dom();
+        let dom_ref = dom.borrow();
+        ctx.runner.focusables().into_iter().find(|node| {
+            LayoutDom::element_name(&*dom_ref, *node)
+                .is_some_and(|name| name.local.as_ref() == "input")
+                && ancestor_has_id(&*dom_ref, *node, id)
+        })
+    };
+    if let Some(target) = target {
+        ctx.runner.set_focus(Some(target));
+    }
+}
+
 /// Drain worker completions after a host wake and rebuild the retained view.
 pub fn after_wake(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
@@ -2606,6 +2794,9 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field input { min-width:280px; flex:1; }",
+    ".knot-path-popover { display:flex; align-items:center; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; }",
+    ".knot-path-popover .knot-path-field { min-width:0; }",
+    ".knot-path-popover .knot-path-field input { min-width:0; }",
     ".knot-workspace-message { min-height:1.4em; }",
     ".knot-catalog-status { min-height:1.4em; overflow-wrap:anywhere; }",
     ".knot-catalog-error { color:crimson; display:flex; align-items:center; gap:8px; }",
@@ -2661,7 +2852,7 @@ pub const DESKTOP_CSS: &str = concat!(
 mod tests {
     use super::*;
     use cambium::TextCommand;
-    use cambium_genet_winit_host::{Harness, Init, Modifiers, inert_hooks};
+    use cambium_genet_winit_host::{Harness, Init, KeyPress, Modifiers, NamedKey, inert_hooks};
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::{Arc, Mutex, mpsc};
     use taproot::Selector;
@@ -2754,6 +2945,32 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| class_node(dom, child, class))
+    }
+
+    #[test]
+    fn opening_a_path_popover_leaves_the_command_row_in_place() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        host.layout_at(1100.0, 700.0);
+        let row = |host: &DesktopHarness| {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let toolbar = class_node(&dom, dom.document(), "knot-workspace-toolbar")
+                .expect("the command row");
+            let children: Vec<_> = dom.dom_children(toolbar).collect();
+            drop(dom);
+            children
+                .into_iter()
+                .map(|child| host.painted_rect(child))
+                .collect::<Vec<_>>()
+        };
+        let closed = row(&host);
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-open")));
+        assert!(host.state().open_popover.open);
+        assert_eq!(
+            row(&host),
+            closed,
+            "the open popover moves nothing in the row"
+        );
     }
 
     #[test]
@@ -3039,8 +3256,7 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
         assert!(host.click_on(&Selector::role("button").containing("New")));
         assert!(host.state().document_preview_visible);
-        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
-        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        open_through_path(&mut host, &path);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
@@ -3088,8 +3304,7 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("New")));
         assert_eq!(host.state().document().snapshot().text, "");
         assert_eq!(host.state().document().session().source_path(), None);
-        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
-        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        open_through_path(&mut host, &path);
         assert_eq!(host.state().document().snapshot().text, "# Opened\n");
         assert_eq!(
             host.state().document().session().source_path(),
@@ -3127,11 +3342,10 @@ mod tests {
             host.state().document().session().input().preedit(),
             "仮入力"
         );
-        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
         assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
         host.key_injected("確定");
         assert_eq!(host.state().document().snapshot().text, "確定");
-        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert!(save_as_through(&mut host, &path));
         assert_eq!(std::fs::read(&path).unwrap(), "確定".as_bytes());
     }
 
@@ -3169,21 +3383,72 @@ mod tests {
     }
 
     #[test]
-    fn path_control_and_save_as_are_real_controls() {
+    fn save_as_takes_its_path_from_a_focused_popover_field() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("saved.djot");
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Draft\n"));
         host.layout_at(1000.0, 720.0);
-        let path_input = {
-            let dom = host.runner().dom();
-            let dom = dom.borrow();
-            input_node(&dom, dom.document()).expect("path input")
-        };
-        let (x, y, width, height) = host.painted_rect(path_input).expect("path input layout");
-        host.click_at(x + width / 2.0, y + height / 2.0);
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-save-as")));
+        assert!(
+            focus_inside(&host, "knot-save-as-field"),
+            "the field takes focus"
+        );
         host.key_injected(&path.to_string_lossy());
-        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-save-as-confirm")));
         assert!(path.exists());
+        assert!(
+            !host.state().save_as_popover.open,
+            "it closes once it saved"
+        );
+    }
+
+    #[test]
+    fn save_as_starts_from_the_documents_own_path() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("own.djot");
+        std::fs::write(&path, "own\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1000.0, 720.0);
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-save-as")));
+        let prefilled = host.state().save_as_path.text().to_owned();
+        assert!(prefilled.ends_with("own.djot"), "{prefilled}");
+        assert!(
+            !prefilled.starts_with(r"\\?\"),
+            "no verbatim prefix: {prefilled}"
+        );
+    }
+
+    #[test]
+    fn the_open_popover_keeps_a_long_path_on_one_line() {
+        const LONG: &str = "C:/Users/someone/AppData/Local/Temp/a/very/long/folder/structure/that/keeps/going/and/going/document.djot";
+        for width in [1100.0, 640.0] {
+            let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+            host.layout_at(width, 700.0);
+            assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-open")));
+            let size = |host: &DesktopHarness| {
+                let dom = host.runner().dom();
+                let dom = dom.borrow();
+                let field = attr_node(&dom, dom.document(), "id", "knot-path-field")
+                    .and_then(|label| input_node(&dom, label))
+                    .expect("the Open field");
+                let panel = class_node(&dom, dom.document(), "knot-path-popover").expect("panel");
+                drop(dom);
+                (
+                    host.painted_rect(field).expect("field layout"),
+                    host.painted_rect(panel).expect("panel layout"),
+                )
+            };
+            host.update(|state| state.path = TextInput::new("notes.djot"));
+            let ((_, _, short_width, short_height), _) = size(&host);
+            host.update(|state| state.path = TextInput::new(LONG));
+            let ((x, _, long_width, long_height), (panel_x, _, panel_width, _)) = size(&host);
+            assert_eq!(long_height, short_height, "one line at {width}px");
+            assert_eq!(long_width, short_width, "the path does not widen the field");
+            assert!(
+                x >= panel_x && x + long_width <= panel_x + panel_width,
+                "the field stays inside its popover at {width}px",
+            );
+        }
     }
 
     #[test]
@@ -3269,7 +3534,7 @@ mod tests {
         });
         host.layout_at(900.0, 640.0);
         let draft = host.state().focused_key().unwrap();
-        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        assert!(confirm_open(&mut host));
         assert!(host.state().pending.is_none());
         assert_eq!(host.state().docs.len(), 2);
         assert_eq!(host.state().document().snapshot().text, "replacement");
@@ -3291,9 +3556,38 @@ mod tests {
         });
     }
 
+    /// Run Open on what the Open popover's field holds, opening the popover
+    /// unless a failed open left it open.
+    fn confirm_open(host: &mut DesktopHarness) -> bool {
+        (host.state().open_popover.open
+            || host.click_on(&Selector::role("button").with_attr("id", "knot-open")))
+            && host.click_on(&Selector::role("button").with_attr("id", "knot-open-confirm"))
+    }
+
     fn open_through_path(host: &mut DesktopHarness, path: &Path) {
         host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
-        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        assert!(confirm_open(host));
+    }
+
+    /// Save the focused document as `path` through the Save As popover.
+    fn save_as_through(host: &mut DesktopHarness, path: &Path) -> bool {
+        if !host.state().save_as_popover.open
+            && !host.click_on(&Selector::role("button").with_attr("id", "knot-save-as"))
+        {
+            return false;
+        }
+        host.update(|state| state.save_as_path = TextInput::new(path.to_string_lossy()));
+        host.click_on(&Selector::role("button").with_attr("id", "knot-save-as-confirm"))
+    }
+
+    /// Whether keyboard focus sits inside the element with `id`.
+    fn focus_inside(host: &DesktopHarness, id: &str) -> bool {
+        let Some(focused) = host.focus() else {
+            return false;
+        };
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        ancestor_has_id(&*dom, focused, id)
     }
 
     fn close_tab(host: &mut DesktopHarness, label: &str) -> bool {
@@ -3590,18 +3884,26 @@ mod tests {
         };
         assert_eq!(host.focus(), Some(textarea));
 
-        let path_input = {
+        host.update(|state| state.scroll.visible = true);
+        let folder_input = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            input_node(&dom, dom.document()).expect("path input")
+            attr_node(&dom, dom.document(), "id", "knot-scroll-folder")
+                .and_then(|label| input_node(&dom, label))
+                .expect("site folder input")
         };
-        let (x, y, width, height) = host.painted_rect(path_input).expect("path layout");
+        let (x, y, width, height) = host.painted_rect(folder_input).expect("folder layout");
         host.click_at(x + width / 2.0, y + height / 2.0);
-        assert_eq!(host.focus(), Some(path_input));
+        assert_eq!(host.focus(), Some(folder_input));
         assert!(host.click_on(&Selector::role("button").containing("Second heading")));
+        let textarea = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            named_node(&dom, dom.document(), "textarea").expect("document textarea")
+        };
         assert_eq!(host.focus(), Some(textarea));
         host.key_injected("!");
-        assert_eq!(host.state().path.text(), "");
+        assert_eq!(host.state().scroll.folder.text(), "");
         assert_eq!(host.state().document().snapshot().text, "# Café\n\n!");
     }
 
@@ -3736,7 +4038,6 @@ mod tests {
                 .input_mut()
                 .unwrap()
                 .insert_str("edit");
-            state.path = TextInput::new(path.to_string_lossy().into_owned());
         });
         host.set_modifiers(Modifiers {
             ctrl: true,
@@ -3745,10 +4046,17 @@ mod tests {
         });
         host.key_char("s");
         host.set_modifiers(Modifiers::NONE);
+        assert!(
+            host.state().save_as_popover.open,
+            "Save As asks for its path"
+        );
+        assert!(focus_inside(&host, "knot-save-as-field"));
+        host.key_injected(&path.to_string_lossy());
+        host.press_key(&KeyPress::named(NamedKey::Enter));
         assert!(path.exists());
         assert!(std::fs::read_to_string(&path).unwrap().contains("edit"));
         assert!(!host.state().document().snapshot().dirty);
-        assert!(host.state().path.text().ends_with("shortcut.djot"));
+        assert!(!host.state().save_as_popover.open);
 
         host.update(|state| {
             state
@@ -3766,6 +4074,18 @@ mod tests {
         host.set_modifiers(Modifiers::NONE);
         assert!(!host.state().document().snapshot().dirty);
         assert!(std::fs::read_to_string(&path).unwrap().contains("again"));
+
+        host.set_modifiers(Modifiers {
+            ctrl: true,
+            ..Modifiers::NONE
+        });
+        host.key_char("o");
+        host.set_modifiers(Modifiers::NONE);
+        assert!(
+            host.state().open_popover.open,
+            "Ctrl+O asks for a path to open"
+        );
+        assert!(focus_inside(&host, "knot-path-field"));
     }
 
     #[test]
@@ -3980,9 +4300,8 @@ mod tests {
         let temp = tempdir().unwrap();
         let path = temp.path().join("read-only.djot");
         let mut host = harness(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "read only"));
-        host.update(|state| state.path = TextInput::new(path.to_string_lossy().into_owned()));
         host.layout_at(900.0, 640.0);
-        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert!(save_as_through(&mut host, &path));
         assert!(!path.exists());
         assert_eq!(
             host.state().document().snapshot().write_posture,
@@ -4019,8 +4338,7 @@ mod tests {
             Some(original_id.as_str())
         );
 
-        host.update(|state| state.path = TextInput::new(saved_as.to_string_lossy()));
-        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert!(save_as_through(&mut host, &saved_as));
         let saved_id = host
             .state()
             .entry()
@@ -4250,18 +4568,16 @@ mod tests {
         let (_temp, path, mut host) = review_fixture("saved");
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         let saved_as = path.with_file_name("copy.djot");
-        host.update(|state| state.path = TextInput::new(saved_as.to_string_lossy()));
-        assert!(host.click_on(&Selector::role("button").containing("Save As")));
+        assert!(save_as_through(&mut host, &saved_as));
         assert!(host.state().entry().prepared_capture.is_none());
         assert!(host.click_on(&Selector::role("button").containing("Review saved revision")));
         host.update(|state| {
             state.path = TextInput::new(path.with_file_name("absent.djot").to_string_lossy())
         });
-        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        assert!(confirm_open(&mut host));
         assert!(host.state().entry().prepared_capture.is_some());
         let copy = host.state().focused_key().unwrap();
-        host.update(|state| state.path = TextInput::new(path.to_string_lossy()));
-        assert!(host.click_on(&Selector::role("button").containing("Open")));
+        open_through_path(&mut host, &path);
         assert!(host.state().entry().prepared_capture.is_none());
         assert!(
             host.state()

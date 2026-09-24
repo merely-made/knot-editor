@@ -414,6 +414,53 @@ design frames either fixed or recorded.
   library 102 with 1 ignored, launcher 7; a headed launch with two files and
   a missing path between them showed both tabs, the first in front, and the
   failure line.
+- **2026-09-24, step 3c.** The command row and its path popovers. Open and
+  Save As are Cambium popovers below their buttons, each holding a one-line
+  path field and the command's own button; Enter runs it, and the field
+  takes focus when the popover opens. Save As starts from the focused
+  document's own path without the Windows verbatim prefix (D5), and Save on
+  a scratch document opens it with "Choose where to save". Ctrl+O and
+  Ctrl+Shift+S open them. The row gains Save and an accessible name and
+  loses the standing Path field, and the panel takes the document surface's
+  colours. D6 is absent in the popover: a long path stays on one line at
+  1100 and at 640 wide.
+
+  Fixes below Knot, each with a test that fails without it. In Cambium
+  (mere `175b5829`, `d938c708`, `52d0a146`, `5be48683`): a field lost its
+  selected text when it had no composition; the host's caret, selection and
+  hit geometry was keyed by element, so a field had none; a single-line
+  field neither stayed on one line nor followed its caret; and the popover
+  itself, which the status bar's chips now use. In Genet, fixed there on
+  Mark's rulings: an inline-block's text never reached the retained text
+  frame, so inputs and textareas had no caret geometry (`3bf7b0276e6`);
+  percentage insets resolved against the containing block's width, which
+  put the panel off screen (`22ebde46ae3`); that first fix drew an
+  inline-block's border around each of its lines, striking through the
+  editor text (`99ba03e6406`); and positioned children counted toward a
+  block's intrinsic width, so an open popover's anchor took the whole row
+  (`16ca28adda3`). The last two showed only in the headed check, whose
+  frames are under `Code/testing/knot-editor/images/2026-09-24_3c/`, the
+  failing ones kept as `-before`. Mere repinned to each Genet head
+  (`e8fa4b20`, `2fae9ef4`) and Knot followed (`a663b69`, `3bb1684`); the
+  first repin moved Knot's graphshell carriers onto graphshell-endpoint's
+  `stdio` and `local` features.
+
+  The desktop library passes 105 with 1 ignored: new tests for Save As from
+  a focused popover field, Save As prefilled from the document's path, a
+  long path on one line, and a command row an open popover leaves in place;
+  the Open, Save As and shortcut tests now go through the popovers.
+  Everything else passes as at `3bb1684`.
+
+  Noticed, not fixed here. Shift+End does not extend a text field's
+  selection; the tests set it directly. With Save added, Readings wraps to
+  a second line at 1100 wide. Genet measures a `pre-wrap` inline-block with
+  its newlines collapsed, so its text can overrun its box.
+  cambium-genet-winit-host's two ui_zoom identity tests fail because genet
+  `8a44e944de1` gave buttons UA padding without `border-box`, and
+  genet-render's accessibility bounds test is off by the same 12px; both
+  went to the Genet roadmap session. genet-parley's test target does not
+  build, and cambium-nematic's has the known `views.rs:513` break. Scratch
+  tabs still read `scratch:untitled`.
 
 ## Related material
 

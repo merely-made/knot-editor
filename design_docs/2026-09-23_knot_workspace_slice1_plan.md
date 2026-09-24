@@ -265,6 +265,30 @@ design frames either fixed or recorded.
 - **Link reading cost** grows with the catalog; the worker and the capture
   limit bound it, and a large-catalog probe belongs in step 8.
 
+## Progress
+
+- **2026-09-23, step 0.** Baseline at `3ff250b` (Rust 1.97.1, mere `250fd238`,
+  genet `532f1fad`), `cargo test --locked`, all green. Workspace: desktop
+  library 85 passed and 1 ignored; launcher 4; desktop `preferences` 4 and
+  `readings_panel` 4; knot-editor library 147, its binaries 4 and 4, and its
+  integration suites 2, 3, 5, 4 (1 ignored), 1, 2, 2, 1, 1, 4, 3, 1, 2, 1;
+  knot-file-catalog 8; knot-readings 12 and 7. Standalone: knot-document with
+  all features 47 passed and 1 ignored; knot-site 4, 2, 1, 4, 3 and 3. The
+  first full build after the morning's repin failed to link eight
+  `knot-editor` test targets with "required to be available in rlib format";
+  an immediate rerun linked every target without a clean, so it is recorded
+  as a transient artifact race, not a defect.
+- **2026-09-23, coordination.** Mere's working tree is shared with the
+  Cleromancy session, whose pandect work is uncommitted there, and local
+  `main` carries four other sessions' unpushed commits. The Cambium work
+  therefore happens in the worktree `Code/worktrees/mere-knot-slice1` on
+  branch `knot-slice1-cambium` from `250fd238`, Knot's pin, so patching the
+  Cambium crates cannot mix two mere revisions. Moving that branch onto
+  mere's `main` for a push is Checkpoint A's question. No shared mere-view
+  component is assigned yet; Cleromancy's session is raising it with Mark,
+  and suggests step 8 build over pandect's reservoir types (committed
+  locally at mere `fe5adc1a`, unpushed and early).
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

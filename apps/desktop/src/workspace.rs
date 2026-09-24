@@ -390,6 +390,17 @@ impl DesktopState {
         self.document.snapshot().dirty
     }
 
+    /// The facts a scenario asserts on. Grows as scenarios need more.
+    pub(crate) fn scenario_snapshot(&self) -> cambium_genet_winit_host::ProbeSnapshot {
+        let snapshot = self.document.snapshot();
+        cambium_genet_winit_host::ProbeSnapshot::default()
+            .with_field("document", snapshot.display_label)
+            .with_field("format", format!("{:?}", snapshot.format))
+            .with_field("dirty", snapshot.dirty.to_string())
+            .with_field("appearance_open", self.appearance_open.to_string())
+            .with_field("message", self.message.clone().unwrap_or_default())
+    }
+
     /// Set the maximum number of source bytes prepared by the saved revision
     /// review control. This only affects the next explicit preparation.
     pub fn set_capture_limit(&mut self, max_bytes: usize) {

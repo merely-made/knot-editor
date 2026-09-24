@@ -658,7 +658,7 @@ mod tests {
     use gemot::moot::constitution::{CapabilityGrant, ConstitutionRules};
     use gemot::moot::{MOOT_ACT_ACTION, MOOT_DELEGATION_DOMAIN, MootAuthority, MootDelegations};
     use personae::delegation::{
-        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation,
+        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation, Issue,
         SignedDelegationCertificate, SignedDelegationRevocation,
     };
     use personae::{IdentityProvider, InMemoryProvider};

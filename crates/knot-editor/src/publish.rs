@@ -18,7 +18,7 @@ use notochord::{NetworkId, RetainedAuthority, RevocationLedger};
 use personae::IdentityProvider;
 use personae::delegation::{
     CapabilityScope, DelegationCertificate, DelegationError, DelegationParent,
-    DelegationRevocation, SignedDelegationCertificate, SignedDelegationRevocation,
+    DelegationRevocation, Issue, SignedDelegationCertificate, SignedDelegationRevocation,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -573,7 +573,7 @@ mod tests {
     use super::*;
     use crate::KnotSyncEvent;
     use notochord::{AdmittedPrincipal, RequestedAction, TrafficClass};
-    use personae::delegation::{CapabilityScope, DelegationCertificate, DelegationParent};
+    use personae::delegation::{CapabilityScope, DelegationCertificate, DelegationParent, Issue};
     use personae::{IdentityProvider, InMemoryProvider};
     use tempfile::tempdir;
 

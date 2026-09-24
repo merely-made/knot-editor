@@ -9,10 +9,13 @@ pub mod document_folding;
 pub mod document_preview;
 pub mod preferences;
 pub mod readings;
+pub mod scenario;
 pub mod scroll_site;
 pub mod workspace;
 
-use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
+use cambium_genet_winit_host::{
+    HostHooks, HostOptions, Init, LaneConfig, ScenarioLane, inert_hooks, run,
+};
 use knot_capture::KnotRetainPort;
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use knot_file_catalog::KnotFileCatalog;
@@ -51,6 +54,11 @@ pub fn run_desktop_with_targets(
     targets: Vec<Arc<dyn KnotRetainPort>>,
     titan_submission_error: Option<String>,
 ) -> Result<(), String> {
+    let mut hooks = host_hooks();
+    if let Some(config) = LaneConfig::from_env("KNOT") {
+        let mut lane = ScenarioLane::new(config, scenario::KnotLane::new(desktop_sheet()))?;
+        hooks.after_frame = Box::new(move |ctx| lane.drive(ctx));
+    }
     run(
         HostOptions {
             title: "Knot".into(),
@@ -78,7 +86,7 @@ pub fn run_desktop_with_targets(
                 images: Vec::new(),
             }
         },
-        host_hooks(),
+        hooks,
     )
     .map_err(|error| error.to_string())
 }

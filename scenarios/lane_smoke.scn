@@ -1,0 +1,19 @@
+# Knot's scenario lane, headed: the desktop driven from inside, by role and
+# label, with the presented frames read back.
+#
+#   KNOT_SCENARIO=scenarios/lane_smoke.scn KNOT_CAPTURE_DIR=<dir> \
+#     target/debug/knot.exe <a Djot file>
+#
+# The receipt lands in <dir>/scenario.done unless KNOT_RECEIPT names another
+# path. Its headless twin is apps/desktop/tests/scenario_lane.rs.
+
+log knot lane: launched
+assert snap format == Djot
+assert snap appearance_open == false
+capture launch
+
+click role:button Appearance
+settle 1
+assert snap appearance_open == true
+capture appearance
+log knot lane: done

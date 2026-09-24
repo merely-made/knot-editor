@@ -33,7 +33,7 @@ name the content and protocol, rather than this package.
 
 | Target | Invocation |
 |---|---|
-| `knot_endpoint` | Serves over stdio with `graphshell_stdio::serve_resumable_notifying`. Modes: no argument (the deterministic K0 fixture), `[directory]`, `directory <root>`, `directory-write <root> <max-source-bytes>`, `directory-write-effects <root> <max-source-bytes> <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>`, `persona-vault <data-root> <persona-id> <max-source-bytes>`, `persona-vault-effects ...`, `communal-fixture-effects ...`. Effect modes are `auto`, `ask`, `never`. |
+| `knot_endpoint` | Serves over stdio with `graphshell_endpoint::stdio::serve_resumable_notifying`. Modes: no argument (the deterministic K0 fixture), `[directory]`, `directory <root>`, `directory-write <root> <max-source-bytes>`, `directory-write-effects <root> <max-source-bytes> <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>`, `persona-vault <data-root> <persona-id> <max-source-bytes>`, `persona-vault-effects ...`, `communal-fixture-effects ...`. Effect modes are `auto`, `ask`, `never`. |
 | `knot_sync_host` | `knot_sync_host <data-root> <persona-uuid> [--label <name>] [--log-file <path>]`. Management verbs exit after reporting: `--pair-writer <64-hex>`, `--unpair-writer <64-hex>`, `--pairing-facts`. |
 | `examples/k2_peer.rs` | Two-machine rehearsal for a place-held document. `cargo run -p knot-editor --example k2_peer -- hold --root <vault-dir>` on the holder; `visit --peer <ticket>` or `visit --discover` on the visitor. Env: `K2_OWNER`, `K2_SEED`, `K2_NETWORK`, and `K2_PEER` for `--discover`. It is an example rather than a bin because it uses the `graphshell` dev-dependency. |
 
@@ -42,8 +42,8 @@ Integration tests: `tests/place_projection.rs`, `tests/revision_bell.rs`,
 
 ## Dependencies
 
-- Disclosure: `graphshell-endpoint`, `chirograph`, `graphshell-stdio`,
-  `sceno`, `scenotime`.
+- Disclosure: `graphshell-endpoint` (`stdio`), `chirograph`, `sceno`,
+  `scenotime`.
 - Graph and schema: `chartulary`, `eidetic` (`json-schema`), `session-runtime`,
   `servitor`, `proofs`.
 - Documents: `inker`, `nematic`, `illume`, `cambium`, `knot-editor-host`,

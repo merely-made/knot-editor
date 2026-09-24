@@ -2166,6 +2166,57 @@ mod tests {
     }
 
     #[test]
+    fn the_site_page_follows_the_focused_tab_and_holds_unsaved_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:site-tabs", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
+        state.enter_site(true);
+        state.scroll_open_page("about.scroll");
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        assert_eq!(host.state().scroll.page.as_deref(), Some("about.scroll"));
+        assert!(host.click_on(&Selector::role("tab").containing("index.scroll")));
+        assert_eq!(host.state().scroll.page.as_deref(), Some("index.scroll"));
+        assert!(host.click_on(&Selector::role("tab").containing("scratch:site-tabs")));
+        assert_eq!(host.state().scroll.page, None);
+
+        // An unsaved metadata edit keeps the focus on its page: neither
+        // another tab nor closing this one takes it away.
+        assert!(host.click_on(&Selector::role("tab").containing("about.scroll")));
+        host.update(|state| state.scroll.fields[0] = TextInput::new("Writer"));
+        assert!(host.click_on(&Selector::role("tab").containing("index.scroll")));
+        assert_eq!(host.state().scroll.page.as_deref(), Some("about.scroll"));
+        assert_eq!(
+            host.state().document().snapshot().display_label,
+            "about.scroll"
+        );
+        assert_eq!(host.state().scroll.fields[0].text(), "Writer");
+        assert!(
+            host.state()
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("metadata edits"))
+        );
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("aria-label", "Close about.scroll"))
+        );
+        assert_eq!(host.state().docs.len(), 3);
+        assert_eq!(host.state().scroll.fields[0].text(), "Writer");
+    }
+
+    #[test]
     fn micron_preview_links_require_site_manifest_and_matching_authority() {
         let temp = tempfile::tempdir().unwrap();
         let site = Site::create_for(&temp.path().join("micron"), SiteFormat::Micron).unwrap();

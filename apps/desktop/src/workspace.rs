@@ -1053,12 +1053,27 @@ impl DesktopState {
         }
     }
 
-    /// Readings and bindings follow the focused document: bring them up to
-    /// date after the focus moves.
+    /// Readings, bindings and the site panel's page follow the focused
+    /// document: bring them up to date after the focus moves.
     fn after_focus_change(&mut self) {
         self.clear_folding();
         self.sync_outline_snapshot();
         self.sync_catalog();
+        let page = self
+            .document()
+            .session()
+            .source_path()
+            .map(Path::to_path_buf);
+        self.scroll.sync_page(page.as_deref());
+    }
+
+    /// Metadata edits belong to the site page they were made on, so the focus
+    /// stays there until they are saved or discarded.
+    fn metadata_holds_focus(&mut self) -> bool {
+        if self.scroll.metadata_dirty() {
+            self.message = Some("Save or discard metadata edits before changing documents.".into());
+        }
+        self.scroll.metadata_dirty()
     }
 
     fn new_document(&mut self) {
@@ -1071,7 +1086,6 @@ impl DesktopState {
             "",
         )));
         self.path = TextInput::default();
-        self.scroll.sync_page(None);
         self.after_focus_change();
         self.message = Some("New untitled Djot document.".to_owned());
     }
@@ -1093,7 +1107,6 @@ impl DesktopState {
         let identity = DocIdentity::Path(resolved.clone().unwrap_or_else(|| path.clone()));
         if let Some(key) = self.docs.find(&identity) {
             self.docs.focus(key);
-            self.scroll.sync_page(resolved.as_deref());
             self.after_focus_change();
             let label = self.document().snapshot().display_label;
             self.message = Some(format!("{label} is already open."));
@@ -1103,7 +1116,6 @@ impl DesktopState {
             Ok(session) => {
                 self.path = TextInput::new(path.to_string_lossy().into_owned());
                 self.open_entry(DocumentEntry::new(session));
-                self.scroll.sync_page(resolved.as_deref());
                 self.after_focus_change();
                 self.message = Some(format!("Opened {}.", path.display()));
             },
@@ -1283,8 +1295,12 @@ impl DesktopState {
 
     /// Leave the quit prompt and show the first document it listed.
     fn review_pending(&mut self) {
+        let first = self.dirty_documents().first().copied();
+        if first.is_some() && first != self.focused_key() && self.metadata_holds_focus() {
+            return;
+        }
         self.pending = None;
-        if let Some(key) = self.dirty_documents().first().copied() {
+        if let Some(key) = first {
             self.docs.focus(key);
             self.after_focus_change();
         }
@@ -1301,6 +1317,13 @@ impl DesktopState {
         match &event {
             WorkspaceEvent::Tile(TileEvent::Activated(tile)) => {
                 let before = self.focused_key();
+                let target = match self.docs.role(*tile) {
+                    Some(TileRole::Document(key)) => Some(*key),
+                    _ => None,
+                };
+                if target.is_some() && target != before && self.metadata_holds_focus() {
+                    return;
+                }
                 self.docs.activate(*tile);
                 if self.focused_key() != before {
                     self.after_focus_change();
@@ -1321,11 +1344,16 @@ impl DesktopState {
             self.docs.close(tile);
             return;
         };
-        if self
+        let dirty = self
             .docs
             .doc(key)
-            .is_some_and(|entry| entry.document.snapshot().dirty)
-        {
+            .is_some_and(|entry| entry.document.snapshot().dirty);
+        // Asking about a tab focuses it, and closing the focused tab moves
+        // the focus on.
+        if (dirty || self.focused_key() == Some(key)) && self.metadata_holds_focus() {
+            return;
+        }
+        if dirty {
             self.docs.focus(key);
             self.after_focus_change();
             self.pending = Some(PendingAction::CloseDocument(key));

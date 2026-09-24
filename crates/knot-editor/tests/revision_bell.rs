@@ -13,7 +13,7 @@ use chirograph::{
 };
 use graphshell::client::ResolvedContent;
 use graphshell::sessions::spawn_endpoint_session;
-use graphshell_stdio::StdioCarrier;
+use graphshell_endpoint::stdio::StdioCarrier;
 use tempfile::tempdir;
 
 #[test]

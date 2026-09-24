@@ -326,7 +326,7 @@ fn main() {
              <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>"
         ),
     };
-    graphshell_stdio::serve_resumable_notifying(
+    graphshell_endpoint::stdio::serve_resumable_notifying(
         &mut endpoint,
         std::io::stdin(),
         std::io::stdout().lock(),

@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use graphshell::identity::VaultProtectionView;
-use graphshell::native::app_admission::{AllowedAppRoutes, AppId, AppRouteId};
+use graphshell::native::app_admission::{AllowedAppRoutes, AppId, AppRouteGrants, AppRouteId};
 use graphshell::native::app_broker::{AppEndpointCatalog, serve_app_broker};
 use graphshell::native::app_client::AppBrokerClient;
 use graphshell::native::endpoint_catalog::{ResidentEndpointCatalog, ResidentEndpointRoute};
@@ -40,7 +40,7 @@ async fn turnstone_opens_the_in_memory_knot_route() {
         })
         .unwrap();
     let route = ResidentEndpointRoute::new("knot", Duration::from_millis(10)).unwrap();
-    let grants = AllowedAppRoutes::new([(AppId::new("turnstone"), route)]);
+    let grants = AppRouteGrants::new(AllowedAppRoutes::new([(AppId::new("turnstone"), route)]));
 
     #[cfg(windows)]
     let endpoint = format!(r"\\.\pipe\graphshell-knot-route-{}", uuid::Uuid::new_v4());

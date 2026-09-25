@@ -2575,17 +2575,43 @@ mod tests {
         host.relayout();
     }
 
+    /// The area the preview scrolls in: its document tile's content.
+    fn pane(host: &DesktopHarness) -> genet_scripted_dom::NodeId {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let preview = class_nodes(&dom, dom.document(), "knot-scroll-preview")
+            .into_iter()
+            .next()
+            .expect("the preview renders");
+        let mut node = dom.parent(preview);
+        while let Some(current) = node {
+            if dom.has_class(current, "frisket-content") {
+                return current;
+            }
+            node = dom.parent(current);
+        }
+        panic!("the preview sits in a tile")
+    }
+
+    /// How far the preview's tile has scrolled.
+    fn pane_scroll(host: &DesktopHarness) -> f32 {
+        host.element_scroll(pane(host)).1
+    }
+
     #[track_caller]
-    fn at_viewport_top(host: &DesktopHarness, node: genet_scripted_dom::NodeId, what: &str) {
+    fn at_pane_top(host: &DesktopHarness, node: genet_scripted_dom::NodeId, what: &str) {
         let (_, top, _, _) = host.painted_rect(node).expect("the target paints");
+        let (_, pane_top, _, _) = host.painted_rect(pane(host)).expect("the tile paints");
         assert!(
-            top.abs() < 0.5,
-            "{what}: painted top {top}, window scroll {:?}",
-            host.viewport_scroll()
+            (top - pane_top).abs() < 0.5,
+            "{what}: painted top {top}, tile top {pane_top}, tile scroll {}",
+            pane_scroll(host)
         );
-        assert!(
-            host.viewport_scroll().1 > 0.0,
-            "{what}: the window scrolled"
+        assert!(pane_scroll(host) > 0.0, "{what}: the tile scrolled");
+        assert_eq!(
+            host.viewport_scroll(),
+            (0.0, 0.0),
+            "{what}: the window stayed"
         );
     }
 
@@ -2599,7 +2625,7 @@ mod tests {
         let text = preview_text(&host);
         assert!(!text.contains("MARKER HIDDEN"), "authored closed: {text:?}");
         assert!(text.contains(&fold_label(false, "Closed Outer")));
-        assert_eq!(host.viewport_scroll(), (0.0, 0.0));
+        assert_eq!(pane_scroll(&host), 0.0);
 
         click_in_page_link(&mut host, "jump to the hidden heading");
         let text = preview_text(&host);
@@ -2609,7 +2635,7 @@ mod tests {
         );
         assert!(text.contains(&fold_label(true, "Closed Outer")));
         let target = anchor_block(&host, &source, "hidden-target");
-        at_viewport_top(&host, target, "#hidden-target");
+        at_pane_top(&host, target, "#hidden-target");
         assert!(
             host.state().entry().micron_folds.jump.is_none(),
             "the jump is spent"
@@ -2617,10 +2643,10 @@ mod tests {
 
         // Back to the top, then the explicit anchor in the now-open section.
         host.wheel(0.0, -100_000.0);
-        assert_eq!(host.viewport_scroll().1, 0.0);
+        assert_eq!(pane_scroll(&host), 0.0);
         click_in_page_link(&mut host, "jump to the hidden explicit anchor");
         let target = anchor_block(&host, &source, "hidden-explicit");
-        at_viewport_top(&host, target, "#hidden-explicit");
+        at_pane_top(&host, target, "#hidden-explicit");
 
         assert_eq!(
             authored(&host),
@@ -2648,7 +2674,7 @@ mod tests {
         assert!(text.contains(&fold_label(true, "Inner Closed")), "{text:?}");
         assert!(text.contains("MARKER NESTED DEEP TARGET"), "{text:?}");
         let target = anchor_block(&host, &source, "nested-deep");
-        at_viewport_top(&host, target, "#nested-deep");
+        at_pane_top(&host, target, "#nested-deep");
         assert_eq!(authored(&host), before);
     }
 
@@ -2664,13 +2690,13 @@ mod tests {
             .expect("the link paints");
         host.move_to(x + width / 2.0, y + height / 2.0);
         host.wheel(0.0, 20.0);
-        let scrolled = host.viewport_scroll();
-        assert!(scrolled.1 > 0.0, "a starting offset the jump could disturb");
+        let scrolled = pane_scroll(&host);
+        assert!(scrolled > 0.0, "a starting offset the jump could disturb");
         let text = preview_text(&host);
         let folds = host.state().entry().micron_folds.folds.clone();
 
         click_in_page_link(&mut host, "jump to a missing anchor");
-        assert_eq!(host.viewport_scroll(), scrolled, "no scroll");
+        assert_eq!(pane_scroll(&host), scrolled, "no scroll");
         assert_eq!(
             host.state().entry().micron_folds.folds,
             folds,
@@ -2682,7 +2708,7 @@ mod tests {
 
         click_in_page_link(&mut host, "jump to a present anchor");
         let target = anchor_block(&host, &source, "present-control");
-        at_viewport_top(&host, target, "probe 03 control");
+        at_pane_top(&host, target, "probe 03 control");
 
         let source = probe_04();
         let (_temp, mut host) = micron_site_preview_harness(&source);
@@ -2692,11 +2718,11 @@ mod tests {
             .expect("the link paints");
         host.move_to(x + width / 2.0, y + height / 2.0);
         host.wheel(0.0, 100_000.0);
-        let bottom = host.viewport_scroll();
-        assert!(bottom.1 > 0.0);
+        let bottom = pane_scroll(&host);
+        assert!(bottom > 0.0);
         click_in_page_link(&mut host, "next heading from the tail");
         assert_eq!(
-            host.viewport_scroll(),
+            pane_scroll(&host),
             bottom,
             "`#` below every heading is inert"
         );
@@ -2705,7 +2731,7 @@ mod tests {
         host.wheel(0.0, -100_000.0);
         click_in_page_link(&mut host, "next heading from the top");
         let target = anchor_block(&host, &source, "first-heading");
-        at_viewport_top(&host, target, "probe 04 control");
+        at_pane_top(&host, target, "probe 04 control");
 
         // Neither probe has a collapsible section, so this composed page (not a
         // stock capture) puts probe 03's missing link above a closed one.
@@ -2721,7 +2747,7 @@ mod tests {
             "no fold opens"
         );
         assert!(!preview_text(&host).contains("MARKER OUTER BODY"));
-        assert_eq!(host.viewport_scroll(), (0.0, 0.0));
+        assert_eq!(pane_scroll(&host), 0.0);
     }
 
     // Enter on a focused in-page link lands exactly where a click does.
@@ -2748,9 +2774,9 @@ mod tests {
 
         host.press_key(&KeyPress::named(NamedKey::Enter));
         let target = anchor_block(&host, &source, "hidden-target");
-        at_viewport_top(&host, target, "Enter");
+        at_pane_top(&host, target, "Enter");
         assert_eq!(preview_text(&host), preview_text(&clicked));
-        assert_eq!(host.viewport_scroll(), clicked.viewport_scroll());
+        assert_eq!(pane_scroll(&host), pane_scroll(&clicked));
         assert_eq!(
             host.state().entry().micron_folds.folds,
             clicked.state().entry().micron_folds.folds

@@ -9,7 +9,7 @@ use std::sync::Arc;
 use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
-pub const CSS: &str = ".knot-document-preview { box-sizing:border-box; padding:16px; overflow:auto; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-diagnostics { display:block; font-size:13px; opacity:0.8; } .knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }";
+pub const CSS: &str = ".knot-document-preview { box-sizing:border-box; padding:16px; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-diagnostics { display:block; font-size:13px; opacity:0.8; } .knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }";
 
 pub(crate) fn inline_presentation_css(presentation: &inker::InlinePresentation) -> String {
     let mut css = String::new();

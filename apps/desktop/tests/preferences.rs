@@ -107,7 +107,7 @@ fn a_malformed_preferences_file_uses_defaults_says_why_and_is_not_overwritten() 
     std::fs::write(&path, malformed).unwrap();
     let mut harness = launch(&path);
     assert_eq!(harness.state().appearance, Appearance::default());
-    let message = class_text(&harness, "knot-workspace-message").unwrap();
+    let message = class_text(&harness, "status-message").unwrap();
     assert!(message.contains("could not be read"), "{message}");
     assert!(message.contains(PREFERENCES_FILE), "{message}");
 
@@ -161,7 +161,7 @@ fn a_preferences_file_from_a_newer_knot_loads_says_so_and_keeps_saving() {
 
     let mut harness = launch(&path);
     assert!(harness.state().appearance.dark, "known settings load");
-    let message = class_text(&harness, "knot-workspace-message").unwrap();
+    let message = class_text(&harness, "status-message").unwrap();
     assert!(message.contains("newer Knot"), "{message}");
     assert!(
         message.contains(&format!("version {newer}"))

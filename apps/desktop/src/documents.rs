@@ -19,7 +19,9 @@
 use std::collections::{BTreeMap, HashMap};
 use std::path::PathBuf;
 
-use workbench::{ContentSource, Tile, TileEvent, TileId, TileTree, Workspace, WorkspaceEvent};
+use workbench::{
+    ContentSource, Edge, Tile, TileEvent, TileId, TileTree, Workspace, WorkspaceEvent,
+};
 
 /// The runtime key of one open document.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -70,6 +72,9 @@ pub struct DocumentWorkspace<D> {
     roles: HashMap<TileId, TileRole>,
     workspace: Workspace,
     focused: Option<DocKey>,
+    /// The reading tile activated or opened last, whose stack the next
+    /// reading joins.
+    last_reading: Option<TileId>,
     next_doc: u64,
     next_tile: u64,
 }
@@ -87,6 +92,7 @@ impl<D> DocumentWorkspace<D> {
             roles: HashMap::new(),
             workspace: Workspace::new(TileTree::stack(Vec::new(), 0)),
             focused: None,
+            last_reading: None,
             next_doc: 1,
             next_tile: 1,
         }
@@ -221,8 +227,83 @@ impl<D> DocumentWorkspace<D> {
     pub fn activate(&mut self, tile: TileId) {
         self.workspace
             .apply(&WorkspaceEvent::Tile(TileEvent::Activated(tile)));
-        if let Some(TileRole::Document(key)) = self.roles.get(&tile) {
-            self.focused = Some(*key);
+        match self.roles.get(&tile) {
+            Some(TileRole::Document(key)) => self.focused = Some(*key),
+            Some(TileRole::Reading { .. }) => self.last_reading = Some(tile),
+            _ => {},
+        }
+    }
+
+    /// Open a reading tile of `kind`, following the focused document or
+    /// pinned to one. It joins the stack of the reading activated last, else
+    /// takes a new stack right of the focused document's.
+    pub fn open_reading(
+        &mut self,
+        kind: ReadingKind,
+        pinned: Option<DocKey>,
+        title: impl Into<String>,
+    ) -> TileId {
+        let beside_reading = self
+            .last_reading
+            .filter(|tile| self.workspace.tiled().find(*tile).is_some());
+        let beside_document = self
+            .focused
+            .or_else(|| self.entries.keys().next().copied())
+            .and_then(|key| self.tile_of(key));
+        let tile = self.mint_tile(title.into(), TileRole::Reading { kind, pinned });
+        let id = tile.id;
+        let tree = self.workspace.tiled_mut();
+        let placed = beside_reading.is_some_and(|last| tree.insert_tab_after(last, tile.clone()))
+            || beside_document
+                .is_some_and(|document| tree.split_beside(document, Edge::Right, tile.clone()));
+        if !placed {
+            match tree {
+                TileTree::Stack(stack) => {
+                    stack.tabs.push(tile);
+                    stack.active = stack.tabs.len() - 1;
+                },
+                _ => *tree = TileTree::stack(vec![tile], 0),
+            }
+        }
+        self.last_reading = Some(id);
+        id
+    }
+
+    /// The open reading tile of `kind` that follows the focus, if any.
+    pub fn following_reading(&self, kind: ReadingKind) -> Option<TileId> {
+        self.readings()
+            .find(|(_, open, pinned)| *open == kind && pinned.is_none())
+            .map(|(tile, _, _)| tile)
+    }
+
+    /// Every open reading tile: its id, kind and pin, in tile order.
+    pub fn readings(&self) -> impl Iterator<Item = (TileId, ReadingKind, Option<DocKey>)> + '_ {
+        let mut tiles: Vec<_> = self
+            .roles
+            .iter()
+            .filter_map(|(tile, role)| match role {
+                TileRole::Reading { kind, pinned } => Some((*tile, *kind, *pinned)),
+                _ => None,
+            })
+            .collect();
+        tiles.sort_by_key(|(tile, _, _)| tile.0);
+        tiles.into_iter()
+    }
+
+    /// Pin a reading tile to `pinned`, or let it follow the focus again.
+    pub fn set_pinned(&mut self, tile: TileId, pinned: Option<DocKey>) {
+        if let Some(TileRole::Reading {
+            pinned: current, ..
+        }) = self.roles.get_mut(&tile)
+        {
+            *current = pinned;
+        }
+    }
+
+    /// Rename any tile's tab.
+    pub fn set_tile_title(&mut self, tile: TileId, title: impl Into<String>) {
+        if let Some(tile) = self.workspace.tiled_mut().tile_mut(tile) {
+            tile.title = title.into();
         }
     }
 
@@ -245,10 +326,24 @@ impl<D> DocumentWorkspace<D> {
         let role = self.roles.remove(&tile)?;
         self.workspace
             .apply(&WorkspaceEvent::Tile(TileEvent::Closed(tile)));
+        if self.last_reading == Some(tile) {
+            self.last_reading = self.readings().map(|(tile, _, _)| tile).last();
+        }
         let closed = match role {
             TileRole::Document(key) => self.entries.remove(&key).map(|entry| (key, entry.doc)),
             _ => None,
         };
+        // A reading pinned to a closed document has nothing left to show.
+        if let Some((key, _)) = &closed {
+            let pinned: Vec<TileId> = self
+                .readings()
+                .filter(|(_, _, pinned)| *pinned == Some(*key))
+                .map(|(tile, _, _)| tile)
+                .collect();
+            for reading in pinned {
+                self.close(reading);
+            }
+        }
         if let Some((key, _)) = &closed
             && self.focused == Some(*key)
         {
@@ -438,6 +533,77 @@ mod tests {
         space.open(path("b.djot"), "b.djot", "B");
         space.activate(space.tile_of(a).unwrap());
         assert_eq!(space.focused(), Some(a));
+    }
+
+    fn stacks(space: &DocumentWorkspace<&'static str>) -> Vec<Vec<TileId>> {
+        match space.workspace().tiled() {
+            TileTree::Split { children, .. } => children
+                .iter()
+                .map(|branch| branch.tree.tiles().iter().map(|tile| tile.id).collect())
+                .collect(),
+            tree => vec![tree.tiles().iter().map(|tile| tile.id).collect()],
+        }
+    }
+
+    #[test]
+    fn readings_share_a_stack_right_of_the_documents() {
+        let mut space = DocumentWorkspace::new();
+        let (a, _) = space.open(path("a.djot"), "a.djot", "A");
+        let outline = space.open_reading(ReadingKind::Outline, None, "Outline");
+        let preview = space.open_reading(ReadingKind::Preview, None, "Preview");
+        assert_eq!(
+            stacks(&space),
+            [vec![space.tile_of(a).unwrap()], vec![outline, preview]]
+        );
+        assert_eq!(space.document_for(outline), Some(a));
+        assert_eq!(
+            space.focused(),
+            Some(a),
+            "a reading takes no document focus"
+        );
+    }
+
+    #[test]
+    fn a_pinned_reading_keeps_its_document_as_the_focus_moves() {
+        let mut space = DocumentWorkspace::new();
+        let (a, _) = space.open(path("a.djot"), "a.djot", "A");
+        let following = space.open_reading(ReadingKind::Preview, None, "Preview");
+        let pinned = space.open_reading(ReadingKind::Preview, Some(a), "Preview");
+        let (b, _) = space.open(path("b.djot"), "b.djot", "B");
+        assert_eq!(space.document_for(following), Some(b));
+        assert_eq!(space.document_for(pinned), Some(a));
+        assert_eq!(
+            space.following_reading(ReadingKind::Preview),
+            Some(following)
+        );
+        space.set_pinned(pinned, None);
+        assert_eq!(space.document_for(pinned), Some(b), "unpinned, it follows");
+    }
+
+    #[test]
+    fn closing_a_document_closes_the_readings_pinned_to_it() {
+        let mut space = DocumentWorkspace::new();
+        let (a, _) = space.open(path("a.djot"), "a.djot", "A");
+        space.open(path("b.djot"), "b.djot", "B");
+        let pinned = space.open_reading(ReadingKind::Outline, Some(a), "Outline");
+        let following = space.open_reading(ReadingKind::Preview, None, "Preview");
+        space.close(space.tile_of(a).unwrap());
+        assert_eq!(space.role(pinned), None);
+        assert!(space.role(following).is_some());
+    }
+
+    #[test]
+    fn the_last_reading_closes_its_stack_and_the_next_opens_another() {
+        let mut space = DocumentWorkspace::new();
+        let (a, _) = space.open(path("a.djot"), "a.djot", "A");
+        let outline = space.open_reading(ReadingKind::Outline, None, "Outline");
+        space.close(outline);
+        assert_eq!(stacks(&space), [vec![space.tile_of(a).unwrap()]]);
+        let again = space.open_reading(ReadingKind::Outline, None, "Outline");
+        assert_eq!(
+            stacks(&space),
+            [vec![space.tile_of(a).unwrap()], vec![again]]
+        );
     }
 
     #[test]

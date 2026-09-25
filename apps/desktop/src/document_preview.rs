@@ -6,9 +6,10 @@ use inker::{Block, DocumentDiagnostic, InlineSpan};
 use knot_document::KnotOutlineItemV1;
 use std::sync::Arc;
 
+use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
-pub const CSS: &str = ".knot-document-preview-mode .knot-writing-area { display:flex; align-items:flex-start; gap:12px; } .knot-document-preview { flex:1 1 50%; width:0; min-width:0; box-sizing:border-box; padding:16px; overflow:auto; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-heading { display:block; width:100%; text-align:left; } @media (max-width:700px) { .knot-document-preview-mode .knot-document-preview { width:100%; flex-basis:auto; } }";
+pub const CSS: &str = ".knot-document-preview { box-sizing:border-box; padding:16px; overflow:auto; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-diagnostics { display:block; font-size:13px; opacity:0.8; } .knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }";
 
 pub(crate) fn inline_presentation_css(presentation: &inker::InlinePresentation) -> String {
     let mut css = String::new();
@@ -112,7 +113,7 @@ fn table_row(cells: &[Vec<InlineSpan>], cell_element: &'static str) -> DesktopVi
 pub(crate) fn note_blocks(document: &inker::EngineDocument) -> DesktopView {
     let address: Arc<str> = Arc::from(document.address.clone());
     let source_text: Arc<str> = Arc::from("");
-    blocks(&document.blocks, &[], &address, &source_text, &mut 0)
+    blocks(&document.blocks, &[], &address, &source_text, None, &mut 0)
 }
 
 fn blocks(
@@ -120,6 +121,7 @@ fn blocks(
     headings: &[KnotOutlineItemV1],
     address: &Arc<str>,
     source_text: &Arc<str>,
+    document: Option<DocKey>,
     next_heading: &mut usize,
 ) -> DesktopView {
     let children = items
@@ -138,6 +140,7 @@ fn blocks(
                             headings,
                             address,
                             source_text,
+                            document,
                             next_heading,
                         ),
                     )
@@ -165,6 +168,7 @@ fn blocks(
                         },
                         button(label.clone(), move |state: &mut DesktopState, _| {
                             state.select_preview_heading(
+                                document,
                                 heading_address.as_ref(),
                                 heading_source.as_ref(),
                                 &heading,
@@ -181,7 +185,14 @@ fn blocks(
                 },
                 Block::Quote { blocks: items } => Box::new(el(
                     "blockquote",
-                    blocks(items, headings, address, source_text, next_heading),
+                    blocks(
+                        items,
+                        headings,
+                        address,
+                        source_text,
+                        document,
+                        next_heading,
+                    ),
                 )),
                 Block::List { ordered, items } => Box::new(el(
                     if *ordered { "ol" } else { "ul" },
@@ -194,7 +205,14 @@ fn blocks(
                                     i,
                                     el(
                                         "li",
-                                        blocks(item, headings, address, source_text, next_heading),
+                                        blocks(
+                                            item,
+                                            headings,
+                                            address,
+                                            source_text,
+                                            document,
+                                            next_heading,
+                                        ),
                                     ),
                                 )
                             })
@@ -280,24 +298,33 @@ fn diagnostic_text(diagnostic: &DocumentDiagnostic) -> String {
     }
 }
 
-pub fn view(state: &DesktopState) -> DesktopView {
-    if !state.document_preview_visible
-        || !matches!(
-            state.document().snapshot().format,
-            knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
-        )
-    {
-        return Box::new(el("div", ()));
+/// Whether `format` has a preview reading.
+pub fn supported(format: knot_document::DocumentFormat) -> bool {
+    matches!(
+        format,
+        knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
+    )
+}
+
+/// The preview reading of `key`'s document, inside reading tile `tile`: its
+/// id is the tile's, so two previews can be open at once.
+pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
+    let surface = state.surface_for(key);
+    if !supported(surface.snapshot().format) {
+        return Box::new(
+            el("div", span("This document's format has no preview."))
+                .attr("class", "knot-reading-empty"),
+        );
     }
-    let preview: DesktopView = match state.document().session().preview_snapshot() {
+    let preview: DesktopView = match surface.session().preview_snapshot() {
         Ok(snapshot) => {
             let address: Arc<str> = Arc::from(snapshot.address.clone());
             let source_text: Arc<str> = Arc::from(snapshot.source_text.clone());
             let diagnostics = if snapshot.document.diagnostics.is_empty() {
-                "Preview diagnostics: none".to_owned()
+                "Diagnostics: none".to_owned()
             } else {
                 format!(
-                    "Preview diagnostics: {}",
+                    "Diagnostics: {}",
                     snapshot
                         .document
                         .diagnostics
@@ -312,13 +339,13 @@ pub fn view(state: &DesktopState) -> DesktopView {
                 &snapshot.headings,
                 &address,
                 &source_text,
+                Some(key),
                 &mut 0,
             );
             Box::new(el(
                 "div",
                 (
-                    span(format!("Source: {address}")),
-                    span(diagnostics),
+                    span(diagnostics).attr("class", "knot-document-preview-diagnostics"),
                     rendered,
                 ),
             ))
@@ -326,11 +353,11 @@ pub fn view(state: &DesktopState) -> DesktopView {
         Err(error) => Box::new(el("div", span(format!("Preview unavailable: {error}")))),
     };
     Box::new(
-        el("aside", (el("h2", "Preview · current source"), preview))
-            .attr("id", "knot-document-preview")
+        el("div", preview)
+            .attr("id", format!("knot-document-preview-{}", tile.0))
             .attr("class", "knot-document-preview")
             .attr("role", "complementary")
-            .attr("aria-label", "Djot or Knot document preview"),
+            .attr("aria-label", "Document preview"),
     )
 }
 

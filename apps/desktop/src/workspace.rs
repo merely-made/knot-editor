@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::appearance::Appearance;
-use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, TileRole};
+use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, TileRole};
 use crate::preferences::PreferencesStore;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
@@ -216,8 +216,6 @@ pub struct DesktopState {
     pub message: Option<String>,
     catalog: Option<KnotFileCatalog>,
     capture_limit: usize,
-    outline_visible: bool,
-    pub(crate) document_preview_visible: bool,
     pub(crate) fold_visible: bool,
     appearance_open: bool,
     preferences: Option<PreferencesStore>,
@@ -287,8 +285,6 @@ impl DesktopState {
             message: None,
             catalog,
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
-            outline_visible: false,
-            document_preview_visible: false,
             fold_visible: false,
             appearance_open: false,
             preferences: None,
@@ -837,30 +833,77 @@ impl DesktopState {
         }
     }
 
+    /// The documents the open reading tiles of `kind` show.
+    pub(crate) fn reading_documents(&self, kind: ReadingKind) -> Vec<DocKey> {
+        let mut keys: Vec<DocKey> = self
+            .docs
+            .readings()
+            .filter(|(_, open, _)| *open == kind)
+            .filter_map(|(tile, _, _)| self.docs.document_for(tile))
+            .collect();
+        keys.sort();
+        keys.dedup();
+        keys
+    }
+
+    /// Whether `key`'s outline snapshot no longer matches its source.
+    fn outline_stale(&self, key: DocKey) -> bool {
+        let Some(entry) = self.docs.doc(key) else {
+            return false;
+        };
+        let current = entry.document.snapshot();
+        entry.outline_snapshot.as_ref().is_none_or(|snapshot| {
+            snapshot.address != current.source.address || snapshot.source_text != current.text
+        })
+    }
+
     fn sync_outline_snapshot(&mut self) {
-        if !self.outline_visible {
+        for key in self.reading_documents(ReadingKind::Outline) {
+            if self.outline_stale(key)
+                && let Some(entry) = self.docs.doc_mut(key)
+            {
+                entry.outline_snapshot = Some(entry.document.session().outline_snapshot());
+            }
+        }
+    }
+
+    /// Show or hide the reading of `kind` that follows the focused document.
+    pub(crate) fn toggle_reading(&mut self, kind: ReadingKind) {
+        if let Some(tile) = self.docs.following_reading(kind) {
+            self.docs.close(tile);
             return;
         }
-        let current = self.document().snapshot();
-        let stale = self
-            .entry()
-            .outline_snapshot
-            .as_ref()
-            .is_none_or(|snapshot| {
-                snapshot.address != current.source.address || snapshot.source_text != current.text
-            });
-        if stale {
-            self.entry_mut().outline_snapshot = Some(self.document().session().outline_snapshot());
+        self.docs.open_reading(kind, None, reading_title(kind));
+        if kind == ReadingKind::Outline {
+            self.entry_mut().outline_error = None;
+            self.sync_outline_snapshot();
         }
     }
 
     fn toggle_outline(&mut self) {
-        self.outline_visible = !self.outline_visible;
-        if self.outline_visible {
-            self.entry_mut().outline_snapshot = Some(self.document().session().outline_snapshot());
-            self.entry_mut().outline_error = None;
-        } else {
-            self.clear_outline();
+        self.toggle_reading(ReadingKind::Outline);
+    }
+
+    /// Pin a reading tile to the document it shows, or let it follow the
+    /// focus again.
+    pub(crate) fn toggle_pin(&mut self, tile: workbench::TileId) {
+        let pinned = match self.docs.role(tile) {
+            Some(TileRole::Reading { pinned, .. }) => *pinned,
+            _ => return,
+        };
+        let next = match pinned {
+            Some(_) => None,
+            None => self.docs.document_for(tile),
+        };
+        self.docs.set_pinned(tile, next);
+        self.sync_outline_snapshot();
+    }
+
+    /// Make `key` the focused document, as activating its tab does.
+    fn focus_document(&mut self, key: DocKey) {
+        if self.docs.focused() != Some(key) {
+            self.docs.focus(key);
+            self.after_focus_change();
         }
     }
 
@@ -1054,13 +1097,19 @@ impl DesktopState {
         self.appearance_open = !self.appearance_open;
     }
 
+    /// Select a preview heading's source range in `document` (the focused
+    /// one when `None`), focusing that document first.
     pub(crate) fn select_preview_heading(
         &mut self,
+        document: Option<DocKey>,
         address: &str,
         source_text: &str,
         heading: &KnotOutlineItemV1,
         index: usize,
     ) {
+        if let Some(key) = document {
+            self.focus_document(key);
+        }
         let result = self.document().session().preview_snapshot();
         let result = result.and_then(|snapshot| {
             if snapshot.address != address
@@ -1077,6 +1126,13 @@ impl DesktopState {
             Ok(()) => self.entry_mut().focus_source_requested = true,
             Err(error) => self.message = Some(format!("Preview heading selection failed: {error}")),
         }
+    }
+
+    /// Select an outline row's source range in `key`'s document, focusing
+    /// that document first.
+    fn select_outline_item_in(&mut self, key: DocKey, index: usize) {
+        self.focus_document(key);
+        self.select_outline_item(index);
     }
 
     fn select_outline_item(&mut self, index: usize) {
@@ -2004,27 +2060,23 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .attr("aria-live", "polite"),
         )
     };
-    let document_preview_button: DesktopView = if matches!(
-        state.document().snapshot().format,
-        knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
-    ) {
-        Box::new(
-            button(
-                if state.document_preview_visible {
-                    "Hide Preview"
-                } else {
-                    "Show Preview"
-                },
-                |state: &mut DesktopState, _| {
-                    state.document_preview_visible = !state.document_preview_visible;
-                },
+    let preview_following = state.docs.following_reading(ReadingKind::Preview).is_some();
+    let document_preview_button: DesktopView =
+        if crate::document_preview::supported(state.document().snapshot().format) {
+            Box::new(
+                button(
+                    if preview_following {
+                        "Hide Preview"
+                    } else {
+                        "Show Preview"
+                    },
+                    |state: &mut DesktopState, _| state.toggle_reading(ReadingKind::Preview),
+                )
+                .attr("aria-expanded", preview_following.to_string()),
             )
-            .attr("aria-expanded", state.document_preview_visible.to_string())
-            .attr("aria-controls", "knot-document-preview"),
-        )
-    } else {
-        Box::new(el("div", ()))
-    };
+        } else {
+            Box::new(el("div", ()))
+        };
     let document_folding_button: DesktopView =
         if crate::document_folding::supported(state.document().snapshot().format) {
             Box::new(
@@ -2068,7 +2120,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         .attr("aria-expanded", state.appearance_open.to_string())
                         .attr("aria-controls", "knot-appearance-panel"),
                         button(
-                            if state.outline_visible {
+                            if state.docs.following_reading(ReadingKind::Outline).is_some() {
                                 "Hide Outline"
                             } else {
                                 "Show Outline"
@@ -2108,20 +2160,10 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         .attr(
             "class",
             format!(
-                "{}{}{}{}",
+                "{}{}{}",
                 state.appearance.root_class(),
                 if state.document().snapshot().format.native_source() {
                     " knot-native-site-mode"
-                } else {
-                    ""
-                },
-                if state.document_preview_visible
-                    && matches!(
-                        state.document().snapshot().format,
-                        knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
-                    )
-                {
-                    " knot-document-preview-mode"
                 } else {
                     ""
                 },
@@ -2222,85 +2264,6 @@ fn display_path(path: &Path) -> String {
 /// area the window had before tabs. The panels read the focused entry, which
 /// is the document a single stack shows.
 fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
-    let outline_panel: DesktopView = if !state.outline_visible {
-        Box::new(el("div", ()))
-    } else if state.document().snapshot().format.native_source() {
-        Box::new(span("A source outline is not available for this native protocol format yet. Use its preview when available.").attr("class", "knot-outline"))
-    } else if let Some(snapshot) = &state.entry().outline_snapshot {
-        let rows = snapshot
-            .items
-            .iter()
-            .enumerate()
-            .map(|(index, item)| {
-                let label = item.label.clone();
-                let level = item.level;
-                let key = item.start;
-                let accessible_label = format!("Heading level {level}: {label}");
-                (
-                    key,
-                    button(label, move |state: &mut DesktopState, _| {
-                        state.select_outline_item(index);
-                    })
-                    .attr("class", "knot-outline-row")
-                    .attr("data-outline-index", index.to_string())
-                    .attr("data-outline-level", level.to_string())
-                    .attr("aria-label", accessible_label),
-                )
-            })
-            .collect::<Vec<_>>();
-        let rows_view = if rows.is_empty() {
-            Box::new(span("No headings in this document.")) as DesktopView
-        } else {
-            Box::new(el("div", Keyed::new(rows)).attr("class", "knot-outline-rows")) as DesktopView
-        };
-        let error = state.entry().outline_error.as_ref().map(|error| {
-            span(format!("Outline error: {error}")).attr("class", "knot-outline-error")
-        });
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Outline"),
-                            button("Hide Outline", |state: &mut DesktopState, _| {
-                                state.toggle_outline();
-                            }),
-                        ),
-                    )
-                    .attr("class", "knot-outline-header"),
-                    error,
-                    rows_view,
-                ),
-            )
-            .attr("class", "knot-outline")
-            .attr("role", "region")
-            .attr("aria-label", "Document outline"),
-        )
-    } else {
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Outline"),
-                            button("Hide Outline", |state: &mut DesktopState, _| {
-                                state.toggle_outline();
-                            }),
-                        ),
-                    )
-                    .attr("class", "knot-outline-header"),
-                    span("Outline is updating; try again shortly."),
-                ),
-            )
-            .attr("class", "knot-outline")
-            .attr("role", "region")
-            .attr("aria-label", "Document outline"),
-        )
-    };
     let comparison_panel: DesktopView = if let Some(error) = &state.entry().comparison_error {
         Box::new(
             el(
@@ -2413,9 +2376,7 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
                     "div",
                     (
                         source_wrapper,
-                        outline_panel,
                         crate::readings::view(state),
-                        crate::document_preview::view(state),
                         crate::scroll_site::preview(state),
                     ),
                 )
@@ -2481,8 +2442,123 @@ fn tile_fill(tile: &workbench::Tile) -> Slot<DesktopState, ()> {
 fn tile_view(state: &DesktopState, tile: workbench::TileId) -> DesktopView {
     match state.docs.role(tile) {
         Some(TileRole::Document(key)) => document_tile(state, *key),
+        Some(TileRole::Reading { kind, pinned }) => reading_tile(state, tile, *kind, *pinned),
         _ => Box::new(el("div", ())),
     }
+}
+
+/// A reading's tab title.
+pub(crate) fn reading_title(kind: ReadingKind) -> &'static str {
+    match kind {
+        ReadingKind::Outline => "Outline",
+        ReadingKind::Preview => "Preview",
+        ReadingKind::Folded => "Folded source",
+        ReadingKind::Readings => "Readings",
+        ReadingKind::Changes => "Changes",
+    }
+}
+
+/// A reading tile: a header naming the reading and the document it reads,
+/// with a Pin that keeps it on that document, above the reading itself.
+fn reading_tile(
+    state: &DesktopState,
+    tile: workbench::TileId,
+    kind: ReadingKind,
+    pinned: Option<DocKey>,
+) -> DesktopView {
+    let Some(key) = state.docs.document_for(tile) else {
+        return Box::new(
+            el("div", span("No document is open."))
+                .attr("class", "knot-reading knot-reading-empty"),
+        );
+    };
+    let label = state.surface_for(key).snapshot().display_label;
+    let header = el(
+        "header",
+        (
+            span(reading_title(kind)).attr("class", "knot-reading-title"),
+            span("·")
+                .attr("class", "knot-reading-separator")
+                .attr("aria-hidden", "true"),
+            span(label).attr("class", "knot-reading-document"),
+            button(
+                if pinned.is_some() { "Unpin" } else { "Pin" },
+                move |state: &mut DesktopState, _| state.toggle_pin(tile),
+            )
+            .attr("class", "knot-reading-pin")
+            .attr("aria-pressed", pinned.is_some().to_string()),
+        ),
+    )
+    .attr("class", "knot-reading-header");
+    let body: DesktopView = match kind {
+        ReadingKind::Outline => outline_body(state, key),
+        ReadingKind::Preview => crate::document_preview::view(state, key, tile),
+        ReadingKind::Folded | ReadingKind::Readings | ReadingKind::Changes => {
+            Box::new(el("div", ()))
+        },
+    };
+    Box::new(
+        el("section", (header, body))
+            .attr("class", "knot-reading")
+            .attr("data-knot-reading", tile.0.to_string())
+            .attr("role", "region")
+            .attr(
+                "aria-label",
+                format!(
+                    "{} of {label_for_region}",
+                    reading_title(kind),
+                    label_for_region = state.surface_for(key).snapshot().display_label
+                ),
+            ),
+    )
+}
+
+/// The outline of `key`'s document: a row per heading that selects its
+/// source range in that document.
+fn outline_body(state: &DesktopState, key: DocKey) -> DesktopView {
+    let Some(entry) = state.docs.doc(key) else {
+        return Box::new(el("div", ()));
+    };
+    if entry.document.snapshot().format.native_source() {
+        return Box::new(
+            span("A source outline is not available for this native protocol format yet. Use its preview when available.")
+                .attr("class", "knot-outline"),
+        );
+    }
+    let error = entry
+        .outline_error
+        .as_ref()
+        .map(|error| span(format!("Outline error: {error}")).attr("class", "knot-outline-error"));
+    let rows: DesktopView = match &entry.outline_snapshot {
+        None => Box::new(span("Outline is updating; try again shortly.")),
+        Some(snapshot) if snapshot.items.is_empty() => {
+            Box::new(span("No headings in this document."))
+        },
+        Some(snapshot) => {
+            let rows = snapshot
+                .items
+                .iter()
+                .enumerate()
+                .map(|(index, item)| {
+                    let label = item.label.clone();
+                    let level = item.level;
+                    let accessible_label = format!("Heading level {level}: {label}");
+                    (
+                        item.start,
+                        button(label, move |state: &mut DesktopState, _| {
+                            state.select_outline_item_in(key, index);
+                        })
+                        .attr("class", "knot-outline-row")
+                        .attr("data-outline-index", index.to_string())
+                        .attr("data-outline-level", level.to_string())
+                        .attr("aria-label", accessible_label),
+                    )
+                })
+                .collect::<Vec<_>>();
+            Box::new(el("div", Keyed::new(rows)).attr("class", "knot-outline-rows"))
+        },
+    };
+    Box::new(el("div", (error, rows)).attr("class", "knot-outline"))
 }
 
 fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool {
@@ -2681,18 +2757,10 @@ pub fn after_dispatch(
     focus_path_field(ctx);
     let state = ctx.runner.state();
     let mut focus_requested = state.entry().focus_source_requested;
-    let outline_needs_sync = if state.outline_visible {
-        let current = state.document().snapshot();
-        state
-            .entry()
-            .outline_snapshot
-            .as_ref()
-            .is_none_or(|snapshot| {
-                snapshot.address != current.source.address || snapshot.source_text != current.text
-            })
-    } else {
-        false
-    };
+    let outline_needs_sync = state
+        .reading_documents(ReadingKind::Outline)
+        .into_iter()
+        .any(|key| state.outline_stale(key));
     let fold_needs_sync = if state.fold_visible {
         let current = state.document().snapshot();
         state.entry().fold_snapshot.as_ref().is_none_or(|snapshot| {
@@ -2797,6 +2865,12 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-path-popover { display:flex; align-items:center; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; }",
     ".knot-path-popover .knot-path-field { min-width:0; }",
     ".knot-path-popover .knot-path-field input { min-width:0; }",
+    ".knot-reading { display:flex; flex-direction:column; gap:8px; padding:8px 12px; min-width:0; }",
+    ".knot-reading-header { display:flex; align-items:center; gap:6px; min-width:0; }",
+    ".knot-reading-title { font-weight:600; white-space:nowrap; }",
+    ".knot-reading-separator { opacity:0.6; }",
+    ".knot-reading-document { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
+    ".knot-reading-pin { flex:none; }",
     ".knot-workspace-message { min-height:1.4em; }",
     ".knot-catalog-status { min-height:1.4em; overflow-wrap:anywhere; }",
     ".knot-catalog-error { color:crimson; display:flex; align-items:center; gap:8px; }",
@@ -2824,14 +2898,13 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-frame .frisket-label { flex:0 1 auto; text-overflow:ellipsis; }",
     ".knot-frame .frisket-close { flex:0 0 18px; width:18px; height:auto; margin-left:0; padding:0; font-size:13px; visibility:hidden; }",
     ".knot-frame .frisket-tab.active .frisket-close, .knot-frame .frisket-tab:hover .frisket-close { visibility:visible; }",
-    ".knot-frame .frisket-content { flex:0 0 auto; padding:12px; }",
+    ".knot-frame .frisket-content { flex:1 0 auto; padding:12px; }",
     ".knot-empty-frame { display:block; padding:24px 0; }",
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
     ".knot-document { flex:1; min-width:0; }",
     ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
-    ".knot-outline { flex:0 0 280px; width:280px; box-sizing:border-box; max-height:480px; overflow:auto; padding:12px; border:1px solid; }",
-    ".knot-outline-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }",
+    ".knot-outline { display:flex; flex-direction:column; min-width:0; overflow:auto; }",
     ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
     ".knot-outline-row { display:block; width:100%; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
     ".knot-outline-row[data-outline-level=2] { padding-left:16px; }",
@@ -2845,7 +2918,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
-    "@media (max-width:700px) { .knot-workspace { padding:12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } .knot-outline { flex-basis:auto; width:100%; max-height:240px; } }",
+    "@media (max-width:700px) { .knot-workspace { padding:12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
 );
 
 #[cfg(test)]
@@ -2973,6 +3046,201 @@ mod tests {
         }
     }
 
+    /// A short reading beside a long document still fills its stack, so the
+    /// tile's surface does not stop where its content does.
+    #[test]
+    fn a_short_reading_tile_fills_its_stack() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Notes\n\nA line.\n",
+        ));
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        let stacks = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let mut stacks = Vec::new();
+            let mut pending = vec![dom.document()];
+            while let Some(node) = pending.pop() {
+                if dom.has_class(node, "frisket-stack") {
+                    let bar = class_node(&dom, node, "frisket-tabbar").expect("a tab bar");
+                    let content = class_node(&dom, node, "frisket-content").expect("content");
+                    stacks.push((node, bar, content));
+                }
+                pending.extend(dom.dom_children(node));
+            }
+            stacks
+        };
+        assert_eq!(stacks.len(), 2, "the document stack and the reading stack");
+        for (stack, bar, content) in stacks {
+            let (_, _, _, stack_height) = host.painted_rect(stack).expect("stack layout");
+            let (_, _, _, bar_height) = host.painted_rect(bar).expect("bar layout");
+            let (_, _, _, content_height) = host.painted_rect(content).expect("content layout");
+            assert!(
+                (bar_height + content_height - stack_height).abs() <= 1.0,
+                "a {stack_height}px stack holds a {bar_height}px bar and {content_height}px of content",
+            );
+        }
+    }
+
+    /// The document the active reading tile's header names.
+    fn active_reading_document(host: &DesktopHarness) -> Option<String> {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        class_node(&dom, dom.document(), "knot-reading-document")
+            .map(|node| text_content(&dom, node))
+    }
+
+    fn reading_tile(host: &DesktopHarness, kind: ReadingKind, pinned: bool) -> workbench::TileId {
+        host.state()
+            .docs
+            .readings()
+            .find(|(_, open, pin)| *open == kind && pin.is_some() == pinned)
+            .map(|(tile, _, _)| tile)
+            .expect("the reading tile")
+    }
+
+    #[test]
+    fn a_following_reading_switches_with_the_focus_and_a_pinned_one_stays() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, "# A heading\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        assert_eq!(active_reading_document(&host).as_deref(), Some("a.djot"));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        let pinned = reading_tile(&host, ReadingKind::Preview, true);
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        let scratch = host.state().focused_key().unwrap();
+        assert_ne!(scratch, a);
+        assert_eq!(
+            host.state().docs.document_for(pinned),
+            Some(a),
+            "a pin stays"
+        );
+        assert_eq!(active_reading_document(&host).as_deref(), Some("a.djot"));
+
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        let following = reading_tile(&host, ReadingKind::Preview, false);
+        assert_eq!(host.state().docs.document_for(following), Some(scratch));
+        assert_eq!(
+            active_reading_document(&host).as_deref(),
+            Some("scratch:untitled")
+        );
+        host.update(|state| {
+            state.docs.focus(a);
+            state.after_focus_change();
+        });
+        assert_eq!(
+            host.state().docs.document_for(following),
+            Some(a),
+            "an unpinned reading follows the focus"
+        );
+        assert_eq!(host.state().docs.document_for(pinned), Some(a));
+    }
+
+    #[test]
+    fn two_pinned_previews_keep_their_own_ids() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, "# A\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        let b = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state
+                .docs
+                .open_reading(ReadingKind::Preview, Some(a), "Preview");
+            state
+                .docs
+                .open_reading(ReadingKind::Preview, Some(b), "Preview");
+        });
+        let pinned_to = |host: &DesktopHarness, key: DocKey| {
+            host.state()
+                .docs
+                .readings()
+                .find(|(_, kind, pin)| *kind == ReadingKind::Preview && *pin == Some(key))
+                .map(|(tile, _, _)| tile)
+                .expect("a preview pinned to the document")
+        };
+        let (first, second) = (pinned_to(&host, a), pinned_to(&host, b));
+        let preview_id = |host: &mut DesktopHarness, tile: workbench::TileId| {
+            host.update(|state| state.docs.activate(tile));
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let preview = class_node(&dom, dom.document(), "knot-document-preview")
+                .expect("the preview renders");
+            dom.attribute(preview, &Namespace::from(""), &LocalName::from("id"))
+                .map(str::to_owned)
+        };
+        let first_id = preview_id(&mut host, first).expect("an id");
+        let second_id = preview_id(&mut host, second).expect("an id");
+        assert_eq!(first_id, format!("knot-document-preview-{}", first.0));
+        assert_eq!(second_id, format!("knot-document-preview-{}", second.0));
+        assert_eq!(host.state().docs.document_for(first), Some(a));
+        assert_eq!(host.state().docs.document_for(second), Some(b));
+    }
+
+    #[test]
+    fn a_pinned_outline_row_selects_in_its_own_document() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, "# First\n\n## Second\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert_ne!(host.state().focused_key(), Some(a));
+        let outline = reading_tile(&host, ReadingKind::Outline, true);
+        host.update(|state| state.docs.activate(outline));
+        assert!(host.click_on(&Selector::role("button").containing("Second")));
+        assert_eq!(
+            host.state().focused_key(),
+            Some(a),
+            "the row focuses its document"
+        );
+        let snapshot = host.state().document().snapshot();
+        let selected =
+            &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte];
+        assert!(selected.contains("Second"), "selected {selected:?}");
+    }
+
+    /// D2: a long document name gives way before the Pin button.
+    #[test]
+    fn a_long_document_name_stops_short_of_the_pin_button() {
+        let temp = tempdir().unwrap();
+        let path = temp
+            .path()
+            .join("a_document_name_far_too_long_for_the_header_of_a_narrow_reading_tile.djot");
+        std::fs::write(&path, "# A\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(640.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        let (header, name, pin) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            (
+                class_node(&dom, dom.document(), "knot-reading-header").expect("header"),
+                class_node(&dom, dom.document(), "knot-reading-document").expect("name"),
+                class_node(&dom, dom.document(), "knot-reading-pin").expect("pin"),
+            )
+        };
+        let (header_x, _, header_width, _) = host.painted_rect(header).expect("header layout");
+        let (name_x, _, name_width, _) = host.painted_rect(name).expect("name layout");
+        let (pin_x, _, pin_width, _) = host.painted_rect(pin).expect("pin layout");
+        assert!(
+            name_x + name_width <= pin_x + 0.5
+                && pin_x + pin_width <= header_x + header_width + 0.5,
+            "name {name_x} + {name_width}, pin {pin_x} + {pin_width}, header {header_x} + {header_width}",
+        );
+    }
+
     #[test]
     fn opening_a_path_popover_leaves_the_command_row_in_place() {
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
@@ -3057,11 +3325,15 @@ mod tests {
         );
         let dom = host.runner().dom();
         let dom = dom.borrow();
-        let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
-        let preview_text = text_content(&dom, preview);
-        assert!(preview_text.contains("Source: scratch:untitled"));
-        assert!(preview_text.contains("Preview diagnostics: none"));
-        assert!(!preview_text.contains("仮入力"));
+        assert!(class_node(&dom, dom.document(), "knot-document-preview").is_some());
+        let reading = class_node(&dom, dom.document(), "knot-reading").unwrap();
+        let reading_text = text_content(&dom, reading);
+        assert!(
+            reading_text.contains("scratch:untitled"),
+            "the header names the document"
+        );
+        assert!(reading_text.contains("Diagnostics: none"));
+        assert!(!reading_text.contains("仮入力"));
     }
 
     #[test]
@@ -3281,7 +3553,12 @@ mod tests {
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
         assert!(host.click_on(&Selector::role("button").containing("New")));
-        assert!(host.state().document_preview_visible);
+        assert!(
+            host.state()
+                .docs
+                .following_reading(ReadingKind::Preview)
+                .is_some()
+        );
         open_through_path(&mut host, &path);
         let dom = host.runner().dom();
         let dom = dom.borrow();
@@ -3303,8 +3580,12 @@ mod tests {
         let path = temp.path().join("native.gmi");
         std::fs::write(&path, "# Native\n").unwrap();
         let mut host = harness(KnotDocumentSession::open(&path).unwrap());
-        host.update(|state| state.document_preview_visible = true);
         host.layout_at(900.0, 640.0);
+        assert!(
+            host.resolve(&Selector::role("button").containing("Show Preview"))
+                .is_none(),
+            "a native format offers no ordinary preview"
+        );
         let dom = host.runner().dom();
         let dom = dom.borrow();
         assert!(class_node(&dom, dom.document(), "knot-document-preview").is_none());

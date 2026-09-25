@@ -479,6 +479,56 @@ design frames either fixed or recorded.
   Noticed: the caret still paints while a selection shows, which browsers
   do not do, and the outline's item buttons run into its panel's right
   border, which step 4's tile replaces.
+- **2026-09-24, the Genet fix after 3d.** Genet's K7 note moved the
+  atomic-inline pre-pass off the viewport. Its first slice measures each
+  atom's contribution with percentages treated as CSS Sizing 3 section
+  5.2.1 says, then lays each percentage-sensitive atom out again against
+  its real containing block (`d2342bf7742`). The second shrinks to fit the
+  atoms Buckram's shrink-to-fit skips, and wraps an atom's text at the
+  width it gets (`e67fdad259d`, merged at `3e8d797fda5`). Mere repinned to
+  each (`2b80f599`, `b0e29383`) and Knot followed (`3d14997`, `3f3b51d`),
+  the second at 384 passed with 3 ignored across the workspace. The WPT
+  receipts are under `Code/testing/genet/wpt-ledger/2026-09-24_k7_*`.
+- **2026-09-24, step 4a.** Outline and Preview are tiles. A reading opens
+  in a stack to the right of the documents: beside the focused document's
+  tile the first time, then as a tab after the last reading used. Closing
+  the last reading closes its stack. Each reading tile has a header naming
+  the reading and its document, with a Pin button the name gives way
+  before (D2); the preview's diagnostics sit on a line of their own. A
+  following tile shows the focused document, a pinned one keeps its own,
+  and closing a document closes the readings pinned to it. The preview's
+  id carries its tile (`knot-document-preview-{tile}`), so two pinned
+  previews coexist. An outline row or a preview heading focuses its own
+  document before it selects there. Preview headings lose the button
+  chrome (D3). The command row's Outline and Preview buttons show and hide
+  the following tile. The document tile no longer holds the outline or
+  the preview, and the preview-mode class and the two visibility flags are
+  gone.
+
+  Nine tests are new. In `documents.rs`: readings share a stack right of
+  the documents; a pinned reading keeps its document as the focus moves;
+  closing a document closes the readings pinned to it; and the last reading
+  closes its stack while the next opens another. In `workspace.rs`: a
+  following reading switches with the focus while a pinned one stays; two
+  pinned previews keep their own ids; a pinned outline row selects in its
+  own document; a long document name stops short of the Pin button at 640
+  wide; and a short reading tile fills its stack. The three preview tests
+  were rewritten for the tile. Desktop library: 115 passed, 1 ignored.
+
+  Headed, a scenario captured the outline tile, the preview tile and a
+  pinned preview still naming its file after New (frames under
+  `Code/testing/knot-editor/images/2026-09-24_4a/`). Reviewing the frames
+  found two defects. First, a short reading's surface stopped where its
+  content did: the tile content was `flex:0 0 auto`, set when there was
+  only one stack. It now grows into its stack (`flex:1 0 auto`), and the
+  fill test fails without that. Second, the header's separator did not
+  paint. Genet drops the text of any span blockified as a flex or grid
+  item, a float or an absolutely positioned box when that span starts a
+  stacking context through opacity or z-index. It took the text's inline
+  owner from the computed `display` rather than the box tree. On Mark's
+  ruling that is fixed in Genet and repinned. Until the repin, D2's
+  separator is blank. Still to come in step 4: the Folded source tile with
+  D4 and the Readings tile (4b), then the Changes tile (4c).
 
 ## Related material
 

@@ -5,6 +5,7 @@
 //! The host binds persona display identities to granted retention capabilities
 //! before launch. This entrypoint never opens a vault or creates an identity.
 pub mod appearance;
+pub mod changes;
 pub mod document_folding;
 pub mod document_preview;
 pub mod documents;

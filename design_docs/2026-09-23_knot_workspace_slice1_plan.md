@@ -529,6 +529,20 @@ design frames either fixed or recorded.
   ruling that is fixed in Genet and repinned. Until the repin, D2's
   separator is blank. Still to come in step 4: the Folded source tile with
   D4 and the Readings tile (4b), then the Changes tile (4c).
+- **2026-09-25, the Genet fix under 4a.** Genet's paint now takes a
+  text's inline owner from the box tree's used display (`ad20ad17a74`).
+  A blockified span that starts a stacking context therefore paints its
+  text. Its test covers flex, grid, floated and absolutely positioned
+  spans with opacity and with z-index. WPT reftests over six directories
+  did not change, and two local control pairs went from fail to pass. The
+  receipt is under
+  `Code/testing/genet/wpt-ledger/2026-09-24_blockified_stacking_text/`.
+  Mere repinned to it at `aeeb5bc7`, which also carries tabard's fill, and
+  Knot followed, passing 393 with 3 ignored across the workspace. Headed,
+  both reading headers show their separator, and a short reading fills its
+  tile. The frames are under
+  `Code/testing/knot-editor/images/2026-09-25_4a_repin/`. D2 and D3 are
+  fixed.
 
 ## Related material
 

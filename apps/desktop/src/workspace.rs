@@ -25,6 +25,7 @@ use knot_document::{
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{
     Arc,
@@ -188,6 +189,14 @@ impl DocumentEntry {
             None => (title, DocIdentity::Scratch),
         }
     }
+
+    /// Drop the derived reading. The script list and the tiles showing it
+    /// belong to the window, not to the document, so they stay.
+    fn clear_reading(&mut self) {
+        self.reading_result = None;
+        self.reading_error = None;
+        self.reading_source = None;
+    }
 }
 
 /// State owned by the standalone application around the reusable document surface.
@@ -219,11 +228,12 @@ pub struct DesktopState {
     pub(crate) fold_visible: bool,
     appearance_open: bool,
     preferences: Option<PreferencesStore>,
-    pub(crate) readings_visible: bool,
     readings_root: Option<PathBuf>,
     pub(crate) readings: Vec<ReadingScript>,
     pub(crate) readings_load_notes: Vec<String>,
-    pub(crate) readings_selected: Option<usize>,
+    /// The script each Readings tile has chosen, by name, so a refresh that
+    /// adds or drops a file cannot silently arm a different reading.
+    pub(crate) reading_scripts: HashMap<workbench::TileId, String>,
     window: WindowCommands,
     pending: Option<PendingAction>,
     discard_close: bool,
@@ -288,11 +298,10 @@ impl DesktopState {
             fold_visible: false,
             appearance_open: false,
             preferences: None,
-            readings_visible: false,
             readings_root: None,
             readings: Vec::new(),
             readings_load_notes: Vec::new(),
-            readings_selected: None,
+            reading_scripts: HashMap::new(),
             window,
             pending: None,
             discard_close: false,
@@ -874,14 +883,14 @@ impl DesktopState {
             return;
         }
         self.docs.open_reading(kind, None, reading_title(kind));
-        if kind == ReadingKind::Outline {
-            self.entry_mut().outline_error = None;
-            self.sync_outline_snapshot();
+        match kind {
+            ReadingKind::Outline => {
+                self.entry_mut().outline_error = None;
+                self.sync_outline_snapshot();
+            },
+            ReadingKind::Readings => self.refresh_readings(),
+            ReadingKind::Preview | ReadingKind::Folded | ReadingKind::Changes => {},
         }
-    }
-
-    fn toggle_outline(&mut self) {
-        self.toggle_reading(ReadingKind::Outline);
     }
 
     /// Pin a reading tile to the document it shows, or let it follow the
@@ -975,82 +984,92 @@ impl DesktopState {
         let Some(root) = self.readings_root.clone() else {
             self.readings.clear();
             self.readings_load_notes.clear();
-            self.readings_selected = None;
             return;
         };
-        // Selection follows the script's name, not its index, so a refresh that
-        // adds or drops a file cannot silently arm a different reading.
-        let selected = self
-            .readings_selected
-            .and_then(|index| self.readings.get(index))
-            .map(|script| script.name.clone());
         let (scripts, notes) =
             knot_readings::load_dir(&root, MAX_READING_SCRIPTS, MAX_READING_SOURCE_BYTES);
         self.readings = scripts;
         self.readings_load_notes = notes;
-        self.readings_selected =
-            selected.and_then(|name| self.readings.iter().position(|script| script.name == name));
     }
 
-    pub(crate) fn toggle_readings(&mut self) {
-        self.readings_visible = !self.readings_visible;
-        if self.readings_visible {
-            self.refresh_readings();
+    /// The script `tile` has chosen, while it is still in the folder.
+    pub(crate) fn reading_script(&self, tile: workbench::TileId) -> Option<&ReadingScript> {
+        let name = self.reading_scripts.get(&tile)?;
+        self.readings.iter().find(|script| &script.name == name)
+    }
+
+    pub(crate) fn select_reading(&mut self, tile: workbench::TileId, index: usize) {
+        let Some(script) = self.readings.get(index) else {
+            return;
+        };
+        self.reading_scripts.insert(tile, script.name.clone());
+        if let Some(entry) = self
+            .docs
+            .document_for(tile)
+            .and_then(|key| self.docs.doc_mut(key))
+        {
+            entry.reading_error = None;
         }
     }
 
-    pub(crate) fn select_reading(&mut self, index: usize) {
-        if index < self.readings.len() {
-            self.readings_selected = Some(index);
-            self.entry_mut().reading_error = None;
-        }
-    }
-
-    /// Run the chosen reading over the current source, synchronously. The
-    /// budget is the lane's own; a runaway returns a receipt, not a hang.
-    pub(crate) fn run_reading(&mut self) {
-        let Some(script) = self
-            .readings_selected
-            .and_then(|index| self.readings.get(index))
-            .cloned()
-        else {
+    /// Run `tile`'s chosen reading over its document's source, synchronously.
+    /// The budget is the lane's own; a runaway returns a receipt, not a hang.
+    pub(crate) fn run_reading(&mut self, tile: workbench::TileId) {
+        let Some(script) = self.reading_script(tile).cloned() else {
             self.message = Some("Choose a reading before running one.".to_owned());
             return;
         };
-        let input = match ReadingInput::from_session(self.document().session()) {
+        let Some(entry) = self
+            .docs
+            .document_for(tile)
+            .and_then(|key| self.docs.doc_mut(key))
+        else {
+            return;
+        };
+        let input = match ReadingInput::from_session(entry.document.session()) {
             Ok(input) => input,
             Err(error) => {
-                self.clear_readings();
-                self.entry_mut().reading_error = Some(ReadingError::Runtime { message: error });
+                entry.clear_reading();
+                entry.reading_error = Some(ReadingError::Runtime { message: error });
                 return;
             },
         };
         let source = input.text.clone();
         match knot_readings::run(&script, &input, ReadingBudget::default()) {
             Ok(result) => {
-                self.entry_mut().reading_result = Some(result);
-                self.entry_mut().reading_source = Some(source);
-                self.entry_mut().reading_error = None;
+                entry.reading_result = Some(result);
+                entry.reading_source = Some(source);
+                entry.reading_error = None;
             },
             Err(error) => {
-                self.clear_readings();
-                self.entry_mut().reading_error = Some(error);
+                entry.clear_reading();
+                entry.reading_error = Some(error);
             },
         }
     }
 
     /// A reading is derived state: it is stale the moment its source moves.
-    /// The panel says so and keeps showing it rather than closing itself.
-    pub(crate) fn reading_is_stale(&self) -> bool {
-        let Some(result) = self.entry().reading_result.as_ref() else {
+    /// The tile says so and keeps showing it rather than closing itself.
+    pub(crate) fn reading_is_stale(&self, key: DocKey) -> bool {
+        let Some(entry) = self.docs.doc(key) else {
             return false;
         };
-        let current = self.document().snapshot();
+        let Some(result) = entry.reading_result.as_ref() else {
+            return false;
+        };
+        let current = entry.document.snapshot();
         result.provenance.source.address != current.source.address
-            || self.entry().reading_source.as_deref() != Some(current.text.as_str())
+            || entry.reading_source.as_deref() != Some(current.text.as_str())
     }
 
-    pub(crate) fn select_reading_row(&mut self, index: usize) {
+    /// Select a reading row's source range in `key`'s document, focusing
+    /// that document first.
+    pub(crate) fn select_reading_row_in(&mut self, key: DocKey, index: usize) {
+        self.focus_document(key);
+        self.select_reading_row(index);
+    }
+
+    fn select_reading_row(&mut self, index: usize) {
         let Some(result) = self.entry().reading_result.as_ref() else {
             return;
         };
@@ -1085,12 +1104,22 @@ impl DesktopState {
         }
     }
 
-    /// Drop the derived reading. The script list and the panel itself belong to
-    /// the window, not to the document, so they stay.
     fn clear_readings(&mut self) {
-        self.entry_mut().reading_result = None;
-        self.entry_mut().reading_error = None;
-        self.entry_mut().reading_source = None;
+        self.entry_mut().clear_reading();
+    }
+
+    /// Whether a tile that has closed still keeps state here.
+    fn closed_tiles_hold_state(&self) -> bool {
+        self.reading_scripts
+            .keys()
+            .any(|tile| self.docs.role(*tile).is_none())
+    }
+
+    /// Drop the state closed tiles kept.
+    fn prune_tile_state(&mut self) {
+        let docs = &self.docs;
+        self.reading_scripts
+            .retain(|tile, _| docs.role(*tile).is_some());
     }
 
     fn toggle_appearance(&mut self) {
@@ -2060,20 +2089,9 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .attr("aria-live", "polite"),
         )
     };
-    let preview_following = state.docs.following_reading(ReadingKind::Preview).is_some();
     let document_preview_button: DesktopView =
         if crate::document_preview::supported(state.document().snapshot().format) {
-            Box::new(
-                button(
-                    if preview_following {
-                        "Hide Preview"
-                    } else {
-                        "Show Preview"
-                    },
-                    |state: &mut DesktopState, _| state.toggle_reading(ReadingKind::Preview),
-                )
-                .attr("aria-expanded", preview_following.to_string()),
-            )
+            reading_toggle(state, ReadingKind::Preview, "Show Preview", "Hide Preview")
         } else {
             Box::new(el("div", ()))
         };
@@ -2119,24 +2137,8 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         })
                         .attr("aria-expanded", state.appearance_open.to_string())
                         .attr("aria-controls", "knot-appearance-panel"),
-                        button(
-                            if state.docs.following_reading(ReadingKind::Outline).is_some() {
-                                "Hide Outline"
-                            } else {
-                                "Show Outline"
-                            },
-                            |state: &mut DesktopState, _| state.toggle_outline(),
-                        ),
-                        button(
-                            if state.readings_visible {
-                                "Hide Readings"
-                            } else {
-                                "Readings"
-                            },
-                            |state: &mut DesktopState, _| state.toggle_readings(),
-                        )
-                        .attr("aria-expanded", state.readings_visible.to_string())
-                        .attr("aria-controls", "knot-readings"),
+                        reading_toggle(state, ReadingKind::Outline, "Show Outline", "Hide Outline"),
+                        reading_toggle(state, ReadingKind::Readings, "Readings", "Hide Readings"),
                     ),
                 )
                 .attr("class", "knot-workspace-toolbar")
@@ -2177,6 +2179,31 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             ),
         ),
     )
+}
+
+/// A command-row button that shows or hides the reading of `kind` following
+/// the focused document, naming that tile's region while it is open.
+fn reading_toggle(
+    state: &DesktopState,
+    kind: ReadingKind,
+    show: &'static str,
+    hide: &'static str,
+) -> DesktopView {
+    let following = state.docs.following_reading(kind);
+    let toggle = button(
+        if following.is_some() { hide } else { show },
+        move |state: &mut DesktopState, _| state.toggle_reading(kind),
+    )
+    .attr("aria-expanded", following.is_some().to_string());
+    match following {
+        Some(tile) => Box::new(toggle.attr("aria-controls", reading_region_id(tile))),
+        None => Box::new(toggle),
+    }
+}
+
+/// The id of a reading tile's region.
+fn reading_region_id(tile: workbench::TileId) -> String {
+    format!("knot-reading-{}", tile.0)
 }
 
 /// A command that takes a path: its button opens a popover holding a
@@ -2372,15 +2399,8 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
         el(
             "div",
             (
-                el(
-                    "div",
-                    (
-                        source_wrapper,
-                        crate::readings::view(state),
-                        crate::scroll_site::preview(state),
-                    ),
-                )
-                .attr("class", "knot-writing-area"),
+                el("div", (source_wrapper, crate::scroll_site::preview(state)))
+                    .attr("class", "knot-writing-area"),
                 comparison_panel,
             ),
         )
@@ -2493,13 +2513,13 @@ fn reading_tile(
     let body: DesktopView = match kind {
         ReadingKind::Outline => outline_body(state, key),
         ReadingKind::Preview => crate::document_preview::view(state, key, tile),
-        ReadingKind::Folded | ReadingKind::Readings | ReadingKind::Changes => {
-            Box::new(el("div", ()))
-        },
+        ReadingKind::Readings => crate::readings::view(state, key, tile),
+        ReadingKind::Folded | ReadingKind::Changes => Box::new(el("div", ())),
     };
     Box::new(
         el("section", (header, body))
             .attr("class", "knot-reading")
+            .attr("id", reading_region_id(tile))
             .attr("data-knot-reading", tile.0.to_string())
             .attr("role", "region")
             .attr(
@@ -2752,6 +2772,9 @@ pub fn after_dispatch(
     // headings the source no longer has before the next toggle can see it.
     if ctx.runner.state().micron_folds_need_sync() {
         ctx.runner.update(DesktopState::sync_micron_folds);
+    }
+    if ctx.runner.state().closed_tiles_hold_state() {
+        ctx.runner.update(DesktopState::prune_tile_state);
     }
     crate::scroll_site::scroll_to_micron_jump(ctx);
     focus_path_field(ctx);
@@ -3209,6 +3232,99 @@ mod tests {
         let selected =
             &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte];
         assert!(selected.contains("Second"), "selected {selected:?}");
+    }
+
+    /// A reading script that lists every heading as a row over its span.
+    const HEADING_ROWS: &str =
+        "let out = [];\nfor h in outline() { out.push(row(h.label, h.span)); }\nout\n";
+
+    /// A document `a.djot` with two headings and a readings folder holding
+    /// `scripts`, open in a laid-out harness.
+    fn readings_host(scripts: &[&str]) -> (tempfile::TempDir, DesktopHarness) {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, "# First\n\n## Second\n").unwrap();
+        let folder = temp.path().join("readings");
+        std::fs::create_dir(&folder).unwrap();
+        for name in scripts {
+            std::fs::write(folder.join(name), HEADING_ROWS).unwrap();
+        }
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.update(|state| state.set_readings_root(Some(folder)));
+        host.layout_at(1100.0, 700.0);
+        (temp, host)
+    }
+
+    #[test]
+    fn a_pinned_readings_tile_runs_over_its_own_document() {
+        let (_temp, mut host) = readings_host(&["headings.rhai"]);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Readings")));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        let b = host.state().focused_key().unwrap();
+        assert_ne!(a, b);
+        assert!(host.click_on(&Selector::role("button").with_attr("data-reading-index", "0")));
+        assert!(host.click_on(&Selector::role("button").containing("Run reading")));
+        let ran = |key| {
+            host.state()
+                .docs
+                .doc(key)
+                .and_then(|entry| entry.reading_result.as_ref())
+                .map(|result| result.provenance.source.address.clone())
+        };
+        assert!(ran(a).is_some_and(|address| address.ends_with("a.djot")));
+        assert_eq!(ran(b), None, "the focused document was not read");
+
+        assert!(host.click_on(&Selector::role("button").with_attr("data-reading-row", "1")));
+        assert_eq!(
+            host.state().focused_key(),
+            Some(a),
+            "the row focuses its document"
+        );
+        let snapshot = host.state().document().snapshot();
+        let selected =
+            &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte];
+        assert!(selected.contains("Second"), "selected {selected:?}");
+    }
+
+    #[test]
+    fn each_readings_tile_keeps_its_own_script_and_id() {
+        let (_temp, mut host) = readings_host(&["first.rhai", "second.rhai"]);
+        assert!(host.click_on(&Selector::role("button").containing("Readings")));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        let pinned = reading_tile(&host, ReadingKind::Readings, true);
+        assert!(host.click_on(&Selector::role("button").containing("Readings")));
+        let following = reading_tile(&host, ReadingKind::Readings, false);
+        host.update(|state| {
+            state.select_reading(pinned, 0);
+            state.select_reading(following, 1);
+        });
+        let chosen = |host: &DesktopHarness, tile| {
+            host.state()
+                .reading_script(tile)
+                .map(|script| script.name.clone())
+        };
+        assert_eq!(chosen(&host, pinned).as_deref(), Some("first.rhai"));
+        assert_eq!(chosen(&host, following).as_deref(), Some("second.rhai"));
+        for tile in [pinned, following] {
+            host.update(|state| state.docs.activate(tile));
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let body = class_node(&dom, dom.document(), "knot-readings").expect("the body");
+            assert_eq!(
+                dom.attribute(body, &Namespace::from(""), &LocalName::from("id")),
+                Some(format!("knot-readings-{}", tile.0).as_str()),
+            );
+        }
+        host.update(|state| {
+            state.docs.close(pinned);
+        });
+        host.after_dispatch();
+        assert!(
+            !host.state().reading_scripts.contains_key(&pinned),
+            "a closed tile's choice goes with it"
+        );
     }
 
     /// D2: a long document name gives way before the Pin button.

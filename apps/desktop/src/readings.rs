@@ -4,23 +4,23 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The Readings panel: run a sandboxed rhai reading over the current document
-//! and show its rows as selectable source ranges.
+//! The Readings tile: run a sandboxed rhai reading over its document and show
+//! its rows as selectable source ranges.
 //!
-//! A reading is derived state, so the panel labels every one of them with the
+//! A reading is derived state, so the tile labels every one of them with the
 //! source, script and cost it came from, and says so when the source has moved
-//! underneath it. Unlike the folded-source reading, it is not force-closed on
-//! an edit — a stale reading is still worth looking at, so it stays and says it
-//! is stale, and its rows refuse to select.
+//! underneath it. A stale reading is still worth looking at, so it stays and
+//! says it is stale, and its rows refuse to select.
 
 use cambium::{Keyed, button, el, span};
 use knot_readings::{ReadingError, ReadingNoteV1, ReadingResult};
 
+use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
 pub const CSS: &str = concat!(
     ".knot-readings { min-width:0; box-sizing:border-box; display:flex; flex-direction:column; ",
-    "gap:8px; padding:16px; overflow:auto; }",
+    "gap:8px; overflow:auto; }",
     ".knot-readings-header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }",
     ".knot-readings-scripts { display:flex; flex-wrap:wrap; gap:6px; }",
     ".knot-readings-rows { display:flex; flex-direction:column; gap:2px; }",
@@ -30,7 +30,6 @@ pub const CSS: &str = concat!(
     ".knot-readings-error { color:crimson; }",
     ".knot-readings-note { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; ",
     "user-select:text; }",
-    "@media (max-width:700px) { .knot-readings { width:100%; flex-basis:auto; } }",
 );
 
 /// The first eight hex digits of a hash, the panel's short form throughout.
@@ -82,21 +81,25 @@ fn note_view(note: &ReadingNoteV1) -> DesktopView {
     }
 }
 
-pub(crate) fn view(state: &DesktopState) -> DesktopView {
-    if !state.readings_visible {
+/// The Readings tile `tile`, reading `key`'s document.
+pub(crate) fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
+    let Some(entry) = state.docs.doc(key) else {
         return Box::new(el("div", ()));
-    }
+    };
+    let chosen = state
+        .reading_script(tile)
+        .map(|script| script.name.as_str());
     let scripts = state
         .readings
         .iter()
         .enumerate()
         .map(|(index, script)| {
-            let selected = state.readings_selected == Some(index);
+            let selected = chosen == Some(script.name.as_str());
             let label = format!("{} · {}", script.name, short(&script.hash));
             (
                 index,
                 button(label.clone(), move |state: &mut DesktopState, _| {
-                    state.select_reading(index);
+                    state.select_reading(tile, index);
                 })
                 .attr("aria-pressed", selected.to_string())
                 .attr("aria-label", format!("Reading script: {label}"))
@@ -109,35 +112,35 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
     } else {
         Box::new(el("div", Keyed::new(scripts)).attr("class", "knot-readings-scripts"))
     };
-    let run_reason = if state.readings_selected.is_none() {
+    let run_reason = if chosen.is_none() {
         Some("Choose a reading to run.")
     } else {
         None
     };
-    let run = button("Run", |state: &mut DesktopState, _| state.run_reading())
-        .attr("aria-disabled", run_reason.is_some().to_string())
-        .attr(
-            "aria-label",
-            run_reason.map_or("Run reading".to_owned(), |reason| {
-                format!("Run reading — {reason}")
-            }),
-        );
-    let stale = state.reading_is_stale();
-    let provenance = state
-        .entry()
+    let run = button("Run", move |state: &mut DesktopState, _| {
+        state.run_reading(tile)
+    })
+    .attr("aria-disabled", run_reason.is_some().to_string())
+    .attr(
+        "aria-label",
+        run_reason.map_or("Run reading".to_owned(), |reason| {
+            format!("Run reading — {reason}")
+        }),
+    );
+    let stale = state.reading_is_stale(key);
+    let provenance = entry
         .reading_result
         .as_ref()
         .map(|result| span(provenance_line(result)).attr("class", "knot-readings-provenance"));
-    let stale_line = (stale && state.entry().reading_result.is_some()).then(|| {
+    let stale_line = (stale && entry.reading_result.is_some()).then(|| {
         span("This reading is stale: the source moved since it ran. Run it again.")
             .attr("class", "knot-readings-stale")
     });
-    let error = state
-        .entry()
+    let error = entry
         .reading_error
         .as_ref()
         .map(|error| span(error_line(error)).attr("class", "knot-readings-error"));
-    let rows_view: DesktopView = match state.entry().reading_result.as_ref() {
+    let rows_view: DesktopView = match entry.reading_result.as_ref() {
         None => Box::new(span("No reading has run yet.")),
         Some(result) if result.rows.is_empty() => Box::new(span("This reading returned no rows.")),
         Some(result) => {
@@ -155,7 +158,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
                     (
                         index,
                         button(label.clone(), move |state: &mut DesktopState, _| {
-                            state.select_reading_row(index);
+                            state.select_reading_row_in(key, index);
                         })
                         .attr("class", "knot-readings-row")
                         .attr("data-reading-row", index.to_string())
@@ -167,7 +170,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
             Box::new(el("div", Keyed::new(rows)).attr("class", "knot-readings-rows"))
         },
     };
-    let notes = state.entry().reading_result.as_ref().map(|result| {
+    let notes = entry.reading_result.as_ref().map(|result| {
         el(
             "div",
             Keyed::new(
@@ -188,17 +191,13 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
             "section",
             (
                 el(
-                    "header",
+                    "div",
                     (
-                        span("Readings"),
                         span(state.readings_root_label()),
                         button("Refresh", |state: &mut DesktopState, _| {
                             state.refresh_readings();
                         })
                         .attr("aria-label", "Refresh readings"),
-                        button("Hide Readings", |state: &mut DesktopState, _| {
-                            state.toggle_readings();
-                        }),
                     ),
                 )
                 .attr("class", "knot-readings-header"),
@@ -208,9 +207,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
             ),
         )
         .attr("class", "knot-readings")
-        .attr("id", "knot-readings")
-        .attr("role", "region")
-        .attr("aria-label", "Readings"),
+        .attr("id", format!("knot-readings-{}", tile.0)),
     )
 }
 

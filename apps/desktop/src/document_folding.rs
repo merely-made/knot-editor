@@ -4,32 +4,34 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The desktop's read-only source folding reading.
+//! The desktop's read-only folded source reading, as a tile.
 //!
 //! Folding is a projection over the committed source in a
 //! [`KnotFoldSnapshotV1`]. It deliberately does not use a second text input:
-//! the ordinary source textarea remains the only editable buffer and the user
-//! must explicitly return to it before editing.
+//! the ordinary source textarea remains the only editable buffer. Each
+//! visible source line is a row, and a fold's control sits in the gutter
+//! beside the line it starts on.
 
-use cambium::{Keyed, button, el, fold_projection, span};
+use cambium::{
+    FieldChild, FoldProjectionLine, FoldProjectionSegment, button, el, fold_projection, span,
+};
 use knot_document::{DocumentFormat, KnotDocumentSession, KnotFoldKindV1, KnotFoldSnapshotV1};
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashMap, HashSet};
+use std::sync::Arc;
 
+use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
 pub const CSS: &str = concat!(
-    ".knot-folding { min-width:0; width:100%; box-sizing:border-box; ",
-    "display:flex; flex-direction:column; gap:8px; padding:16px; overflow:auto; }",
-    ".knot-folding-header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }",
+    ".knot-folding { min-width:0; box-sizing:border-box; display:flex; flex-direction:column; gap:8px; }",
     ".knot-folding-actions { display:flex; flex-wrap:wrap; gap:6px; }",
-    ".knot-folding-controls { display:flex; flex-direction:column; gap:4px; }",
-    ".knot-folding-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }",
-    ".knot-folding-row span { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
-    ".knot-folded-source { margin:0; min-height:240px; white-space:pre-wrap; overflow:auto; ",
-    "overflow-wrap:anywhere; user-select:text; }",
     ".knot-folding-error { color:crimson; }",
+    ".knot-folded-source { box-sizing:border-box; padding:8px 0; border:1px solid; ",
+    "font-family:monospace; user-select:text; }",
+    ".knot-folded-source .fold-gutter { width:1.75em; text-align:center; }",
     ".knot-folded-source .fold-marker { color:inherit; opacity:.7; font-weight:600; }",
-    "@media (max-width:700px) { .knot-folding { width:100%; flex-basis:auto; } }",
+    ".knot-folded-source .knot-fold-toggle { padding:0; border:none; background:transparent; ",
+    "color:inherit; font:inherit; line-height:inherit; cursor:pointer; }",
 );
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -52,7 +54,7 @@ pub(crate) fn snapshot_matches(
 }
 
 /// Validate fold ranges against the source and drop crossing ranges. Nested
-/// ranges remain available as rows, while projection rendering gives an outer
+/// ranges remain available, while projection rendering gives an outer
 /// collapsed range precedence over its contained ranges.
 pub(crate) fn normalized_folds(snapshot: &KnotFoldSnapshotV1) -> Vec<NormalizedFold> {
     let source = snapshot.source_text.as_str();
@@ -91,29 +93,37 @@ pub(crate) fn normalized_folds(snapshot: &KnotFoldSnapshotV1) -> Vec<NormalizedF
     accepted
 }
 
+fn kind_name(kind: KnotFoldKindV1) -> &'static str {
+    match kind {
+        KnotFoldKindV1::Section => "Section",
+        KnotFoldKindV1::List => "List",
+        KnotFoldKindV1::Blockquote => "Blockquote",
+        KnotFoldKindV1::CodeBlock => "Code block",
+        KnotFoldKindV1::Div => "Div",
+    }
+}
+
+/// The first line of a fold, trimmed.
+fn opener(snapshot: &KnotFoldSnapshotV1, fold: NormalizedFold) -> &str {
+    snapshot.source_text[fold.start..fold.end]
+        .lines()
+        .next()
+        .unwrap_or_default()
+        .trim()
+}
+
 pub(crate) fn fold_label(snapshot: &KnotFoldSnapshotV1, fold: NormalizedFold) -> String {
     let line = snapshot.source_text[..fold.start]
         .bytes()
         .filter(|byte| *byte == b'\n')
         .count()
         + 1;
-    let opener = snapshot.source_text[fold.start..fold.end]
-        .lines()
-        .next()
-        .unwrap_or_default()
-        .trim();
-    let mut chars = opener.chars();
+    let mut chars = opener(snapshot, fold).chars();
     let mut preview = chars.by_ref().take(48).collect::<String>();
     if chars.next().is_some() {
         preview.push('…');
     }
-    let kind = match fold.kind {
-        KnotFoldKindV1::Section => "Section",
-        KnotFoldKindV1::List => "List",
-        KnotFoldKindV1::Blockquote => "Blockquote",
-        KnotFoldKindV1::CodeBlock => "Code block",
-        KnotFoldKindV1::Div => "Div",
-    };
+    let kind = kind_name(fold.kind);
     if preview.is_empty() {
         format!("{kind} · line {line}")
     } else {
@@ -121,13 +131,15 @@ pub(crate) fn fold_label(snapshot: &KnotFoldSnapshotV1, fold: NormalizedFold) ->
     }
 }
 
-/// Build conceal ranges for a read-only folded reading. The first source line
-/// of each collapsed container remains visible by beginning concealment after
-/// its opening newline.
+/// Build conceal ranges for a read-only folded reading. A collapsed fold
+/// hides everything from its opening line's break to its own last break,
+/// so its marker sits at the end of the opening line and the text after
+/// the fold starts a line of its own.
 pub(crate) fn conceal_ranges(
     snapshot: &KnotFoldSnapshotV1,
     collapsed: &BTreeSet<usize>,
 ) -> Vec<std::ops::Range<usize>> {
+    let source = snapshot.source_text.as_str();
     let mut outermost = Vec::new();
     for fold in normalized_folds(snapshot)
         .into_iter()
@@ -144,10 +156,13 @@ pub(crate) fn conceal_ranges(
     outermost
         .iter()
         .filter_map(|fold| {
-            let conceal_start = snapshot.source_text[fold.start..fold.end]
-                .find('\n')
-                .map(|offset| fold.start + offset + 1)?;
-            (conceal_start < fold.end).then_some(conceal_start..fold.end)
+            let opening_break = fold.start + source[fold.start..fold.end].find('\n')?;
+            let end = if source[..fold.end].ends_with('\n') {
+                fold.end - 1
+            } else {
+                fold.end
+            };
+            (opening_break < end).then_some(opening_break..end)
         })
         .collect()
 }
@@ -159,134 +174,161 @@ pub(crate) fn collapse_all_indices(snapshot: &KnotFoldSnapshotV1) -> BTreeSet<us
         .collect()
 }
 
-pub(crate) fn view(state: &DesktopState) -> DesktopView {
-    let snapshot = state
-        .entry()
+/// A fold as a reader knows it across edits: its kind, its opening line,
+/// and how many folds before it share both.
+type FoldIdentity = (&'static str, String, usize);
+
+fn identities(snapshot: &KnotFoldSnapshotV1) -> Vec<(usize, FoldIdentity)> {
+    let mut seen = HashMap::<(&'static str, String), usize>::new();
+    normalized_folds(snapshot)
+        .into_iter()
+        .map(|fold| {
+            let key = (kind_name(fold.kind), opener(snapshot, fold).to_owned());
+            let occurrence = seen.entry(key.clone()).or_default();
+            let identity = (key.0, key.1, *occurrence);
+            *occurrence += 1;
+            (fold.source_index, identity)
+        })
+        .collect()
+}
+
+/// Carry collapsed folds across a change of source: a fold stays collapsed
+/// while a fold of the same kind and opening line still exists, and the
+/// rest open.
+pub(crate) fn remap_collapsed(
+    old: &KnotFoldSnapshotV1,
+    collapsed: &BTreeSet<usize>,
+    new: &KnotFoldSnapshotV1,
+) -> BTreeSet<usize> {
+    let kept = identities(old)
+        .into_iter()
+        .filter(|(index, _)| collapsed.contains(index))
+        .map(|(_, identity)| identity)
+        .collect::<HashSet<_>>();
+    identities(new)
+        .into_iter()
+        .filter(|(_, identity)| kept.contains(identity))
+        .map(|(index, _)| index)
+        .collect()
+}
+
+/// The Folded source tile `tile`, reading `key`'s document.
+pub(crate) fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
+    let Some(entry) = state.docs.doc(key) else {
+        return Box::new(el("div", ()));
+    };
+    let snapshot = entry
         .fold_snapshot
         .as_ref()
-        .filter(|snapshot| snapshot_matches(state.document().session(), snapshot));
+        .filter(|snapshot| snapshot_matches(entry.document.session(), snapshot));
     let Some(snapshot) = snapshot else {
         return Box::new(
-            el(
-                "section",
-                (
-                    el("h2", "Folded source"),
-                    span("Folds are updating; try again shortly."),
-                ),
-            )
-            .attr("class", "knot-folding"),
+            span("Folds are updating; try again shortly.").attr("class", "knot-folding"),
         );
     };
     let folds = normalized_folds(snapshot);
-    let conceal_ranges = conceal_ranges(snapshot, &state.entry().collapsed_folds);
+    let conceal_ranges = conceal_ranges(snapshot, &entry.collapsed_folds);
     let styles = if state.appearance.highlight {
         cambium::note_styles(snapshot.source_text.as_str())
     } else {
         Vec::new()
     };
-    let source_children = match fold_projection(
+    let projection = match fold_projection(
         snapshot.source_text.as_str(),
         snapshot.source_text.len(),
         &conceal_ranges,
         &styles,
     ) {
-        Ok(projection) => projection.field_children::<DesktopState, ()>(),
+        Ok(projection) => projection,
         Err(error) => {
             return Box::new(
-                el(
-                    "section",
-                    (
-                        el("h2", "Folded source"),
-                        el("span", format!("Folded source unavailable: {error:?}")),
-                    ),
-                )
-                .attr("class", "knot-folding"),
+                span(format!("Folded source unavailable: {error:?}"))
+                    .attr("class", "knot-folding knot-folding-error"),
             );
         },
     };
-    let controls = folds
-        .iter()
-        .map(|fold| {
-            let source_index = fold.source_index;
-            let collapsed = state.entry().collapsed_folds.contains(&source_index);
-            let label = fold_label(snapshot, *fold);
-            let action = if collapsed { "Expand" } else { "Collapse" };
-            let fold_snapshot = snapshot.clone();
-            (
-                source_index,
-                el(
-                    "div",
-                    (
-                        span(label.clone()),
-                        button(action, move |state: &mut DesktopState, _| {
-                            state.toggle_fold(fold_snapshot.clone(), source_index);
-                        })
-                        .attr("aria-label", format!("{action} {label}"))
-                        .attr("data-fold-index", source_index.to_string()),
-                    ),
-                )
-                .attr("class", "knot-folding-row"),
-            )
-        })
-        .collect::<Vec<_>>();
-    let controls_view: DesktopView = if controls.is_empty() {
-        Box::new(span("No foldable containers in this source."))
-    } else {
-        Box::new(el("div", Keyed::new(controls)).attr("class", "knot-folding-controls"))
-    };
-    let error = state
-        .entry()
+    // Every control carries the snapshot it acts on, to refuse a stale one;
+    // they share one copy rather than each cloning the source.
+    let shared = Arc::new(snapshot.clone());
+    let rows = projection.rows(|line: &FoldProjectionLine| {
+        folds
+            .iter()
+            .filter(|fold| starts_on(line, fold.start))
+            .map(|fold| {
+                let source_index = fold.source_index;
+                let collapsed = entry.collapsed_folds.contains(&source_index);
+                let label = fold_label(snapshot, *fold);
+                let action = if collapsed { "Expand" } else { "Collapse" };
+                let fold_snapshot = Arc::clone(&shared);
+                Box::new(
+                    button(
+                        if collapsed { "▸" } else { "▾" },
+                        move |state: &mut DesktopState, _| {
+                            state.toggle_fold(key, (*fold_snapshot).clone(), source_index);
+                        },
+                    )
+                    .attr("class", "knot-fold-toggle")
+                    .attr("aria-label", format!("{action} {label}"))
+                    .attr("aria-expanded", (!collapsed).to_string())
+                    .attr("data-fold-index", source_index.to_string()),
+                ) as FieldChild<DesktopState, ()>
+            })
+            .collect()
+    });
+    let error = entry
         .fold_error
         .as_ref()
         .map(|error| span(format!("Fold error: {error}")).attr("class", "knot-folding-error"));
+    let actions = el(
+        "div",
+        (
+            button("Edit source", move |state: &mut DesktopState, _| {
+                state.edit_source(key);
+            }),
+            button("Collapse all", {
+                let fold_snapshot = Arc::clone(&shared);
+                move |state: &mut DesktopState, _| {
+                    state.collapse_all_folds(key, (*fold_snapshot).clone());
+                }
+            })
+            .attr("aria-label", "Collapse all folds"),
+            button("Expand all", {
+                let fold_snapshot = Arc::clone(&shared);
+                move |state: &mut DesktopState, _| {
+                    state.expand_all_folds(key, (*fold_snapshot).clone());
+                }
+            })
+            .attr("aria-label", "Expand all folds"),
+        ),
+    )
+    .attr("class", "knot-folding-actions");
+    let no_folds = folds
+        .is_empty()
+        .then(|| span("No foldable containers in this source."));
     Box::new(
         el(
-            "section",
+            "div",
             (
-                el(
-                    "header",
-                    (
-                        el("h2", "Folded source"),
-                        span(format!("Source: {}", snapshot.address)),
-                    ),
-                )
-                .attr("class", "knot-folding-header"),
-                el(
-                    "div",
-                    (
-                        button("Edit source", |state: &mut DesktopState, _| {
-                            state.edit_source();
-                        }),
-                        button("Collapse all", {
-                            let fold_snapshot = snapshot.clone();
-                            move |state: &mut DesktopState, _| {
-                                state.collapse_all_folds(fold_snapshot.clone());
-                            }
-                        })
-                        .attr("aria-label", "Collapse all folds"),
-                        button("Expand all", {
-                            let fold_snapshot = snapshot.clone();
-                            move |state: &mut DesktopState, _| {
-                                state.expand_all_folds(fold_snapshot.clone());
-                            }
-                        })
-                        .attr("aria-label", "Expand all folds"),
-                    ),
-                )
-                .attr("class", "knot-folding-actions"),
+                actions,
                 error,
-                controls_view,
-                el("pre", source_children)
+                no_folds,
+                el("div", rows)
                     .attr("class", "knot-folded-source")
+                    .attr("style", state.appearance.writing_style())
                     .attr("role", "document")
                     .attr("aria-label", "Read-only folded source")
                     .attr("aria-readonly", "true"),
             ),
         )
         .attr("class", "knot-folding")
-        .attr("id", "knot-document-folding")
-        .attr("role", "region")
-        .attr("aria-label", "Folded source"),
+        .attr("id", format!("knot-document-folding-{}", tile.0)),
+    )
+}
+
+/// Whether a fold starting at `start` begins in `line`'s visible source.
+fn starts_on(line: &FoldProjectionLine, start: usize) -> bool {
+    line.segments.iter().any(
+        |segment| matches!(segment, FoldProjectionSegment::Source(range) if range.contains(&start)),
     )
 }
 
@@ -308,7 +350,7 @@ mod tests {
     }
 
     #[test]
-    fn conceal_ranges_keep_unicode_opening_lines_and_nested_outer_precedence() {
+    fn a_collapsed_fold_ends_its_opening_line_and_the_outer_one_wins() {
         let source = "# α\n\n## 二\nbody\n\nend\n";
         let folds = snapshot(
             source,
@@ -320,8 +362,13 @@ mod tests {
         let mut collapsed = BTreeSet::new();
         collapsed.insert(0);
         collapsed.insert(1);
-        assert_eq!(conceal_ranges(&folds, &collapsed), vec![5..source.len()]);
-        assert_eq!(&source[..5], "# α\n");
+        let opening_break = source.find('\n').unwrap();
+        assert_eq!(
+            conceal_ranges(&folds, &collapsed),
+            vec![opening_break..source.len() - 1],
+            "the opening line keeps its text and the fold keeps its last break"
+        );
+        assert_eq!(&source[..opening_break], "# α");
         assert_eq!(
             fold_label(&folds, normalized_folds(&folds)[0]),
             "Section · line 1 · # α"
@@ -340,5 +387,46 @@ mod tests {
         );
         assert_eq!(normalized_folds(&folds).len(), 1);
         assert_eq!(normalized_folds(&folds)[0].source_index, 0);
+    }
+
+    #[test]
+    fn collapsed_folds_follow_their_identity_across_an_edit() {
+        let before = "# A\n\none\n\n# B\n\ntwo\n\n# B\n\nthree\n";
+        let a = before.find("# B").unwrap();
+        let b = before.rfind("# B").unwrap();
+        let old = snapshot(
+            before,
+            vec![
+                item(KnotFoldKindV1::Section, 0, a),
+                item(KnotFoldKindV1::Section, a, b),
+                item(KnotFoldKindV1::Section, b, before.len()),
+            ],
+        );
+        // The second "# B" is collapsed; an edit inserts a section above.
+        let after = format!("# New\n\nzero\n\n{before}");
+        let shift = after.len() - before.len();
+        let new = snapshot(
+            &after,
+            vec![
+                item(KnotFoldKindV1::Section, 0, shift),
+                item(KnotFoldKindV1::Section, shift, shift + a),
+                item(KnotFoldKindV1::Section, shift + a, shift + b),
+                item(KnotFoldKindV1::Section, shift + b, after.len()),
+            ],
+        );
+        let collapsed = BTreeSet::from([2]);
+        assert_eq!(
+            remap_collapsed(&old, &collapsed, &new),
+            BTreeSet::from([3]),
+            "the same heading, counted among its namesakes, stays collapsed"
+        );
+        let renamed = snapshot(
+            &after.replace("# B\n\nthree", "# C\n\nthree"),
+            new.items.clone(),
+        );
+        assert!(
+            remap_collapsed(&old, &collapsed, &renamed).is_empty(),
+            "a fold whose opening line changed reopens"
+        );
     }
 }

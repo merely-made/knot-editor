@@ -190,6 +190,19 @@ impl DocumentEntry {
         }
     }
 
+    /// Take a fresh fold snapshot of the source, keeping collapsed the folds
+    /// that still exist by kind and opening line.
+    fn refresh_folds(&mut self) {
+        let current = self.document.session().fold_snapshot();
+        self.collapsed_folds = match &self.fold_snapshot {
+            Some(previous) => {
+                crate::document_folding::remap_collapsed(previous, &self.collapsed_folds, &current)
+            },
+            None => std::collections::BTreeSet::new(),
+        };
+        self.fold_snapshot = Some(current);
+    }
+
     /// Drop the derived reading. The script list and the tiles showing it
     /// belong to the window, not to the document, so they stay.
     fn clear_reading(&mut self) {
@@ -225,7 +238,6 @@ pub struct DesktopState {
     pub message: Option<String>,
     catalog: Option<KnotFileCatalog>,
     capture_limit: usize,
-    pub(crate) fold_visible: bool,
     appearance_open: bool,
     preferences: Option<PreferencesStore>,
     readings_root: Option<PathBuf>,
@@ -295,7 +307,6 @@ impl DesktopState {
             message: None,
             catalog,
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
-            fold_visible: false,
             appearance_open: false,
             preferences: None,
             readings_root: None,
@@ -735,110 +746,94 @@ impl DesktopState {
         self.entry_mut().outline_error = None;
     }
 
-    pub(crate) fn clear_folding(&mut self) {
-        self.fold_visible = false;
-        self.entry_mut().fold_snapshot = None;
-        self.entry_mut().collapsed_folds.clear();
-        self.entry_mut().fold_error = None;
+    /// Whether `key`'s fold snapshot no longer matches its source.
+    fn fold_stale(&self, key: DocKey) -> bool {
+        self.docs.doc(key).is_some_and(|entry| {
+            entry.fold_snapshot.as_ref().is_none_or(|snapshot| {
+                !crate::document_folding::snapshot_matches(entry.document.session(), snapshot)
+            })
+        })
     }
 
-    fn toggle_folding(&mut self) {
-        if !crate::document_folding::supported(self.document().snapshot().format) {
-            return;
-        }
-        self.fold_visible = !self.fold_visible;
-        if self.fold_visible {
-            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
-            self.entry_mut().collapsed_folds.clear();
-            self.entry_mut().fold_error = None;
-        } else {
-            self.clear_folding();
+    /// Bring the fold snapshot of every document a Folded tile shows up to
+    /// its source. Folds that still exist stay collapsed.
+    fn sync_fold_snapshots(&mut self) {
+        for key in self.reading_documents(ReadingKind::Folded) {
+            if self.fold_stale(key)
+                && let Some(entry) = self.docs.doc_mut(key)
+            {
+                entry.refresh_folds();
+                entry.fold_error = None;
+            }
         }
     }
 
-    pub(crate) fn edit_source(&mut self) {
-        self.clear_folding();
+    /// Focus `key`'s document for editing; the Folded tile stays open.
+    pub(crate) fn edit_source(&mut self, key: DocKey) {
+        self.focus_document(key);
         self.entry_mut().focus_source_requested = true;
+    }
+
+    /// `key`'s entry while `action_snapshot` is still its fold snapshot. A
+    /// stale one brings the snapshot up to date and says so instead.
+    fn fold_target(
+        &mut self,
+        key: DocKey,
+        action_snapshot: &knot_document::KnotFoldSnapshotV1,
+    ) -> Option<&mut DocumentEntry> {
+        let entry = self.docs.doc_mut(key)?;
+        if entry.fold_snapshot.as_ref() == Some(action_snapshot)
+            && crate::document_folding::snapshot_matches(entry.document.session(), action_snapshot)
+        {
+            return Some(entry);
+        }
+        entry.refresh_folds();
+        entry.fold_error = Some("Fold snapshot is stale for the current source.".to_owned());
+        None
     }
 
     pub(crate) fn toggle_fold(
         &mut self,
+        key: DocKey,
         action_snapshot: knot_document::KnotFoldSnapshotV1,
         source_index: usize,
     ) {
-        if !self
-            .entry()
-            .fold_snapshot
-            .as_ref()
-            .is_some_and(|snapshot| snapshot == &action_snapshot)
-            || !crate::document_folding::snapshot_matches(
-                self.document().session(),
-                &action_snapshot,
-            )
-        {
-            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
-            self.entry_mut().collapsed_folds.clear();
-            self.entry_mut().fold_error =
-                Some("Fold snapshot is stale for the current source.".to_owned());
+        let Some(entry) = self.fold_target(key, &action_snapshot) else {
             return;
-        }
+        };
         if !crate::document_folding::normalized_folds(&action_snapshot)
             .iter()
             .any(|fold| fold.source_index == source_index)
         {
-            self.entry_mut().fold_error =
+            entry.fold_error =
                 Some("That fold is no longer part of the current source.".to_owned());
             return;
         }
-        if !self.entry_mut().collapsed_folds.insert(source_index) {
-            self.entry_mut().collapsed_folds.remove(&source_index);
+        if !entry.collapsed_folds.insert(source_index) {
+            entry.collapsed_folds.remove(&source_index);
         }
-        self.entry_mut().fold_error = None;
+        entry.fold_error = None;
     }
 
     pub(crate) fn collapse_all_folds(
         &mut self,
+        key: DocKey,
         action_snapshot: knot_document::KnotFoldSnapshotV1,
     ) {
-        if !self
-            .entry()
-            .fold_snapshot
-            .as_ref()
-            .is_some_and(|snapshot| snapshot == &action_snapshot)
-            || !crate::document_folding::snapshot_matches(
-                self.document().session(),
-                &action_snapshot,
-            )
-        {
-            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
-            self.entry_mut().collapsed_folds.clear();
-            self.entry_mut().fold_error =
-                Some("Fold snapshot is stale for the current source.".to_owned());
-            return;
+        if let Some(entry) = self.fold_target(key, &action_snapshot) {
+            entry.collapsed_folds = crate::document_folding::collapse_all_indices(&action_snapshot);
+            entry.fold_error = None;
         }
-        self.entry_mut().collapsed_folds =
-            crate::document_folding::collapse_all_indices(&action_snapshot);
-        self.entry_mut().fold_error = None;
     }
 
-    pub(crate) fn expand_all_folds(&mut self, action_snapshot: knot_document::KnotFoldSnapshotV1) {
-        if self
-            .entry()
-            .fold_snapshot
-            .as_ref()
-            .is_some_and(|snapshot| snapshot == &action_snapshot)
-            && crate::document_folding::snapshot_matches(
-                self.document().session(),
-                &action_snapshot,
-            )
-        {
-            self.entry_mut().collapsed_folds.clear();
-            self.entry_mut().fold_error = None;
-        } else {
-            self.entry_mut().fold_snapshot = Some(self.document().session().fold_snapshot());
-            self.entry_mut().collapsed_folds.clear();
-            self.entry_mut().fold_error =
-                Some("Fold snapshot is stale for the current source.".to_owned());
+    pub(crate) fn expand_all_folds(
+        &mut self,
+        key: DocKey,
+        action_snapshot: knot_document::KnotFoldSnapshotV1,
+    ) {
+        if let Some(entry) = self.fold_target(key, &action_snapshot) {
+            entry.collapsed_folds.clear();
+            entry.fold_error = None;
         }
     }
 
@@ -889,7 +884,8 @@ impl DesktopState {
                 self.sync_outline_snapshot();
             },
             ReadingKind::Readings => self.refresh_readings(),
-            ReadingKind::Preview | ReadingKind::Folded | ReadingKind::Changes => {},
+            ReadingKind::Folded => self.sync_fold_snapshots(),
+            ReadingKind::Preview | ReadingKind::Changes => {},
         }
     }
 
@@ -906,6 +902,7 @@ impl DesktopState {
         };
         self.docs.set_pinned(tile, next);
         self.sync_outline_snapshot();
+        self.sync_fold_snapshots();
     }
 
     /// Make `key` the focused document, as activating its tab does.
@@ -1226,8 +1223,8 @@ impl DesktopState {
                         self.clear_prepared_capture();
                         self.clear_outline();
                         self.clear_readings();
-                        self.clear_folding();
                         self.sync_outline_snapshot();
+                        self.sync_fold_snapshots();
                         self.sync_catalog();
                         self.message = Some("Reloaded from disk.".to_owned());
                     },
@@ -1240,8 +1237,8 @@ impl DesktopState {
     /// Readings, bindings and the site panel's page follow the focused
     /// document: bring them up to date after the focus moves.
     fn after_focus_change(&mut self) {
-        self.clear_folding();
         self.sync_outline_snapshot();
+        self.sync_fold_snapshots();
         self.sync_catalog();
         let page = self
             .document()
@@ -1354,8 +1351,8 @@ impl DesktopState {
                 self.clear_prepared_capture();
                 self.clear_outline();
                 self.clear_readings();
-                self.clear_folding();
                 self.sync_outline_snapshot();
+                self.sync_fold_snapshots();
                 self.sync_catalog();
                 let resolved = std::fs::canonicalize(&path).ok();
                 let (title, identity) = self.entry().tab();
@@ -2097,18 +2094,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         };
     let document_folding_button: DesktopView =
         if crate::document_folding::supported(state.document().snapshot().format) {
-            Box::new(
-                button(
-                    if state.fold_visible {
-                        "Hide folds"
-                    } else {
-                        "Show folds"
-                    },
-                    |state: &mut DesktopState, _| state.toggle_folding(),
-                )
-                .attr("aria-expanded", state.fold_visible.to_string())
-                .attr("aria-controls", "knot-document-folding"),
-            )
+            reading_toggle(state, ReadingKind::Folded, "Show folds", "Hide folds")
         } else {
             Box::new(el("div", ()))
         };
@@ -2162,20 +2148,13 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         .attr(
             "class",
             format!(
-                "{}{}{}",
+                "{}{}",
                 state.appearance.root_class(),
                 if state.document().snapshot().format.native_source() {
                     " knot-native-site-mode"
                 } else {
                     ""
                 },
-                if state.fold_visible
-                    && crate::document_folding::supported(state.document().snapshot().format)
-                {
-                    " knot-document-folding-mode"
-                } else {
-                    ""
-                }
             ),
         ),
     )
@@ -2380,21 +2359,9 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
         },
         move |state: &mut DesktopState| state.surface_mut_for(key),
     ));
-    let source_wrapper: DesktopView = if state.fold_visible
-        && crate::document_folding::supported(state.document().snapshot().format)
-    {
-        Box::new(
-            el("div", crate::document_folding::view(state))
-                .attr("class", "knot-source-wrapper")
-                .attr("style", state.appearance.writing_style()),
-        )
-    } else {
-        Box::new(
-            el("div", document)
-                .attr("class", "knot-source-wrapper")
-                .attr("style", state.appearance.writing_style()),
-        )
-    };
+    let source_wrapper = el("div", document)
+        .attr("class", "knot-source-wrapper")
+        .attr("style", state.appearance.writing_style());
     Box::new(
         el(
             "div",
@@ -2514,7 +2481,8 @@ fn reading_tile(
         ReadingKind::Outline => outline_body(state, key),
         ReadingKind::Preview => crate::document_preview::view(state, key, tile),
         ReadingKind::Readings => crate::readings::view(state, key, tile),
-        ReadingKind::Folded | ReadingKind::Changes => Box::new(el("div", ())),
+        ReadingKind::Folded => crate::document_folding::view(state, key, tile),
+        ReadingKind::Changes => Box::new(el("div", ())),
     };
     Box::new(
         el("section", (header, body))
@@ -2779,29 +2747,18 @@ pub fn after_dispatch(
     crate::scroll_site::scroll_to_micron_jump(ctx);
     focus_path_field(ctx);
     let state = ctx.runner.state();
-    let mut focus_requested = state.entry().focus_source_requested;
+    let focus_requested = state.entry().focus_source_requested;
     let outline_needs_sync = state
         .reading_documents(ReadingKind::Outline)
         .into_iter()
         .any(|key| state.outline_stale(key));
-    let fold_needs_sync = if state.fold_visible {
-        let current = state.document().snapshot();
-        state.entry().fold_snapshot.as_ref().is_none_or(|snapshot| {
-            snapshot.address != current.source.address
-                || snapshot.source_text != current.text
-                || !crate::document_folding::snapshot_matches(state.document().session(), snapshot)
-        })
-    } else {
-        false
-    };
-    let fold_must_close = state.fold_visible && (focus_requested || fold_needs_sync);
-    if fold_needs_sync {
-        // Source edits and document/address transitions invalidate the entire
-        // transient reading. Return to the one ordinary editor surface so a
-        // stale folded view can never become an editing affordance.
-        focus_requested = true;
-    }
-    if !focus_requested && !outline_needs_sync && !fold_must_close {
+    // A Folded tile follows its source: an edit re-derives the folds rather
+    // than closing the tile, and the folds that still exist stay collapsed.
+    let folds_need_sync = state
+        .reading_documents(ReadingKind::Folded)
+        .into_iter()
+        .any(|key| state.fold_stale(key));
+    if !focus_requested && !outline_needs_sync && !folds_need_sync {
         return;
     }
     ctx.runner.update(|state| {
@@ -2811,8 +2768,8 @@ pub fn after_dispatch(
         if outline_needs_sync {
             state.sync_outline_snapshot();
         }
-        if fold_must_close {
-            state.clear_folding();
+        if folds_need_sync {
+            state.sync_fold_snapshots();
         }
     });
     if !focus_requested {
@@ -3453,7 +3410,7 @@ mod tests {
     }
 
     #[test]
-    fn folded_source_is_hidden_by_default_and_keeps_source_immutable() {
+    fn folded_source_is_a_tile_that_leaves_the_source_alone() {
         let source = "# α\n\n## 二\nbody\n\n- first\n- second\n";
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, source));
         host.layout_at(900.0, 640.0);
@@ -3461,7 +3418,7 @@ mod tests {
         {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            assert!(class_node(&dom, dom.document(), "knot-document-folding").is_none());
+            assert!(class_node(&dom, dom.document(), "knot-folding").is_none());
             assert!(!text_content(&dom, dom.document()).contains("Folded source"));
         }
         host.update(|state| {
@@ -3515,29 +3472,109 @@ mod tests {
         assert!(text_content(&dom, folding).contains("body"));
         drop(dom);
         assert!(host.click_on(&Selector::role("button").containing("Edit source")));
-        assert!(!host.state().fold_visible);
+        assert!(
+            host.state()
+                .docs
+                .following_reading(ReadingKind::Folded)
+                .is_some(),
+            "Edit source leaves the tile open"
+        );
         let dom = host.runner().dom();
         let dom = dom.borrow();
         assert!(class_node(&dom, dom.document(), "knot-document-body").is_some());
+        assert!(class_node(&dom, dom.document(), "knot-folding").is_some());
+    }
+
+    /// The visible rows of the folded source: each row's source line and
+    /// its text, gutter and line together.
+    fn folded_rows(host: &DesktopHarness) -> Vec<(String, String)> {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let Some(source) = class_node(&dom, dom.document(), "knot-folded-source") else {
+            return Vec::new();
+        };
+        dom.dom_children(source)
+            .map(|row| {
+                let line = dom
+                    .attribute(row, &Namespace::from(""), &LocalName::from("data-line"))
+                    .unwrap_or_default()
+                    .to_owned();
+                (line, text_content(&dom, row))
+            })
+            .collect()
+    }
+
+    const TWO_SECTIONS: &str = "# First\n\n- one\n- two\n\n# Second\n\nbody\n";
+
+    /// D4: a fold's control sits in the gutter of the line it starts on,
+    /// and collapsing it ends that line with the marker.
+    #[test]
+    fn a_gutter_toggle_folds_its_section_beside_its_heading() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, TWO_SECTIONS));
+        host.layout_at(900.0, 640.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show folds")));
+        let lines = |rows: &[(String, String)]| {
+            rows.iter()
+                .map(|(line, _)| line.clone())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(
+            lines(&folded_rows(&host)),
+            ["1", "2", "3", "4", "5", "6", "7", "8"]
+        );
+        assert!(
+            host.click_on(
+                &Selector::role("button")
+                    .with_attr("aria-label", "Collapse Section · line 1 · # First")
+            )
+        );
+        let rows = folded_rows(&host);
+        assert_eq!(
+            lines(&rows),
+            ["1", "6", "7", "8"],
+            "the section's lines hide"
+        );
+        assert!(
+            rows[0].1.contains("# First") && rows[0].1.contains('…'),
+            "the marker ends the heading's own row: {:?}",
+            rows[0].1
+        );
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let toggle = attr_node(
+            &dom,
+            dom.document(),
+            "aria-label",
+            "Expand Section · line 1 · # First",
+        )
+        .expect("the toggle now expands");
+        assert_eq!(
+            dom.attribute(
+                toggle,
+                &Namespace::from(""),
+                &LocalName::from("aria-expanded")
+            ),
+            Some("false")
+        );
+        let gutter = dom.parent(toggle).expect("the toggle's cell");
+        assert!(
+            dom.has_class(gutter, "fold-gutter"),
+            "the control sits in the gutter"
+        );
     }
 
     #[test]
-    fn folded_source_state_resets_after_a_source_edit() {
-        let mut host = harness(KnotDocumentSession::scratch(
-            SCRATCH_ADDRESS,
-            "# First\n\n- one\n- two\n",
-        ));
+    fn the_folded_tile_follows_an_edit_and_keeps_its_folds() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, TWO_SECTIONS));
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show folds")));
         assert!(
-            host.click_on(&Selector::role("button").with_attr("aria-label", "Collapse all folds"))
+            host.click_on(
+                &Selector::role("button")
+                    .with_attr("aria-label", "Collapse Section · line 6 · # Second")
+            )
         );
-        assert!(
-            !host.state().entry().collapsed_folds.is_empty(),
-            "fold error: {:?}; snapshot: {:?}",
-            host.state().entry().fold_error,
-            host.state().entry().fold_snapshot
-        );
+        let edited = format!("# Zero\n\nintro\n\n{TWO_SECTIONS}");
         host.update(|state| {
             state
                 .document_mut()
@@ -3548,30 +3585,47 @@ mod tests {
             state
                 .document_mut()
                 .apply(knot_document::KnotDocumentIntentV1::Edit(
-                    cambium::TextCommand::Insert("# Changed\n\nnew body\n".into()),
+                    cambium::TextCommand::Insert(edited.clone()),
                 ))
                 .unwrap();
         });
         host.after_dispatch();
-        assert!(host.state().entry().collapsed_folds.is_empty());
-        assert!(!host.state().fold_visible);
-        assert!(host.state().entry().fold_snapshot.is_none());
-        assert_eq!(
-            host.state().document().snapshot().text,
-            "# Changed\n\nnew body\n"
+        assert!(
+            host.state()
+                .docs
+                .following_reading(ReadingKind::Folded)
+                .is_some(),
+            "an edit leaves the tile open"
         );
+        let entry = host.state().entry();
+        let snapshot = entry.fold_snapshot.as_ref().expect("a fresh snapshot");
+        assert_eq!(snapshot.source_text, edited);
+        let collapsed = crate::document_folding::normalized_folds(snapshot)
+            .into_iter()
+            .filter(|fold| entry.collapsed_folds.contains(&fold.source_index))
+            .map(|fold| {
+                snapshot.source_text[fold.start..fold.end]
+                    .lines()
+                    .next()
+                    .unwrap_or_default()
+                    .to_owned()
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(collapsed, ["# Second"], "the same section stays collapsed");
+        let rows = folded_rows(&host);
+        assert!(rows.iter().any(|(_, text)| text.contains("# Zero")));
+        assert!(!rows.iter().any(|(_, text)| text.contains("body")));
     }
 
     #[test]
-    fn folded_source_returns_to_editing_for_an_outline_selection() {
+    fn an_outline_selection_leaves_the_folded_tile_open() {
         let mut host = harness(KnotDocumentSession::scratch(
             SCRATCH_ADDRESS,
             "# First\n\n## Second\n\nbody\n",
         ));
         host.layout_at(900.0, 640.0);
-        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         assert!(host.click_on(&Selector::role("button").containing("Show folds")));
-        // Fold rows name their heading too, so match the outline row exactly.
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
         assert!(host.click_on(
             &Selector::role("button").with_attr("aria-label", "Heading level 2: Second")
         ));
@@ -3581,8 +3635,46 @@ mod tests {
             &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte],
             "## Second\n"
         );
-        assert!(!host.state().fold_visible);
+        assert!(
+            host.state()
+                .docs
+                .following_reading(ReadingKind::Folded)
+                .is_some()
+        );
         assert!(host.focus().is_some());
+    }
+
+    #[test]
+    fn a_pinned_folded_tile_folds_its_own_document() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, TWO_SECTIONS).unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Show folds")));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        let pinned = reading_tile(&host, ReadingKind::Folded, true);
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert_ne!(host.state().focused_key(), Some(a));
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("aria-label", "Collapse all folds"))
+        );
+        let collapsed = |key| {
+            host.state()
+                .docs
+                .doc(key)
+                .map_or(0, |entry| entry.collapsed_folds.len())
+        };
+        assert!(collapsed(a) > 0, "the pinned document folds");
+        assert_eq!(collapsed(host.state().focused_key().unwrap()), 0);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let body = class_node(&dom, dom.document(), "knot-folding").expect("the tile body");
+        assert_eq!(
+            dom.attribute(body, &Namespace::from(""), &LocalName::from("id")),
+            Some(format!("knot-document-folding-{}", pinned.0).as_str()),
+        );
     }
 
     #[test]
@@ -3608,7 +3700,8 @@ mod tests {
                 ))
                 .unwrap();
         });
-        host.update(|state| state.toggle_fold(stale, 0));
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| state.toggle_fold(key, stale, 0));
         assert!(host.state().entry().collapsed_folds.is_empty());
         assert!(
             host.state()

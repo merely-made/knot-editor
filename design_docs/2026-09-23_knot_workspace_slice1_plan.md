@@ -575,6 +575,65 @@ design frames either fixed or recorded.
   Open: the 3b-2 entry said scrolling inside tiles would arrive with the
   reading tiles in step 4. The window still scrolls as one page, so a long
   reading scrolls the whole window.
+- **2026-09-25, step 4b-2.** Cambium gains a line view of a fold
+  projection (mere `0d341dee`). `FoldProjection::lines()` splits the
+  visible source into lines. A marker stays on the line it starts on, each
+  line keeps its source number, and CRLF counts as one break.
+  `rows(gutter)` renders one keyed row per line, with a gutter cell the
+  host fills, and `FOLD_ROWS_CSS` lays the gutter beside the line. It is
+  the gutter of mere's virtualized editor plan (P2), without the
+  virtualization.
+
+  Its layout test found that Genet gave an empty line no height. An inline
+  formatting context measured its height from its shaped items, and a line
+  holding only a newline or a `<br>` has none, so pre-wrap "\n" measured 0
+  and a leading or trailing blank line counted for nothing. On Mark's
+  ruling that was fixed in Genet (`5621ca05768`): line boxes that end in a
+  break now count, per CSS 2.1 section 9.4.2. Its WPT receipt flipped two
+  reftests from fail to pass, with no regressions and a positive control;
+  it is under `Code/testing/genet/wpt-ledger/2026-09-25_empty_line_height/`.
+  The same fix affects preview code blocks that start or end with a blank
+  line. Mere repinned (`c3a5681e`) and Knot followed (`20fa75c`), passing
+  395 with 3 ignored.
+- **2026-09-25, step 4b-3.** Folded source is a tile. Each visible source
+  line is a row from Cambium's line view. A fold's control sits in the
+  gutter of the line it starts on: ▾ collapses and ▸ expands. Each control
+  is named for assistive technology ("Collapse Section · line 6 ·
+  ## Morning transect") and carries `aria-expanded` (D4).
+
+  A collapsed fold now hides everything from its opening line's break to
+  its own last break. Its marker ends the heading's row, and the text after
+  the fold starts a row of its own; before, the marker began the next line
+  and the following heading ran on after it. The projection uses the
+  editor's face, measure and surface colours.
+
+  As Mark ruled, the tile follows its source. After an edit, a Reload or a
+  Save As, the folds are derived again. A collapsed fold stays collapsed
+  while a fold of the same kind and opening line still exists, counted
+  among any namesakes; the others reopen. Edit source focuses the
+  document's editor and leaves the tile open. Collapsed folds belong to the
+  document, as Mark also ruled: a pinned tile and a following tile on the
+  same document share them, and they survive the focus moving away and
+  back. The fold-mode flag, its force-close on edit and the Collapse row
+  list are gone. A fold action that carries a stale snapshot still refuses
+  and says so.
+
+  Two tests are new: a gutter toggle folds its section beside its heading,
+  and a pinned Folded tile folds its own document. Three were rewritten for
+  the tile: the tile leaves the source alone, the tile follows an edit and
+  keeps its folds, and an outline selection leaves the tile open. The
+  follow-an-edit test fails with the identity remap disabled. In
+  `document_folding.rs`, the conceal test now expects the new marker
+  position, and a new test carries collapsed folds across an edit by
+  identity. The desktop library passes 120 with 1 ignored.
+
+  Headed, the frames show the gutter beside the headings, a collapsed
+  section ending its heading's row, and Collapse all folding the document
+  to its title row. Blank lines keep their height there only since the
+  Genet fix. The frames are under
+  `Code/testing/knot-editor/images/2026-09-25_4b3/`. With 4b, D4 is fixed.
+  Step 4 still has the Changes tile (4c), and the open question about
+  scrolling inside tiles.
 
 ## Related material
 

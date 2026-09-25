@@ -125,6 +125,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     harness.update(|state| state.set_retention_targets(vec![target], wake));
     harness.layout_at(1000.0, 760.0);
 
+    assert!(harness.click_on(&Selector::role("button").containing("Show changes")));
     assert!(harness.click_on(&Selector::role("button").containing("Review saved revision")));
     harness.after_dispatch();
     let later_disk = b"# Later disk edit\n";

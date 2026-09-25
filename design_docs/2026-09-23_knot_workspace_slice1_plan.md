@@ -227,10 +227,13 @@ and the comparison and saved-revision tests pass in the Changes tile.
 
 **5. Status and marks.** The status bar, chips and popovers; the retention and
 catalog blocks and the surface's embedded status retired from the desktop.
-*Done when* a test enumerates every authority fact the old blocks showed and
-finds each in a chip or popover; a refusal raises its chip and posts its
-sentence; tabs carry dirty and refused marks; and the retention tests pass
-through the popover.
+With those blocks gone, the frame fills the window below the command row and
+each tile scrolls on its own; Mark moved this here from step 4 on
+2026-09-25. *Done when* a test enumerates every authority fact the old blocks
+showed and finds each in a chip or popover; a refusal raises its chip and
+posts its sentence; tabs carry dirty and refused marks; the retention tests
+pass through the popover; and a tile taller than its stack scrolls inside it
+while the tiles beside it stay put.
 
 **6. Navigator.** *Done when* (the workspace plan's navigator condition)
 available and unavailable catalog history is labelled truthfully without
@@ -634,6 +637,46 @@ design frames either fixed or recorded.
   `Code/testing/knot-editor/images/2026-09-25_4b3/`. With 4b, D4 is fixed.
   Step 4 still has the Changes tile (4c), and the open question about
   scrolling inside tiles.
+- **2026-09-25, step 4c.** Changes is a tile. It holds the disk comparison,
+  which used to sit under the editor, and, when the window has a catalog,
+  the saved-revision review, which used to sit above the frame. Both act on
+  the tile's own document, following or pinned. A tile with nothing
+  compared offers Compare with disk. Compare on the command row compares
+  the focused document and brings forward a Changes tile showing it,
+  opening one if none does, so its result stays in view as before. Show
+  changes toggles the following tile, like the other readings. The
+  comparison panel is now a column, so its lines no longer run together,
+  and its items keep their size inside its scrolling box.
+
+  The comparison tests pass unchanged through the tile. The saved-revision
+  tests and the resident retention test open the tile first. Three tests
+  are new: Compare shows its result in a Changes tile and never in the
+  document's own tile; a pinned Changes tile compares its own document; and
+  a pinned Preview's heading selects in its own document. The desktop
+  library passes 123 with 1 ignored. Headed, the frames show a comparison
+  in the tile and the tile after Hide comparison. They are under
+  `Code/testing/knot-editor/images/2026-09-25_4c/`.
+
+  The headed check found two engine gaps. Both are worked around in Knot's
+  CSS and noted here, not fixed:
+  - Genet places a tall inline-block about half a leading too high, so it
+    overlaps the line above. A 40px atom in 20px lines lands 2px up; a
+    button aligned on its own text overlaps more.
+  - In a column that overflows its max-height, a flex item shrinks below its
+    content height, where `min-height:auto` should stop it.
+
+  Step 4's done-conditions hold:
+  - following and pinned tiles, and two pinned previews with their own ids
+    (4a);
+  - rows and headings focusing their own document's source range: outline
+    rows, Readings rows and preview headings;
+  - stale readings labelling themselves: the Readings tile, the comparison
+    and the review;
+  - the comparison and saved-revision tests passing in the Changes tile.
+
+  D2, D3 and D4 are fixed. Scrolling inside tiles moved to step 5 on Mark's
+  ruling of 2026-09-25, since the frame can fill the window once the blocks
+  above it are gone.
 
 ## Related material
 

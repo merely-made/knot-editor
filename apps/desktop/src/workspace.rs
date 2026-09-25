@@ -126,13 +126,13 @@ pub struct DocumentEntry {
     pub document: KnotDocumentSurfaceState,
     catalog_source_path: Option<PathBuf>,
     catalog_sync_attempted: bool,
-    catalog_id: Option<String>,
+    pub(crate) catalog_id: Option<String>,
     catalog_error: Option<String>,
-    prepared_capture: Option<KnotFileRevisionV1>,
-    prepared_capture_source_path: Option<PathBuf>,
-    prepared_capture_error: Option<String>,
-    comparison: Option<KnotDiskComparisonV1>,
-    comparison_error: Option<String>,
+    pub(crate) prepared_capture: Option<KnotFileRevisionV1>,
+    pub(crate) prepared_capture_source_path: Option<PathBuf>,
+    pub(crate) prepared_capture_error: Option<String>,
+    pub(crate) comparison: Option<KnotDiskComparisonV1>,
+    pub(crate) comparison_error: Option<String>,
     pub(crate) fold_snapshot: Option<knot_document::KnotFoldSnapshotV1>,
     pub(crate) collapsed_folds: std::collections::BTreeSet<usize>,
     pub(crate) fold_error: Option<String>,
@@ -236,8 +236,8 @@ pub struct DesktopState {
     /// dispatch, set when it opens.
     focus_path_field: Option<PathCommand>,
     pub message: Option<String>,
-    catalog: Option<KnotFileCatalog>,
-    capture_limit: usize,
+    pub(crate) catalog: Option<KnotFileCatalog>,
+    pub(crate) capture_limit: usize,
     appearance_open: bool,
     preferences: Option<PreferencesStore>,
     readings_root: Option<PathBuf>,
@@ -574,71 +574,78 @@ impl DesktopState {
         self.entry_mut().prepared_capture_error = None;
     }
 
-    fn prepare_capture(&mut self) {
-        self.clear_prepared_capture();
-        let Some(id) = self.entry().catalog_id.clone() else {
-            self.entry_mut().prepared_capture_error = Some(
-                self.entry()
+    /// Read `key`'s saved revision through the catalog for review. Unsaved
+    /// edits are never part of it.
+    pub(crate) fn prepare_capture_for(&mut self, key: DocKey) {
+        let capture_limit = self.capture_limit;
+        let (Some(entry), Some(catalog)) = (self.docs.doc_mut(key), self.catalog.as_ref()) else {
+            return;
+        };
+        entry.prepared_capture = None;
+        entry.prepared_capture_source_path = None;
+        entry.prepared_capture_error = None;
+        let Some(id) = entry.catalog_id.clone() else {
+            entry.prepared_capture_error = Some(
+                entry
                     .catalog_error
                     .clone()
                     .unwrap_or_else(|| "Current document is not catalogued.".to_owned()),
             );
             return;
         };
-        let Some(source_path) = self
-            .document()
+        let Some(source_path) = entry
+            .document
             .session()
             .source_path()
             .map(Path::to_path_buf)
         else {
-            self.entry_mut().prepared_capture_error =
+            entry.prepared_capture_error =
                 Some("Current document has no saved source path.".to_owned());
             return;
         };
         if !source_path.is_file() {
-            self.entry_mut().prepared_capture_error =
+            entry.prepared_capture_error =
                 Some("Current saved source path is unavailable.".to_owned());
             return;
         }
-        let Some(catalog) = self.catalog.as_ref() else {
-            return;
-        };
         match catalog.lookup(&source_path) {
             Ok(Some(record)) if record.id == id => {},
             Ok(_) => {
-                self.entry_mut().prepared_capture_error = Some(
+                entry.prepared_capture_error = Some(
                     "Current source no longer matches its catalog binding. Retry catalog registration."
                         .to_owned(),
                 );
                 return;
             },
             Err(error) => {
-                self.entry_mut().prepared_capture_error =
-                    Some(format!("Catalog lookup failed: {error}"));
+                entry.prepared_capture_error = Some(format!("Catalog lookup failed: {error}"));
                 return;
             },
         }
-        match catalog.capture_file_revision(&id, self.capture_limit) {
+        match catalog.capture_file_revision(&id, capture_limit) {
             Ok(revision) => match std::str::from_utf8(&revision.body) {
                 Ok(_) => {
-                    self.entry_mut().prepared_capture_source_path = Some(source_path);
-                    self.entry_mut().prepared_capture = Some(revision);
+                    entry.prepared_capture_source_path = Some(source_path);
+                    entry.prepared_capture = Some(revision);
                 },
                 Err(_) => {
-                    self.entry_mut().prepared_capture_error = Some(
+                    entry.prepared_capture_error = Some(
                         "Saved revision is not valid UTF-8; source text is unavailable.".to_owned(),
                     );
                 },
             },
             Err(error) => {
-                self.entry_mut().prepared_capture_error =
-                    Some(format!("Preparation failed: {error}"))
+                entry.prepared_capture_error = Some(format!("Preparation failed: {error}"))
             },
         }
     }
 
-    fn discard_prepared_capture(&mut self) {
-        self.clear_prepared_capture();
+    pub(crate) fn discard_prepared_capture_for(&mut self, key: DocKey) {
+        if let Some(entry) = self.docs.doc_mut(key) {
+            entry.prepared_capture = None;
+            entry.prepared_capture_source_path = None;
+            entry.prepared_capture_error = None;
+        }
     }
 
     fn path_value(&self) -> Result<PathBuf, String> {
@@ -1183,21 +1190,59 @@ impl DesktopState {
         }
     }
 
+    /// Compare the focused document with disk, and show the result in a
+    /// Changes tile.
     fn compare_disk(&mut self) {
-        match self.document().session().compare_disk() {
+        let Some(key) = self.focused_key() else {
+            return;
+        };
+        self.compare_disk_for(key);
+        self.show_changes_for(key);
+    }
+
+    /// Compare `key`'s buffer with its file as it is on disk now.
+    pub(crate) fn compare_disk_for(&mut self, key: DocKey) {
+        let Some(entry) = self.docs.doc_mut(key) else {
+            return;
+        };
+        match entry.document.session().compare_disk() {
             Ok(comparison) => {
-                self.entry_mut().comparison = Some(comparison);
-                self.entry_mut().comparison_error = None;
+                entry.comparison = Some(comparison);
+                entry.comparison_error = None;
             },
             Err(error) => {
-                self.entry_mut().comparison = None;
-                self.entry_mut().comparison_error = Some(error);
+                entry.comparison = None;
+                entry.comparison_error = Some(error);
             },
         }
     }
 
-    fn hide_comparison(&mut self) {
-        self.clear_comparison();
+    pub(crate) fn hide_comparison_for(&mut self, key: DocKey) {
+        if let Some(entry) = self.docs.doc_mut(key) {
+            entry.comparison = None;
+            entry.comparison_error = None;
+        }
+    }
+
+    /// Bring forward a Changes tile showing `key`, opening one that follows
+    /// the focus when none does.
+    fn show_changes_for(&mut self, key: DocKey) {
+        let showing = self
+            .docs
+            .readings()
+            .filter(|(_, kind, _)| *kind == ReadingKind::Changes)
+            .map(|(tile, _, _)| tile)
+            .find(|tile| self.docs.document_for(*tile) == Some(key));
+        match showing {
+            Some(tile) => self.docs.activate(tile),
+            None => {
+                self.docs.open_reading(
+                    ReadingKind::Changes,
+                    None,
+                    reading_title(ReadingKind::Changes),
+                );
+            },
+        }
     }
 
     pub(crate) fn request(&mut self, action: PendingAction) {
@@ -1758,110 +1803,6 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             .attr("aria-label", "Retain reviewed revision"),
         )
     };
-    let review_panel: DesktopView = if state.catalog.is_none() {
-        Box::new(el("div", ()))
-    } else if let Some(error) = &state.entry().prepared_capture_error {
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Saved revision review"),
-                            span(format!("Limit: {} bytes", state.capture_limit)),
-                        ),
-                    )
-                    .attr("class", "knot-review-header"),
-                    span(format!("Review unavailable: {error}")).attr("class", "knot-review-error"),
-                    state.entry().catalog_id.as_ref().map(|_| {
-                        button("Refresh saved revision", |state: &mut DesktopState, _| {
-                            state.prepare_capture()
-                        })
-                    }),
-                    button("Discard saved revision", |state: &mut DesktopState, _| {
-                        state.discard_prepared_capture()
-                    }),
-                ),
-            )
-            .attr("class", "knot-review knot-review-error-panel")
-            .attr("role", "region")
-            .attr("aria-label", "Saved revision review error"),
-        )
-    } else if let Some(revision) = &state.entry().prepared_capture {
-        let source_path = state
-            .entry()
-            .prepared_capture_source_path
-            .as_ref()
-            .map_or_else(
-                || "(source path unavailable)".to_owned(),
-                |path| path.display().to_string(),
-            );
-        let current = state.document().snapshot();
-        let differs = current.text.as_bytes() != revision.body.as_slice();
-        let status = if differs {
-            "Editor differs from prepared revision; refresh to read disk again"
-        } else {
-            "Prepared snapshot; refresh to read disk again"
-        };
-        let body = String::from_utf8(revision.body.clone()).expect("validated review body");
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Saved revision review"),
-                            span(format!("Limit: {} bytes", state.capture_limit)),
-                        ),
-                    )
-                    .attr("class", "knot-review-header"),
-                    span(format!("Document ID: {}", revision.document_id)),
-                    span(format!("Title: {}", revision.title)),
-                    span(format!("Media type: {}", revision.media_type)),
-                    span(format!("Source path: {source_path}")),
-                    span(format!("Prepared bytes: {}", revision.body.len())),
-                    span("Unsaved changes are excluded."),
-                    span("Reviewing does not store or share bytes. Retain uses the selected destination."),
-                    span(status).attr("class", "knot-review-status"),
-                    button("Refresh saved revision", |state: &mut DesktopState, _| {
-                        state.prepare_capture()
-                    }),
-                    button("Discard saved revision", |state: &mut DesktopState, _| {
-                        state.discard_prepared_capture()
-                    }),
-                    el("pre", body).attr("class", "knot-review-source"),
-                ),
-            )
-            .attr("class", "knot-review")
-            .attr("role", "region")
-            .attr("aria-label", "Saved revision review"),
-        )
-    } else if let Some(id) = &state.entry().catalog_id {
-        Box::new(
-            el(
-                "section",
-                (
-                    el(
-                        "header",
-                        (
-                            span("Saved revision review"),
-                            span(format!("Limit: {} bytes", state.capture_limit)),
-                        ),
-                    )
-                    .attr("class", "knot-review-header"),
-                    button("Review saved revision", |state: &mut DesktopState, _| {
-                        state.prepare_capture()
-                    }),
-                ),
-            )
-            .attr("class", "knot-review")
-            .attr("aria-label", format!("Saved revision review for {id}")),
-        )
-    } else {
-        Box::new(el("div", ()))
-    };
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
         // Saves refuse while the file is unreadable; say so where the controls
@@ -2116,6 +2057,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         button("Compare", |state: &mut DesktopState, _| {
                             state.compare_disk();
                         }),
+                        reading_toggle(state, ReadingKind::Changes, "Show changes", "Hide changes"),
                         document_preview_button,
                         document_folding_button,
                         button("Appearance", |state: &mut DesktopState, _| {
@@ -2132,7 +2074,6 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 message,
                 crate::scroll_site::site_panel(state),
                 catalog_status,
-                review_panel,
                 if state.document().snapshot().format.native_source()
                     && state.retention_targets.is_empty()
                 {
@@ -2270,88 +2211,6 @@ fn display_path(path: &Path) -> String {
 /// area the window had before tabs. The panels read the focused entry, which
 /// is the document a single stack shows.
 fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
-    let comparison_panel: DesktopView = if let Some(error) = &state.entry().comparison_error {
-        Box::new(
-            el(
-                "section",
-                (
-                    span("Comparison unavailable"),
-                    span(error.clone()).attr("class", "knot-comparison-error"),
-                    span("Disk text could not be read; refresh to try again."),
-                    button("Refresh comparison", |state: &mut DesktopState, _| {
-                        state.compare_disk();
-                    }),
-                    button("Hide comparison", |state: &mut DesktopState, _| {
-                        state.hide_comparison();
-                    }),
-                ),
-            )
-            .attr("class", "knot-comparison knot-comparison-error-panel")
-            .attr("role", "region")
-            .attr("aria-label", "Disk comparison error"),
-        )
-    } else if let Some(comparison) = &state.entry().comparison {
-        let snapshot = state.document().snapshot();
-        let stale = comparison.buffer_text != snapshot.text
-            || comparison.address != snapshot.source.address;
-        let status = if stale {
-            "Snapshot: stale because the source or address changed since comparison"
-        } else {
-            "Buffer snapshot matches current source"
-        };
-        let disk_status = if comparison.disk_changed_since_baseline {
-            "Disk changed since the saved baseline at comparison: yes"
-        } else {
-            "Disk changed since the saved baseline at comparison: no"
-        };
-        Box::new(
-            el(
-                "section",
-                (
-                    el("header", (span("Disk comparison"), span(status)))
-                        .attr("class", "knot-comparison-header"),
-                    span(format!("Compared address: {}", comparison.address)),
-                    span(disk_status),
-                    span("Disk text was read when compared; refresh to read it again."),
-                    button("Refresh comparison", |state: &mut DesktopState, _| {
-                        state.compare_disk();
-                    }),
-                    button("Hide comparison", |state: &mut DesktopState, _| {
-                        state.hide_comparison();
-                    }),
-                    el(
-                        "div",
-                        (
-                            el(
-                                "section",
-                                (
-                                    span("Buffer at comparison"),
-                                    el("pre", comparison.buffer_text.clone()),
-                                ),
-                            )
-                            .attr("class", "knot-comparison-version")
-                            .attr("aria-label", "Buffer source at comparison"),
-                            el(
-                                "section",
-                                (
-                                    span("Disk at comparison"),
-                                    el("pre", comparison.disk_text.clone()),
-                                ),
-                            )
-                            .attr("class", "knot-comparison-version")
-                            .attr("aria-label", "Disk source at comparison"),
-                        ),
-                    )
-                    .attr("class", "knot-comparison-versions"),
-                ),
-            )
-            .attr("class", "knot-comparison")
-            .attr("role", "region")
-            .attr("aria-label", "Disk comparison"),
-        )
-    } else {
-        Box::new(el("div", ()))
-    };
     let highlight = state.appearance.highlight;
     let document: DesktopView = Box::new(lens(
         move |state: &mut KnotDocumentSurfaceState| {
@@ -2365,11 +2224,8 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     Box::new(
         el(
             "div",
-            (
-                el("div", (source_wrapper, crate::scroll_site::preview(state)))
-                    .attr("class", "knot-writing-area"),
-                comparison_panel,
-            ),
+            el("div", (source_wrapper, crate::scroll_site::preview(state)))
+                .attr("class", "knot-writing-area"),
         )
         .attr("class", "knot-document-tile")
         .attr("data-knot-document", key.0.to_string()),
@@ -2482,7 +2338,7 @@ fn reading_tile(
         ReadingKind::Preview => crate::document_preview::view(state, key, tile),
         ReadingKind::Readings => crate::readings::view(state, key, tile),
         ReadingKind::Folded => crate::document_folding::view(state, key, tile),
-        ReadingKind::Changes => Box::new(el("div", ())),
+        ReadingKind::Changes => crate::changes::view(state, key, tile),
     };
     Box::new(
         el("section", (header, body))
@@ -2893,7 +2749,9 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-outline-row[data-outline-level=5] { padding-left:64px; }",
     ".knot-outline-row[data-outline-level=6] { padding-left:80px; }",
     ".knot-outline-error { color:crimson; }",
-    ".knot-comparison { max-height:360px; overflow:auto; padding:12px; border:1px solid; }",
+    ".knot-changes { display:flex; flex-direction:column; gap:12px; min-width:0; }",
+    ".knot-comparison > *, .knot-review > * { flex-shrink:0; }",
+    ".knot-comparison { max-height:360px; overflow:auto; padding:12px; border:1px solid; display:flex; flex-direction:column; align-items:flex-start; gap:6px; }",
     ".knot-comparison-header { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; }",
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
@@ -3184,6 +3042,30 @@ mod tests {
             host.state().focused_key(),
             Some(a),
             "the row focuses its document"
+        );
+        let snapshot = host.state().document().snapshot();
+        let selected =
+            &snapshot.text[snapshot.selection.anchor.byte..snapshot.selection.focus.byte];
+        assert!(selected.contains("Second"), "selected {selected:?}");
+    }
+
+    #[test]
+    fn a_pinned_preview_heading_selects_in_its_own_document() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, "# First\n\n## Second\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        assert_ne!(host.state().focused_key(), Some(a));
+        assert!(host.click_on(&Selector::role("button").containing("Second")));
+        assert_eq!(
+            host.state().focused_key(),
+            Some(a),
+            "the heading focuses its document"
         );
         let snapshot = host.state().document().snapshot();
         let selected =
@@ -4811,6 +4693,56 @@ mod tests {
         assert!(rendered.contains("Buffer snapshot matches current source"));
     }
 
+    /// Compare shows its result in a Changes tile beside the documents,
+    /// never inside the document's own tile.
+    #[test]
+    fn compare_shows_its_result_in_a_changes_tile() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("changes.djot");
+        std::fs::write(&path, "source\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Compare")));
+        let tile = reading_tile(&host, ReadingKind::Changes, false);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let changes = class_node(&dom, dom.document(), "knot-changes").expect("the Changes tile");
+        assert!(class_node(&dom, changes, "knot-comparison").is_some());
+        assert_eq!(
+            dom.attribute(changes, &Namespace::from(""), &LocalName::from("id")),
+            Some(format!("knot-changes-{}", tile.0).as_str()),
+        );
+        let document =
+            class_node(&dom, dom.document(), "knot-document-tile").expect("the document tile");
+        assert!(
+            class_node(&dom, document, "knot-comparison").is_none(),
+            "the document tile holds no comparison"
+        );
+    }
+
+    #[test]
+    fn a_pinned_changes_tile_compares_its_own_document() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("a.djot");
+        std::fs::write(&path, "a\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let a = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Show changes")));
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        assert!(host.click_on(&Selector::role("button").containing("New")));
+        let b = host.state().focused_key().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Compare with disk")));
+        let compared = |key| {
+            host.state()
+                .docs
+                .doc(key)
+                .is_some_and(|entry| entry.comparison.is_some())
+        };
+        assert!(compared(a), "the pinned tile compares its own document");
+        assert!(!compared(b));
+    }
+
     #[test]
     fn read_only_save_as_refusal_is_visible_and_does_not_write() {
         let temp = tempdir().unwrap();
@@ -4985,6 +4917,7 @@ mod tests {
         let mut host =
             harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
         host.layout_at(1000.0, 800.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show changes")));
         (temp, path, host)
     }
 

@@ -677,6 +677,94 @@ design frames either fixed or recorded.
   D2, D3 and D4 are fixed. Scrolling inside tiles moved to step 5 on Mark's
   ruling of 2026-09-25, since the frame can fill the window once the blocks
   above it are gone.
+- **2026-09-25, step 5a.** The host keeps a moved caret in view vertically
+  (mere `6a206411`). Before, it followed a caret only across a single-line
+  field, so typing at the end of a long document left the caret below the
+  window. Now it scrolls one plane just far enough to show the caret's
+  line: the field itself when it scrolls, else the nearest scrolling
+  ancestor with room, else the window. Three host tests cover a field's
+  pane, the window, and a caret that has not moved, which leaves the
+  reader's scroll alone. Knot repinned (`78d014c`) and passed 401 with 3
+  ignored.
+- **2026-09-25, step 5b.** The frame fills the window, and each tile
+  scrolls on its own. The workspace is now the window's height: the
+  command row, the frame, and a status bar docked along the bottom. The
+  frame takes the rest of the height, at least 240px. As Mark ruled ("grow,
+  tile scrolls"), the editor grows with its text and its tile scrolls. The
+  window no longer scrolls as one page.
+
+  The message line is now the status bar's message, from Cambium's
+  `status_bar`, with role status and a polite live region. It has no chips
+  yet; 5c adds them. A long message is now cut to one line with an
+  ellipsis, where it used to wrap. The live region still reads it whole.
+
+  The scrollers nested inside tiles are gone. The preview, the Readings
+  body and the outline no longer scroll on their own, and the comparison
+  and review panels no longer cap their height, so a tile has one
+  scrolling plane.
+
+  Tile scrolling found two gaps in Cambium, both fixed there:
+  - The harness's `click_on` clicked an element's full centre even where a
+    pane clipped it. It now scrolls the element into view and clicks the
+    part that shows (mere `e8f83f89`).
+  - A scroll request moved one plane, so a control in a nested scroller
+    that ran below the window could not be reached: the saved-revision
+    review's Refresh button, under 4c's capped panel. On Mark's ruling, the
+    nearest plane moves by the request's alignment. Each plane outside it,
+    out to the window, then moves only as far as the element needs (mere
+    `9a2e4eeb`).
+
+  The two Genet gaps that 4c worked around are fixed in Genet. As Mark
+  ruled, both are folded into this round:
+  - A padded control keeps its content minimum in a flex column
+    (`b666512513c`).
+  - Line boxes are built per CSS 2.1 section 10.8 (`6afb472a0c6`).
+
+  A button still aligns on its bottom edge until Genet's slice B. On
+  `6afb472a0c6` that opened a 4px gap under a popover's trigger, so on
+  Mark's ruling Cambium's popover anchor is now a flex container (mere
+  `6562b7c2`). Mere repinned to the new Genet (`83289655`), and Knot
+  followed to mere `9a2e4eeb` (`4b67c97`). That mere also brought the
+  reservoir's first-party door, whose `serve_app_broker` now takes
+  `AppRouteGrants`, so the resident route test wraps its grants.
+
+  The new Genet puts parsed pages without a doctype in quirks mode. Knot
+  parses no HTML, so it is not affected: a probe of the live document
+  reported no-quirks, and in the same run a parsed page without a doctype
+  reported quirks.
+
+  The `flex-shrink:0` rule on the comparison's and review's items is gone,
+  as Mark ruled. With the panels uncapped, nothing presses on those
+  columns, and Genet now gives a padded control its content minimum
+  anyway. A probe put the rule back inline on all 19 items in the two
+  panels. None moved, and none overlapped the one above. An injected
+  height did move the first item, so the probe could see a change. The
+  columns stay.
+
+  Tests:
+  - The Micron in-page tests measure the preview tile's scroll and check
+    that the window stays put.
+  - The preferences receipts read the status bar's message.
+  - One test is new: a tile taller than its stack scrolls inside it while
+    the tile beside it and the window stay put. It fails on 4c's layout,
+    where the window scrolls instead.
+
+  The desktop library passes 124 with 1 ignored, and
+  `cargo test --locked` passes 402 with 3 ignored. Headed, the
+  frames show the frame over the status bar, a Preview tile beside the
+  document, and a comparison in the Changes tile. They are under
+  `Code/testing/knot-editor/images/2026-09-25_5b/`.
+
+  Of step 5's done-conditions, one now holds: a tile taller than its stack
+  scrolls inside it while the tiles beside it stay put. The chips and
+  popovers, the refusal chip, the tab marks and the facts enumeration
+  remain for 5c and 5d.
+
+  Open: caret follow still moves one plane. On 2026-09-25 Mark ruled that
+  scroll requests and caret follow will share one walk outward, measuring
+  a container by its scrollport. It lands in mere after 5b and reaches
+  Knot at its next repin. Knot does not need it for 5b: its window no
+  longer scrolls, so a tile is the only plane.
 
 ## Related material
 

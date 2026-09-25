@@ -15,7 +15,7 @@ pub mod scenario;
 pub mod scroll_site;
 pub mod workspace;
 
-use cambium::{FOLD_ROWS_CSS, FRISKET_CSS, POPOVER_CSS, WORKSPACE_CSS};
+use cambium::{FOLD_ROWS_CSS, FRISKET_CSS, POPOVER_CSS, STATUS_BAR_CSS, WORKSPACE_CSS};
 use cambium_genet_winit_host::{
     HostHooks, HostOptions, Init, LaneConfig, ScenarioLane, inert_hooks, run,
 };
@@ -39,7 +39,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
 /// rules dress it.
 pub fn desktop_sheet() -> String {
     format!(
-        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{FOLD_ROWS_CSS}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
+        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
         appearance::appearance_css(),
         document_folding::CSS,
         document_preview::CSS,

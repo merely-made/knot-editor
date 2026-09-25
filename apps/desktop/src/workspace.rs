@@ -230,6 +230,8 @@ pub struct DesktopState {
     /// The Save As popover's path field, filled from the focused document
     /// when the popover opens.
     pub save_as_path: TextInput,
+    /// Which status chip's popover is open.
+    pub(crate) status_bar: cambium::StatusBarState,
     pub(crate) open_popover: PopoverState,
     pub(crate) save_as_popover: PopoverState,
     /// One-shot: the path popover whose field takes focus after this
@@ -301,6 +303,7 @@ impl DesktopState {
             scroll: Default::default(),
             path,
             save_as_path: TextInput::default(),
+            status_bar: cambium::StatusBarState::default(),
             open_popover: PopoverState::default(),
             save_as_popover: PopoverState::default(),
             focus_path_field: None,
@@ -1993,10 +1996,12 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         },
         None => Box::new(el("div", ())),
     };
-    let message: DesktopView = Box::new(
-        span(state.message.clone().unwrap_or_else(|| "Ready.".to_owned()))
-            .attr("class", "knot-workspace-message")
-            .attr("aria-live", "polite"),
+    let message = state.message.clone().unwrap_or_else(|| "Ready.".to_owned());
+    let status_bar = cambium::status_bar(
+        cambium::StatusBar::new(&message, &[]),
+        &state.status_bar,
+        |state: &mut DesktopState, event| state.status_bar.apply(event),
+        |_key: &str| None,
     );
     let catalog_status: DesktopView = if state.catalog.is_none() {
         Box::new(el("div", ()))
@@ -2071,7 +2076,6 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 )
                 .attr("class", "knot-workspace-toolbar")
                 .attr("aria-label", "Commands"),
-                message,
                 crate::scroll_site::site_panel(state),
                 catalog_status,
                 if state.document().snapshot().format.native_source()
@@ -2084,6 +2088,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 appearance_panel,
                 document_frame(state),
                 prompt,
+                status_bar,
             ),
         )
         .attr(
@@ -2691,7 +2696,7 @@ pub fn after_wake(
 }
 
 pub const DESKTOP_CSS: &str = concat!(
-    ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px; }",
+    ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px 20px 0; height:100vh; box-sizing:border-box; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
     ".knot-appearance-panel { display:flex; flex-direction:column; gap:8px; padding:10px; border:1px solid; }",
     ".knot-appearance-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }",
@@ -2707,10 +2712,10 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-reading-separator { opacity:0.6; }",
     ".knot-reading-document { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
     ".knot-reading-pin { flex:none; }",
-    ".knot-workspace-message { min-height:1.4em; }",
+    ".knot-workspace > .status-bar { flex:none; gap:8px; margin:0 -20px; padding:4px 20px; min-height:28px; box-sizing:border-box; border-top:1px solid; font-size:13px; }",
     ".knot-catalog-status { min-height:1.4em; overflow-wrap:anywhere; }",
     ".knot-catalog-error { color:crimson; display:flex; align-items:center; gap:8px; }",
-    ".knot-review { max-height:420px; overflow:auto; padding:12px; border:1px solid; display:flex; flex-direction:column; gap:6px; }",
+    ".knot-review { padding:12px; border:1px solid; display:flex; flex-direction:column; gap:6px; }",
     ".knot-review-header { display:flex; flex-wrap:wrap; align-items:baseline; justify-content:space-between; gap:8px; }",
     ".knot-review-error { color:crimson; }",
     ".knot-review-source { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
@@ -2726,21 +2731,20 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-confirm-list { display:flex; flex-direction:column; gap:2px; }",
-    ".knot-frame { position:relative; min-width:0; }",
-    ".knot-frame .frisket-stack { height:auto; }",
+    ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:240px; }",
     ".knot-frame .frisket-tabbar { flex:0 0 30px; height:30px; align-items:flex-end; gap:2px; padding:0 6px; border-bottom:1px solid; overflow:hidden; }",
     ".knot-frame .frisket-tab { flex:0 1 auto; max-width:240px; height:26px; margin-right:0; padding:0 6px 0 12px; gap:6px; font-size:13px; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }",
     ".knot-frame .frisket-tab.active { height:27px; margin-bottom:-1px; }",
     ".knot-frame .frisket-label { flex:0 1 auto; text-overflow:ellipsis; }",
     ".knot-frame .frisket-close { flex:0 0 18px; width:18px; height:auto; margin-left:0; padding:0; font-size:13px; visibility:hidden; }",
     ".knot-frame .frisket-tab.active .frisket-close, .knot-frame .frisket-tab:hover .frisket-close { visibility:visible; }",
-    ".knot-frame .frisket-content { flex:1 0 auto; padding:12px; }",
+    ".knot-frame .frisket-content { flex:1 1 0px; min-height:0; overflow:auto; padding:12px; }",
     ".knot-empty-frame { display:block; padding:24px 0; }",
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
     ".knot-document { flex:1; min-width:0; }",
     ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
-    ".knot-outline { display:flex; flex-direction:column; min-width:0; overflow:auto; }",
+    ".knot-outline { display:flex; flex-direction:column; min-width:0; }",
     ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
     ".knot-outline-row { display:block; width:100%; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
     ".knot-outline-row[data-outline-level=2] { padding-left:16px; }",
@@ -2750,13 +2754,12 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-outline-row[data-outline-level=6] { padding-left:80px; }",
     ".knot-outline-error { color:crimson; }",
     ".knot-changes { display:flex; flex-direction:column; gap:12px; min-width:0; }",
-    ".knot-comparison > *, .knot-review > * { flex-shrink:0; }",
-    ".knot-comparison { max-height:360px; overflow:auto; padding:12px; border:1px solid; display:flex; flex-direction:column; align-items:flex-start; gap:6px; }",
+    ".knot-comparison { padding:12px; border:1px solid; display:flex; flex-direction:column; align-items:flex-start; gap:6px; }",
     ".knot-comparison-header { display:flex; flex-wrap:wrap; gap:8px; align-items:baseline; }",
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
-    "@media (max-width:700px) { .knot-workspace { padding:12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
+    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
 );
 
 #[cfg(test)]
@@ -2919,6 +2922,46 @@ mod tests {
                 "a {stack_height}px stack holds a {bar_height}px bar and {content_height}px of content",
             );
         }
+    }
+
+    /// Step 5: a tile taller than its stack scrolls inside it, and the tile
+    /// beside it and the window stay put.
+    #[test]
+    fn a_tall_tile_scrolls_inside_its_stack_and_the_tile_beside_it_stays() {
+        let source = format!("# Notes\n\n{}", "A line of field notes.\n".repeat(120));
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, &source));
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        let (document, beside) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let tile = |class: &str| {
+                let mut node = class_node(&dom, dom.document(), class);
+                while let Some(current) = node {
+                    if dom.has_class(current, "frisket-content") {
+                        return current;
+                    }
+                    node = dom.parent(current);
+                }
+                panic!("{class} sits in a tile")
+            };
+            (tile("knot-document-body"), tile("knot-outline"))
+        };
+        let (x, y, width, height) = host.painted_rect(document).expect("the document's tile");
+        let beside_rect = host.painted_rect(beside);
+        host.move_to(x + width / 2.0, y + height / 2.0);
+        host.wheel(0.0, 300.0);
+        assert!(
+            host.element_scroll(document).1 > 0.0,
+            "the document's tile scrolled"
+        );
+        assert_eq!(
+            host.element_scroll(beside),
+            (0.0, 0.0),
+            "the tile beside it did not"
+        );
+        assert_eq!(host.painted_rect(beside), beside_rect, "nor did it move");
+        assert_eq!(host.viewport_scroll(), (0.0, 0.0), "the window stayed");
     }
 
     /// The document the active reading tile's header names.

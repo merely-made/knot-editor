@@ -20,7 +20,7 @@ use crate::workspace::{DesktopState, DesktopView};
 
 pub const CSS: &str = concat!(
     ".knot-readings { min-width:0; box-sizing:border-box; display:flex; flex-direction:column; ",
-    "gap:8px; overflow:auto; }",
+    "gap:8px; }",
     ".knot-readings-header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }",
     ".knot-readings-scripts { display:flex; flex-wrap:wrap; gap:6px; }",
     ".knot-readings-rows { display:flex; flex-direction:column; gap:2px; }",

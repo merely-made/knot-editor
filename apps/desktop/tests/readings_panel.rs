@@ -1,7 +1,7 @@
 // Copyright 2026 Mark Alan Boykin
 // SPDX-License-Identifier: MPL-2.0
 
-//! Windowless receipts for the Readings panel: list, run, select a source
+//! Windowless receipts for the Readings tile: list, run, select a source
 //! range, go stale on an edit, and report a budget without hanging.
 
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};
@@ -104,7 +104,7 @@ fn open(scripts: &[(&str, &str)], readings_root: Option<&Path>) -> Fixture {
 
 fn show_panel(harness: &mut DesktopHarness) {
     assert!(
-        harness.click_on(&Selector::role("button").with_attr("aria-controls", "knot-readings")),
+        harness.click_on(&Selector::role("button").containing("Readings")),
         "the Readings toolbar toggle is missing"
     );
     harness.after_dispatch();

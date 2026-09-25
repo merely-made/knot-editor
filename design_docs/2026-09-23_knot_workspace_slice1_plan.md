@@ -543,6 +543,38 @@ design frames either fixed or recorded.
   tile. The frames are under
   `Code/testing/knot-editor/images/2026-09-25_4a_repin/`. D2 and D3 are
   fixed.
+- **2026-09-25, step 4b rulings.** Mark ruled three questions about the
+  Folded source tile. The fold gutter comes from Cambium, as a
+  line-structured read-only view on `fold_projection` with a gutter cell
+  for each visible line. That is the gutter of mere's virtualized editor
+  plan (P2), without virtualization. When the source changes, the tile
+  re-derives its folds, like the Outline. A collapsed fold stays collapsed
+  while a fold of the same kind and opening line still exists. Edit source
+  focuses the document's editor and leaves the tile open.
+- **2026-09-25, step 4b-1.** Readings is a tile. It runs over its own
+  document, following or pinned. Each Readings tile keeps its own script
+  choice by name, which is dropped when the tile closes. A row focuses its
+  document before it selects there. The body's id carries its tile
+  (`knot-readings-{tile}`). The panel's Hide button is gone: the tab
+  closes the tile, and the command row's Readings toggle shows and hides
+  the following one. While a reading tile is open, its toggle on the
+  command row names the tile's region through `aria-controls`. A stale
+  reading still labels itself and refuses row selection. The four readings
+  receipts pass through the tile.
+
+  Two tests are new. One checks that a pinned Readings tile runs over its
+  own document and that its row focuses that document. The other checks
+  that each Readings tile keeps its own script and id, and that a closed
+  tile's choice goes with it. The desktop library passes 117 with 1
+  ignored. Headed, the frames show a run, a row selecting in the editor,
+  and the pinned tile keeping its document after New. They are under
+  `Code/testing/knot-editor/images/2026-09-25_4b1/`. The provenance line
+  there is a faded flex item, and it paints only since the Genet fix under
+  4a.
+
+  Open: the 3b-2 entry said scrolling inside tiles would arrive with the
+  reading tiles in step 4. The window still scrolls as one page, so a long
+  reading scrolls the whole window.
 
 ## Related material
 

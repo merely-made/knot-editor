@@ -961,7 +961,10 @@ design frames either fixed or recorded.
   `Code/testing/knot-editor/images/2026-09-26_chip_squeeze/`.
 
   Genet does not paint `text-overflow: ellipsis`, so the message is clipped
-  mid-glyph, without the ellipsis the sheet asks for.
+  mid-glyph, without the ellipsis the sheet asks for. On Mark's ruling this
+  has been reported to the Genet roadmap. Cambium's doc now says the
+  ellipsis waits on Genet (mere `518ca1dc`), and a note on `87b81fb8`
+  corrects that commit's message.
 
 ## Related material
 

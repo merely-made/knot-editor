@@ -766,6 +766,71 @@ design frames either fixed or recorded.
   Knot at its next repin. Knot does not need it for 5b: its window no
   longer scrolls, so a tile is the only plane.
 
+  Update: the shared walk landed in mere `2ea1a6e7`, and Genet's slice B
+  (atom baselines, `18e41e44c36`) in mere `e3d7061d`. Knot repinned to
+  both (`0c98775`). Its headed frames matched 5b's, with nothing moved.
+- **2026-09-25, step 5c.** The status bar carries the focused document's
+  chips: format, save state and posture. Each opens its facts in a
+  popover, a Cambium detail panel; the save chip's popover also has a Save
+  button.
+
+  The desktop's document surface no longer draws its own status row.
+  knot-document gains `KnotDocumentStatus::HostOwned`, an addition, so
+  Turnstone's embedded surface keeps its row. knot-document also exports
+  its format, posture, save-outcome and refusal labels, and the chips use
+  the same words.
+
+  The chips:
+  - Format: the format's name, "Djot".
+  - Save: "Saved", "Unsaved changes", "Not saved" (a scratch document with
+    no file), "Save refused" or "Save failed".
+  - Posture: "File target", "Scratch" or "Read-only".
+
+  The chips are quiet while inert. A refusal raises the save chip to
+  refused, and a failed save raises it to warning.
+
+  A refusal now posts a sentence that names the refused action, such as
+  "Save refused: this document is read-only." or "Reload refused: a new
+  document has no file yet. Use Save As." Before, any refusal but a change
+  on disk posted Debug text such as "Action refused: ReadOnly". The message
+  line stays quiet; the chip carries the weight.
+
+  A refused document's tab carries the attention mark, which wins over the
+  unsaved mark. The mark clears when knot-document clears the refusal: on
+  a successful save, or on an allowed edit.
+
+  Tests:
+  - A facts test takes seven states and finds everything the old row
+    showed in a chip or its popover: the source, the format, clean or
+    dirty, the posture, and the last save with its refusal or failure.
+    With the Source row dropped, it fails.
+  - A refused save, where the file changed on disk, raises its chip,
+    posts its sentence, marks its tab and shows the refusal in the
+    popover.
+  - knot-document checks that the embedded row stays the default.
+  - One comparison test clicked the surface's own Save button. It now
+    uses the command row's.
+
+  The desktop library passes 127 with 1 ignored, and `cargo test --locked`
+  passes 406 with 3 ignored. Headed, the frames show the chips, the save
+  and format popovers, and a new document's refused save: the raised chip,
+  the sentence and the tab's attention mark. They are under
+  `Code/testing/knot-editor/images/2026-09-25_5c/`.
+
+  Noted, not changed:
+  - With a popover open, a click on another chip first only closes the
+    open one, through the popover's click-outside layer, so switching takes
+    two clicks.
+  - The popover's refusal row keeps knot-document's wording ("scratch
+    document has no file target"), while the message line says "a new
+    document has no file yet".
+
+  Two more of step 5's done-conditions now hold: a refusal raises its chip
+  and posts its sentence, and tabs carry dirty and refused marks. 5d
+  remains: the catalog and retention chips that retire the blocks, the
+  facts test over them, the retention tests through the popover, and the
+  serving chip.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

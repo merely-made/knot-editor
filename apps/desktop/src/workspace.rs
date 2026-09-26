@@ -9,8 +9,8 @@ use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, Tile
 use crate::preferences::PreferencesStore;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
-    Slot, TabMark, TextInput, WorkspaceModel, button, el, lens, on_key, popover, span,
-    text_field_typed, workspace_view_with_marks,
+    Slot, TextInput, WorkspaceModel, button, el, lens, on_key, popover, span, text_field_typed,
+    workspace_view_with_marks,
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
@@ -19,8 +19,8 @@ use cambium_genet_winit_host::{
 use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
-    KnotDocumentSession, KnotDocumentSurfaceState, KnotOutlineItemV1, KnotOutlineSnapshotV1,
-    knot_document_view_with_highlighting,
+    KnotDocumentSession, KnotDocumentStatus, KnotDocumentSurfaceState, KnotOutlineItemV1,
+    KnotOutlineSnapshotV1, knot_document_view_with_status,
 };
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
@@ -1276,7 +1276,7 @@ impl DesktopState {
                         self.sync_catalog();
                         self.message = Some("Reloaded from disk.".to_owned());
                     },
-                    Err(error) => self.message = Some(intent_error_label(error)),
+                    Err(error) => self.message = Some(intent_error_label("Reload", error)),
                 }
             },
         }
@@ -1370,7 +1370,7 @@ impl DesktopState {
                 self.sync_catalog();
                 self.message = Some("Saved.".to_owned());
             },
-            Err(error) => self.message = Some(intent_error_label(error)),
+            Err(error) => self.message = Some(intent_error_label("Save", error)),
         }
     }
 
@@ -1411,7 +1411,7 @@ impl DesktopState {
                 true
             },
             Err(error) => {
-                self.message = Some(intent_error_label(error));
+                self.message = Some(intent_error_label("Save As", error));
                 false
             },
         }
@@ -1445,7 +1445,7 @@ impl DesktopState {
                     true
                 },
                 Err(error) => {
-                    self.message = Some(intent_error_label(error));
+                    self.message = Some(intent_error_label("Save", error));
                     false
                 },
             }
@@ -1484,7 +1484,7 @@ impl DesktopState {
                     }
                     match self.document_mut().apply(KnotDocumentIntentV1::Save) {
                         Ok(_) => self.sync_catalog(),
-                        Err(error) => failures.push(intent_error_label(error)),
+                        Err(error) => failures.push(intent_error_label("Save", error)),
                     }
                 }
                 if let Some(key) = focused {
@@ -1664,15 +1664,20 @@ impl DesktopState {
     }
 }
 
-fn intent_error_label(error: KnotDocumentIntentErrorV1) -> String {
+/// The sentence a refused or failed `action` posts to the message line.
+fn intent_error_label(action: &str, error: KnotDocumentIntentErrorV1) -> String {
     match error {
-        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ExternalChange) => {
-            "Save refused: file changed on disk. Compare, Reload, or choose a new Save As path."
-                .to_owned()
+        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ExternalChange) => format!(
+            "{action} refused: file changed on disk. Compare, Reload, or choose a new Save As path."
+        ),
+        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ReadOnly) => {
+            format!("{action} refused: this document is read-only.")
         },
-        KnotDocumentIntentErrorV1::Refused(refusal) => format!("Action refused: {refusal:?}"),
+        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ScratchHasNoSaveTarget) => {
+            format!("{action} refused: a new document has no file yet. Use Save As.")
+        },
         KnotDocumentIntentErrorV1::SaveFailed(failure) => {
-            format!("Save failed: {}", failure.message)
+            format!("{action} failed: {}", failure.message)
         },
     }
 }
@@ -1997,11 +2002,25 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         None => Box::new(el("div", ())),
     };
     let message = state.message.clone().unwrap_or_else(|| "Ready.".to_owned());
+    let snapshot = state.focused_key().map(|_| state.document().snapshot());
+    let chips = snapshot
+        .as_ref()
+        .map(crate::status::chips)
+        .unwrap_or_default();
     let status_bar = cambium::status_bar(
-        cambium::StatusBar::new(&message, &[]),
+        cambium::StatusBar::new(&message, &chips),
         &state.status_bar,
         |state: &mut DesktopState, event| state.status_bar.apply(event),
-        |_key: &str| None,
+        |key: &str| {
+            let sections = crate::status::sections(key, snapshot.as_ref()?)?;
+            let save: Option<DesktopView> = (key == crate::status::SAVE).then(|| {
+                Box::new(button("Save", |state: &mut DesktopState, _| state.save())) as DesktopView
+            });
+            Some(Box::new(
+                el("div", (cambium::detail_panel(&sections), save))
+                    .attr("class", "knot-status-detail"),
+            ) as DesktopView)
+        },
     );
     let catalog_status: DesktopView = if state.catalog.is_none() {
         Box::new(el("div", ()))
@@ -2219,7 +2238,7 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     let highlight = state.appearance.highlight;
     let document: DesktopView = Box::new(lens(
         move |state: &mut KnotDocumentSurfaceState| {
-            knot_document_view_with_highlighting(state, highlight)
+            knot_document_view_with_status(state, highlight, KnotDocumentStatus::HostOwned)
         },
         move |state: &mut DesktopState| state.surface_mut_for(key),
     ));
@@ -2239,7 +2258,8 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
 
 /// The Workbench frame: every open document as a tab, its tile rendered on
 /// demand through an identity lens so the tile can read the whole window's
-/// state. A dirty document's tab carries the unsaved mark.
+/// state. A document's tab carries its mark: needs attention after a
+/// refusal, else unsaved changes.
 fn document_frame(state: &DesktopState) -> DesktopView {
     let current = state.docs.focused().and_then(|key| state.docs.tile_of(key));
     let model = WorkspaceModel {
@@ -2251,8 +2271,7 @@ fn document_frame(state: &DesktopState) -> DesktopView {
         Some(TileRole::Document(key)) => state
             .docs
             .doc(*key)
-            .filter(|entry| entry.document.snapshot().dirty)
-            .map(|_| TabMark::Modified),
+            .and_then(|entry| crate::status::tab_mark(&entry.document.snapshot())),
         _ => None,
     };
     if state.docs.is_empty() {
@@ -2713,6 +2732,12 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-reading-document { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
     ".knot-reading-pin { flex:none; }",
     ".knot-workspace > .status-bar { flex:none; gap:8px; margin:0 -20px; padding:4px 20px; min-height:28px; box-sizing:border-box; border-top:1px solid; font-size:13px; }",
+    ".knot-workspace .status-chips { gap:6px; }",
+    ".knot-workspace .status-chip { padding:2px 8px; }",
+    ".knot-status-detail { display:flex; flex-direction:column; align-items:flex-start; gap:8px; min-width:260px; margin-bottom:4px; padding:10px; border:1px solid; border-radius:6px; }",
+    ".knot-status-detail .detail-section-title { font-weight:600; }",
+    ".knot-status-detail .detail-row { display:flex; gap:8px; }",
+    ".knot-status-detail .detail-value { overflow-wrap:anywhere; }",
     ".knot-catalog-status { min-height:1.4em; overflow-wrap:anywhere; }",
     ".knot-catalog-error { color:crimson; display:flex; align-items:center; gap:8px; }",
     ".knot-review { padding:12px; border:1px solid; display:flex; flex-direction:column; gap:6px; }",
@@ -2962,6 +2987,70 @@ mod tests {
         );
         assert_eq!(host.painted_rect(beside), beside_rect, "nor did it move");
         assert_eq!(host.viewport_scroll(), (0.0, 0.0), "the window stayed");
+    }
+
+    /// Step 5c: a refused save raises the save chip, posts its sentence to the
+    /// message line, marks its tab, and shows the refusal in the chip's popover.
+    #[test]
+    fn a_refused_save_raises_its_chip_posts_its_sentence_and_marks_its_tab() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("notes.djot");
+        std::fs::write(&path, "# Notes\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 700.0);
+        let save_chip = |host: &DesktopHarness| {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let chip =
+                attr_node(&dom, dom.document(), "data-status-key", "save").expect("the save chip");
+            let severity = dom
+                .attribute(
+                    chip,
+                    &Namespace::from(""),
+                    &LocalName::from("data-severity"),
+                )
+                .map(str::to_owned);
+            (text_content(&dom, chip), severity)
+        };
+        assert_eq!(
+            save_chip(&host),
+            ("Saved".to_owned(), Some("quiet".to_owned()))
+        );
+
+        std::fs::write(&path, "# Changed elsewhere\n").unwrap();
+        insert(&mut host, "More. ");
+        assert!(host.click_on(&Selector::role("button").containing("Save")));
+        assert_eq!(
+            save_chip(&host),
+            ("Save refused".to_owned(), Some("refused".to_owned()))
+        );
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let message = class_node(&dom, dom.document(), "status-message").expect("message");
+            assert_eq!(
+                text_content(&dom, message),
+                "Save refused: file changed on disk. Compare, Reload, or choose a new Save As path."
+            );
+            assert!(
+                attr_node(&dom, dom.document(), "data-mark", "attention").is_some(),
+                "the refused document's tab is marked"
+            );
+            let tab = attr_node(&dom, dom.document(), "aria-description", "Needs attention")
+                .expect("the marked tab is announced");
+            assert!(text_content(&dom, tab).contains("notes.djot"));
+        }
+
+        assert!(host.click_on(&Selector::role("button").containing("Save refused")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let detail = class_node(&dom, dom.document(), "knot-status-detail").expect("the popover");
+        let text = text_content(&dom, detail);
+        assert!(text.contains("file changed on disk"), "{text}");
+        assert!(
+            named_node(&dom, detail, "button").is_some(),
+            "the popover offers Save"
+        );
     }
 
     /// The document the active reading tile's header names.
@@ -4721,7 +4810,7 @@ mod tests {
         });
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Compare")));
-        assert!(host.click_on(&Selector::class("knot-document-save")));
+        assert!(host.click_on(&Selector::role("button").containing("Save")));
         assert_eq!(std::fs::read_to_string(&path).unwrap(), "original\n edited");
         assert!(!host.state().document().snapshot().dirty);
         assert_eq!(

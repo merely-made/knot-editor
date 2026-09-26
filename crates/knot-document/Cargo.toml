@@ -25,20 +25,20 @@ engine = [
 
 [dependencies]
 same-file = "1.0.6"
-cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "9a2e4eebb8c2fc7c2f61406cf86d8391006a6b2d" }
-mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "9a2e4eebb8c2fc7c2f61406cf86d8391006a6b2d" }
-illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9a2e4eebb8c2fc7c2f61406cf86d8391006a6b2d", optional = true }
-inker = { git = "https://github.com/merely-made/mere.git", rev = "9a2e4eebb8c2fc7c2f61406cf86d8391006a6b2d", optional = true }
-knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "9a2e4eebb8c2fc7c2f61406cf86d8391006a6b2d", default-features = false }
-nematic = { git = "https://github.com/merely-made/mere.git", rev = "9a2e4eebb8c2fc7c2f61406cf86d8391006a6b2d", default-features = false, optional = true }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "e3d7061d9f5ba6f91b6c620043c0a1ddfdc7fb67" }
+mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "e3d7061d9f5ba6f91b6c620043c0a1ddfdc7fb67" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "e3d7061d9f5ba6f91b6c620043c0a1ddfdc7fb67", optional = true }
+inker = { git = "https://github.com/merely-made/mere.git", rev = "e3d7061d9f5ba6f91b6c620043c0a1ddfdc7fb67", optional = true }
+knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "e3d7061d9f5ba6f91b6c620043c0a1ddfdc7fb67", default-features = false }
+nematic = { git = "https://github.com/merely-made/mere.git", rev = "e3d7061d9f5ba6f91b6c620043c0a1ddfdc7fb67", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
-genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "6afb472a0c6451425e3d43ba43fa8480f506b54f" }
-layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "6afb472a0c6451425e3d43ba43fa8480f506b54f" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "18e41e44c369426b1566c45a91850e54f11f277a" }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "18e41e44c369426b1566c45a91850e54f11f277a" }
 tempfile = "3"
 
 [lints.rust]
@@ -49,12 +49,12 @@ all = "warn"
 
 [patch.crates-io]
 vello = { git = "https://github.com/mark-ik/vello.git", tag = "vello-0.10.0" }
-layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "6afb472a0c6451425e3d43ba43fa8480f506b54f" }
-genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "6afb472a0c6451425e3d43ba43fa8480f506b54f" }
-taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "6afb472a0c6451425e3d43ba43fa8480f506b54f" }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "18e41e44c369426b1566c45a91850e54f11f277a" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "18e41e44c369426b1566c45a91850e54f11f277a" }
+taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "18e41e44c369426b1566c45a91850e54f11f277a" }
 # No parley/fontique patch rows: as of genet 5ae30cad the forks are published as
 # `genet-parley` and `genet-fontique`, so nothing in genet answers to the name
 # `parley` and a row keyed on it would match no package and fail resolution.
 # genet-livery reaches the fork by path inside the git checkout, and Mere's own
 # `parley` workspace dep names the fork by package, so the graph keeps one copy.
-ipc-channel = { git = "https://github.com/merely-made/genet.git", rev = "6afb472a0c6451425e3d43ba43fa8480f506b54f" }
+ipc-channel = { git = "https://github.com/merely-made/genet.git", rev = "18e41e44c369426b1566c45a91850e54f11f277a" }

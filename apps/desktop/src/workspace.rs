@@ -1688,8 +1688,10 @@ fn intent_error_label(action: &str, error: KnotDocumentIntentErrorV1) -> String 
     }
 }
 
-pub fn desktop_view(state: &DesktopState) -> DesktopView {
-    let retention_panel: DesktopView = {
+/// The retention chip's popover: everything the retention block held, its
+/// actions included (slice 1 step 5d).
+fn retention_detail(state: &DesktopState) -> DesktopView {
+    {
         let destinations = if state.retention_targets.is_empty() {
             Box::new(span("No storage destinations available.")) as DesktopView
         } else {
@@ -1812,11 +1814,110 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     receipt,
                 ),
             )
-            .attr("class", "knot-retention")
+            .attr("class", "knot-status-detail knot-retention")
             .attr("role", "region")
             .attr("aria-label", "Retain reviewed revision"),
         )
+    }
+}
+
+/// The catalog chip's popover: the document's ID, or why it has none, with
+/// Retry catalog after a failure (slice 1 step 5d).
+fn catalog_detail(state: &DesktopState) -> DesktopView {
+    let status: DesktopView = if let Some(id) = &state.entry().catalog_id {
+        Box::new(
+            span(format!("Document ID: {id}"))
+                .attr("class", "knot-catalog-status")
+                .attr("aria-live", "polite"),
+        )
+    } else if let Some(error) = &state.entry().catalog_error {
+        Box::new(
+            el(
+                "div",
+                (
+                    span(format!("Not catalogued: {error}")),
+                    button("Retry catalog", |state: &mut DesktopState, _| {
+                        state.retry_catalog_binding();
+                    }),
+                ),
+            )
+            .attr("class", "knot-catalog-status knot-catalog-error")
+            .attr("role", "status"),
+        )
+    } else {
+        Box::new(
+            span("Not catalogued: unsaved document")
+                .attr("class", "knot-catalog-status")
+                .attr("aria-live", "polite"),
+        )
     };
+    Box::new(el("div", status).attr("class", "knot-status-detail"))
+}
+
+/// Where the focused document stands in the catalog; `None` without one.
+fn catalog_state(state: &DesktopState) -> Option<crate::status::Catalog> {
+    use crate::status::Catalog;
+    state.catalog.as_ref()?;
+    let entry = state.entry();
+    Some(if entry.catalog_id.is_some() {
+        Catalog::Bound
+    } else if entry.catalog_error.is_some() {
+        Catalog::Failed
+    } else {
+        Catalog::Unsaved
+    })
+}
+
+/// Whether the retention chip shows: where the retention block did.
+fn retention_shown(state: &DesktopState) -> bool {
+    !(state.document().snapshot().format.native_source() && state.retention_targets.is_empty())
+}
+
+fn retention_state(state: &DesktopState) -> crate::status::Retention {
+    use crate::status::Retention;
+    if state.retention_busy.is_some() {
+        Retention::Busy
+    } else if state.retention_error.is_some() {
+        Retention::Failed
+    } else if state.retention_receipt.is_some() {
+        Retention::Retained
+    } else {
+        Retention::Idle
+    }
+}
+
+/// The serving chip's popover: the served site's address with Stop serving,
+/// or why nothing is served with Publish locally (slice 1 step 5d).
+fn serving_detail(state: &DesktopState) -> DesktopView {
+    let (line, action): (String, DesktopView) = match state.scroll.server.as_ref() {
+        Some(server) => (
+            format!(
+                "{} · revision {} · saved snapshot",
+                server.url(),
+                state.scroll.publication_number()
+            ),
+            Box::new(button("Stop serving", |state: &mut DesktopState, _| {
+                state.scroll.server = None;
+                state.message = Some("Local serving stopped.".into());
+            })),
+        ),
+        None => (
+            "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into(),
+            Box::new(button("Publish locally", |state: &mut DesktopState, _| {
+                state.publish_site()
+            })),
+        ),
+    };
+    Box::new(
+        el(
+            "div",
+            (span(line).attr("class", "knot-serving-status"), action),
+        )
+        .attr("class", "knot-status-detail"),
+    )
+}
+
+pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
         // Saves refuse while the file is unreadable; say so where the controls
@@ -2009,54 +2110,41 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     };
     let message = state.message.clone().unwrap_or_else(|| "Ready.".to_owned());
     let snapshot = state.focused_key().map(|_| state.document().snapshot());
-    let chips = snapshot
+    let mut chips = snapshot
         .as_ref()
         .map(crate::status::chips)
         .unwrap_or_default();
+    if snapshot.is_some() {
+        chips.extend(catalog_state(state).map(crate::status::catalog_chip));
+        if retention_shown(state) {
+            chips.push(crate::status::retention_chip(retention_state(state)));
+        }
+    }
+    let serving = state.scroll.server.is_some();
+    if serving || state.scroll.page().is_some() {
+        chips.push(crate::status::serving_chip(serving));
+    }
     let status_bar = cambium::status_bar(
         cambium::StatusBar::new(&message, &chips),
         &state.status_bar,
         |state: &mut DesktopState, event| state.status_bar.apply(event),
-        |key: &str| {
-            let sections = crate::status::sections(key, snapshot.as_ref()?)?;
-            let save: Option<DesktopView> = (key == crate::status::SAVE).then(|| {
-                Box::new(button("Save", |state: &mut DesktopState, _| state.save())) as DesktopView
-            });
-            Some(Box::new(
-                el("div", (cambium::detail_panel(&sections), save))
-                    .attr("class", "knot-status-detail"),
-            ) as DesktopView)
+        |key: &str| match key {
+            crate::status::CATALOG => Some(catalog_detail(state)),
+            crate::status::RETENTION => Some(retention_detail(state)),
+            crate::status::SERVING => Some(serving_detail(state)),
+            _ => {
+                let sections = crate::status::sections(key, snapshot.as_ref()?)?;
+                let save: Option<DesktopView> = (key == crate::status::SAVE).then(|| {
+                    Box::new(button("Save", |state: &mut DesktopState, _| state.save()))
+                        as DesktopView
+                });
+                Some(Box::new(
+                    el("div", (cambium::detail_panel(&sections), save))
+                        .attr("class", "knot-status-detail"),
+                ) as DesktopView)
+            },
         },
     );
-    let catalog_status: DesktopView = if state.catalog.is_none() {
-        Box::new(el("div", ()))
-    } else if let Some(id) = &state.entry().catalog_id {
-        Box::new(
-            span(format!("Document ID: {id}"))
-                .attr("class", "knot-catalog-status")
-                .attr("aria-live", "polite"),
-        )
-    } else if let Some(error) = &state.entry().catalog_error {
-        Box::new(
-            el(
-                "div",
-                (
-                    span(format!("Not catalogued: {error}")),
-                    button("Retry catalog", |state: &mut DesktopState, _| {
-                        state.retry_catalog_binding();
-                    }),
-                ),
-            )
-            .attr("class", "knot-catalog-status knot-catalog-error")
-            .attr("role", "status"),
-        )
-    } else {
-        Box::new(
-            span("Not catalogued: unsaved document")
-                .attr("class", "knot-catalog-status")
-                .attr("aria-live", "polite"),
-        )
-    };
     let document_preview_button: DesktopView =
         if crate::document_preview::supported(state.document().snapshot().format) {
             reading_toggle(state, ReadingKind::Preview, "Show Preview", "Hide Preview")
@@ -2102,14 +2190,6 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 .attr("class", "knot-workspace-toolbar")
                 .attr("aria-label", "Commands"),
                 crate::scroll_site::site_panel(state),
-                catalog_status,
-                if state.document().snapshot().format.native_source()
-                    && state.retention_targets.is_empty()
-                {
-                    Box::new(el("div", ())) as DesktopView
-                } else {
-                    retention_panel
-                },
                 appearance_panel,
                 document_frame(state),
                 prompt,
@@ -2993,6 +3073,29 @@ mod tests {
         );
         assert_eq!(host.painted_rect(beside), beside_rect, "nor did it move");
         assert_eq!(host.viewport_scroll(), (0.0, 0.0), "the window stayed");
+    }
+
+    /// Open a status chip's popover by clicking the chip itself, and check
+    /// that it opened, so what a test then reads or misses is really there.
+    fn open_chip(host: &mut DesktopHarness, key: &str) {
+        if host.state().status_bar.open.as_deref() == Some(key) {
+            return;
+        }
+        let (x, y) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let chip = attr_node(&dom, dom.document(), "data-status-key", key)
+                .unwrap_or_else(|| panic!("no {key} chip"));
+            let (x, y, width, height) = host.painted_rect(chip).expect("the chip paints");
+            (x + width / 2.0, y + height / 2.0)
+        };
+        host.click_at(x, y);
+        host.relayout();
+        assert_eq!(
+            host.state().status_bar.open.as_deref(),
+            Some(key),
+            "the {key} chip opened"
+        );
     }
 
     /// Step 5c: one click on another chip opens its popover, and a click in
@@ -4971,11 +5074,15 @@ mod tests {
             "successful in-root Save As must not report a catalog error"
         );
 
+        open_chip(&mut host, crate::status::CATALOG);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
         assert!(text_content(&dom, workspace).contains(&format!("Document ID: {saved_id}")));
         drop(dom);
+        // Close the popover first: a click outside it only dismisses it.
+        host.press_key(&KeyPress::named(NamedKey::Escape));
+        assert_eq!(host.state().status_bar.open, None);
         assert!(host.click_on(&Selector::role("button").containing("New")));
         assert!(host.state().entry().catalog_id.is_none());
         assert!(host.state().entry().catalog_error.is_none());
@@ -5015,6 +5122,7 @@ mod tests {
                 .as_deref()
                 .is_some_and(|error| error.contains("outside catalog root"))
         );
+        open_chip(&mut host, crate::status::CATALOG);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
@@ -5045,6 +5153,7 @@ mod tests {
 
         std::fs::write(&path, "recover me\n").unwrap();
         host.layout_at(900.0, 640.0);
+        open_chip(&mut host, crate::status::CATALOG);
         assert!(host.click_on(&Selector::role("button").containing("Retry catalog")));
         assert!(host.state().entry().catalog_id.is_some());
         assert!(host.state().entry().catalog_error.is_none());
@@ -5331,6 +5440,91 @@ mod tests {
         host
     }
 
+    /// The text of the open chip's popover.
+    fn popover_text(host: &DesktopHarness) -> String {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let detail = class_node(&dom, dom.document(), "knot-status-detail").expect("a popover");
+        text_content(&dom, detail)
+    }
+
+    /// Step 5d: everything the retention and catalog blocks showed is in the
+    /// retention and catalog chips' popovers.
+    #[test]
+    fn every_fact_the_retention_and_catalog_blocks_showed_is_in_a_popover() {
+        let chosen = target("Facts persona", 1);
+        let (port, _, _) = gated_port(chosen.clone());
+        let mut host = retention_harness(vec![port], revision("file:facts", b"exact bytes"));
+        host.update(|state| {
+            state.retention_busy = Some(RetentionRequest {
+                target: chosen.clone(),
+                document_id: "file:facts".into(),
+            });
+            state.retention_error = Some("the grant was revoked".into());
+            state.retention_receipt = Some(KnotRetainReceiptV1 {
+                target: chosen.clone(),
+                document_id: "file:facts".into(),
+                operation: [7; 32],
+                already_retained: true,
+            });
+        });
+        host.layout_at(1100.0, 700.0);
+        open_chip(&mut host, crate::status::RETENTION);
+        let (space, writer) = (hex32(&chosen.space_id), hex32(&chosen.writer));
+        let (label, stable) = (&chosen.persona.label, &chosen.persona.stable_id);
+        let facts = [
+            "Retain reviewed revision".to_owned(),
+            "Choose a persona and space".to_owned(),
+            retention_target_label(&chosen, &host.state().retention_targets),
+            format!("Persona: {label}"),
+            format!("Persona stable ID: {stable}"),
+            format!("Space ID: {space}"),
+            format!("Writer ID: {writer}"),
+            format!("Encryption: {}", encryption_label(chosen.encryption)),
+            format!("Retaining file:facts in {label} ({stable}, space {space}, writer {writer})…"),
+            "the grant was revoked".to_owned(),
+            format!(
+                "Last confirmed retention: file:facts in {label} ({stable}, {}, space {space}, \
+                 writer {writer}, operation {}); already retained",
+                encryption_label(chosen.encryption),
+                hex32(&[7; 32])
+            ),
+        ];
+        let text = popover_text(&host);
+        for fact in facts {
+            assert!(
+                text.contains(&fact),
+                "{fact:?} is not in the retention popover: {text}"
+            );
+        }
+
+        // The empty states: no destinations, none chosen.
+        let mut empty = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = empty.wake();
+        empty.update(|state| state.set_retention_targets(vec![], wake));
+        empty.layout_at(1100.0, 700.0);
+        open_chip(&mut empty, crate::status::RETENTION);
+        let text = popover_text(&empty);
+        assert!(
+            text.contains("No storage destinations available."),
+            "{text}"
+        );
+        assert!(text.contains("No destination selected."), "{text}");
+
+        // A catalog with a document it cannot bind yet.
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("documents");
+        std::fs::create_dir(&root).unwrap();
+        let catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let mut unsaved = harness_with_catalog(
+            KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""),
+            Some(catalog),
+        );
+        unsaved.layout_at(1100.0, 700.0);
+        open_chip(&mut unsaved, crate::status::CATALOG);
+        assert!(popover_text(&unsaved).contains("Not catalogued: unsaved document"));
+    }
+
     fn drain_wake(host: &mut Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>) {
         for _ in 0..1_000 {
             if host.process_wake() {
@@ -5539,6 +5733,7 @@ mod tests {
         host.update(|state| state.retention_selected = None);
         host.layout_at(900.0, 640.0);
 
+        open_chip(&mut host, crate::status::RETENTION);
         assert!(host.click_on(&Selector::role("button").with_attr("data-retention-target", "1")));
         let dom = host.runner().dom();
         let dom = dom.borrow();
@@ -5580,10 +5775,12 @@ mod tests {
             state.set_retention_targets(vec![], wake);
             state.entry_mut().prepared_capture = Some(revision("file:manual", b"saved"));
         });
+        host.layout_at(900.0, 640.0);
+        // With the popover open, a missing action is really missing.
+        open_chip(&mut host, crate::status::RETENTION);
         assert!(!host.click_on(&Selector::role("button").containing("Retain reviewed revision")));
         assert!(host.state().retention_busy.is_none());
         assert!(host.state().retention_selected.is_none());
-        host.layout_at(900.0, 640.0);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let detail = class_node(&dom, dom.document(), "knot-retention-selected").unwrap();

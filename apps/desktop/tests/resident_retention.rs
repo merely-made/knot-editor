@@ -18,7 +18,7 @@ use knot_editor::{
     KnotCaptureGrant, KnotResidentRetainPort, KnotResidentSource, KnotSyncFileStore, KnotVault,
 };
 use knot_file_catalog::KnotFileCatalog;
-use layout_dom_api::LayoutDom;
+use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use personae::{IdentityProvider, InMemoryProvider};
 use taproot::Selector;
 use tempfile::tempdir;
@@ -65,6 +65,39 @@ fn class_text(
     let node = class_node(&dom, dom.document(), class)
         .unwrap_or_else(|| panic!("missing retained UI node with class {class}"));
     text_content(&dom, node)
+}
+
+/// Open the retention chip's popover, where retention's destinations and
+/// actions live (slice 1 step 5d), by clicking the chip, and check it opened.
+fn open_retention(
+    harness: &mut Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    fn chip(dom: &ScriptedDom, node: NodeId) -> Option<NodeId> {
+        let key = dom.attribute(
+            node,
+            &Namespace::from(""),
+            &LocalName::from("data-status-key"),
+        );
+        if key.as_deref() == Some("retention") {
+            return Some(node);
+        }
+        dom.dom_children(node).find_map(|child| chip(dom, child))
+    }
+    let (x, y) = {
+        let dom = harness.runner().dom();
+        let dom = dom.borrow();
+        let node = chip(&dom, dom.document()).expect("the retention chip");
+        let (x, y, width, height) = harness.painted_rect(node).expect("the chip paints");
+        (x + width / 2.0, y + height / 2.0)
+    };
+    harness.click_at(x, y);
+    harness.relayout();
+    let dom = harness.runner().dom();
+    let dom = dom.borrow();
+    assert!(
+        class_node(&dom, dom.document(), "knot-retention").is_some(),
+        "the retention popover opened"
+    );
 }
 
 #[test]
@@ -138,6 +171,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
             .unwrap()
             .insert_str("unsaved buffer edit");
     });
+    open_retention(&mut harness);
     assert!(harness.click_on(&Selector::role("button").containing("Desktop receipt")));
     harness.after_dispatch();
     assert!(harness.click_on(&Selector::role("button").containing("Retain reviewed revision")));
@@ -180,6 +214,8 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     );
     let wake = harness.wake();
     harness.update(|state| state.set_retention_targets(vec![renewed], wake));
+    // The popover is still open, so a missing Retain is really missing.
+    assert!(!class_text(&harness, "knot-retention").is_empty());
     assert!(
         !harness.click_on(&Selector::role("button").containing("Retain reviewed revision")),
         "a newly injected owner target must require a new explicit selection"

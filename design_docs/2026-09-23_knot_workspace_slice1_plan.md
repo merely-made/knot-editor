@@ -844,6 +844,63 @@ design frames either fixed or recorded.
   remains: the catalog and retention chips that retire the blocks, the
   facts test over them, the retention tests through the popover, and the
   serving chip.
+- **2026-09-26, step 5d.** The catalog and retention blocks are gone from
+  above the frame. Their chips sit in the status bar, and their popovers
+  hold what the blocks held, so the document now starts right under the
+  command row.
+  - **Catalog chip**, when a catalog is configured: "Catalogued", "Not
+    catalogued" (an unsaved document), or "Catalog error" at warning
+    weight. Its popover shows the document ID, or why there is none with
+    Retry catalog.
+  - **Retention chip**, where the block showed: "Not retained",
+    "Retaining…", "Retained", or "Retention failed" at warning weight. Its
+    popover holds:
+    - the destinations;
+    - the chosen destination's persona, stable ID, space, writer and
+      encryption;
+    - Retain reviewed revision, when it is available;
+    - the busy, error and receipt lines.
+  - **Serving chip**, when the open site is serving or the focused
+    document is one of its pages. "Serving" shows the address and
+    publication with Stop serving. "Not serving" says why, with Publish
+    locally.
+
+  Tests:
+  - A facts test finds every line the retention and catalog blocks showed
+    in their popovers. With the receipt line reworded, it fails.
+  - A pure test checks the three chips' labels and severities.
+  - A serving test publishes and stops through the chip's popover.
+  - The retention and catalog tests open their chip first, through a
+    helper that clicks the chip and checks it opened. So the tests that
+    look for a missing Retain button do it with the popover open.
+  - The resident retention test drives the whole flow through the popover:
+    choosing a destination, retaining, being refused after revocation, and
+    retaining again after a regrant.
+  - One catalog test now closes the popover with Escape before clicking
+    New, because a click outside a popover only dismisses it.
+
+  The desktop library passes 131 with 1 ignored, and `cargo test --locked`
+  passes 410 with 3 ignored. Headed, the frames show the frame under the
+  command row, the catalog popover with the document ID, and the retention
+  popover's empty state. They are under
+  `Code/testing/knot-editor/images/2026-09-26_5d/`.
+
+  Step 5's done-conditions all hold:
+  - a test enumerates every authority fact the old blocks showed and finds
+    each in a chip or popover (5c for the surface's row, 5d for the
+    catalog and retention blocks);
+  - a refusal raises its chip and posts its sentence;
+  - tabs carry dirty and refused marks;
+  - the retention tests pass through the popover;
+  - a tile taller than its stack scrolls inside it while the tiles beside
+    it stay put (5b).
+
+  Noted:
+  - The Site panel stays above the frame until the site tile (step 7).
+  - knot-editor's `two_place_members_edit_one_held_document_through_projection`
+    failed in two of three full runs under load and passed every time
+    alone. It waits on a projected session over local endpoints, a timing
+    flake outside the desktop.
 
 ## Related material
 

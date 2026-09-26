@@ -4,9 +4,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The focused document's status chips: format, save state and posture, each
-//! opening the facts behind it (slice 1 step 5c). The desktop draws these in
-//! its status bar, so the document surface no longer draws its own row.
+//! The status bar's chips. The focused document's format, save state and
+//! posture each open the facts behind them (slice 1 step 5c), so the document
+//! surface no longer draws its own row. The catalog, retention and serving
+//! chips took over the blocks above the frame (step 5d).
 
 use cambium::{DetailRow, DetailSection, StatusChip, StatusSeverity, TabMark};
 use knot_document::{
@@ -18,6 +19,50 @@ use knot_document::{
 pub(crate) const FORMAT: &str = "format";
 pub(crate) const SAVE: &str = "save";
 pub(crate) const POSTURE: &str = "posture";
+pub(crate) const CATALOG: &str = "catalog";
+pub(crate) const RETENTION: &str = "retention";
+pub(crate) const SERVING: &str = "serving";
+
+/// Where the focused document stands in the catalog (step 5d).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Catalog {
+    Bound,
+    Failed,
+    Unsaved,
+}
+
+/// Where the reviewed revision's retention stands, most pressing first.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Retention {
+    Busy,
+    Failed,
+    Retained,
+    Idle,
+}
+
+pub(crate) fn catalog_chip(catalog: Catalog) -> StatusChip {
+    match catalog {
+        Catalog::Bound => StatusChip::new(CATALOG, "Catalogued"),
+        Catalog::Failed => {
+            StatusChip::new(CATALOG, "Catalog error").with_severity(StatusSeverity::Warning)
+        },
+        Catalog::Unsaved => StatusChip::new(CATALOG, "Not catalogued"),
+    }
+}
+
+pub(crate) fn retention_chip(retention: Retention) -> StatusChip {
+    let (label, severity) = match retention {
+        Retention::Busy => ("Retaining…", StatusSeverity::Quiet),
+        Retention::Failed => ("Retention failed", StatusSeverity::Warning),
+        Retention::Retained => ("Retained", StatusSeverity::Quiet),
+        Retention::Idle => ("Not retained", StatusSeverity::Quiet),
+    };
+    StatusChip::new(RETENTION, label).with_severity(severity)
+}
+
+pub(crate) fn serving_chip(serving: bool) -> StatusChip {
+    StatusChip::new(SERVING, if serving { "Serving" } else { "Not serving" })
+}
 
 /// One document's chips, in bar order. Quiet while inert; a refusal raises
 /// the save chip to refused, a failed save to warning.
@@ -223,6 +268,43 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn catalog_retention_and_serving_chips_read_their_state() {
+        let read = |chip: StatusChip| (chip.label, chip.severity);
+        let quiet = StatusSeverity::Quiet;
+        let warning = StatusSeverity::Warning;
+        assert_eq!(
+            read(catalog_chip(Catalog::Bound)),
+            ("Catalogued".into(), quiet)
+        );
+        assert_eq!(
+            read(catalog_chip(Catalog::Failed)),
+            ("Catalog error".into(), warning)
+        );
+        assert_eq!(
+            read(catalog_chip(Catalog::Unsaved)),
+            ("Not catalogued".into(), quiet)
+        );
+        assert_eq!(
+            read(retention_chip(Retention::Busy)),
+            ("Retaining…".into(), quiet)
+        );
+        assert_eq!(
+            read(retention_chip(Retention::Failed)),
+            ("Retention failed".into(), warning)
+        );
+        assert_eq!(
+            read(retention_chip(Retention::Retained)),
+            ("Retained".into(), quiet)
+        );
+        assert_eq!(
+            read(retention_chip(Retention::Idle)),
+            ("Not retained".into(), quiet)
+        );
+        assert_eq!(read(serving_chip(true)), ("Serving".into(), quiet));
+        assert_eq!(read(serving_chip(false)), ("Not serving".into(), quiet));
     }
 
     #[test]

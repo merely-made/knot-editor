@@ -287,6 +287,16 @@ impl ScrollWorkspace {
                 .any(|(a, b)| a.text() != b)
     }
 
+    /// The open site's page the document is, if it is one.
+    pub(crate) fn page(&self) -> Option<&str> {
+        self.page.as_deref()
+    }
+
+    /// How many times the site has been published locally.
+    pub(crate) fn publication_number(&self) -> usize {
+        self.publication_number
+    }
+
     pub fn sync_page(&mut self, path: Option<&std::path::Path>) {
         let selected = self.site.as_ref().and_then(|site| {
             site.config
@@ -860,7 +870,7 @@ impl DesktopState {
         }
     }
 
-    fn publish_site(&mut self) {
+    pub(crate) fn publish_site(&mut self) {
         if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
             self.message = Some("Save source and metadata before publishing locally.".into());
             return;
@@ -2216,6 +2226,108 @@ mod tests {
         );
         assert_eq!(host.state().docs.len(), 3);
         assert_eq!(host.state().scroll.fields[0].text(), "Writer");
+    }
+
+    /// Step 5d: a site page shows the serving chip. Its popover says why
+    /// nothing is served and offers Publish locally; once published, it
+    /// shows the address and offers Stop serving.
+    #[test]
+    fn a_site_page_shows_the_serving_chip_and_its_popover_publishes_and_stops() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:serving", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
+        state.enter_site(true);
+        state.scroll.save_metadata().unwrap();
+        state.scroll.port = TextInput::new("0");
+        // Hide the site panel, so only the chip's popover offers Publish and Stop.
+        state.scroll.visible = false;
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        let chip = |host: &DesktopHarness| {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let chip = attr_nodes(&dom, dom.document(), "data-status-key", "serving")
+                .into_iter()
+                .next()
+                .expect("the serving chip");
+            let (x, y, width, height) = host.painted_rect(chip).expect("the chip paints");
+            (
+                text_content(&dom, chip),
+                (x + width / 2.0, y + height / 2.0),
+            )
+        };
+        let detail = |host: &DesktopHarness| {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let detail = class_nodes(&dom, dom.document(), "knot-status-detail");
+            assert_eq!(detail.len(), 1, "one popover open");
+            text_content(&dom, detail[0])
+        };
+
+        let (label, (x, y)) = chip(&host);
+        assert_eq!(label, "Not serving");
+        host.click_at(x, y);
+        host.relayout();
+        assert_eq!(
+            host.state().status_bar.open.as_deref(),
+            Some(crate::status::SERVING)
+        );
+        assert!(detail(&host).contains("Not published."));
+
+        assert!(host.click_on(&Selector::role("button").containing("Publish locally")));
+        let url = host
+            .state()
+            .scroll
+            .server
+            .as_ref()
+            .expect("serving")
+            .url()
+            .to_string();
+        assert_eq!(chip(&host).0, "Serving");
+        let served = detail(&host);
+        assert!(
+            served.contains(&url) && served.contains("revision 1"),
+            "{served}"
+        );
+
+        assert!(host.click_on(&Selector::role("button").containing("Stop serving")));
+        assert!(host.state().scroll.server.is_none());
+        assert_eq!(
+            host.state().message.as_deref(),
+            Some("Local serving stopped.")
+        );
+    }
+
+    fn attr_nodes(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        name: &str,
+        value: &str,
+    ) -> Vec<genet_scripted_dom::NodeId> {
+        let mut found = Vec::new();
+        if dom
+            .attribute(node, &Namespace::from(""), &LocalName::from(name))
+            .as_deref()
+            == Some(value)
+        {
+            found.push(node);
+        }
+        for child in dom.dom_children(node) {
+            found.extend(attr_nodes(dom, child, name, value));
+        }
+        found
     }
 
     #[test]

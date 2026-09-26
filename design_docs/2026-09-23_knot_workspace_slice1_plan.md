@@ -965,6 +965,86 @@ design frames either fixed or recorded.
   has been reported to the Genet roadmap. Cambium's doc now says the
   ellipsis waits on Genet (mere `518ca1dc`), and a note on `87b81fb8`
   corrects that commit's message.
+- **2026-09-26, step 7 plan.** Assessed at knot-editor `e812260`. The
+  desktop holds one site for the whole window. `DesktopState.scroll`
+  carries:
+  - the `Site`, its page, server and port;
+  - the metadata fields;
+  - the Titan and Spartan composer, its review and its worker;
+  - the Micron form and its request.
+
+  Only the Micron preview's folds moved into `DocumentEntry` in step 3.
+  - The site panel sits above the frame.
+  - A native page's preview is not the Preview tile. It is an aside inside
+    the document tile, and it picks the Spartan or the Gemtext engine by the
+    window's one site.
+  - The site commands check only the focused document's dirty state, and
+    unsaved metadata holds the focus.
+  - The launcher refuses a second site folder.
+  - `Site` has no name, so a site is labelled by its folder.
+  - `display_path` strips `\\?\C:` but not `\\?\UNC\`.
+
+  Mark's rulings:
+  - **Metadata is per page.** "Metadata · ‹page›" opens from the page's
+    row in the site tile, as a tile in the document stack.
+    - Its draft lives with the page, and its tab carries the dirty mark.
+    - Closing it over unsaved edits asks Save, Discard or Cancel.
+    - The rule that unsaved metadata holds the focus retires.
+
+    This replaces the metadata fields the findings table gave the site
+    entry.
+  - **Closing a site tile closes its pages.** Each dirty page asks Save,
+    Discard or Cancel, and Cancel keeps everything. Then the site's server
+    stops and its submission state goes.
+  - **Upload and submit live with the document they act on**, in a Submit
+    tile. Mark first ruled them into the site tile, then revised that the
+    same day on a finding. Titan upload sends the focused document's saved
+    bytes to a typed target and never needs a site, so today any saved
+    document can be uploaded.
+    - The Submit tile sits in the reading stack and follows the focused
+      document, as Changes does.
+    - It opens from a site tile's Upload / submit, from the command row,
+      or when a Spartan prompt link is picked.
+    - Each document keeps its own composer, review and reply. The Micron
+      form and its reply stay with their page too.
+
+  Sub-steps, each ending green. On Mark's ruling the two tiles come before
+  the site tile, whose buttons open them:
+  - **7a.** Per-site and per-document state. A `SiteKey` to `SiteEntry` map
+    holds the site, server, port and publication count. These move into
+    the document's `DocumentEntry`:
+    - the page and its metadata draft;
+    - the Micron form and request;
+    - the Titan and Spartan composer, review and reply.
+
+    Nothing else changes visibly: each document now simply keeps its own
+    composer and Micron form. Existing tests are rewritten against the new
+    state, not deleted.
+  - **7b.** The Metadata tile (per page) and the Submit tile (for any
+    document). They take the metadata form and the composer out of the
+    panel.
+  - **7c.** The site tile, in the left stack beside the Navigator, shows:
+    - the name and format;
+    - the pages, which open or activate as tabs;
+    - Metadata, Upload / submit, Publish locally, Stop serving and the
+      serving state;
+    - Close.
+
+    The command row's Site button becomes a popover with the folder, the
+    format, Create and Open. The panel above the frame retires.
+  - **7d.** The Preview tile presents a native page in its format's
+    presentation, with follow and pin as for Djot, and the Spartan choice
+    read from the page's own site. The aside retires. The Micron form moves
+    with the preview, and its state stays with its page.
+  - **7e.** Two sites at once:
+    - The launcher takes several site folders.
+    - The serving chip reads "‹folder› · serving :port" for the focused
+      page's site.
+    - A site whose format's default port another open site already holds
+      starts at port 0, a free port chosen when it publishes.
+    - A test finds no verbatim prefix in any site text, with
+      `display_path` handling the UNC form.
+    - Headed frames show two sites serving.
 
 ## Related material
 

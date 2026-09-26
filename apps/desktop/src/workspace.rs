@@ -20,7 +20,7 @@ use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRet
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
     KnotDocumentSession, KnotDocumentStatus, KnotDocumentSurfaceState, KnotOutlineItemV1,
-    KnotOutlineSnapshotV1, knot_document_view_with_status,
+    KnotOutlineSnapshotV1, knot_document_refusal_label, knot_document_view_with_status,
 };
 use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
@@ -1664,17 +1664,23 @@ impl DesktopState {
     }
 }
 
-/// The sentence a refused or failed `action` posts to the message line.
+/// The sentence a refused or failed `action` posts to the message line: the
+/// refusal in knot-document's words, which the save chip shows too, then
+/// what to do about it.
 fn intent_error_label(action: &str, error: KnotDocumentIntentErrorV1) -> String {
     match error {
-        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ExternalChange) => format!(
-            "{action} refused: file changed on disk. Compare, Reload, or choose a new Save As path."
-        ),
-        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ReadOnly) => {
-            format!("{action} refused: this document is read-only.")
-        },
-        KnotDocumentIntentErrorV1::Refused(KnotDocumentRefusalV1::ScratchHasNoSaveTarget) => {
-            format!("{action} refused: a new document has no file yet. Use Save As.")
+        KnotDocumentIntentErrorV1::Refused(refusal) => {
+            let advice = match refusal {
+                KnotDocumentRefusalV1::ExternalChange => {
+                    " Compare, Reload, or choose a new Save As path."
+                },
+                KnotDocumentRefusalV1::ScratchHasNoSaveTarget => " Use Save As.",
+                KnotDocumentRefusalV1::ReadOnly => "",
+            };
+            format!(
+                "{action} refused: {}.{advice}",
+                knot_document_refusal_label(refusal)
+            )
         },
         KnotDocumentIntentErrorV1::SaveFailed(failure) => {
             format!("{action} failed: {}", failure.message)
@@ -3030,7 +3036,7 @@ mod tests {
             let message = class_node(&dom, dom.document(), "status-message").expect("message");
             assert_eq!(
                 text_content(&dom, message),
-                "Save refused: file changed on disk. Compare, Reload, or choose a new Save As path."
+                "Save refused: the file changed on disk. Compare, Reload, or choose a new Save As path."
             );
             assert!(
                 attr_node(&dom, dom.document(), "data-mark", "attention").is_some(),
@@ -3046,7 +3052,11 @@ mod tests {
         let dom = dom.borrow();
         let detail = class_node(&dom, dom.document(), "knot-status-detail").expect("the popover");
         let text = text_content(&dom, detail);
-        assert!(text.contains("file changed on disk"), "{text}");
+        let reason = knot_document_refusal_label(KnotDocumentRefusalV1::ExternalChange);
+        assert!(
+            text.contains(reason),
+            "the popover and the message share words: {text}"
+        );
         assert!(
             named_node(&dom, detail, "button").is_some(),
             "the popover offers Save"

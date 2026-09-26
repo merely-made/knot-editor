@@ -949,6 +949,20 @@ design frames either fixed or recorded.
   - A long message squeezes the status bar's chips and wraps their labels.
     On Mark's ruling, Cambium gets the fix after step 6.
 
+  Update, 2026-09-26: the status chips keep their size beside a long
+  message. On Mark's ruling the fix is Cambium's (mere `87b81fb8`): the
+  chip row no longer shrinks and a chip's label stays on one line, so the
+  message is what gets cut. A Cambium host test lays the chips out beside a
+  short message and a long one, and fails on the old sheet. Knot repinned to
+  mere `37b0bced`, which also brings the reservoir's one-tree phases 1 and
+  2 (Cambium's file chooser among them, which Knot does not use); Genet
+  stays `1b62fd0b218`. Headed, step 6's Navigator run shows the five chips
+  whole beside the cut "Opened …" message. The frame is under
+  `Code/testing/knot-editor/images/2026-09-26_chip_squeeze/`.
+
+  Genet does not paint `text-overflow: ellipsis`, so the message is clipped
+  mid-glyph, without the ellipsis the sheet asks for.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

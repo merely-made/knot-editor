@@ -147,6 +147,9 @@ pub struct DocumentEntry {
     focus_source_requested: bool,
     /// Reader fold state of the Micron preview, reconciled after each dispatch.
     pub(crate) micron_folds: crate::scroll_site::MicronPreviewFolds,
+    /// The site page this document is, with its metadata draft, and its Micron
+    /// form and Titan or Spartan composer.
+    pub(crate) site: crate::scroll_site::DocumentSite,
 }
 
 impl DocumentEntry {
@@ -172,6 +175,7 @@ impl DocumentEntry {
             reading_source: None,
             focus_source_requested: false,
             micron_folds: Default::default(),
+            site: Default::default(),
         }
     }
 
@@ -346,9 +350,8 @@ impl DesktopState {
                 if let Some(port) = site.config.format.default_port() {
                     self.scroll.port = TextInput::new(port.to_string());
                 }
-                self.scroll.site = Some(site);
+                self.hold_site(site);
                 self.scroll.visible = true;
-                self.scroll.sync_page(page.as_deref());
                 page
             },
             Err(error) => {
@@ -414,7 +417,24 @@ impl DesktopState {
     /// source. Returns the entry's key.
     fn open_entry(&mut self, entry: DocumentEntry) -> DocKey {
         let (title, identity) = entry.tab();
-        self.docs.open(identity, title, entry).0
+        let key = self.docs.open(identity, title, entry).0;
+        self.bind_site_page_for(key);
+        key
+    }
+
+    /// Whether any document, or the placeholder, has a send in flight.
+    pub(crate) fn submissions_busy(&self) -> bool {
+        self.placeholder.site.busy() || self.docs.docs().any(|(_, entry)| entry.site.busy())
+    }
+
+    /// Take every finished send's outcome into the document it was sent from.
+    pub(crate) fn drain_submissions(&mut self) {
+        let entries = std::iter::once(&mut self.placeholder)
+            .chain(self.docs.docs_mut().map(|(_, entry)| entry));
+        for entry in entries.filter(|entry| entry.site.busy()) {
+            let current = entry.document.snapshot();
+            entry.site.drain(&current.text, &current.source.address);
+        }
     }
 
     /// A document's surface by key, or the placeholder's once that document
@@ -1261,7 +1281,7 @@ impl DesktopState {
     }
 
     pub(crate) fn request(&mut self, action: PendingAction) {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
             return;
         }
@@ -1294,31 +1314,25 @@ impl DesktopState {
         }
     }
 
-    /// Readings, bindings and the site panel's page follow the focused
-    /// document: bring them up to date after the focus moves.
+    /// Readings and bindings follow the focused document: bring them up to
+    /// date after the focus moves. Each document holds its own site page.
     fn after_focus_change(&mut self) {
         self.sync_outline_snapshot();
         self.sync_fold_snapshots();
         self.sync_catalog();
-        let page = self
-            .document()
-            .session()
-            .source_path()
-            .map(Path::to_path_buf);
-        self.scroll.sync_page(page.as_deref());
     }
 
     /// Metadata edits belong to the site page they were made on, so the focus
     /// stays there until they are saved or discarded.
     fn metadata_holds_focus(&mut self) -> bool {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
         }
-        self.scroll.metadata_dirty()
+        self.metadata_dirty()
     }
 
     fn new_document(&mut self) {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
             return;
         }
@@ -1344,7 +1358,7 @@ impl DesktopState {
     /// Open `path` in a new tab, or switch to the tab already showing it.
     /// `false` when it could not.
     pub(crate) fn open_path(&mut self, path: PathBuf) -> bool {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
             return false;
         }
@@ -1387,7 +1401,7 @@ impl DesktopState {
     }
 
     fn save_as(&mut self) -> bool {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before Save As.".into());
             return false;
         }
@@ -1414,11 +1428,10 @@ impl DesktopState {
                 self.sync_outline_snapshot();
                 self.sync_fold_snapshots();
                 self.sync_catalog();
-                let resolved = std::fs::canonicalize(&path).ok();
                 let (title, identity) = self.entry().tab();
                 self.docs.set_identity(key, identity);
                 self.docs.set_title(key, title);
-                self.scroll.sync_page(resolved.as_deref());
+                self.bind_site_page_for(key);
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
             },
@@ -1474,7 +1487,7 @@ impl DesktopState {
     }
 
     fn confirm_save(&mut self) {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
             return;
         }
@@ -1533,7 +1546,7 @@ impl DesktopState {
     }
 
     fn confirm_discard(&mut self) {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.message = Some("Save or discard metadata edits before changing documents.".into());
             return;
         }
@@ -1650,7 +1663,7 @@ impl DesktopState {
     }
 
     fn close_request(&mut self, request: CloseRequest) -> CloseDisposition {
-        if self.scroll.metadata_dirty() {
+        if self.metadata_dirty() {
             self.scroll.visible = true;
             self.message = Some("Save or discard metadata edits before closing.".into());
             return CloseDisposition::KeepVisible;
@@ -1901,15 +1914,19 @@ fn retention_state(state: &DesktopState) -> crate::status::Retention {
 /// The serving chip's popover: the served site's address with Stop serving,
 /// or why nothing is served with Publish locally (slice 1 step 5d).
 fn serving_detail(state: &DesktopState) -> DesktopView {
-    let (line, action): (String, DesktopView) = match state.scroll.server.as_ref() {
-        Some(server) => (
+    let served = state
+        .scroll
+        .current_site()
+        .and_then(|entry| entry.server.as_ref().map(|server| (entry, server)));
+    let (line, action): (String, DesktopView) = match served {
+        Some((entry, server)) => (
             format!(
                 "{} · revision {} · saved snapshot",
                 server.url(),
-                state.scroll.publication_number()
+                entry.publication_number()
             ),
             Box::new(button("Stop serving", |state: &mut DesktopState, _| {
-                state.scroll.server = None;
+                state.scroll.stop_serving();
                 state.message = Some("Local serving stopped.".into());
             })),
         ),
@@ -2132,8 +2149,11 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             chips.push(crate::status::retention_chip(retention_state(state)));
         }
     }
-    let serving = state.scroll.server.is_some();
-    if serving || state.scroll.page().is_some() {
+    let serving = state
+        .scroll
+        .current_site()
+        .is_some_and(|entry| entry.server.is_some());
+    if serving || state.site_page().is_some() {
         chips.push(crate::status::serving_chip(serving));
     }
     let status_bar = cambium::status_bar(
@@ -2619,43 +2639,43 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     if port {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.scroll.port),
-            get_mut: Box::new(|s| &mut s.scroll.port),
+            get: Box::new(|s| s.scroll.port_field()),
+            get_mut: Box::new(|s| s.scroll.port_field_mut()),
         });
     }
     if submission_target {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.scroll.submission_target),
-            get_mut: Box::new(|s| &mut s.scroll.submission_target),
+            get: Box::new(|s| &s.entry().site.submission.target),
+            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.target),
         });
     }
     if submission_mime {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.scroll.submission_mime),
-            get_mut: Box::new(|s| &mut s.scroll.submission_mime),
+            get: Box::new(|s| &s.entry().site.submission.mime),
+            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.mime),
         });
     }
     if submission_body {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.scroll.submission_body),
-            get_mut: Box::new(|s| &mut s.scroll.submission_body),
+            get: Box::new(|s| &s.entry().site.submission.body),
+            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.body),
         });
     }
     if submission_token {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.scroll.submission_token),
-            get_mut: Box::new(|s| &mut s.scroll.submission_token),
+            get: Box::new(|s| &s.entry().site.submission.token),
+            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.token),
         });
     }
     if let Some(i) = metadata {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(move |s| &s.scroll.fields[i]),
-            get_mut: Box::new(move |s| &mut s.scroll.fields[i]),
+            get: Box::new(move |s| crate::scroll_site::page_field(s, i)),
+            get_mut: Box::new(move |s| &mut crate::scroll_site::page_fields(s)[i]),
         });
     }
     if path {
@@ -2727,13 +2747,8 @@ pub fn after_dispatch(
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
-    if ctx.runner.state().scroll.submission_busy() {
-        ctx.runner.update(|state| {
-            let current = state.document().snapshot();
-            state
-                .scroll
-                .drain_submission(&current.text, &current.source.address);
-        });
+    if ctx.runner.state().submissions_busy() {
+        ctx.runner.update(DesktopState::drain_submissions);
     }
     // An edit or page change since the last dispatch: drop the fold state of
     // headings the source no longer has before the next toggle can see it.
@@ -2823,13 +2838,8 @@ pub fn after_wake(
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
-    if ctx.runner.state().scroll.submission_busy() {
-        ctx.runner.update(|state| {
-            let current = state.document().snapshot();
-            state
-                .scroll
-                .drain_submission(&current.text, &current.source.address);
-        });
+    if ctx.runner.state().submissions_busy() {
+        ctx.runner.update(DesktopState::drain_submissions);
     }
 }
 
@@ -5209,7 +5219,7 @@ mod tests {
         assert_eq!(state.scroll.format, knot_site::SiteFormat::Gemini);
         assert_eq!(state.scroll.port.text(), "1965");
         assert_eq!(
-            state.scroll.site.as_ref().unwrap().config.format,
+            state.scroll.current_site().unwrap().site.config.format,
             knot_site::SiteFormat::Gemini
         );
     }

@@ -241,14 +241,12 @@ fn save_outcome_label(snapshot: &KnotDocumentSnapshotV1) -> String {
     }
 }
 
-/// Why an action was refused.
+/// Why an action was refused, in the words a host's message uses too.
 pub fn knot_document_refusal_label(refusal: crate::KnotDocumentRefusalV1) -> &'static str {
     match refusal {
-        crate::KnotDocumentRefusalV1::ScratchHasNoSaveTarget => {
-            "scratch document has no file target"
-        },
-        crate::KnotDocumentRefusalV1::ReadOnly => "document is read-only",
-        crate::KnotDocumentRefusalV1::ExternalChange => "file changed on disk",
+        crate::KnotDocumentRefusalV1::ScratchHasNoSaveTarget => "a new document has no file yet",
+        crate::KnotDocumentRefusalV1::ReadOnly => "this document is read-only",
+        crate::KnotDocumentRefusalV1::ExternalChange => "the file changed on disk",
     }
 }
 #[cfg(test)]
@@ -325,7 +323,7 @@ mod tests {
                 last_save_outcome: Some(crate::KnotDocumentSaveOutcomeV1::Refused),
                 ..snapshot
             }),
-            "Save: refused: document is read-only"
+            "Save: refused: this document is read-only"
         );
     }
 

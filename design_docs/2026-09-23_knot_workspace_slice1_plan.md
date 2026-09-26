@@ -825,6 +825,13 @@ design frames either fixed or recorded.
     document has no file target"), while the message line says "a new
     document has no file yet".
 
+  Update, 2026-09-26, on Mark's ruling: the wording now has one source.
+  knot-document's refusal labels are plain words: "a new document has no
+  file yet", "this document is read-only", "the file changed on disk". The
+  desktop's message line is built from them, so the popover and the
+  message line say the same thing. Turnstone's embedded row takes the new
+  words at its next repin.
+
   Two more of step 5's done-conditions now hold: a refusal raises its chip
   and posts its sentence, and tabs carry dirty and refused marks. 5d
   remains: the catalog and retention chips that retire the blocks, the

@@ -832,6 +832,13 @@ design frames either fixed or recorded.
   message line say the same thing. Turnstone's embedded row takes the new
   words at its next repin.
 
+  Update, 2026-09-26: switching chips takes one click. On Mark's ruling,
+  Cambium raises the status bar's chips above an open popover's
+  click-outside layer (mere `365807a4`). Knot repinned to mere `149b8053`,
+  which also carries Genet `1b62fd0b218`: a text field whose text is its
+  children keeps its label as its accessible name. A desktop test switches
+  chips in one click and closes the popover with a click in the document.
+
   Two more of step 5's done-conditions now hold: a refusal raises its chip
   and posts its sentence, and tabs carry dirty and refused marks. 5d
   remains: the catalog and retention chips that retire the blocks, the

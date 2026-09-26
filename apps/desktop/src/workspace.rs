@@ -2995,6 +2995,31 @@ mod tests {
         assert_eq!(host.viewport_scroll(), (0.0, 0.0), "the window stayed");
     }
 
+    /// Step 5c: one click on another chip opens its popover, and a click in
+    /// the document, outside the popover, closes it.
+    #[test]
+    fn a_chip_click_switches_popovers_and_a_click_outside_closes_them() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Notes\n"));
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Djot")));
+        assert_eq!(
+            host.state().status_bar.open.as_deref(),
+            Some(crate::status::FORMAT)
+        );
+        assert!(host.click_on(&Selector::role("button").containing("Not saved")));
+        assert_eq!(
+            host.state().status_bar.open.as_deref(),
+            Some(crate::status::SAVE),
+            "one click switched the popover"
+        );
+        host.click_at(550.0, 350.0);
+        assert_eq!(
+            host.state().status_bar.open,
+            None,
+            "a click in the document closed it"
+        );
+    }
+
     /// Step 5c: a refused save raises the save chip, posts its sentence to the
     /// message line, marks its tab, and shows the refusal in the chip's popover.
     #[test]

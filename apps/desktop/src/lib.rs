@@ -9,6 +9,7 @@ pub mod changes;
 pub mod document_folding;
 pub mod document_preview;
 pub mod documents;
+pub mod navigator;
 pub mod preferences;
 pub mod readings;
 pub mod scenario;
@@ -40,10 +41,11 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
 /// rules dress it.
 pub fn desktop_sheet() -> String {
     format!(
-        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}",
+        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
         appearance::appearance_css(),
         document_folding::CSS,
         document_preview::CSS,
+        navigator::CSS,
         readings::CSS,
         scroll_site::CSS
     )

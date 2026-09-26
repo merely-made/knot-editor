@@ -899,6 +899,18 @@ impl DesktopState {
         }
     }
 
+    /// Show the Navigator, left of the documents, or close it.
+    pub(crate) fn toggle_navigator(&mut self) {
+        match self.docs.navigator() {
+            Some(tile) => {
+                self.docs.close(tile);
+            },
+            None => {
+                self.docs.open_navigator(crate::navigator::TITLE);
+            },
+        }
+    }
+
     /// Pin a reading tile to the document it shows, or let it follow the
     /// focus again.
     pub(crate) fn toggle_pin(&mut self, tile: workbench::TileId) {
@@ -1350,7 +1362,7 @@ impl DesktopState {
                 self.path = TextInput::new(path.to_string_lossy().into_owned());
                 self.open_entry(DocumentEntry::new(session));
                 self.after_focus_change();
-                self.message = Some(format!("Opened {}.", path.display()));
+                self.message = Some(format!("Opened {}.", display_path(&path)));
                 true
             },
             Err(error) => {
@@ -2185,6 +2197,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         .attr("aria-controls", "knot-appearance-panel"),
                         reading_toggle(state, ReadingKind::Outline, "Show Outline", "Hide Outline"),
                         reading_toggle(state, ReadingKind::Readings, "Readings", "Hide Readings"),
+                        navigator_toggle(state),
                     ),
                 )
                 .attr("class", "knot-workspace-toolbar")
@@ -2227,6 +2240,25 @@ fn reading_toggle(
     .attr("aria-expanded", following.is_some().to_string());
     match following {
         Some(tile) => Box::new(toggle.attr("aria-controls", reading_region_id(tile))),
+        None => Box::new(toggle),
+    }
+}
+
+/// The command row's Navigator toggle, naming the Navigator's region while
+/// it is open.
+fn navigator_toggle(state: &DesktopState) -> DesktopView {
+    let open = state.docs.navigator();
+    let toggle = button(
+        if open.is_some() {
+            "Hide Navigator"
+        } else {
+            crate::navigator::TITLE
+        },
+        |state: &mut DesktopState, _| state.toggle_navigator(),
+    )
+    .attr("aria-expanded", open.is_some().to_string());
+    match open {
+        Some(tile) => Box::new(toggle.attr("aria-controls", crate::navigator::region_id(tile))),
         None => Box::new(toggle),
     }
 }
@@ -2396,7 +2428,8 @@ fn tile_view(state: &DesktopState, tile: workbench::TileId) -> DesktopView {
     match state.docs.role(tile) {
         Some(TileRole::Document(key)) => document_tile(state, *key),
         Some(TileRole::Reading { kind, pinned }) => reading_tile(state, tile, *kind, *pinned),
-        _ => Box::new(el("div", ())),
+        Some(TileRole::Navigator) => crate::navigator::view(state, tile),
+        None => Box::new(el("div", ())),
     }
 }
 

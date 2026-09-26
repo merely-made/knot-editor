@@ -60,6 +60,10 @@ pub enum TileRole {
 /// The Workbench lane every Knot tile rides in.
 pub const TILE_KIND: &str = "knot";
 
+/// The share of its split the Navigator opens at: about a quarter, the rest
+/// going to the documents (Mark's ruling, 2026-09-26). The divider moves it.
+pub const NAVIGATOR_SHARE: f32 = 0.25;
+
 struct Entry<D> {
     identity: DocIdentity,
     tile: TileId,
@@ -269,6 +273,44 @@ impl<D> DocumentWorkspace<D> {
         id
     }
 
+    /// The open Navigator tile, if any.
+    pub fn navigator(&self) -> Option<TileId> {
+        self.roles
+            .iter()
+            .find(|(_, role)| **role == TileRole::Navigator)
+            .map(|(tile, _)| *tile)
+    }
+
+    /// Open the Navigator, once, in a new stack left of the documents taking
+    /// [`NAVIGATOR_SHARE`] of the split; with no document open it joins the
+    /// frame's stack.
+    pub fn open_navigator(&mut self, title: impl Into<String>) -> TileId {
+        if let Some(tile) = self.navigator() {
+            return tile;
+        }
+        let beside_document = self
+            .focused
+            .or_else(|| self.entries.keys().next().copied())
+            .and_then(|key| self.tile_of(key));
+        let tile = self.mint_tile(title.into(), TileRole::Navigator);
+        let id = tile.id;
+        let tree = self.workspace.tiled_mut();
+        let placed = beside_document
+            .is_some_and(|document| tree.split_beside(document, Edge::Left, tile.clone()));
+        if placed {
+            set_stack_share(tree, id, NAVIGATOR_SHARE);
+        } else {
+            match tree {
+                TileTree::Stack(stack) => {
+                    stack.tabs.push(tile);
+                    stack.active = stack.tabs.len() - 1;
+                },
+                _ => *tree = TileTree::stack(vec![tile], 0),
+            }
+        }
+        id
+    }
+
     /// The open reading tile of `kind` that follows the focus, if any.
     pub fn following_reading(&self, kind: ReadingKind) -> Option<TileId> {
         self.readings()
@@ -418,6 +460,37 @@ impl<D> DocumentWorkspace<D> {
     }
 }
 
+/// Give the stack holding `tile` `share` of its split, the rest going to its
+/// siblings in proportion to what they had. `false` when no split holds it.
+fn set_stack_share(tree: &mut TileTree, tile: TileId, share: f32) -> bool {
+    let TileTree::Split { children, .. } = tree else {
+        return false;
+    };
+    let holds = |branch: &workbench::TileBranch| matches!(&branch.tree, TileTree::Stack(stack) if stack.tabs.iter().any(|t| t.id == tile));
+    let Some(index) = children.iter().position(holds) else {
+        return children
+            .iter_mut()
+            .any(|branch| set_stack_share(&mut branch.tree, tile, share));
+    };
+    let rest: f32 = children
+        .iter()
+        .enumerate()
+        .filter(|(i, _)| *i != index)
+        .map(|(_, branch)| branch.fraction)
+        .sum();
+    let siblings = (children.len() - 1).max(1) as f32;
+    for (i, branch) in children.iter_mut().enumerate() {
+        branch.fraction = if i == index {
+            share
+        } else if rest > f32::EPSILON {
+            branch.fraction / rest * (1.0 - share)
+        } else {
+            (1.0 - share) / siblings
+        };
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -449,6 +522,34 @@ mod tests {
         assert_eq!(space.doc(a), Some(&"A"));
         assert_eq!(space.doc(b), Some(&"B"));
         assert!(matches!(space.workspace().tiled(), TileTree::Stack(_)));
+    }
+
+    #[test]
+    fn the_navigator_opens_once_in_a_stack_left_of_the_documents() {
+        let mut space = DocumentWorkspace::new();
+        space.open(path("a.djot"), "a.djot", "A");
+        assert_eq!(space.navigator(), None);
+        let navigator = space.open_navigator("Navigator");
+        assert_eq!(
+            space.open_navigator("Navigator"),
+            navigator,
+            "one Navigator"
+        );
+        assert_eq!(space.navigator(), Some(navigator));
+        assert_eq!(space.document_for(navigator), None);
+        assert_eq!(
+            tabs(&space),
+            ["Navigator", "a.djot"],
+            "left of the documents"
+        );
+        let TileTree::Split { children, .. } = space.workspace().tiled() else {
+            panic!("the Navigator splits the frame");
+        };
+        let shares: Vec<f32> = children.iter().map(|branch| branch.fraction).collect();
+        assert_eq!(shares, [NAVIGATOR_SHARE, 1.0 - NAVIGATOR_SHARE]);
+        space.close(navigator);
+        assert_eq!(space.navigator(), None);
+        assert_eq!(tabs(&space), ["a.djot"]);
     }
 
     #[test]

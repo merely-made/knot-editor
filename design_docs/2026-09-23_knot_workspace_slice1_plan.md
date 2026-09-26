@@ -901,6 +901,53 @@ design frames either fixed or recorded.
     failed in two of three full runs under load and passed every time
     alone. It waits on a projected session over local endpoints, a timing
     flake outside the desktop.
+- **2026-09-26, step 6.** The Navigator is a tile. The command row's
+  Navigator toggle opens it in a new stack left of the documents and closes
+  it. On Mark's ruling it opens at a quarter of the width; the divider
+  moves it.
+
+  It lists the catalog's records by path, each labelled Available or
+  Unavailable. Listing reads the catalog and each file's metadata, never a
+  document's bytes.
+  - An available record opens its document, or activates the tab already
+    showing it.
+  - An unavailable record stays in the history, dimmed and labelled, and
+    does nothing. Rebinding it is a later, explicit action, never inferred
+    from a name.
+  - Without a catalog, the Navigator says so and how to launch with one.
+
+  The catalog's root is canonical, so the "Opened …" message now shows the
+  path without Windows' verbatim prefix.
+
+  Tests:
+  - The Navigator opens once, left of the documents, at a quarter share.
+    Without the share, the test fails.
+  - The history test labels an available record and a deleted one, and
+    checks that no file's bytes changed and nothing recreated the deleted
+    one.
+  - Selecting a record opens it, and selecting it again activates it
+    without a second tab. The "Opened" message has no verbatim prefix;
+    without the fix, that check fails.
+  - A launch without a catalog says so.
+
+  The desktop library passes 135 with 1 ignored, and `cargo test --locked`
+  passes 414 with 3 ignored. Headed, the frames show the Navigator with one
+  record available and one unavailable, and the available one opened
+  beside a scratch document. They are under
+  `Code/testing/knot-editor/images/2026-09-26_step6/`.
+
+  Step 6's done-conditions hold:
+  - available and unavailable catalog history is labelled truthfully,
+    without changing source bytes;
+  - selecting an available record opens or activates its document;
+  - a launch without a catalog says so.
+
+  Noted:
+  - In a flex row aligned on baselines, Genet takes a button item's
+    baseline from near its bottom, so "Available" sits about 8px below the
+    button's text. This has been reported to the Genet roadmap.
+  - A long message squeezes the status bar's chips and wraps their labels.
+    On Mark's ruling, Cambium gets the fix after step 6.
 
 ## Related material
 

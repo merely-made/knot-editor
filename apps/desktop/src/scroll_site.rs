@@ -4,7 +4,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::workspace::{DesktopState, DesktopView};
+use crate::documents::DocKey;
+use crate::workspace::{DesktopState, DesktopView, DocumentEntry};
 use cambium::{
     El, GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button,
     button_with, el, lens, on_key, span, text_field_typed, textarea_typed,
@@ -21,6 +22,7 @@ use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use nematic::micron::forms::{FormLimits, FormState};
 use nematic::micron::syntax::FieldKind;
 use std::collections::{BTreeMap, BTreeSet};
+use std::path::Path;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 const LABELS: [&str; 6] = [
@@ -72,68 +74,72 @@ fn lower_micron(address: &str, text: &str) -> Result<EngineDocument, EngineError
     nematic::MicronEngine::new().render(&EngineInput::new(address, text))
 }
 
-pub struct ScrollWorkspace {
-    pub folder: TextInput,
+/// A runtime key for an open site. It names the site's entry, not its folder,
+/// so a folder opened again gets a new key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct SiteKey(u64);
+
+/// One open site: its manifest, the port it publishes on, its local server and
+/// how many times it has been published.
+pub struct SiteEntry {
+    pub site: Site,
     pub port: TextInput,
-    pub fields: [TextInput; 6],
-    baseline: [String; 6],
-    pub site: Option<Site>,
-    page: Option<String>,
     pub server: Option<LocalServer>,
+    publication_number: usize,
+}
+
+impl SiteEntry {
+    /// How many times the site has been published locally.
+    pub(crate) fn publication_number(&self) -> usize {
+        self.publication_number
+    }
+
+    /// The manifest page whose file is `path`, a canonical path.
+    fn page_at(&self, path: &Path) -> Option<&Page> {
+        self.site
+            .config
+            .pages
+            .iter()
+            .find(|page| self.site.page_path(&page.path).ok().as_deref() == Some(path))
+    }
+}
+
+/// The window's site state: the open sites, the fields that open or create the
+/// next one, and the site panel's view flags. What belongs to one document,
+/// its page draft, Micron form and composer, is on its entry
+/// ([`DocumentSite`]).
+pub struct ScrollWorkspace {
+    sites: BTreeMap<SiteKey, SiteEntry>,
+    next_site: u64,
+    /// The site the panel shows, one at a time until sites get their own tiles.
+    current: Option<SiteKey>,
+    pub folder: TextInput,
+    /// The port the next site opened or created publishes on.
+    pub port: TextInput,
+    pub format: SiteFormat,
     pub visible: bool,
     metadata_visible: bool,
     pub preview_visible: bool,
-    publication_number: usize,
-    pub format: SiteFormat,
     submission_visible: bool,
-    pub(crate) submission_target: TextInput,
-    pub(crate) submission_mime: TextInput,
-    pub(crate) submission_body: TextInput,
-    pub(crate) submission_token: TextInput,
-    prepared: Option<PreparedSubmission>,
-    pub(crate) submission_receiver: Option<Receiver<Result<SubmissionReceipt, String>>>,
     submission_wake: Option<HostWake>,
-    submission_result: Option<String>,
-    submission_response: Option<String>,
     titan_submission_error: Option<String>,
-    micron_form: Option<MicronFormEditor>,
-    micron_submission_receiver: Option<Receiver<(u64, Result<MicronResponse, String>)>>,
-    next_micron_submission: u64,
-    active_micron_submission: Option<(u64, String, String)>,
-    micron_cancel: Option<tokio::sync::oneshot::Sender<()>>,
 }
 
 impl Default for ScrollWorkspace {
     fn default() -> Self {
         Self {
+            sites: BTreeMap::new(),
+            next_site: 0,
+            current: None,
             folder: TextInput::default(),
             port: TextInput::new("5699"),
-            fields: std::array::from_fn(|_| TextInput::default()),
-            baseline: Default::default(),
-            site: None,
-            page: None,
-            server: None,
+            format: SiteFormat::Scroll,
             visible: false,
             metadata_visible: false,
             preview_visible: true,
-            publication_number: 0,
-            format: SiteFormat::Scroll,
             submission_visible: false,
-            submission_target: TextInput::default(),
-            submission_mime: TextInput::new("text/gemini"),
-            submission_body: TextInput::default(),
-            submission_token: TextInput::default(),
-            prepared: None,
-            submission_receiver: None,
             submission_wake: None,
-            submission_result: None,
-            submission_response: None,
             titan_submission_error: None,
-            micron_form: None,
-            micron_submission_receiver: None,
-            next_micron_submission: 0,
-            active_micron_submission: None,
-            micron_cancel: None,
         }
     }
 }
@@ -143,223 +149,243 @@ impl ScrollWorkspace {
         self.titan_submission_error = error;
     }
 
-    pub(crate) fn submission_busy(&self) -> bool {
-        self.submission_receiver.is_some() || self.micron_submission_receiver.is_some()
+    pub fn set_submission_wake(&mut self, wake: HostWake) {
+        self.submission_wake = Some(wake);
     }
 
+    /// The site the panel shows.
+    pub(crate) fn current_site(&self) -> Option<&SiteEntry> {
+        self.current.and_then(|key| self.sites.get(&key))
+    }
+
+    pub(crate) fn current_site_mut(&mut self) -> Option<&mut SiteEntry> {
+        self.current.and_then(|key| self.sites.get_mut(&key))
+    }
+
+    pub(crate) fn current_key(&self) -> Option<SiteKey> {
+        self.current
+    }
+
+    pub(crate) fn site(&self, key: SiteKey) -> Option<&SiteEntry> {
+        self.sites.get(&key)
+    }
+
+    /// Hold `site` as the panel's one site. The site it replaces is dropped,
+    /// which stops its server; the new one publishes on the port field's value.
+    fn replace(&mut self, site: Site) -> SiteKey {
+        self.close_current();
+        let key = SiteKey(self.next_site);
+        self.next_site += 1;
+        let port = TextInput::new(self.port.text());
+        self.sites.insert(
+            key,
+            SiteEntry {
+                site,
+                port,
+                server: None,
+                publication_number: 0,
+            },
+        );
+        self.current = Some(key);
+        key
+    }
+
+    /// Drop the panel's site, which stops its server. Its port stays in the
+    /// field for the next site.
+    fn close_current(&mut self) {
+        if let Some(entry) = self.current.take().and_then(|key| self.sites.remove(&key)) {
+            self.port = TextInput::new(entry.port.text());
+        }
+    }
+
+    /// The open site page whose file is `path`, a canonical path.
+    fn page_at(&self, path: &Path) -> Option<(SiteKey, &Page)> {
+        self.sites
+            .iter()
+            .find_map(|(key, entry)| entry.page_at(path).map(|page| (*key, page)))
+    }
+
+    /// The panel's port field: the panel site's, or the next site's.
+    pub(crate) fn port_field(&self) -> &TextInput {
+        match self.current_site() {
+            Some(entry) => &entry.port,
+            None => &self.port,
+        }
+    }
+
+    pub(crate) fn port_field_mut(&mut self) -> &mut TextInput {
+        match self.current.and_then(|key| self.sites.get_mut(&key)) {
+            Some(entry) => &mut entry.port,
+            None => &mut self.port,
+        }
+    }
+
+    /// Stop the panel site's local server.
+    pub(crate) fn stop_serving(&mut self) {
+        if let Some(entry) = self.current_site_mut() {
+            entry.server = None;
+        }
+    }
+}
+
+/// Which metadata fields a site format supports.
+fn metadata_indices(format: SiteFormat) -> &'static [usize] {
+    match format {
+        SiteFormat::Scroll => &[0, 1, 2, 3, 4, 5],
+        // Gemini has a native language parameter. The other Scroll-only
+        // header/abstract fields are not silently projected into Gemtext.
+        SiteFormat::Gemini => &[1],
+        SiteFormat::Spartan | SiteFormat::Micron => &[],
+    }
+}
+
+/// A document's place in an open site: the page it is, and that page's
+/// metadata draft against the manifest's saved values.
+pub(crate) struct SitePage {
+    pub(crate) site: SiteKey,
+    pub(crate) name: String,
+    pub(crate) fields: [TextInput; 6],
+    baseline: [String; 6],
+}
+
+impl SitePage {
+    fn new(site: SiteKey, page: &Page) -> Self {
+        // Preserve the entire abstract in the text field when opening an
+        // existing site; metadata saving never reformats its source.
+        let baseline = [
+            page.author.clone(),
+            page.language.clone(),
+            page.classification.to_string(),
+            page.published.clone(),
+            page.modified.clone(),
+            page.abstract_source.clone(),
+        ];
+        Self {
+            site,
+            name: page.path.clone(),
+            fields: baseline.clone().map(TextInput::new),
+            baseline,
+        }
+    }
+
+    pub(crate) fn dirty(&self) -> bool {
+        self.fields
+            .iter()
+            .zip(&self.baseline)
+            .any(|(field, saved)| field.text() != saved)
+    }
+
+    fn discard(&mut self) {
+        self.fields = self.baseline.clone().map(TextInput::new);
+    }
+}
+
+/// A document's Titan or Spartan composer: what is being written, the reviewed
+/// bytes, and the send in flight or its reply.
+pub(crate) struct Submission {
+    pub(crate) target: TextInput,
+    pub(crate) mime: TextInput,
+    pub(crate) body: TextInput,
+    pub(crate) token: TextInput,
+    pub(crate) prepared: Option<PreparedSubmission>,
+    pub(crate) receiver: Option<Receiver<Result<SubmissionReceipt, String>>>,
+    pub(crate) result: Option<String>,
+    pub(crate) response: Option<String>,
+}
+
+impl Default for Submission {
+    fn default() -> Self {
+        Self {
+            target: TextInput::default(),
+            mime: TextInput::new("text/gemini"),
+            body: TextInput::default(),
+            token: TextInput::default(),
+            prepared: None,
+            receiver: None,
+            result: None,
+            response: None,
+        }
+    }
+}
+
+impl Submission {
     fn select_spartan_prompt(&mut self, target: String) {
-        self.submission_visible = true;
-        self.submission_target = TextInput::new(target);
-        self.submission_mime = TextInput::new("text/plain");
+        self.target = TextInput::new(target);
+        self.mime = TextInput::new("text/plain");
         self.prepared = None;
-        self.submission_token = TextInput::default();
-        self.submission_result = None;
-        self.submission_response = None;
+        self.token = TextInput::default();
+        self.result = None;
+        self.response = None;
     }
 
-    fn discard_submission(&mut self) {
+    fn discard(&mut self) {
         self.prepared = None;
-        self.submission_token = TextInput::default();
-        self.submission_result = None;
-        self.submission_response = None;
+        self.token = TextInput::default();
+        self.result = None;
+        self.response = None;
     }
 
-    fn take_submission_for_send(&mut self) -> Result<(PreparedSubmission, Option<String>), String> {
+    fn take_for_send(&mut self) -> Result<(PreparedSubmission, Option<String>), String> {
         let prepared = self
             .prepared
             .take()
             .ok_or("Prepare reviewed bytes before sending.")?;
         let token = if prepared.target().starts_with("titan://") {
-            let token = std::mem::take(&mut self.submission_token).text().to_owned();
+            let token = std::mem::take(&mut self.token).text().to_owned();
             (!token.is_empty()).then_some(token)
         } else {
-            self.submission_token = TextInput::default();
+            self.token = TextInput::default();
             None
         };
         Ok((prepared, token))
     }
 
-    pub fn set_submission_wake(&mut self, wake: HostWake) {
-        self.submission_wake = Some(wake);
-    }
-    pub fn drain_submission(&mut self, current_source: &str, current_address: &str) {
-        if let Some(rx) = self.submission_receiver.as_ref() {
-            match rx.try_recv() {
-                Ok(Ok(r)) => {
-                    self.submission_result = Some(format!(
-                        "Reply {} {} ({} bytes)",
-                        r.code,
-                        r.meta,
-                        r.body.len()
-                    ));
-                    self.submission_response = response_display(&r.body);
-                    self.submission_receiver = None
-                },
-                Ok(Err(e)) => {
-                    self.submission_result = Some(format!("Send failed: {e}"));
-                    self.submission_response = None;
-                    self.submission_receiver = None
-                },
-                Err(TryRecvError::Disconnected) => {
-                    self.submission_result =
-                        Some("Send outcome unavailable; check target before retrying.".into());
-                    self.submission_response = None;
-                    self.submission_receiver = None
-                },
-                Err(TryRecvError::Empty) => {},
-            }
-        }
-        let Some(rx) = self.micron_submission_receiver.as_ref() else {
+    fn drain(&mut self) {
+        let Some(rx) = self.receiver.as_ref() else {
             return;
         };
         match rx.try_recv() {
-            Ok((id, Ok(response))) => {
-                let current = self.active_micron_submission.as_ref().is_some_and(
-                    |(active, source, address)| {
-                        *active == id && source == current_source && address == current_address
-                    },
-                );
-                self.micron_submission_receiver = None;
-                self.active_micron_submission = None;
-                self.micron_cancel = None;
-                if !current {
-                    return;
-                }
-                self.submission_result =
-                    Some(format!("Micron reply ({} bytes)", response.body.len()));
-                self.submission_response = response_display(&response.body);
+            Ok(Ok(r)) => {
+                self.result = Some(format!(
+                    "Reply {} {} ({} bytes)",
+                    r.code,
+                    r.meta,
+                    r.body.len()
+                ));
+                self.response = response_display(&r.body);
+                self.receiver = None
             },
-            Ok((id, Err(error))) => {
-                let current = self.active_micron_submission.as_ref().is_some_and(
-                    |(active, source, address)| {
-                        *active == id && source == current_source && address == current_address
-                    },
-                );
-                self.micron_submission_receiver = None;
-                self.active_micron_submission = None;
-                self.micron_cancel = None;
-                if !current {
-                    return;
-                }
-                self.submission_result = Some(format!("Micron request failed: {error}"));
-                self.submission_response = None;
+            Ok(Err(e)) => {
+                self.result = Some(format!("Send failed: {e}"));
+                self.response = None;
+                self.receiver = None
             },
             Err(TryRecvError::Disconnected) => {
-                let current =
-                    self.active_micron_submission
-                        .as_ref()
-                        .is_some_and(|(_, source, address)| {
-                            source == current_source && address == current_address
-                        });
-                self.micron_submission_receiver = None;
-                self.micron_cancel = None;
-                self.active_micron_submission = None;
-                if current {
-                    self.submission_result =
-                        Some("Micron request outcome unavailable; review before retrying.".into());
-                    self.submission_response = None;
-                }
+                self.result =
+                    Some("Send outcome unavailable; check target before retrying.".into());
+                self.response = None;
+                self.receiver = None
             },
             Err(TryRecvError::Empty) => {},
         }
     }
-    fn metadata_indices(&self) -> &'static [usize] {
-        match self
-            .site
-            .as_ref()
-            .map(|site| site.config.format)
-            .unwrap_or(self.format)
-        {
-            SiteFormat::Scroll => &[0, 1, 2, 3, 4, 5],
-            // Gemini has a native language parameter. The other Scroll-only
-            // header/abstract fields are not silently projected into Gemtext.
-            SiteFormat::Gemini => &[1],
-            SiteFormat::Spartan | SiteFormat::Micron => &[],
-        }
-    }
+}
 
-    pub fn metadata_dirty(&self) -> bool {
-        self.page.is_some()
-            && self
-                .fields
-                .iter()
-                .zip(&self.baseline)
-                .any(|(a, b)| a.text() != b)
-    }
+/// A document's Micron request: the form being filled, the request in flight,
+/// and its reply.
+#[derive(Default)]
+pub(crate) struct MicronRequest {
+    form: Option<MicronFormEditor>,
+    pub(crate) receiver: Option<Receiver<(u64, Result<MicronResponse, String>)>>,
+    next: u64,
+    active: Option<(u64, String, String)>,
+    cancel: Option<tokio::sync::oneshot::Sender<()>>,
+    pub(crate) result: Option<String>,
+    pub(crate) response: Option<String>,
+}
 
-    /// The open site's page the document is, if it is one.
-    pub(crate) fn page(&self) -> Option<&str> {
-        self.page.as_deref()
-    }
-
-    /// How many times the site has been published locally.
-    pub(crate) fn publication_number(&self) -> usize {
-        self.publication_number
-    }
-
-    pub fn sync_page(&mut self, path: Option<&std::path::Path>) {
-        let selected = self.site.as_ref().and_then(|site| {
-            site.config
-                .pages
-                .iter()
-                .find(|page| site.page_path(&page.path).ok().as_deref() == path && path.is_some())
-        });
-        let name = selected.map(|page| page.path.clone());
-        if name == self.page {
-            return;
-        }
-        self.page = name;
-        if let Some(page) = selected {
-            // Preserve the entire abstract in the text field when opening an
-            // existing site; metadata saving never reformats its source.
-            self.baseline = [
-                page.author.clone(),
-                page.language.clone(),
-                page.classification.to_string(),
-                page.published.clone(),
-                page.modified.clone(),
-                page.abstract_source.clone(),
-            ];
-        } else {
-            self.baseline = Default::default();
-        }
-        self.fields = self.baseline.clone().map(TextInput::new);
-    }
-
-    fn save_metadata(&mut self) -> Result<(), String> {
-        let site = self.site.as_mut().ok_or("Open a site first")?;
-        let name = self.page.as_ref().ok_or("Open a page in this site first")?;
-        let values: [String; 6] = std::array::from_fn(|i| self.fields[i].text().to_owned());
-        let abstract_source = values[5].clone();
-        let page = Page {
-            path: name.clone(),
-            author: values[0].clone(),
-            language: values[1].clone(),
-            classification: values[2]
-                .parse()
-                .map_err(|_| "Classification must be 0–9")?,
-            published: values[3].clone(),
-            modified: values[4].clone(),
-            abstract_source,
-        };
-        let index = site
-            .config
-            .pages
-            .iter()
-            .position(|page| &page.path == name)
-            .ok_or("Page missing")?;
-        let previous = std::mem::replace(&mut site.config.pages[index], page);
-        if let Err(error) = site.save_config_with(|path, before, after| {
-            knot_document::write_if_distinct(path, before, after).map(|_| ())
-        }) {
-            site.config.pages[index] = previous;
-            return Err(error);
-        }
-        self.baseline = values;
-        Ok(())
-    }
-
-    fn open_micron_form(&mut self, source: String, address: String) -> Result<(), String> {
+impl MicronRequest {
+    fn open_form(&mut self, source: String, address: String) -> Result<(), String> {
         let form = FormState::from_source(&source, FormLimits::default())?;
         if form.actions().is_empty() {
             return Err("This Micron page has no request action.".into());
@@ -369,7 +395,7 @@ impl ScrollWorkspace {
             .iter()
             .map(|field| TextInput::new(field.value()))
             .collect();
-        self.micron_form = Some(MicronFormEditor {
+        self.form = Some(MicronFormEditor {
             source,
             address,
             form,
@@ -379,48 +405,37 @@ impl ScrollWorkspace {
         Ok(())
     }
 
-    fn close_micron_form(&mut self) {
-        self.micron_form = None;
+    fn close_form(&mut self) {
+        self.form = None;
         // A reopened form must not show the previous reply. An in-flight send
         // keeps its own status, which its completion replaces.
-        if !self.submission_busy() {
-            self.submission_result = None;
-            self.submission_response = None;
+        if self.receiver.is_none() {
+            self.result = None;
+            self.response = None;
         }
     }
 
-    fn cancel_micron_submission(&mut self) {
-        if let Some(cancel) = self.micron_cancel.take() {
+    fn cancel(&mut self) {
+        if let Some(cancel) = self.cancel.take() {
             let _ = cancel.send(());
-            self.active_micron_submission = None;
-            self.submission_result = Some(
+            self.active = None;
+            self.result = Some(
                 "Micron request cancelled locally. Its remote outcome may be unknown; do not retry automatically."
                     .into(),
             );
-            self.submission_response = None;
+            self.response = None;
         }
     }
 
-    fn micron_set_checked(&mut self, index: usize, checked: bool) -> Result<(), String> {
-        let editor = self
-            .micron_form
-            .as_mut()
-            .ok_or("Open the Micron form first.")?;
+    fn set_checked(&mut self, index: usize, checked: bool) -> Result<(), String> {
+        let editor = self.form.as_mut().ok_or("Open the Micron form first.")?;
         editor.form.set_checked(index, checked)?;
         editor.prepared = None;
         Ok(())
     }
 
-    fn prepare_micron_form(
-        &mut self,
-        source: &str,
-        address: &str,
-        action: usize,
-    ) -> Result<(), String> {
-        let editor = self
-            .micron_form
-            .as_mut()
-            .ok_or("Open the Micron form first.")?;
+    fn prepare(&mut self, source: &str, address: &str, action: usize) -> Result<(), String> {
+        let editor = self.form.as_mut().ok_or("Open the Micron form first.")?;
         if editor.address != address {
             return Err(
                 "The page address changed. Reopen the form before preparing a request.".into(),
@@ -453,6 +468,75 @@ impl ScrollWorkspace {
                 .collect(),
         });
         Ok(())
+    }
+
+    /// Take a finished request's outcome. The reply shows only while the
+    /// document's source and address are still the ones it was sent from.
+    fn drain(&mut self, current_source: &str, current_address: &str) {
+        let Some(rx) = self.receiver.as_ref() else {
+            return;
+        };
+        let sent_from_current = |active: &Option<(u64, String, String)>, id: Option<u64>| {
+            active.as_ref().is_some_and(|(active, source, address)| {
+                id.is_none_or(|id| *active == id)
+                    && source == current_source
+                    && address == current_address
+            })
+        };
+        match rx.try_recv() {
+            Ok((id, outcome)) => {
+                let current = sent_from_current(&self.active, Some(id));
+                self.receiver = None;
+                self.active = None;
+                self.cancel = None;
+                if !current {
+                    return;
+                }
+                match outcome {
+                    Ok(response) => {
+                        self.result = Some(format!("Micron reply ({} bytes)", response.body.len()));
+                        self.response = response_display(&response.body);
+                    },
+                    Err(error) => {
+                        self.result = Some(format!("Micron request failed: {error}"));
+                        self.response = None;
+                    },
+                }
+            },
+            Err(TryRecvError::Disconnected) => {
+                let current = sent_from_current(&self.active, None);
+                self.receiver = None;
+                self.cancel = None;
+                self.active = None;
+                if current {
+                    self.result =
+                        Some("Micron request outcome unavailable; review before retrying.".into());
+                    self.response = None;
+                }
+            },
+            Err(TryRecvError::Empty) => {},
+        }
+    }
+}
+
+/// What one document holds of the site workspace. Each document keeps its own,
+/// so switching tabs never carries a draft, form or reply across.
+#[derive(Default)]
+pub(crate) struct DocumentSite {
+    pub(crate) page: Option<SitePage>,
+    pub(crate) micron: MicronRequest,
+    pub(crate) submission: Submission,
+}
+
+impl DocumentSite {
+    /// Whether a send from this document is in flight.
+    pub(crate) fn busy(&self) -> bool {
+        self.submission.receiver.is_some() || self.micron.receiver.is_some()
+    }
+
+    pub(crate) fn drain(&mut self, source: &str, address: &str) {
+        self.submission.drain();
+        self.micron.drain(source, address);
     }
 }
 
@@ -605,8 +689,10 @@ impl DesktopState {
             return;
         }
         match self
-            .scroll
-            .open_micron_form(source.text, source.source.address)
+            .entry_mut()
+            .site
+            .micron
+            .open_form(source.text, source.source.address)
         {
             Ok(()) => {
                 self.message = Some(
@@ -621,8 +707,10 @@ impl DesktopState {
     fn prepare_micron_form(&mut self, action: usize) {
         let source = self.document().snapshot();
         match self
-            .scroll
-            .prepare_micron_form(&source.text, &source.source.address, action)
+            .entry_mut()
+            .site
+            .micron
+            .prepare(&source.text, &source.source.address, action)
         {
             Ok(()) => {
                 self.message = Some(
@@ -635,7 +723,7 @@ impl DesktopState {
     }
 
     fn send_micron_form(&mut self) {
-        if self.scroll.submission_busy() {
+        if self.entry().site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
@@ -657,7 +745,8 @@ impl DesktopState {
             },
         };
         let current_document = self.document().snapshot();
-        let Some(editor) = self.scroll.micron_form.as_mut() else {
+        let micron = &mut self.entry_mut().site.micron;
+        let Some(editor) = micron.form.as_mut() else {
             self.message = Some("Open and prepare a Micron form first.".into());
             return;
         };
@@ -701,16 +790,15 @@ impl DesktopState {
         editor.prepared = None;
         let source_binding = editor.source.clone();
         let address_binding = editor.address.clone();
-        let _ = editor;
-        self.scroll.submission_result = Some("Sending reviewed Micron request…".into());
-        self.scroll.submission_response = None;
+        micron.result = Some("Sending reviewed Micron request…".into());
+        micron.response = None;
         let (tx, rx) = mpsc::channel();
         let (cancel_tx, cancel_rx) = tokio::sync::oneshot::channel();
-        self.scroll.micron_submission_receiver = Some(rx);
-        self.scroll.micron_cancel = Some(cancel_tx);
-        let id = self.scroll.next_micron_submission;
-        self.scroll.next_micron_submission = self.scroll.next_micron_submission.wrapping_add(1);
-        self.scroll.active_micron_submission = Some((id, source_binding, address_binding));
+        micron.receiver = Some(rx);
+        micron.cancel = Some(cancel_tx);
+        let id = micron.next;
+        micron.next = micron.next.wrapping_add(1);
+        micron.active = Some((id, source_binding, address_binding));
         std::thread::spawn(move || {
             let result = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -730,7 +818,7 @@ impl DesktopState {
     }
 
     fn prepare_titan(&mut self) {
-        if self.scroll.submission_busy() {
+        if self.entry().site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
@@ -738,43 +826,51 @@ impl DesktopState {
             self.message = Some(format!("Titan upload is unavailable: {error}"));
             return;
         }
-        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.metadata_dirty() {
             self.message = Some("Save source and metadata before preparing Titan upload.".into());
             return;
         }
-        let Some(path) = self.document().session().source_path() else {
+        let Some(path) = self
+            .document()
+            .session()
+            .source_path()
+            .map(Path::to_path_buf)
+        else {
             self.message = Some("Save the source file before preparing Titan upload.".into());
             return;
         };
+        let submission = &mut self.entry_mut().site.submission;
         match PreparedSubmission::from_saved_file(
-            path,
-            self.scroll.submission_target.text(),
-            self.scroll.submission_mime.text(),
+            &path,
+            submission.target.text(),
+            submission.mime.text(),
         ) {
             Ok(p) if p.target().starts_with("titan://") => {
-                self.scroll.prepared = Some(p);
-                self.scroll.submission_result = None;
-                self.scroll.submission_response = None
+                submission.prepared = Some(p);
+                submission.result = None;
+                submission.response = None
             },
             Ok(_) => self.message = Some("Titan preparation requires a titan:// target.".into()),
             Err(e) => self.message = Some(format!("Prepare failed: {e}")),
         }
     }
+
     fn prepare_spartan(&mut self) {
-        if self.scroll.submission_busy() {
+        if self.entry().site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
-        self.scroll.submission_token = TextInput::default();
+        let submission = &mut self.entry_mut().site.submission;
+        submission.token = TextInput::default();
         match PreparedSubmission::from_body(
-            self.scroll.submission_target.text(),
-            self.scroll.submission_mime.text(),
-            self.scroll.submission_body.text().as_bytes().to_vec(),
+            submission.target.text(),
+            submission.mime.text(),
+            submission.body.text().as_bytes().to_vec(),
         ) {
             Ok(p) if p.target().starts_with("spartan://") => {
-                self.scroll.prepared = Some(p);
-                self.scroll.submission_result = None;
-                self.scroll.submission_response = None
+                submission.prepared = Some(p);
+                submission.result = None;
+                submission.response = None
             },
             Ok(_) => {
                 self.message = Some("Spartan preparation requires a spartan:// target.".into())
@@ -782,8 +878,9 @@ impl DesktopState {
             Err(e) => self.message = Some(format!("Prepare failed: {e}")),
         }
     }
+
     fn send_submission(&mut self) {
-        if self.scroll.submission_busy() {
+        if self.entry().site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
@@ -791,16 +888,17 @@ impl DesktopState {
             self.message = Some("Submission worker is unavailable.".into());
             return;
         };
-        let (prepared, token) = match self.scroll.take_submission_for_send() {
+        let submission = &mut self.entry_mut().site.submission;
+        let (prepared, token) = match submission.take_for_send() {
             Ok(send) => send,
             Err(error) => {
                 self.message = Some(error);
                 return;
             },
         };
-        self.scroll.submission_result = Some("Sending reviewed bytes…".into());
+        submission.result = Some("Sending reviewed bytes…".into());
         let (tx, rx) = mpsc::channel();
-        self.scroll.submission_receiver = Some(rx);
+        submission.receiver = Some(rx);
         std::thread::spawn(move || {
             let result = tokio::runtime::Builder::new_current_thread()
                 .enable_all()
@@ -811,8 +909,109 @@ impl DesktopState {
             wake.wake();
         });
     }
+
+    /// A Spartan prompt link picked in the preview: fill the focused document's
+    /// composer with its target and show the composer.
+    fn select_spartan_prompt(&mut self, target: String) {
+        self.scroll.submission_visible = true;
+        self.entry_mut()
+            .site
+            .submission
+            .select_spartan_prompt(target);
+    }
+
+    /// The focused document's site page, if it is one.
+    pub(crate) fn site_page(&self) -> Option<&SitePage> {
+        self.entry().site.page.as_ref()
+    }
+
+    /// The open site the focused document is a page of.
+    pub(crate) fn page_site(&self) -> Option<&SiteEntry> {
+        self.site_page()
+            .and_then(|page| self.scroll.site(page.site))
+    }
+
+    /// Whether the focused page has metadata edits not yet saved.
+    pub(crate) fn metadata_dirty(&self) -> bool {
+        self.site_page().is_some_and(SitePage::dirty)
+    }
+
+    pub(crate) fn save_metadata(&mut self) -> Result<(), String> {
+        let no_page = if self.scroll.current.is_none() {
+            "Open a site first"
+        } else {
+            "Open a page in this site first"
+        };
+        let Some(key) = self.focused_key() else {
+            return Err(no_page.into());
+        };
+        let Some(page) = self
+            .docs
+            .doc_mut(key)
+            .and_then(|entry| entry.site.page.as_mut())
+        else {
+            return Err(no_page.into());
+        };
+        let entry = self
+            .scroll
+            .sites
+            .get_mut(&page.site)
+            .ok_or("Open a site first")?;
+        let values: [String; 6] = std::array::from_fn(|i| page.fields[i].text().to_owned());
+        let updated = Page {
+            path: page.name.clone(),
+            author: values[0].clone(),
+            language: values[1].clone(),
+            classification: values[2]
+                .parse()
+                .map_err(|_| "Classification must be 0–9")?,
+            published: values[3].clone(),
+            modified: values[4].clone(),
+            abstract_source: values[5].clone(),
+        };
+        let site = &mut entry.site;
+        let index = site
+            .config
+            .pages
+            .iter()
+            .position(|each| each.path == page.name)
+            .ok_or("Page missing")?;
+        let previous = std::mem::replace(&mut site.config.pages[index], updated);
+        if let Err(error) = site.save_config_with(|path, before, after| {
+            knot_document::write_if_distinct(path, before, after).map(|_| ())
+        }) {
+            site.config.pages[index] = previous;
+            return Err(error);
+        }
+        page.baseline = values;
+        Ok(())
+    }
+
+    fn discard_metadata(&mut self) {
+        if let Some(page) = self.entry_mut().site.page.as_mut() {
+            page.discard();
+        }
+    }
+
+    /// Bind every open document to the site page its file is, keeping the
+    /// metadata draft of any binding that has not changed.
+    pub(crate) fn bind_site_pages(&mut self) {
+        let scroll = &self.scroll;
+        for (_, entry) in self.docs.docs_mut() {
+            bind_site_page(scroll, entry);
+        }
+    }
+
+    /// Bind one document, as after it opens or is saved under a new name.
+    pub(crate) fn bind_site_page_for(&mut self, key: DocKey) {
+        let scroll = &self.scroll;
+        if let Some(entry) = self.docs.doc_mut(key) {
+            bind_site_page(scroll, entry);
+        }
+    }
+
     fn enter_site(&mut self, create: bool) {
-        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.metadata_dirty() {
             self.message =
                 Some("Save or discard document and metadata changes before changing sites.".into());
             return;
@@ -828,40 +1027,49 @@ impl DesktopState {
             Ok((site, path))
         }) {
             Ok((site, path)) => {
-                self.scroll.close_micron_form();
-                self.scroll.server = None;
-                self.scroll.page = None;
-                self.scroll.site = Some(site);
-                self.scroll.format = self.scroll.site.as_ref().unwrap().config.format;
+                self.scroll.format = site.config.format;
+                self.hold_site(site);
                 let _ = self.open_path(path);
             },
             Err(error) => self.message = Some(format!("Site: {error}")),
         }
     }
 
+    /// Hold `site` as the panel's one site, dropping the one it replaces, and
+    /// bind the open documents that are its pages.
+    pub(crate) fn hold_site(&mut self, site: Site) -> SiteKey {
+        let key = self.scroll.replace(site);
+        self.bind_site_pages();
+        key
+    }
+
     fn close_site(&mut self) {
-        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.metadata_dirty() {
             self.message = Some(
                 "Save or discard document and metadata changes before closing this site.".into(),
             );
             return;
         }
-        self.scroll.server = None;
-        self.scroll.close_micron_form();
-        self.scroll.site = None;
-        self.scroll.page = None;
-        self.scroll.fields = std::array::from_fn(|_| TextInput::default());
-        self.scroll.baseline = Default::default();
+        self.scroll.close_current();
+        self.bind_site_pages();
         self.message = Some("Site closed. The current source remains open.".into());
     }
 
+    /// Open the page `name` of the panel's site.
     pub(crate) fn scroll_open_page(&mut self, name: &str) {
+        match self.scroll.current {
+            Some(site) => self.open_site_page(site, name),
+            None => self.message = Some("Open a site first".to_owned()),
+        }
+    }
+
+    /// Open the page `name` of `site`, or activate the tab already showing it.
+    pub(crate) fn open_site_page(&mut self, site: SiteKey, name: &str) {
         let path = self
             .scroll
-            .site
-            .as_ref()
+            .site(site)
             .ok_or("Open a site first".to_owned())
-            .and_then(|site| site.page_path(name));
+            .and_then(|entry| entry.site.page_path(name));
         match path {
             Ok(path) => {
                 self.open_path(path);
@@ -871,33 +1079,52 @@ impl DesktopState {
     }
 
     pub(crate) fn publish_site(&mut self) {
-        if self.document().snapshot().dirty || self.scroll.metadata_dirty() {
+        if self.document().snapshot().dirty || self.metadata_dirty() {
             self.message = Some("Save source and metadata before publishing locally.".into());
             return;
         }
         let result = (|| {
-            let site = self.scroll.site.as_ref().ok_or("Open a site first")?;
-            let publication = site.publication()?;
+            let entry = self.scroll.current_site_mut().ok_or("Open a site first")?;
+            let publication = entry.site.publication()?;
             let count = publication.page_count();
-            if let Some(server) = &self.scroll.server {
+            if let Some(server) = &entry.server {
                 server.replace(publication)?;
             } else {
-                let port = self
-                    .scroll
+                let port = entry
                     .port
                     .text()
                     .parse::<u16>()
                     .map_err(|_| "Port must be 0–65535 (0 chooses a free port)")?;
-                self.scroll.server = Some(LocalServer::start(publication, port)?);
+                entry.server = Some(LocalServer::start(publication, port)?);
             }
-            self.scroll.publication_number += 1;
+            entry.publication_number += 1;
             Ok::<_, String>(format!(
                 "Published {count} saved pages locally, revision {}. {}",
-                self.scroll.publication_number,
-                self.scroll.server.as_ref().unwrap().url()
+                entry.publication_number,
+                entry.server.as_ref().unwrap().url()
             ))
         })();
         self.message = Some(result.unwrap_or_else(|e| format!("Publication failed: {e}")));
+    }
+}
+
+/// Bind `entry` to the open site page its file is, keeping its metadata draft
+/// when the binding has not changed. A session's source path is canonical,
+/// since knot-document opens and saves through the canonical path, as
+/// `Site::page_path` is.
+fn bind_site_page(scroll: &ScrollWorkspace, entry: &mut DocumentEntry) {
+    let found = entry
+        .document
+        .session()
+        .source_path()
+        .and_then(|path| scroll.page_at(path));
+    let unchanged = match (&entry.site.page, &found) {
+        (Some(page), Some((site, found))) => page.site == *site && page.name == found.path,
+        (None, None) => true,
+        _ => false,
+    };
+    if !unchanged {
+        entry.site.page = found.map(|(site, page)| SitePage::new(site, page));
     }
 }
 
@@ -950,12 +1177,33 @@ fn password_field(
     on_key(el("input", shown).attr("type", "password"), edit_password)
 }
 
+/// The focused page's metadata fields. They render only while the focused
+/// document is a site page, so a lens or text route over one always finds it.
+pub(crate) fn page_fields(state: &mut DesktopState) -> &mut [TextInput; 6] {
+    &mut state
+        .entry_mut()
+        .site
+        .page
+        .as_mut()
+        .expect("metadata fields render only for a site page")
+        .fields
+}
+
+/// One of the focused page's metadata fields, to read.
+pub(crate) fn page_field(state: &DesktopState, index: usize) -> &TextInput {
+    &state
+        .site_page()
+        .expect("metadata fields render only for a site page")
+        .fields[index]
+}
+
 pub fn site_panel(state: &DesktopState) -> DesktopView {
     if !state.scroll.visible {
         return Box::new(el("div", ()));
     }
-    let pages: DesktopView = if let Some(site) = &state.scroll.site {
-        let rows = site
+    let pages: DesktopView = if let Some(entry) = state.scroll.current_site() {
+        let rows = entry
+            .site
             .config
             .pages
             .iter()
@@ -976,10 +1224,13 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
             "Enter a new folder path to create a three-page site, or an existing folder to open it.",
         ))
     };
-    let metadata: DesktopView = if state.scroll.metadata_visible && state.scroll.page.is_some() {
-        let fields = state
-            .scroll
-            .metadata_indices()
+    let metadata: DesktopView = if state.scroll.metadata_visible && state.site_page().is_some() {
+        let page_format = state
+            .page_site()
+            .or(state.scroll.current_site())
+            .map(|entry| entry.site.config.format)
+            .unwrap_or(state.scroll.format);
+        let fields = metadata_indices(page_format)
             .iter()
             .map(|&i| {
                 let label = LABELS[i];
@@ -997,7 +1248,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                                         text_field_typed(input)
                                     }
                                 },
-                                move |state: &mut DesktopState| &mut state.scroll.fields[i],
+                                move |state: &mut DesktopState| &mut page_fields(state)[i],
                             ),
                         ),
                     )
@@ -1005,13 +1256,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                 )
             })
             .collect::<Vec<_>>();
-        let explanation = match state
-            .scroll
-            .site
-            .as_ref()
-            .map(|site| site.config.format)
-            .unwrap_or(state.scroll.format)
-        {
+        let explanation = match page_format {
             SiteFormat::Scroll => {
                 "Publication metadata for the selected page. The abstract is separate native Scrolltext and needs a # Title."
             },
@@ -1030,16 +1275,15 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                 button("Save metadata", |state: &mut DesktopState, _| {
                     state.message = Some(
                         state
-                            .scroll
                             .save_metadata()
                             .map(|_| "Metadata saved. Existing publication is unchanged.".into())
                             .unwrap_or_else(|e| e),
                     );
                 }),
                 button("Discard metadata edits", |state: &mut DesktopState, _| {
-                    state.scroll.fields = state.scroll.baseline.clone().map(TextInput::new);
+                    state.discard_metadata();
                 }),
-                span(if state.scroll.metadata_dirty() {
+                span(if state.metadata_dirty() {
                     "Unsaved metadata"
                 } else {
                     "Metadata saved"
@@ -1050,8 +1294,9 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         Box::new(el("div", ()))
     };
     let format = state.scroll.format;
-    let submission_busy = state.scroll.submission_busy();
-    let review: DesktopView = if let Some(p) = state.scroll.prepared.as_ref() {
+    let submission = &state.entry().site.submission;
+    let submission_busy = state.entry().site.busy();
+    let review: DesktopView = if let Some(p) = submission.prepared.as_ref() {
         let is_titan = p.target().starts_with("titan://");
         let send_action: DesktopView = if submission_busy {
             Box::new(span("Sending reviewed bytes…"))
@@ -1074,7 +1319,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                     el("pre", String::from_utf8_lossy(p.body()).into_owned()),
                     if is_titan {
                         password_input("Titan token", "knot-submission-token", |s| {
-                            &mut s.scroll.submission_token
+                            &mut s.entry_mut().site.submission.token
                         })
                     } else {
                         Box::new(span(
@@ -1083,7 +1328,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                     },
                     send_action,
                     button("Cancel reviewed submission", |s: &mut DesktopState, _| {
-                        s.scroll.discard_submission()
+                        s.entry_mut().site.submission.discard()
                     }),
                 ),
             )
@@ -1107,7 +1352,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         (
             candidate as usize,
             button(candidate.label(), move |s: &mut DesktopState, _| {
-                if s.scroll.site.is_none() {
+                if s.scroll.current_key().is_none() {
                     s.scroll.format = candidate;
                     if let Some(port) = candidate.default_port() {
                         s.scroll.port = TextInput::new(port.to_string());
@@ -1121,7 +1366,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         )
     })
     .collect::<Vec<_>>();
-    let titan_prepare: DesktopView = if state.scroll.submission_busy() {
+    let titan_prepare: DesktopView = if submission_busy {
         Box::new(span("Sending reviewed bytes…"))
     } else if let Some(error) = &state.scroll.titan_submission_error {
         Box::new(span(format!("Titan upload disabled: {error}")))
@@ -1131,7 +1376,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
             |s: &mut DesktopState, _| s.prepare_titan(),
         ))
     };
-    let spartan_prepare: DesktopView = if state.scroll.submission_busy() {
+    let spartan_prepare: DesktopView = if submission_busy {
         Box::new(span("Spartan preparation is unavailable while sending."))
     } else {
         Box::new(button("Prepare Spartan body", |s: &mut DesktopState, _| {
@@ -1144,10 +1389,10 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                 "section",
                 (
                     input("Submission target", "knot-submission-target", |s| {
-                        &mut s.scroll.submission_target
+                        &mut s.entry_mut().site.submission.target
                     }),
                     input("MIME", "knot-submission-mime", |s| {
-                        &mut s.scroll.submission_mime
+                        &mut s.entry_mut().site.submission.mime
                     }),
                     titan_prepare,
                     el(
@@ -1156,7 +1401,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
                             "Spartan body",
                             lens(
                                 |input: &mut TextInput| textarea_typed(input),
-                                |s: &mut DesktopState| &mut s.scroll.submission_body,
+                                |s: &mut DesktopState| &mut s.entry_mut().site.submission.body,
                             ),
                         ),
                     )
@@ -1192,22 +1437,21 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         metadata,
         submission_composer,
         review,
-        span(state.scroll.submission_result.clone().unwrap_or_default())
+        span(submission.result.clone().unwrap_or_default())
             .attr("class", "knot-submission-status"),
-        state
-            .scroll
-            .submission_response
+        submission
+            .response
             .as_ref()
             .map(|body| Box::new(el("pre", body.clone()).attr("class", "knot-submission-response")) as DesktopView)
             .unwrap_or_else(|| Box::new(el("div", ()))),
         el("div", (
-            input("Local port", "knot-scroll-port", |s| &mut s.scroll.port),
+            input("Local port", "knot-scroll-port", |s| s.scroll.port_field_mut()),
             button("Publish locally", |s: &mut DesktopState,_| s.publish_site()),
             button("Stop serving", |s: &mut DesktopState,_| {
-                s.scroll.server = None;
+                s.scroll.stop_serving();
                 s.message = Some("Local serving stopped.".into());
             }),
-            span(state.scroll.server.as_ref().map(|server| format!("{} · revision {} · saved snapshot", server.url(), state.scroll.publication_number))
+            span(state.scroll.current_site().and_then(|entry| entry.server.as_ref().map(|server| format!("{} · revision {} · saved snapshot", server.url(), entry.publication_number)))
                 .unwrap_or_else(|| "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into())),
         )).attr("class", "knot-scroll-controls"),
     )).attr("class", "knot-scroll-site"))
@@ -1228,8 +1472,8 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                 Box::new(button_with(inline(spans), move |state: &mut DesktopState, click| {
                     // A link inside a collapsible heading wins over its fold toggle.
                     click.stop_propagation();
-                    if let Some(local_name) = preview_manifest_page(state, &destination) {
-                        state.scroll_open_page(local_name);
+                    if let Some((site, local_name)) = preview_manifest_page(state, &destination) {
+                        state.open_site_page(site, local_name);
                     } else {
                         state.message = Some(format!("Preview link: {destination}. Open with an independent client; this preview only navigates local site pages."));
                     }
@@ -1239,7 +1483,7 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                 let label = inker::inline_text(spans);
                 let target = target.clone();
                 Box::new(button(label, move |state: &mut DesktopState, _| {
-                    state.scroll.select_spartan_prompt(target.clone());
+                    state.select_spartan_prompt(target.clone());
                     state.message = Some("Enter a Spartan body, review it, then send explicitly.".into());
                 }).attr("class", "knot-spartan-submit"))
             },
@@ -1283,25 +1527,22 @@ fn preview_page_name<'a>(
     valid_preview_page_name(candidate).then_some(candidate)
 }
 
-fn preview_manifest_page<'a>(state: &DesktopState, destination: &'a str) -> Option<&'a str> {
-    // A site can remain selected while the editor displays an unrelated local
+fn preview_manifest_page<'a>(
+    state: &DesktopState,
+    destination: &'a str,
+) -> Option<(SiteKey, &'a str)> {
+    // A site can remain open while the editor displays an unrelated local
     // file. The manifest is an authority only while the current document is
-    // one of that site's pages.
-    state.scroll.page.as_ref()?;
-    let active_destination = state
-        .scroll
+    // one of that site's pages, and only for its own site.
+    let site = state.site_page()?.site;
+    let entry = state.scroll.site(site)?;
+    let active_destination = entry
         .server
         .as_ref()
         .and_then(|server| server.nomadnet_destination())
         .map(|destination| destination.to_string());
     let name = preview_page_name(destination, active_destination.as_deref())?;
-    state
-        .scroll
-        .site
-        .as_ref()?
-        .page_path(name)
-        .ok()
-        .map(|_| name)
+    entry.site.page_path(name).ok().map(|_| (site, name))
 }
 
 fn blocks(items: &[Block]) -> DesktopView {
@@ -1560,7 +1801,7 @@ fn table_block(
 }
 
 fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> DesktopView {
-    let Some(editor) = state.scroll.micron_form.as_ref() else {
+    let Some(editor) = state.entry().site.micron.form.as_ref() else {
         return Box::new(
             el(
                 "section",
@@ -1573,14 +1814,14 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
         );
     };
 
-    if state.scroll.micron_submission_receiver.is_some() {
+    if state.entry().site.micron.receiver.is_some() {
         return Box::new(
             el(
                 "section",
                 (
                     span("Sending reviewed Micron request…"),
                     button("Cancel Micron request", |state: &mut DesktopState, _| {
-                        state.scroll.cancel_micron_submission()
+                        state.entry_mut().site.micron.cancel()
                     }),
                 ),
             )
@@ -1595,7 +1836,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                 (
                     span("The source or page address changed. Reopen the form so the request matches the visible page."),
                     button("Discard stale form", |state: &mut DesktopState, _| {
-                        state.scroll.close_micron_form()
+                        state.entry_mut().site.micron.close_form()
                     }),
                 ),
             )
@@ -1621,8 +1862,10 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                             |input: &mut TextInput| password_field(input),
                             move |state: &mut DesktopState| {
                                 &mut state
-                                    .scroll
-                                    .micron_form
+                                    .entry_mut()
+                                    .site
+                                    .micron
+                                    .form
                                     .as_mut()
                                     .expect("Micron form is present while it is rendered")
                                     .inputs[index]
@@ -1633,8 +1876,10 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                             |input: &mut TextInput| text_field_typed(input),
                             move |state: &mut DesktopState| {
                                 &mut state
-                                    .scroll
-                                    .micron_form
+                                    .entry_mut()
+                                    .site
+                                    .micron
+                                    .form
                                     .as_mut()
                                     .expect("Micron form is present while it is rendered")
                                     .inputs[index]
@@ -1650,7 +1895,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                     Box::new(button(
                         format!("[{}] {name}: {value}", if checked { "x" } else { " " }),
                         move |state: &mut DesktopState, _| {
-                            let result = state.scroll.micron_set_checked(index, !checked);
+                            let result = state.entry_mut().site.micron.set_checked(index, !checked);
                             if let Err(error) = result {
                                 state.message = Some(format!("Micron form: {error}"));
                             }
@@ -1664,7 +1909,9 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                     Box::new(button(
                         format!("[{}] {name}: {value}", if checked { "x" } else { " " }),
                         move |state: &mut DesktopState, _| {
-                            if let Err(error) = state.scroll.micron_set_checked(index, true) {
+                            if let Err(error) =
+                                state.entry_mut().site.micron.set_checked(index, true)
+                            {
                                 state.message = Some(format!("Micron form: {error}"));
                             }
                         },
@@ -1725,7 +1972,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                         state.send_micron_form()
                     }),
                     button("Discard prepared request", |state: &mut DesktopState, _| {
-                        if let Some(editor) = state.scroll.micron_form.as_mut() {
+                        if let Some(editor) = state.entry_mut().site.micron.form.as_mut() {
                             editor.prepared = None;
                         }
                     }),
@@ -1742,14 +1989,18 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
             }
         });
     let result: DesktopView = state
-        .scroll
-        .submission_result
+        .entry()
+        .site
+        .micron
+        .result
         .as_ref()
         .map(|message| Box::new(span(message.clone())) as DesktopView)
         .unwrap_or_else(|| Box::new(el("div", ())));
     let response: DesktopView = state
-        .scroll
-        .submission_response
+        .entry()
+        .site
+        .micron
+        .response
         .as_ref()
         .map(|body| Box::new(el("pre", body.clone())) as DesktopView)
         .unwrap_or_else(|| Box::new(el("div", ())));
@@ -1764,7 +2015,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                 result,
                 response,
                 button("Close Micron form", |state: &mut DesktopState, _| {
-                    state.scroll.close_micron_form()
+                    state.entry_mut().site.micron.close_form()
                 }),
             ),
         )
@@ -1793,10 +2044,8 @@ pub fn preview(state: &DesktopState) -> DesktopView {
             let input = EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/gemini");
             if state
-                .scroll
-                .site
-                .as_ref()
-                .is_some_and(|site| site.config.format == SiteFormat::Spartan)
+                .page_site()
+                .is_some_and(|entry| entry.site.config.format == SiteFormat::Spartan)
             {
                 nematic::SpartanEngine::new().render(&input)
             } else {
@@ -1897,6 +2146,11 @@ mod tests {
     use layout_dom_api::{LayoutDom, LocalName, Namespace};
     use taproot::Selector;
 
+    /// The focused document's page name, if it is a site page.
+    fn page_name(state: &DesktopState) -> Option<&str> {
+        state.site_page().map(|page| page.name.as_str())
+    }
+
     #[test]
     fn site_navigation_metadata_and_explicit_publication_keep_separate_authority() {
         let temp = tempfile::tempdir().unwrap();
@@ -1911,22 +2165,22 @@ mod tests {
             state.document().snapshot().format,
             knot_document::DocumentFormat::Scroll
         );
-        assert_eq!(state.scroll.page.as_deref(), Some("index.scroll"));
-        state.scroll.fields[0] = TextInput::new("Writer");
+        assert_eq!(page_name(&state), Some("index.scroll"));
+        page_fields(&mut state)[0] = TextInput::new("Writer");
         state.scroll_open_page("about.scroll");
-        assert_eq!(state.scroll.page.as_deref(), Some("index.scroll"));
+        assert_eq!(page_name(&state), Some("index.scroll"));
         state.publish_site();
-        assert!(state.scroll.server.is_none());
-        state.scroll.save_metadata().unwrap();
+        assert!(state.scroll.current_site().unwrap().server.is_none());
+        state.save_metadata().unwrap();
         state.scroll_open_page("about.scroll");
-        assert_eq!(state.scroll.page.as_deref(), Some("about.scroll"));
-        assert_eq!(state.scroll.fields[0].text(), "");
+        assert_eq!(page_name(&state), Some("about.scroll"));
+        assert_eq!(state.site_page().unwrap().fields[0].text(), "");
         state.scroll_open_page("index.scroll");
-        assert_eq!(state.scroll.fields[0].text(), "Writer");
-        state.scroll.port = TextInput::new("0");
+        assert_eq!(state.site_page().unwrap().fields[0].text(), "Writer");
+        *state.scroll.port_field_mut() = TextInput::new("0");
         state.publish_site();
-        assert!(state.scroll.server.is_some());
-        assert_eq!(state.scroll.publication_number, 1);
+        assert!(state.scroll.current_site().unwrap().server.is_some());
+        assert_eq!(state.scroll.current_site().unwrap().publication_number(), 1);
         state
             .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
@@ -1934,14 +2188,14 @@ mod tests {
             )))
             .unwrap();
         state.publish_site();
-        assert_eq!(state.scroll.publication_number, 1);
+        assert_eq!(state.scroll.current_site().unwrap().publication_number(), 1);
         state
             .document_mut()
             .apply(KnotDocumentIntentV1::Save)
             .unwrap();
-        assert_eq!(state.scroll.publication_number, 1);
+        assert_eq!(state.scroll.current_site().unwrap().publication_number(), 1);
         state.publish_site();
-        assert_eq!(state.scroll.publication_number, 2);
+        assert_eq!(state.scroll.current_site().unwrap().publication_number(), 2);
     }
     #[test]
     fn native_preview_panes_keep_the_theme_background_while_scrolling() {
@@ -1962,9 +2216,9 @@ mod tests {
             state.document().snapshot().format,
             knot_document::DocumentFormat::Gemtext
         );
-        assert_eq!(state.scroll.page.as_deref(), Some("index.gmi"));
+        assert_eq!(page_name(&state), Some("index.gmi"));
         assert_eq!(
-            state.scroll.site.as_ref().unwrap().config.format,
+            state.scroll.current_site().unwrap().site.config.format,
             SiteFormat::Gemini
         );
 
@@ -1979,9 +2233,9 @@ mod tests {
             state.document().snapshot().format,
             knot_document::DocumentFormat::Micron
         );
-        assert_eq!(state.scroll.page.as_deref(), Some("index.mu"));
+        assert_eq!(page_name(&state), Some("index.mu"));
         assert_eq!(
-            state.scroll.site.as_ref().unwrap().config.format,
+            state.scroll.current_site().unwrap().site.config.format,
             SiteFormat::Micron
         );
     }
@@ -2021,33 +2275,17 @@ mod tests {
     #[test]
     fn micron_form_review_is_ephemeral_and_uses_the_declared_action_map() {
         let source = "`[Submit selected`0123456789abcdef0123456789abcdef:/capture`name|checks|fixed=ready]\nText: `<name`seed>\nChecks: `<?|checks|red|*`> Red\n`<?|checks|blue`> Blue\n";
-        let mut workspace = ScrollWorkspace::default();
-        workspace
-            .open_micron_form(source.into(), "scratch:micron-form".into())
+        let mut micron = MicronRequest::default();
+        micron
+            .open_form(source.into(), "scratch:micron-form".into())
             .unwrap();
-        workspace.micron_form.as_mut().unwrap().inputs[0] = TextInput::new("edited");
-        workspace.micron_set_checked(1, false).unwrap();
-        workspace.micron_set_checked(2, true).unwrap();
-        assert!(
-            workspace
-                .prepare_micron_form("changed", "scratch:micron-form", 0)
-                .is_err()
-        );
-        assert!(
-            workspace
-                .prepare_micron_form(source, "scratch:other-address", 0)
-                .is_err()
-        );
-        workspace
-            .prepare_micron_form(source, "scratch:micron-form", 0)
-            .unwrap();
-        let prepared = workspace
-            .micron_form
-            .as_ref()
-            .unwrap()
-            .prepared
-            .as_ref()
-            .unwrap();
+        micron.form.as_mut().unwrap().inputs[0] = TextInput::new("edited");
+        micron.set_checked(1, false).unwrap();
+        micron.set_checked(2, true).unwrap();
+        assert!(micron.prepare("changed", "scratch:micron-form", 0).is_err());
+        assert!(micron.prepare(source, "scratch:other-address", 0).is_err());
+        micron.prepare(source, "scratch:micron-form", 0).unwrap();
+        let prepared = micron.form.as_ref().unwrap().prepared.as_ref().unwrap();
         assert_eq!(prepared.target, "0123456789abcdef0123456789abcdef:/capture");
         assert_eq!(prepared.values.get("field_name"), Some(&"edited".into()));
         assert_eq!(prepared.values.get("field_checks"), Some(&"blue".into()));
@@ -2076,9 +2314,9 @@ mod tests {
     #[test]
     fn stale_micron_completion_does_not_replace_the_visible_page_result() {
         let (sender, receiver) = mpsc::channel();
-        let mut workspace = ScrollWorkspace::default();
-        workspace.micron_submission_receiver = Some(receiver);
-        workspace.active_micron_submission = Some((7, "old source".into(), "old:page".into()));
+        let mut micron = MicronRequest::default();
+        micron.receiver = Some(receiver);
+        micron.active = Some((7, "old source".into(), "old:page".into()));
         sender
             .send((
                 7,
@@ -2087,55 +2325,55 @@ mod tests {
                 }),
             ))
             .unwrap();
-        workspace.drain_submission("new source", "new:page");
-        assert!(workspace.submission_result.is_none());
-        assert!(workspace.submission_response.is_none());
-        assert!(workspace.active_micron_submission.is_none());
+        micron.drain("new source", "new:page");
+        assert!(micron.result.is_none());
+        assert!(micron.response.is_none());
+        assert!(micron.active.is_none());
     }
 
     #[test]
     fn cancelling_micron_request_keeps_its_local_unknown_outcome_status() {
         let (sender, receiver) = mpsc::channel();
         let (cancel, _cancelled) = tokio::sync::oneshot::channel();
-        let mut workspace = ScrollWorkspace::default();
-        workspace.micron_submission_receiver = Some(receiver);
-        workspace.active_micron_submission = Some((8, "source".into(), "address".into()));
-        workspace.micron_cancel = Some(cancel);
-        workspace.cancel_micron_submission();
+        let mut micron = MicronRequest::default();
+        micron.receiver = Some(receiver);
+        micron.active = Some((8, "source".into(), "address".into()));
+        micron.cancel = Some(cancel);
+        micron.cancel();
         drop(sender);
-        workspace.drain_submission("source", "address");
+        micron.drain("source", "address");
         assert_eq!(
-            workspace.submission_result.as_deref(),
+            micron.result.as_deref(),
             Some(
                 "Micron request cancelled locally. Its remote outcome may be unknown; do not retry automatically."
             )
         );
-        assert!(workspace.active_micron_submission.is_none());
+        assert!(micron.active.is_none());
     }
 
     #[test]
     fn closing_a_micron_form_drops_the_previous_reply_unless_a_send_is_in_flight() {
         let source = "`[Submit`0123456789abcdef0123456789abcdef:/capture`name]\n`<name`seed>\n";
-        let mut workspace = ScrollWorkspace::default();
-        workspace
-            .open_micron_form(source.into(), "scratch:reopen".into())
+        let mut micron = MicronRequest::default();
+        micron
+            .open_form(source.into(), "scratch:reopen".into())
             .unwrap();
-        workspace.submission_result = Some("Micron reply (8 bytes)".into());
-        workspace.submission_response = Some("accepted".into());
-        workspace.close_micron_form();
-        assert!(workspace.submission_result.is_none());
-        assert!(workspace.submission_response.is_none());
-        workspace
-            .open_micron_form(source.into(), "scratch:reopen".into())
+        micron.result = Some("Micron reply (8 bytes)".into());
+        micron.response = Some("accepted".into());
+        micron.close_form();
+        assert!(micron.result.is_none());
+        assert!(micron.response.is_none());
+        micron
+            .open_form(source.into(), "scratch:reopen".into())
             .unwrap();
-        assert!(workspace.submission_response.is_none());
+        assert!(micron.response.is_none());
 
         let (_sender, receiver) = mpsc::channel();
-        workspace.micron_submission_receiver = Some(receiver);
-        workspace.submission_result = Some("Sending reviewed Micron request…".into());
-        workspace.close_micron_form();
+        micron.receiver = Some(receiver);
+        micron.result = Some("Sending reviewed Micron request…".into());
+        micron.close_form();
         assert_eq!(
-            workspace.submission_result.as_deref(),
+            micron.result.as_deref(),
             Some("Sending reviewed Micron request…")
         );
     }
@@ -2153,11 +2391,13 @@ mod tests {
         state.scroll.preview_visible = true;
         let address = state.document().snapshot().source.address;
         state
-            .scroll
-            .open_micron_form(source.into(), address)
+            .entry_mut()
+            .site
+            .micron
+            .open_form(source.into(), address)
             .unwrap();
-        state.scroll.submission_result = Some("Micron reply (8 bytes)".into());
-        state.scroll.submission_response = Some("accepted".into());
+        state.entry_mut().site.micron.result = Some("Micron reply (8 bytes)".into());
+        state.entry_mut().site.micron.response = Some("accepted".into());
         assert!(!state.scroll.visible);
         let mut host = Harness::with_hooks(
             Init {
@@ -2198,23 +2438,23 @@ mod tests {
             host_hooks(),
         );
         host.layout_at(1100.0, 730.0);
-        assert_eq!(host.state().scroll.page.as_deref(), Some("about.scroll"));
+        assert_eq!(page_name(host.state()), Some("about.scroll"));
         assert!(host.click_on(&Selector::role("tab").containing("index.scroll")));
-        assert_eq!(host.state().scroll.page.as_deref(), Some("index.scroll"));
+        assert_eq!(page_name(host.state()), Some("index.scroll"));
         assert!(host.click_on(&Selector::role("tab").containing("scratch:site-tabs")));
-        assert_eq!(host.state().scroll.page, None);
+        assert_eq!(page_name(host.state()), None);
 
         // An unsaved metadata edit keeps the focus on its page: neither
         // another tab nor closing this one takes it away.
         assert!(host.click_on(&Selector::role("tab").containing("about.scroll")));
-        host.update(|state| state.scroll.fields[0] = TextInput::new("Writer"));
+        host.update(|state| page_fields(state)[0] = TextInput::new("Writer"));
         assert!(host.click_on(&Selector::role("tab").containing("index.scroll")));
-        assert_eq!(host.state().scroll.page.as_deref(), Some("about.scroll"));
+        assert_eq!(page_name(host.state()), Some("about.scroll"));
         assert_eq!(
             host.state().document().snapshot().display_label,
             "about.scroll"
         );
-        assert_eq!(host.state().scroll.fields[0].text(), "Writer");
+        assert_eq!(host.state().site_page().unwrap().fields[0].text(), "Writer");
         assert!(
             host.state()
                 .message
@@ -2225,7 +2465,159 @@ mod tests {
             host.click_on(&Selector::role("button").with_attr("aria-label", "Close about.scroll"))
         );
         assert_eq!(host.state().docs.len(), 3);
-        assert_eq!(host.state().scroll.fields[0].text(), "Writer");
+        assert_eq!(host.state().site_page().unwrap().fields[0].text(), "Writer");
+    }
+
+    /// Step 7a: each document keeps its own composer, so a target typed for
+    /// one never shows in another.
+    #[test]
+    fn a_composer_stays_with_its_document() {
+        let temp = tempfile::tempdir().unwrap();
+        let one = temp.path().join("one.gmi");
+        let two = temp.path().join("two.gmi");
+        std::fs::write(&one, "# One\n").unwrap();
+        std::fs::write(&two, "# Two\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&one).unwrap(),
+            WindowCommands::new(),
+        );
+        assert!(state.open_path(two));
+        assert!(state.open_path(one));
+        let mut host = submission_harness_with(state);
+        let target = |host: &DesktopHarness| {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let label = node_with_id(&dom, dom.document(), "knot-submission-target")
+                .expect("the target field");
+            text_content(&dom, label)
+        };
+        let field = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let label = node_with_id(&dom, dom.document(), "knot-submission-target")
+                .expect("the target field");
+            input_node(&dom, label).expect("the target input")
+        };
+        let (x, y, width, height) = host.painted_rect(field).expect("the target input paints");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.key_injected("spartan://one.test/");
+        assert!(target(&host).contains("spartan://one.test/"));
+        assert!(host.click_on(&Selector::role("tab").containing("two.gmi")));
+        assert!(
+            !target(&host).contains("spartan://one.test/"),
+            "one.gmi's target followed the focus to two.gmi"
+        );
+        assert!(host.click_on(&Selector::role("tab").containing("one.gmi")));
+        assert!(target(&host).contains("spartan://one.test/"));
+    }
+
+    /// Step 7a: a Micron reply belongs to the page it was sent from, and lands
+    /// there even after the focus has moved to another document.
+    #[test]
+    fn a_micron_reply_lands_on_its_page_after_the_focus_moves() {
+        let temp = tempfile::tempdir().unwrap();
+        let page = temp.path().join("form.mu");
+        let other = temp.path().join("other.mu");
+        std::fs::write(&page, "form page\n").unwrap();
+        std::fs::write(&other, "other page\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&page).unwrap(),
+            WindowCommands::new(),
+        );
+        let sent_from = state.document().snapshot();
+        let (sender, receiver) = mpsc::channel();
+        let micron = &mut state.entry_mut().site.micron;
+        micron.receiver = Some(receiver);
+        micron.active = Some((3, sent_from.text, sent_from.source.address));
+        assert!(state.open_path(other));
+        sender
+            .send((
+                3,
+                Ok(MicronResponse {
+                    body: b"accepted".to_vec(),
+                }),
+            ))
+            .unwrap();
+        assert!(state.submissions_busy());
+        state.drain_submissions();
+        assert!(!state.submissions_busy());
+        assert!(
+            state.entry().site.micron.result.is_none(),
+            "the reply showed on the focused document"
+        );
+        assert!(state.open_path(page));
+        assert_eq!(
+            state.entry().site.micron.result.as_deref(),
+            Some("Micron reply (8 bytes)")
+        );
+        assert_eq!(
+            state.entry().site.micron.response.as_deref(),
+            Some("accepted")
+        );
+    }
+
+    /// Step 7a: a site page is known by its file, whatever spelling of the
+    /// path opened it. The session opens the canonical path, which the page
+    /// binding relies on; this held before per-document state too.
+    #[test]
+    fn a_page_opened_through_another_spelling_of_its_path_is_its_site_page() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("site");
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:spelling", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(root.to_string_lossy());
+        state.enter_site(true);
+        assert!(state.open_path(root.join(".").join("about.scroll")));
+        let host = submission_harness_with(state);
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        assert_eq!(
+            attr_nodes(&dom, dom.document(), "data-status-key", "serving").len(),
+            1,
+            "about.scroll was not taken for its site's page"
+        );
+    }
+
+    /// Step 7a: a Spartan site presents its own pages as Spartan; a Gemtext
+    /// file outside it keeps Gemtext's presentation while the site is open.
+    #[test]
+    fn a_gemtext_file_outside_a_spartan_site_keeps_its_presentation() {
+        const PROMPT: &str = "=: spartan://localhost:65025/upload Submit locally\n";
+        let temp = tempfile::tempdir().unwrap();
+        let loose = temp.path().join("loose.gmi");
+        std::fs::write(&loose, PROMPT).unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:loose", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.format = SiteFormat::Spartan;
+        state.scroll.folder = TextInput::new(temp.path().join("spartan-site").to_string_lossy());
+        state.enter_site(true);
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+            .unwrap();
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                PROMPT.into(),
+            )))
+            .unwrap();
+        assert!(state.open_path(loose));
+        state.scroll.preview_visible = true;
+        let mut host = submission_harness_with(state);
+        let prompt = Selector::role("button").containing("Submit locally");
+        assert!(
+            host.resolve(&prompt).is_none(),
+            "a loose Gemtext file took the Spartan site's presentation"
+        );
+        assert!(host.click_on(&Selector::role("tab").containing("index.gmi")));
+        assert!(
+            host.resolve(&prompt).is_some(),
+            "the site's own page lost its Spartan presentation"
+        );
     }
 
     /// Step 5d: a site page shows the serving chip. Its popover says why
@@ -2240,8 +2632,8 @@ mod tests {
         );
         state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
         state.enter_site(true);
-        state.scroll.save_metadata().unwrap();
-        state.scroll.port = TextInput::new("0");
+        state.save_metadata().unwrap();
+        *state.scroll.port_field_mut() = TextInput::new("0");
         // Hide the site panel, so only the chip's popover offers Publish and Stop.
         state.scroll.visible = false;
         let mut host = Harness::with_hooks(
@@ -2290,8 +2682,8 @@ mod tests {
         let url = host
             .state()
             .scroll
-            .server
-            .as_ref()
+            .current_site()
+            .and_then(|entry| entry.server.as_ref())
             .expect("serving")
             .url()
             .to_string();
@@ -2303,7 +2695,7 @@ mod tests {
         );
 
         assert!(host.click_on(&Selector::role("button").containing("Stop serving")));
-        assert!(host.state().scroll.server.is_none());
+        assert!(host.state().scroll.current_site().unwrap().server.is_none());
         assert_eq!(
             host.state().message.as_deref(),
             Some("Local serving stopped.")
@@ -2357,9 +2749,10 @@ mod tests {
         assert_eq!(state.docs.len(), 3);
         assert_eq!(state.focused_key(), front);
         assert_eq!(state.path.text(), first.to_string_lossy().as_ref());
-        assert!(state.scroll.site.is_some());
+        assert!(state.scroll.current_site().is_some());
         assert_eq!(
-            state.scroll.page, None,
+            page_name(&state),
+            None,
             "the panel follows the file in front"
         );
         assert_eq!(
@@ -2376,20 +2769,14 @@ mod tests {
             KnotDocumentSession::scratch("scratch:micron-links", ""),
             WindowCommands::new(),
         );
-        state.scroll.site = Some(site);
+        let index = site.page_path("index.mu").unwrap();
+        let key = state.hold_site(site);
 
         assert_eq!(preview_manifest_page(&state, ":/page/about.mu"), None);
-        let index = state
-            .scroll
-            .site
-            .as_ref()
-            .unwrap()
-            .page_path("index.mu")
-            .unwrap();
-        state.scroll.sync_page(Some(&index));
+        assert!(state.open_path(index));
         assert_eq!(
             preview_manifest_page(&state, ":/page/about.mu"),
-            Some("about.mu")
+            Some((key, "about.mu"))
         );
         assert_eq!(preview_manifest_page(&state, ":/page/missing.mu"), None);
         assert_eq!(preview_manifest_page(&state, ":/page/../index.mu"), None);
@@ -2428,7 +2815,7 @@ mod tests {
             KnotDocumentSession::scratch("scratch:styled", ""),
             WindowCommands::new(),
         );
-        state.scroll.site = Some(site);
+        state.hold_site(site);
         state.scroll_open_page("index.mu");
         state.scroll.preview_visible = true;
         let host = submission_harness_with(state);
@@ -2617,8 +3004,7 @@ mod tests {
             KnotDocumentSession::open(&path).unwrap(),
             WindowCommands::new(),
         );
-        state.scroll.site = Some(site);
-        state.scroll.sync_page(Some(&path));
+        state.hold_site(site);
         state.scroll.preview_visible = true;
         let mut host = Harness::with_hooks(
             Init {
@@ -2638,11 +3024,15 @@ mod tests {
     fn authored(host: &DesktopHarness) -> Authored {
         let state = host.state();
         let snapshot = state.document().snapshot();
-        let site = state.scroll.site.as_ref().expect("a site-backed harness");
+        let site = &state
+            .scroll
+            .current_site()
+            .expect("a site-backed harness")
+            .site;
         Authored {
             saved_page: std::fs::read(site.page_path("about.mu").unwrap()).unwrap(),
             manifest: std::fs::read(site.root().join(knot_site::CONFIG)).unwrap(),
-            manifest_page: state.scroll.page.clone(),
+            manifest_page: state.site_page().map(|page| page.name.clone()),
             text: snapshot.text,
             dirty: snapshot.dirty,
             address: snapshot.source.address,
@@ -3200,26 +3590,30 @@ mod tests {
 
     #[test]
     fn selecting_a_spartan_prompt_only_fills_the_local_composer() {
-        let mut workspace = ScrollWorkspace::default();
-        assert!(!workspace.submission_visible);
-        workspace.submission_token = TextInput::new("stale-token");
-        workspace.select_spartan_prompt("spartan://example.test:3000/submit".into());
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:prompt", ""),
+            WindowCommands::new(),
+        );
+        assert!(!state.scroll.submission_visible);
+        state.entry_mut().site.submission.token = TextInput::new("stale-token");
+        state.select_spartan_prompt("spartan://example.test:3000/submit".into());
 
-        assert!(workspace.submission_visible);
+        assert!(state.scroll.submission_visible);
+        let submission = &state.entry().site.submission;
         assert_eq!(
-            workspace.submission_target.text(),
+            submission.target.text(),
             "spartan://example.test:3000/submit"
         );
-        assert_eq!(workspace.submission_mime.text(), "text/plain");
-        assert!(workspace.prepared.is_none());
-        assert!(workspace.submission_receiver.is_none());
-        assert!(workspace.submission_token.text().is_empty());
+        assert_eq!(submission.mime.text(), "text/plain");
+        assert!(submission.prepared.is_none());
+        assert!(submission.receiver.is_none());
+        assert!(submission.token.text().is_empty());
     }
 
     #[test]
     fn reviewed_submission_is_consumed_before_send_and_cancel_has_no_effect() {
-        let mut workspace = ScrollWorkspace::default();
-        workspace.prepared = Some(
+        let mut submission = Submission::default();
+        submission.prepared = Some(
             PreparedSubmission::from_body(
                 "titan://example.test/upload",
                 "text/gemini",
@@ -3227,16 +3621,16 @@ mod tests {
             )
             .unwrap(),
         );
-        workspace.submission_token = TextInput::new("single-use-token");
+        submission.token = TextInput::new("single-use-token");
 
-        let (prepared, token) = workspace.take_submission_for_send().unwrap();
+        let (prepared, token) = submission.take_for_send().unwrap();
         assert_eq!(prepared.body(), b"reviewed source");
         assert_eq!(token.as_deref(), Some("single-use-token"));
-        assert!(workspace.prepared.is_none());
-        assert!(workspace.submission_token.text().is_empty());
-        assert!(workspace.submission_receiver.is_none());
+        assert!(submission.prepared.is_none());
+        assert!(submission.token.text().is_empty());
+        assert!(submission.receiver.is_none());
 
-        workspace.prepared = Some(
+        submission.prepared = Some(
             PreparedSubmission::from_body(
                 "spartan://example.test:3000/submit",
                 "text/plain",
@@ -3244,11 +3638,11 @@ mod tests {
             )
             .unwrap(),
         );
-        workspace.submission_token = TextInput::new("must-not-survive");
-        workspace.discard_submission();
-        assert!(workspace.prepared.is_none());
-        assert!(workspace.submission_token.text().is_empty());
-        assert!(workspace.submission_receiver.is_none());
+        submission.token = TextInput::new("must-not-survive");
+        submission.discard();
+        assert!(submission.prepared.is_none());
+        assert!(submission.token.text().is_empty());
+        assert!(submission.receiver.is_none());
     }
 
     #[test]
@@ -3368,8 +3762,10 @@ mod tests {
         state.scroll.preview_visible = true;
         let address = state.document().snapshot().source.address;
         state
-            .scroll
-            .open_micron_form(source.clone(), address)
+            .entry_mut()
+            .site
+            .micron
+            .open_form(source.clone(), address)
             .unwrap();
         let mut host = Harness::with_hooks(
             Init {
@@ -3391,8 +3787,9 @@ mod tests {
         assert!(scrolled > 0.0, "the preview did not scroll");
         let (_sender, receiver) = mpsc::channel();
         host.update(|state| {
-            state.scroll.micron_submission_receiver = Some(receiver);
-            state.scroll.submission_result = Some("Sending reviewed Micron request".into());
+            let micron = &mut state.entry_mut().site.micron;
+            micron.receiver = Some(receiver);
+            micron.result = Some("Sending reviewed Micron request".into());
         });
         host.relayout();
         assert_eq!(
@@ -3410,7 +3807,7 @@ mod tests {
     #[test]
     fn spartan_body_injected_text_uses_its_own_clicked_caret_slot() {
         let mut host = submission_harness();
-        host.update(|state| state.scroll.submission_body = TextInput::new("body"));
+        host.update(|state| state.entry_mut().site.submission.body = TextInput::new("body"));
         host.layout_at(1100.0, 730.0);
         let textarea = {
             let dom = host.runner().dom();
@@ -3421,7 +3818,7 @@ mod tests {
         let (x, y, _, _) = host.painted_rect(textarea).unwrap();
         host.click_at(x + 1.0, y + 24.0);
         host.key_injected("署名");
-        assert_eq!(host.state().scroll.submission_body.text(), "署名body");
+        assert_eq!(host.state().entry().site.submission.body.text(), "署名body");
         assert_eq!(host.state().document().snapshot().text, "document source");
     }
 
@@ -3453,18 +3850,18 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Submit locally")));
         assert!(host.state().scroll.submission_visible);
         assert_eq!(
-            host.state().scroll.submission_target.text(),
+            host.state().entry().site.submission.target.text(),
             "spartan://localhost:65025/upload"
         );
-        assert!(host.state().scroll.prepared.is_none());
-        assert!(host.state().scroll.submission_receiver.is_none());
+        assert!(host.state().entry().site.submission.prepared.is_none());
+        assert!(host.state().entry().site.submission.receiver.is_none());
     }
 
     #[test]
     fn titan_token_field_is_password_typed_and_does_not_paint_its_value() {
         let mut host = submission_harness();
         host.update(|state| {
-            state.scroll.prepared = Some(
+            state.entry_mut().site.submission.prepared = Some(
                 PreparedSubmission::from_body(
                     "titan://example.test/upload",
                     "text/gemini",
@@ -3472,7 +3869,7 @@ mod tests {
                 )
                 .unwrap(),
             );
-            state.scroll.submission_token = TextInput::new("dummytokenonly");
+            state.entry_mut().site.submission.token = TextInput::new("dummytokenonly");
         });
         let dom = host.runner().dom();
         let dom = dom.borrow();

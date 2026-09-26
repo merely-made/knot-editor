@@ -1045,6 +1045,69 @@ design frames either fixed or recorded.
     - A test finds no verbatim prefix in any site text, with
       `display_path` handling the UNC form.
     - Headed frames show two sites serving.
+- **2026-09-26, step 7a.** Site state is split by owner.
+  - The window's `ScrollWorkspace` now holds:
+    - a `SiteKey` to `SiteEntry` map (each site with its port, server and
+      publication count);
+    - the panel's one current site;
+    - the fields for opening or creating the next site;
+    - the panel's view flags.
+  - Each `DocumentEntry` holds a `DocumentSite`:
+    - the site page it is, with its metadata draft;
+    - its Micron form, request and reply;
+    - its Titan or Spartan composer, review and reply.
+
+  A document binds to its page when it opens, after Save As, and when a
+  site opens or closes. It relies on knot-document opening and saving
+  through the canonical path, as `Site::page_path` does.
+
+  What changes visibly:
+  - Each document keeps its own composer and Micron form. Their replies no
+    longer share one line, so a Titan reply no longer shows in a Micron
+    form.
+  - A Micron reply lands on the page it was sent from, even after the focus
+    moves. Before, a focus change made it look stale and it was dropped.
+  - A Gemtext file outside a Spartan site keeps Gemtext's presentation
+    while that site is open. Before, the window's one site decided it.
+  - Sends are one at a time per document, not per window.
+  - Entering or closing a site no longer closes a Micron form, which
+    belongs to its document.
+
+  The panel still shows one site at a time, and the launcher still refuses
+  a second site folder. Both limits lift in 7c and 7e.
+
+  Tests: the existing site and Micron tests are rewritten against the new
+  state; none was deleted. Four are new:
+  - a composer stays with its document across tab switches;
+  - a Micron reply lands on its page after the focus moves;
+  - a Gemtext file outside a Spartan site keeps its presentation, while the
+    site's own page presents the prompt;
+  - a page opened through another spelling of its path is its site's page.
+
+  Controls:
+  - On the pre-7a sources, the first and third fail.
+  - The second fails when the drain judges replies against the focused
+    document, as before.
+  - The fourth passes on the old sources too. The session already opened
+    the canonical path, so this test pins that behaviour rather than
+    proving a change.
+
+  The desktop library passes 139 with 1 ignored, and `cargo test --locked`
+  passes 418 with 3 ignored. In the first full run, knot-editor's embedding
+  digest test stopped using CPU for ten minutes while peer builds loaded
+  the machine. Once stopped and rerun alone, knot-editor's library passed
+  147 in 13 seconds.
+
+  Headed, launched on a copy of the Tidewatch fixture:
+  - The panel is as before.
+  - Its metadata shows `index.scroll`'s values.
+  - Opening `about.scroll` from the page list adds its tab and switches the
+    metadata to its own.
+
+  The frames are under `Code/testing/knot-editor/images/2026-09-26_7a/`.
+  They also show the site folder field painting a long path past its box,
+  behind the format buttons. That is D6's family, in the panel that
+  retires in 7c.
 
 ## Related material
 

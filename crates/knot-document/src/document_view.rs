@@ -50,6 +50,16 @@ pub fn knot_document_view(state: &KnotDocumentSurfaceState) -> KnotDocumentView 
     knot_document_view_with_highlighting(state, false)
 }
 
+/// Who draws the document's status: the surface, above its text, or the host
+/// around it (the desktop's status bar).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum KnotDocumentStatus {
+    #[default]
+    Embedded,
+    /// No status row and no Save control; the host shows those facts.
+    HostOwned,
+}
+
 /// Builds the document surface with optional Djot/Knot source highlighting.
 ///
 /// The editable branch always lenses the session's one [`TextInput`]. When the
@@ -58,6 +68,16 @@ pub fn knot_document_view(state: &KnotDocumentSurfaceState) -> KnotDocumentView 
 pub fn knot_document_view_with_highlighting(
     state: &KnotDocumentSurfaceState,
     enabled: bool,
+) -> KnotDocumentView {
+    knot_document_view_with_status(state, enabled, KnotDocumentStatus::Embedded)
+}
+
+/// [`knot_document_view_with_highlighting`], with the status row and its Save
+/// control drawn only when `status` is [`KnotDocumentStatus::Embedded`].
+pub fn knot_document_view_with_status(
+    state: &KnotDocumentSurfaceState,
+    enabled: bool,
+    status: KnotDocumentStatus,
 ) -> KnotDocumentView {
     let snapshot = state.snapshot();
     let read_only = snapshot.write_posture == KnotDocumentWritePostureV1::ReadOnly;
@@ -77,16 +97,19 @@ pub fn knot_document_view_with_highlighting(
                 .attr("class", "knot-document-save"),
             )
         };
-    let status = div((
+    let status_row = div((
         span(format!("Source: {}", snapshot.display_label))
             .attr("class", "knot-document-status-item"),
-        span(format!("Format: {}", format_label(snapshot.format)))
-            .attr("class", "knot-document-status-item"),
+        span(format!(
+            "Format: {}",
+            knot_document_format_label(snapshot.format)
+        ))
+        .attr("class", "knot-document-status-item"),
         span(if snapshot.dirty { "Dirty" } else { "Clean" })
             .attr("class", "knot-document-status-item"),
         span(format!(
             "Posture: {}",
-            posture_label(snapshot.write_posture)
+            knot_document_posture_label(snapshot.write_posture)
         ))
         .attr("class", "knot-document-status-item"),
         span(save_outcome_label(&snapshot)).attr("class", "knot-document-status-item"),
@@ -116,8 +139,12 @@ pub fn knot_document_view_with_highlighting(
             .attr("aria-label", "Document text"),
         )
     };
+    let section = match status {
+        KnotDocumentStatus::Embedded => el("section", (Some(status_row), body)),
+        KnotDocumentStatus::HostOwned => el("section", (None, body)),
+    };
     Box::new(
-        el("section", (status, body))
+        section
             .attr("class", "knot-document")
             .attr("data-surface", "knot.document.v1"),
     )
@@ -166,7 +193,8 @@ pub fn knot_document_surface(
         |_action: ()| Vec::new(),
     ))
 }
-fn format_label(format: DocumentFormat) -> &'static str {
+/// The name a document's format is shown by.
+pub fn knot_document_format_label(format: DocumentFormat) -> &'static str {
     match format {
         DocumentFormat::Djot => "Djot",
         DocumentFormat::Scroll => "Scrolltext",
@@ -177,31 +205,44 @@ fn format_label(format: DocumentFormat) -> &'static str {
         DocumentFormat::Json => "JSON",
     }
 }
-fn posture_label(posture: KnotDocumentWritePostureV1) -> &'static str {
+/// The name a write posture is shown by.
+pub fn knot_document_posture_label(posture: KnotDocumentWritePostureV1) -> &'static str {
     match posture {
         KnotDocumentWritePostureV1::FileTarget => "file target",
         KnotDocumentWritePostureV1::Scratch => "scratch",
         KnotDocumentWritePostureV1::ReadOnly => "read-only",
     }
 }
-fn save_outcome_label(snapshot: &KnotDocumentSnapshotV1) -> String {
-    let outcome = match snapshot.last_save_outcome {
-        None => "Save: not attempted",
-        Some(crate::KnotDocumentSaveOutcomeV1::Written) => "Save: written",
-        Some(crate::KnotDocumentSaveOutcomeV1::Unchanged) => "Save: unchanged",
-        Some(crate::KnotDocumentSaveOutcomeV1::Refused) => "Save: refused",
-        Some(crate::KnotDocumentSaveOutcomeV1::Failed) => "Save: failed",
-    };
-    if let Some(refusal) = snapshot.refusal {
-        format!("{outcome}: {}", refusal_label(refusal))
-    } else if let Some(failure) = &snapshot.last_save_failure {
-        format!("{outcome} ({})", failure.message)
-    } else {
-        outcome.to_owned()
+
+/// What the last save did, in a word or two.
+pub fn knot_document_save_outcome_label(
+    outcome: Option<crate::KnotDocumentSaveOutcomeV1>,
+) -> &'static str {
+    match outcome {
+        None => "not attempted",
+        Some(crate::KnotDocumentSaveOutcomeV1::Written) => "written",
+        Some(crate::KnotDocumentSaveOutcomeV1::Unchanged) => "unchanged",
+        Some(crate::KnotDocumentSaveOutcomeV1::Refused) => "refused",
+        Some(crate::KnotDocumentSaveOutcomeV1::Failed) => "failed",
     }
 }
 
-fn refusal_label(refusal: crate::KnotDocumentRefusalV1) -> &'static str {
+fn save_outcome_label(snapshot: &KnotDocumentSnapshotV1) -> String {
+    let outcome = format!(
+        "Save: {}",
+        knot_document_save_outcome_label(snapshot.last_save_outcome)
+    );
+    if let Some(refusal) = snapshot.refusal {
+        format!("{outcome}: {}", knot_document_refusal_label(refusal))
+    } else if let Some(failure) = &snapshot.last_save_failure {
+        format!("{outcome} ({})", failure.message)
+    } else {
+        outcome
+    }
+}
+
+/// Why an action was refused.
+pub fn knot_document_refusal_label(refusal: crate::KnotDocumentRefusalV1) -> &'static str {
     match refusal {
         crate::KnotDocumentRefusalV1::ScratchHasNoSaveTarget => {
             "scratch document has no file target"
@@ -274,7 +315,10 @@ mod tests {
     #[test]
     fn read_only_posture_has_explicit_visible_labels() {
         let snapshot = KnotDocumentSession::read_only("memory:test", "hello").snapshot();
-        assert_eq!(posture_label(snapshot.write_posture), "read-only");
+        assert_eq!(
+            knot_document_posture_label(snapshot.write_posture),
+            "read-only"
+        );
         assert_eq!(
             save_outcome_label(&KnotDocumentSnapshotV1 {
                 refusal: Some(crate::KnotDocumentRefusalV1::ReadOnly),
@@ -315,6 +359,41 @@ mod tests {
                 .is_empty(),
             "a read-only document must not render a save button"
         );
+    }
+
+    /// The embedded status row and Save control are the default; a host that
+    /// draws its own status gets the text alone.
+    #[test]
+    fn host_owned_status_leaves_the_row_and_save_to_the_host() {
+        for (status, shown) in [
+            (KnotDocumentStatus::Embedded, true),
+            (KnotDocumentStatus::HostOwned, false),
+        ] {
+            let dom: DomHandle = Rc::new(RefCell::new(ScriptedDom::new()));
+            let state = KnotDocumentSurfaceState::new(KnotDocumentSession::scratch(
+                "memory:status",
+                "# Status\n",
+            ));
+            let runner = GenetAppRunner::new(
+                dom.clone(),
+                move |state: &KnotDocumentSurfaceState| {
+                    knot_document_view_with_status(state, false, status)
+                },
+                state,
+            );
+            let rendered = dom.borrow();
+            let count = |class: &str| rendered.all_with_class(rendered.document(), class).len();
+            assert_eq!(
+                count("knot-document-status") == 1,
+                shown,
+                "{status:?}: status row"
+            );
+            assert_eq!(count("knot-document-save") == 1, shown, "{status:?}: Save");
+            assert!(
+                contains_element(&rendered, runner.root(), "textarea"),
+                "{status:?}: the text stays editable"
+            );
+        }
     }
 
     #[cfg(feature = "highlight")]

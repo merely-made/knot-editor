@@ -25,8 +25,10 @@ pub use document_surface::{
     KnotFoldItemV1, KnotFoldKindV1, KnotFoldSnapshotV1, KnotPreviewSnapshotV1,
 };
 pub use document_view::{
-    KNOT_DOCUMENT_CSS, KnotDocumentSurfaceState, KnotDocumentView, knot_document_descriptor,
-    knot_document_surface, knot_document_view, knot_document_view_with_highlighting,
+    KNOT_DOCUMENT_CSS, KnotDocumentStatus, KnotDocumentSurfaceState, KnotDocumentView,
+    knot_document_descriptor, knot_document_format_label, knot_document_posture_label,
+    knot_document_refusal_label, knot_document_save_outcome_label, knot_document_surface,
+    knot_document_view, knot_document_view_with_highlighting, knot_document_view_with_status,
 };
 pub use editor::{EditOutcome, KnotEditor, KnotEditorSaveError};
 #[cfg(feature = "engine")]

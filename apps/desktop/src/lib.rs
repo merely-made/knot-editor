@@ -13,6 +13,7 @@ pub mod preferences;
 pub mod readings;
 pub mod scenario;
 pub mod scroll_site;
+pub mod status;
 pub mod workspace;
 
 use cambium::{FOLD_ROWS_CSS, FRISKET_CSS, POPOVER_CSS, STATUS_BAR_CSS, WORKSPACE_CSS};

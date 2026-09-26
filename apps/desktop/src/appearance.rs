@@ -85,7 +85,6 @@ pub fn appearance_css() -> String {
          .knot-workspace button,.knot-workspace input { font:inherit;padding:6px 10px;border:1px solid;border-radius:4px; } \
          .knot-document-body textarea { font-family:monospace;font-size:inherit;line-height:inherit;padding:16px;border:1px solid; } \
          .knot-document-body { line-height:inherit; } \
-         .knot-document-status { font-size:13px;line-height:1.4; } \
          .knot-workspace button[aria-pressed=true] { outline:2px solid currentColor;outline-offset:1px; }",
     );
     for dark in [false, true] {
@@ -100,9 +99,11 @@ pub fn appearance_css() -> String {
             "{scope} {{ background:{};color:{}; }} \
              {scope} button,{scope} input {{ background:{};color:{};border-color:{}; }} \
              {scope} button:hover {{ background:{}; }} \
-             {scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-folded-source {{ background:{};color:{};border-color:{}; }} \
-             {scope} .knot-document-status {{ color:{}; }} \
-             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error {{ color:{}; }} \
+             {scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-folded-source,{scope} .knot-status-detail {{ background:{};color:{};border-color:{}; }} \
+             {scope} .status-bar {{ border-color:{}; }} \
+             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error,{scope} .status-chip[data-severity=warning] {{ color:{}; }} \
+             {scope} .status-chip[data-severity=refused] {{ color:{};border-color:{}; }} \
+             {scope} .detail-key {{ color:{}; }} \
              {scope} .frisket-tabbar {{ background:{};border-color:{}; }} \
              {scope} .frisket-divider {{ background:{}; }} \
              {scope} .frisket-tab {{ background:transparent;color:{}; }} \
@@ -113,6 +114,7 @@ pub fn appearance_css() -> String {
             rgb(p.bg), rgb(p.text), rgb(p.surface_2), rgb(p.text), rgb(p.text_dim),
             rgb(p.surface_hover), rgb(p.surface), rgb(p.text), rgb(p.text_dim),
             rgb(p.text_dim), rgb(p.danger),
+            rgb(p.danger), rgb(p.danger), rgb(p.text_dim),
             rgb(p.bg), rgb(p.surface_hover), rgb(p.surface_hover), rgb(p.text_dim),
             rgb(p.surface), rgb(p.text), rgb(p.surface_hover), rgb(p.surface), rgb(p.text),
             rgb(p.text_dim), rgb(p.primary),

@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::documents::DocKey;
+use crate::documents::{DocKey, ReadingKind, SiteKey, TileRole};
 use crate::workspace::{DesktopState, DesktopView, DocumentEntry};
 use cambium::{
     El, GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button,
@@ -24,6 +24,7 @@ use nematic::micron::syntax::FieldKind;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
+use workbench::TileId;
 
 const LABELS: [&str; 6] = [
     "Author",
@@ -74,18 +75,15 @@ fn lower_micron(address: &str, text: &str) -> Result<EngineDocument, EngineError
     nematic::MicronEngine::new().render(&EngineInput::new(address, text))
 }
 
-/// A runtime key for an open site. It names the site's entry, not its folder,
-/// so a folder opened again gets a new key.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct SiteKey(u64);
-
-/// One open site: its manifest, the port it publishes on, its local server and
-/// how many times it has been published.
+/// One open site: its manifest, the port it publishes on, its local server, how
+/// many times it has been published, and the metadata drafts of its pages
+/// whose metadata tiles are open.
 pub struct SiteEntry {
     pub site: Site,
     pub port: TextInput,
     pub server: Option<LocalServer>,
     publication_number: usize,
+    pub(crate) drafts: BTreeMap<String, MetadataDraft>,
 }
 
 impl SiteEntry {
@@ -106,8 +104,7 @@ impl SiteEntry {
 
 /// The window's site state: the open sites, the fields that open or create the
 /// next one, and the site panel's view flags. What belongs to one document,
-/// its page draft, Micron form and composer, is on its entry
-/// ([`DocumentSite`]).
+/// its page, Micron form and composer, is on its entry ([`DocumentSite`]).
 pub struct ScrollWorkspace {
     sites: BTreeMap<SiteKey, SiteEntry>,
     next_site: u64,
@@ -118,9 +115,7 @@ pub struct ScrollWorkspace {
     pub port: TextInput,
     pub format: SiteFormat,
     pub visible: bool,
-    metadata_visible: bool,
     pub preview_visible: bool,
-    submission_visible: bool,
     submission_wake: Option<HostWake>,
     titan_submission_error: Option<String>,
 }
@@ -135,9 +130,7 @@ impl Default for ScrollWorkspace {
             port: TextInput::new("5699"),
             format: SiteFormat::Scroll,
             visible: false,
-            metadata_visible: false,
             preview_visible: true,
-            submission_visible: false,
             submission_wake: None,
             titan_submission_error: None,
         }
@@ -184,6 +177,7 @@ impl ScrollWorkspace {
                 port,
                 server: None,
                 publication_number: 0,
+                drafts: BTreeMap::new(),
             },
         );
         self.current = Some(key);
@@ -239,17 +233,21 @@ fn metadata_indices(format: SiteFormat) -> &'static [usize] {
     }
 }
 
-/// A document's place in an open site: the page it is, and that page's
-/// metadata draft against the manifest's saved values.
+/// A document's place in an open site: which site, and which of its pages.
 pub(crate) struct SitePage {
     pub(crate) site: SiteKey,
     pub(crate) name: String,
+}
+
+/// A page's metadata being edited, against the manifest's saved values. It
+/// lives with the site while the page's metadata tile is open.
+pub(crate) struct MetadataDraft {
     pub(crate) fields: [TextInput; 6],
     baseline: [String; 6],
 }
 
-impl SitePage {
-    fn new(site: SiteKey, page: &Page) -> Self {
+impl MetadataDraft {
+    fn new(page: &Page) -> Self {
         // Preserve the entire abstract in the text field when opening an
         // existing site; metadata saving never reformats its source.
         let baseline = [
@@ -261,8 +259,6 @@ impl SitePage {
             page.abstract_source.clone(),
         ];
         Self {
-            site,
-            name: page.path.clone(),
             fields: baseline.clone().map(TextInput::new),
             baseline,
         }
@@ -817,8 +813,11 @@ impl DesktopState {
         });
     }
 
-    fn prepare_titan(&mut self) {
-        if self.entry().site.busy() {
+    /// Prepare `key`'s saved file for Titan. The document and its page's open
+    /// metadata must be saved first.
+    fn prepare_titan(&mut self, key: DocKey) {
+        let entry = self.entry_for(key);
+        if entry.site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
@@ -826,12 +825,12 @@ impl DesktopState {
             self.message = Some(format!("Titan upload is unavailable: {error}"));
             return;
         }
-        if self.document().snapshot().dirty || self.metadata_dirty() {
+        if entry.document.snapshot().dirty || self.page_draft_dirty(key) {
             self.message = Some("Save source and metadata before preparing Titan upload.".into());
             return;
         }
-        let Some(path) = self
-            .document()
+        let Some(path) = entry
+            .document
             .session()
             .source_path()
             .map(Path::to_path_buf)
@@ -839,7 +838,7 @@ impl DesktopState {
             self.message = Some("Save the source file before preparing Titan upload.".into());
             return;
         };
-        let submission = &mut self.entry_mut().site.submission;
+        let submission = &mut self.entry_mut_for(key).site.submission;
         match PreparedSubmission::from_saved_file(
             &path,
             submission.target.text(),
@@ -855,12 +854,12 @@ impl DesktopState {
         }
     }
 
-    fn prepare_spartan(&mut self) {
-        if self.entry().site.busy() {
+    fn prepare_spartan(&mut self, key: DocKey) {
+        if self.entry_for(key).site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
-        let submission = &mut self.entry_mut().site.submission;
+        let submission = &mut self.entry_mut_for(key).site.submission;
         submission.token = TextInput::default();
         match PreparedSubmission::from_body(
             submission.target.text(),
@@ -879,8 +878,8 @@ impl DesktopState {
         }
     }
 
-    fn send_submission(&mut self) {
-        if self.entry().site.busy() {
+    fn send_submission(&mut self, key: DocKey) {
+        if self.entry_for(key).site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
@@ -888,7 +887,7 @@ impl DesktopState {
             self.message = Some("Submission worker is unavailable.".into());
             return;
         };
-        let submission = &mut self.entry_mut().site.submission;
+        let submission = &mut self.entry_mut_for(key).site.submission;
         let (prepared, token) = match submission.take_for_send() {
             Ok(send) => send,
             Err(error) => {
@@ -911,13 +910,22 @@ impl DesktopState {
     }
 
     /// A Spartan prompt link picked in the preview: fill the focused document's
-    /// composer with its target and show the composer.
+    /// composer with its target and bring up the Submit tile that follows it.
     fn select_spartan_prompt(&mut self, target: String) {
-        self.scroll.submission_visible = true;
         self.entry_mut()
             .site
             .submission
             .select_spartan_prompt(target);
+        match self.docs.following_reading(ReadingKind::Submit) {
+            Some(tile) => self.docs.activate(tile),
+            None => {
+                self.docs.open_reading(
+                    ReadingKind::Submit,
+                    None,
+                    crate::workspace::reading_title(ReadingKind::Submit),
+                );
+            },
+        }
     }
 
     /// The focused document's site page, if it is one.
@@ -931,35 +939,94 @@ impl DesktopState {
             .and_then(|page| self.scroll.site(page.site))
     }
 
-    /// Whether the focused page has metadata edits not yet saved.
-    pub(crate) fn metadata_dirty(&self) -> bool {
-        self.site_page().is_some_and(SitePage::dirty)
+    /// Whether `page`'s open metadata in `site` has unsaved edits.
+    pub(crate) fn draft_dirty(&self, site: SiteKey, page: &str) -> bool {
+        self.scroll
+            .site(site)
+            .and_then(|entry| entry.drafts.get(page))
+            .is_some_and(MetadataDraft::dirty)
     }
 
-    pub(crate) fn save_metadata(&mut self) -> Result<(), String> {
-        let no_page = if self.scroll.current.is_none() {
-            "Open a site first"
-        } else {
-            "Open a page in this site first"
+    /// Whether the open metadata of `key`'s page has unsaved edits.
+    fn page_draft_dirty(&self, key: DocKey) -> bool {
+        self.entry_for(key)
+            .site
+            .page
+            .as_ref()
+            .is_some_and(|page| self.draft_dirty(page.site, &page.name))
+    }
+
+    /// Whether any open metadata of the panel's site has unsaved edits.
+    fn current_drafts_dirty(&self) -> bool {
+        self.scroll
+            .current_site()
+            .is_some_and(|entry| entry.drafts.values().any(MetadataDraft::dirty))
+    }
+
+    /// Open metadata tiles with unsaved edits, in tile order.
+    pub(crate) fn dirty_metadata(&self) -> Vec<TileId> {
+        let mut tiles: Vec<TileId> = self
+            .scroll
+            .sites
+            .keys()
+            .flat_map(|site| self.docs.metadata_tiles(*site))
+            .filter(|tile| {
+                matches!(self.docs.role(*tile), Some(TileRole::Metadata { site, page }) if self.draft_dirty(*site, page))
+            })
+            .collect();
+        tiles.sort_by_key(|tile| tile.0);
+        tiles
+    }
+
+    /// Open the focused page's metadata tile.
+    pub(crate) fn open_page_metadata(&mut self) {
+        match self.site_page() {
+            Some(page) => {
+                let (site, name) = (page.site, page.name.clone());
+                self.open_metadata(site, &name);
+            },
+            None => self.message = Some("Open a page of this site first.".into()),
+        }
+    }
+
+    /// Open `name`'s metadata tile in `site`, its draft starting from the
+    /// manifest's saved values, or activate the one already open.
+    pub(crate) fn open_metadata(&mut self, site: SiteKey, name: &str) {
+        let Some(entry) = self.scroll.sites.get_mut(&site) else {
+            self.message = Some("Open a site first".into());
+            return;
         };
-        let Some(key) = self.focused_key() else {
-            return Err(no_page.into());
-        };
-        let Some(page) = self
-            .docs
-            .doc_mut(key)
-            .and_then(|entry| entry.site.page.as_mut())
+        let Some(page) = entry
+            .site
+            .config
+            .pages
+            .iter()
+            .find(|page| page.path == name)
         else {
-            return Err(no_page.into());
+            self.message = Some("Page missing".into());
+            return;
         };
+        entry
+            .drafts
+            .entry(name.to_owned())
+            .or_insert_with(|| MetadataDraft::new(page));
+        self.docs
+            .open_metadata(site, name, format!("Metadata · {name}"));
+    }
+
+    pub(crate) fn save_metadata(&mut self, site: SiteKey, name: &str) -> Result<(), String> {
         let entry = self
             .scroll
             .sites
-            .get_mut(&page.site)
+            .get_mut(&site)
             .ok_or("Open a site first")?;
-        let values: [String; 6] = std::array::from_fn(|i| page.fields[i].text().to_owned());
+        let draft = entry
+            .drafts
+            .get_mut(name)
+            .ok_or("Open this page's metadata first")?;
+        let values: [String; 6] = std::array::from_fn(|i| draft.fields[i].text().to_owned());
         let updated = Page {
-            path: page.name.clone(),
+            path: name.to_owned(),
             author: values[0].clone(),
             language: values[1].clone(),
             classification: values[2]
@@ -969,32 +1036,46 @@ impl DesktopState {
             modified: values[4].clone(),
             abstract_source: values[5].clone(),
         };
-        let site = &mut entry.site;
-        let index = site
+        let manifest = &mut entry.site;
+        let index = manifest
             .config
             .pages
             .iter()
-            .position(|each| each.path == page.name)
+            .position(|each| each.path == name)
             .ok_or("Page missing")?;
-        let previous = std::mem::replace(&mut site.config.pages[index], updated);
-        if let Err(error) = site.save_config_with(|path, before, after| {
+        let previous = std::mem::replace(&mut manifest.config.pages[index], updated);
+        if let Err(error) = manifest.save_config_with(|path, before, after| {
             knot_document::write_if_distinct(path, before, after).map(|_| ())
         }) {
-            site.config.pages[index] = previous;
+            manifest.config.pages[index] = previous;
             return Err(error);
         }
-        page.baseline = values;
+        draft.baseline = values;
         Ok(())
     }
 
-    fn discard_metadata(&mut self) {
-        if let Some(page) = self.entry_mut().site.page.as_mut() {
-            page.discard();
+    fn discard_metadata(&mut self, site: SiteKey, name: &str) {
+        if let Some(draft) = self
+            .scroll
+            .sites
+            .get_mut(&site)
+            .and_then(|entry| entry.drafts.get_mut(name))
+        {
+            draft.discard();
         }
     }
 
-    /// Bind every open document to the site page its file is, keeping the
-    /// metadata draft of any binding that has not changed.
+    /// Close a metadata tile without asking; its draft goes with it.
+    pub(crate) fn close_metadata(&mut self, tile: TileId) {
+        if let Some(TileRole::Metadata { site, page }) = self.docs.role(tile).cloned()
+            && let Some(entry) = self.scroll.sites.get_mut(&site)
+        {
+            entry.drafts.remove(&page);
+        }
+        self.docs.close(tile);
+    }
+
+    /// Bind every open document to the site page its file is.
     pub(crate) fn bind_site_pages(&mut self) {
         let scroll = &self.scroll;
         for (_, entry) in self.docs.docs_mut() {
@@ -1011,7 +1092,7 @@ impl DesktopState {
     }
 
     fn enter_site(&mut self, create: bool) {
-        if self.document().snapshot().dirty || self.metadata_dirty() {
+        if self.document().snapshot().dirty || self.current_drafts_dirty() {
             self.message =
                 Some("Save or discard document and metadata changes before changing sites.".into());
             return;
@@ -1035,22 +1116,37 @@ impl DesktopState {
         }
     }
 
-    /// Hold `site` as the panel's one site, dropping the one it replaces, and
-    /// bind the open documents that are its pages.
+    /// Hold `site` as the panel's one site, dropping the one it replaces with
+    /// its metadata tiles, and bind the open documents that are its pages.
     pub(crate) fn hold_site(&mut self, site: Site) -> SiteKey {
+        let previous = self.scroll.current;
         let key = self.scroll.replace(site);
+        if let Some(previous) = previous {
+            self.close_metadata_tiles(previous);
+        }
         self.bind_site_pages();
         key
     }
 
+    /// Close `site`'s metadata tiles; their drafts went with the site.
+    fn close_metadata_tiles(&mut self, site: SiteKey) {
+        for tile in self.docs.metadata_tiles(site) {
+            self.docs.close(tile);
+        }
+    }
+
     fn close_site(&mut self) {
-        if self.document().snapshot().dirty || self.metadata_dirty() {
+        if self.document().snapshot().dirty || self.current_drafts_dirty() {
             self.message = Some(
                 "Save or discard document and metadata changes before closing this site.".into(),
             );
             return;
         }
+        let closing = self.scroll.current;
         self.scroll.close_current();
+        if let Some(site) = closing {
+            self.close_metadata_tiles(site);
+        }
         self.bind_site_pages();
         self.message = Some("Site closed. The current source remains open.".into());
     }
@@ -1079,7 +1175,7 @@ impl DesktopState {
     }
 
     pub(crate) fn publish_site(&mut self) {
-        if self.document().snapshot().dirty || self.metadata_dirty() {
+        if self.document().snapshot().dirty || self.current_drafts_dirty() {
             self.message = Some("Save source and metadata before publishing locally.".into());
             return;
         }
@@ -1108,24 +1204,19 @@ impl DesktopState {
     }
 }
 
-/// Bind `entry` to the open site page its file is, keeping its metadata draft
-/// when the binding has not changed. A session's source path is canonical,
-/// since knot-document opens and saves through the canonical path, as
-/// `Site::page_path` is.
+/// Bind `entry` to the open site page its file is. A session's source path is
+/// canonical, since knot-document opens and saves through the canonical path,
+/// as `Site::page_path` is.
 fn bind_site_page(scroll: &ScrollWorkspace, entry: &mut DocumentEntry) {
-    let found = entry
+    entry.site.page = entry
         .document
         .session()
         .source_path()
-        .and_then(|path| scroll.page_at(path));
-    let unchanged = match (&entry.site.page, &found) {
-        (Some(page), Some((site, found))) => page.site == *site && page.name == found.path,
-        (None, None) => true,
-        _ => false,
-    };
-    if !unchanged {
-        entry.site.page = found.map(|(site, page)| SitePage::new(site, page));
-    }
+        .and_then(|path| scroll.page_at(path))
+        .map(|(site, page)| SitePage {
+            site,
+            name: page.path.clone(),
+        });
 }
 
 fn input(
@@ -1139,23 +1230,6 @@ fn input(
             (
                 label,
                 lens(|input: &mut TextInput| text_field_typed(input), get),
-            ),
-        )
-        .attr("id", id),
-    )
-}
-
-fn password_input(
-    label: &'static str,
-    id: &'static str,
-    get: fn(&mut DesktopState) -> &mut TextInput,
-) -> DesktopView {
-    Box::new(
-        el(
-            "label",
-            (
-                label,
-                lens(|input: &mut TextInput| password_field(input), get),
             ),
         )
         .attr("id", id),
@@ -1177,24 +1251,318 @@ fn password_field(
     on_key(el("input", shown).attr("type", "password"), edit_password)
 }
 
-/// The focused page's metadata fields. They render only while the focused
-/// document is a site page, so a lens or text route over one always finds it.
-pub(crate) fn page_fields(state: &mut DesktopState) -> &mut [TextInput; 6] {
+/// The site and page a metadata tile shows.
+fn metadata_key(state: &DesktopState, tile: TileId) -> (SiteKey, String) {
+    match state.docs.role(tile) {
+        Some(TileRole::Metadata { site, page }) => (*site, page.clone()),
+        _ => unreachable!("metadata fields render only in a metadata tile"),
+    }
+}
+
+/// The fields of a metadata tile's draft. They render only while the tile and
+/// its draft exist, so a lens or text route over one always finds them.
+pub(crate) fn draft_fields(state: &mut DesktopState, tile: TileId) -> &mut [TextInput; 6] {
+    let (site, page) = metadata_key(state, tile);
     &mut state
-        .entry_mut()
-        .site
-        .page
-        .as_mut()
-        .expect("metadata fields render only for a site page")
+        .scroll
+        .sites
+        .get_mut(&site)
+        .and_then(|entry| entry.drafts.get_mut(&page))
+        .expect("a metadata tile holds its draft")
         .fields
 }
 
-/// One of the focused page's metadata fields, to read.
-pub(crate) fn page_field(state: &DesktopState, index: usize) -> &TextInput {
+/// One field of a metadata tile's draft, to read.
+pub(crate) fn draft_field(state: &DesktopState, tile: TileId, index: usize) -> &TextInput {
+    let (site, page) = metadata_key(state, tile);
     &state
-        .site_page()
-        .expect("metadata fields render only for a site page")
+        .scroll
+        .site(site)
+        .and_then(|entry| entry.drafts.get(&page))
+        .expect("a metadata tile holds its draft")
         .fields[index]
+}
+
+/// A site page's metadata form, as its own tile in the document stack. Its
+/// fields carry their index by class and the tile by attribute, so two
+/// metadata tiles never share an id.
+pub(crate) fn metadata_view(
+    state: &DesktopState,
+    tile: TileId,
+    site: SiteKey,
+    page: &str,
+) -> DesktopView {
+    let Some(entry) = state.scroll.site(site) else {
+        return Box::new(span("This page's site is closed.").attr("class", "knot-metadata"));
+    };
+    let Some(draft) = entry.drafts.get(page) else {
+        return Box::new(span("This page's metadata is closed.").attr("class", "knot-metadata"));
+    };
+    let format = entry.site.config.format;
+    let fields = metadata_indices(format)
+        .iter()
+        .map(|&i| {
+            (
+                i,
+                el(
+                    "label",
+                    (
+                        LABELS[i],
+                        lens(
+                            move |input: &mut TextInput| {
+                                if i == 5 {
+                                    textarea_typed(input)
+                                } else {
+                                    text_field_typed(input)
+                                }
+                            },
+                            move |state: &mut DesktopState| &mut draft_fields(state, tile)[i],
+                        ),
+                    ),
+                )
+                .attr("class", format!("knot-meta-field knot-meta-field-{i}")),
+            )
+        })
+        .collect::<Vec<_>>();
+    let explanation = match format {
+        SiteFormat::Scroll => {
+            "Publication metadata for this page. The abstract is separate native Scrolltext and needs a # Title."
+        },
+        SiteFormat::Gemini => {
+            "Gemini publication metadata for this page. Language is separate from native Gemtext source."
+        },
+        SiteFormat::Spartan | SiteFormat::Micron => {
+            "This site format has no supported page metadata controls."
+        },
+    };
+    let save_name = page.to_owned();
+    let discard_name = page.to_owned();
+    Box::new(
+        el(
+            "section",
+            (
+                el("h2", format!("Metadata · {page}")),
+                span(explanation),
+                el("div", Keyed::new(fields)).attr("class", "knot-scroll-fields"),
+                button("Save metadata", move |state: &mut DesktopState, _| {
+                    state.message = Some(
+                        state
+                            .save_metadata(site, &save_name)
+                            .map(|_| "Metadata saved. Existing publication is unchanged.".into())
+                            .unwrap_or_else(|e| e),
+                    );
+                }),
+                button(
+                    "Discard metadata edits",
+                    move |state: &mut DesktopState, _| {
+                        state.discard_metadata(site, &discard_name);
+                    },
+                ),
+                span(if draft.dirty() {
+                    "Unsaved metadata"
+                } else {
+                    "Metadata saved"
+                }),
+            ),
+        )
+        .attr("class", "knot-metadata")
+        .attr("data-knot-metadata", tile.0.to_string()),
+    )
+}
+
+/// The composer field a text route names by index: target, MIME, body or
+/// token, in `key`'s composer.
+pub(crate) fn composer_text_mut(
+    state: &mut DesktopState,
+    key: DocKey,
+    field: usize,
+) -> &mut TextInput {
+    let submission = &mut state.entry_mut_for(key).site.submission;
+    match field {
+        0 => &mut submission.target,
+        1 => &mut submission.mime,
+        2 => &mut submission.body,
+        _ => &mut submission.token,
+    }
+}
+
+/// The composer field a text route names by index, to read.
+pub(crate) fn composer_text(state: &DesktopState, key: DocKey, field: usize) -> &TextInput {
+    let submission = &state.entry_for(key).site.submission;
+    match field {
+        0 => &submission.target,
+        1 => &submission.mime,
+        2 => &submission.body,
+        _ => &submission.token,
+    }
+}
+
+/// The classes of the composer's fields, in the order text routes index them.
+pub(crate) const COMPOSER_FIELDS: [&str; 4] = [
+    "knot-submission-target",
+    "knot-submission-mime",
+    "knot-spartan-body",
+    "knot-submission-token",
+];
+
+/// A labelled one-line composer field over the text `get` finds.
+fn composer_field(
+    label: &'static str,
+    class: &'static str,
+    get: impl Fn(&mut DesktopState) -> &mut TextInput + 'static,
+) -> DesktopView {
+    Box::new(
+        el(
+            "label",
+            (
+                label,
+                lens(|input: &mut TextInput| text_field_typed(input), get),
+            ),
+        )
+        .attr("class", class),
+    )
+}
+
+/// A labelled password field over the text `get` finds; it never paints its
+/// value.
+fn composer_password(
+    label: &'static str,
+    class: &'static str,
+    get: impl Fn(&mut DesktopState) -> &mut TextInput + 'static,
+) -> DesktopView {
+    Box::new(
+        el(
+            "label",
+            (
+                label,
+                lens(|input: &mut TextInput| password_field(input), get),
+            ),
+        )
+        .attr("class", class),
+    )
+}
+
+/// A document's Titan or Spartan composer, as a reading tile that follows the
+/// focused document or is pinned to one. The document's key rides on the
+/// tile, so its fields take text for that document, not the focused one.
+pub(crate) fn submit_view(state: &DesktopState, key: DocKey) -> DesktopView {
+    let entry = state.entry_for(key);
+    let submission = &entry.site.submission;
+    let busy = entry.site.busy();
+    let review: DesktopView = if let Some(p) = submission.prepared.as_ref() {
+        let is_titan = p.target().starts_with("titan://");
+        let send_action: DesktopView = if busy {
+            Box::new(span("Sending reviewed bytes…"))
+        } else {
+            Box::new(button(
+                "Send reviewed bytes",
+                move |s: &mut DesktopState, _| s.send_submission(key),
+            ))
+        };
+        Box::new(
+            el(
+                "section",
+                (
+                    span(format!(
+                        "Reviewed submission: {} · {} · {} bytes · {}",
+                        p.target(),
+                        p.mime(),
+                        p.byte_len(),
+                        p.digest()
+                    )),
+                    el("pre", String::from_utf8_lossy(p.body()).into_owned()),
+                    if is_titan {
+                        composer_password("Titan token", "knot-submission-token", move |s| {
+                            &mut s.entry_mut_for(key).site.submission.token
+                        })
+                    } else {
+                        Box::new(span(
+                            "Spartan sends this reviewed body without a Titan token.",
+                        ))
+                    },
+                    send_action,
+                    button(
+                        "Cancel reviewed submission",
+                        move |s: &mut DesktopState, _| {
+                            s.entry_mut_for(key).site.submission.discard()
+                        },
+                    ),
+                ),
+            )
+            .attr("class", "knot-submission-review"),
+        )
+    } else if busy {
+        Box::new(
+            el("section", span("Sending reviewed bytes…")).attr("class", "knot-submission-review"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
+    let titan_prepare: DesktopView = if busy {
+        Box::new(span("Sending reviewed bytes…"))
+    } else if let Some(error) = &state.scroll.titan_submission_error {
+        Box::new(span(format!("Titan upload disabled: {error}")))
+    } else {
+        Box::new(button(
+            "Prepare saved source for Titan",
+            move |s: &mut DesktopState, _| s.prepare_titan(key),
+        ))
+    };
+    let spartan_prepare: DesktopView = if busy {
+        Box::new(span("Spartan preparation is unavailable while sending."))
+    } else {
+        Box::new(button(
+            "Prepare Spartan body",
+            move |s: &mut DesktopState, _| s.prepare_spartan(key),
+        ))
+    };
+    let composer = el(
+        "section",
+        (
+            composer_field("Submission target", "knot-submission-target", move |s| {
+                &mut s.entry_mut_for(key).site.submission.target
+            }),
+            composer_field("MIME", "knot-submission-mime", move |s| {
+                &mut s.entry_mut_for(key).site.submission.mime
+            }),
+            titan_prepare,
+            el(
+                "label",
+                (
+                    "Spartan body",
+                    lens(
+                        |input: &mut TextInput| textarea_typed(input),
+                        move |s: &mut DesktopState| &mut s.entry_mut_for(key).site.submission.body,
+                    ),
+                ),
+            )
+            .attr("class", "knot-spartan-body"),
+            spartan_prepare,
+            span("Preparing is local only. Sending is a separate action over the reviewed bytes."),
+        ),
+    )
+    .attr("class", "knot-submission");
+    Box::new(
+        el(
+            "div",
+            (
+                composer,
+                review,
+                span(submission.result.clone().unwrap_or_default())
+                    .attr("class", "knot-submission-status"),
+                submission
+                    .response
+                    .as_ref()
+                    .map(|body| {
+                        Box::new(el("pre", body.clone()).attr("class", "knot-submission-response"))
+                            as DesktopView
+                    })
+                    .unwrap_or_else(|| Box::new(el("div", ()))),
+            ),
+        )
+        .attr("class", "knot-submit")
+        .attr("data-knot-submission", key.0.to_string()),
+    )
 }
 
 pub fn site_panel(state: &DesktopState) -> DesktopView {
@@ -1224,123 +1592,7 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
             "Enter a new folder path to create a three-page site, or an existing folder to open it.",
         ))
     };
-    let metadata: DesktopView = if state.scroll.metadata_visible && state.site_page().is_some() {
-        let page_format = state
-            .page_site()
-            .or(state.scroll.current_site())
-            .map(|entry| entry.site.config.format)
-            .unwrap_or(state.scroll.format);
-        let fields = metadata_indices(page_format)
-            .iter()
-            .map(|&i| {
-                let label = LABELS[i];
-                (
-                    i,
-                    el(
-                        "label",
-                        (
-                            label,
-                            lens(
-                                move |input: &mut TextInput| {
-                                    if i == 5 {
-                                        textarea_typed(input)
-                                    } else {
-                                        text_field_typed(input)
-                                    }
-                                },
-                                move |state: &mut DesktopState| &mut page_fields(state)[i],
-                            ),
-                        ),
-                    )
-                    .attr("id", format!("knot-scroll-meta-{i}")),
-                )
-            })
-            .collect::<Vec<_>>();
-        let explanation = match page_format {
-            SiteFormat::Scroll => {
-                "Publication metadata for the selected page. The abstract is separate native Scrolltext and needs a # Title."
-            },
-            SiteFormat::Gemini => {
-                "Gemini publication metadata for the selected page. Language is separate from native Gemtext source."
-            },
-            SiteFormat::Spartan | SiteFormat::Micron => {
-                "This site format has no supported page metadata controls."
-            },
-        };
-        Box::new(el(
-            "section",
-            (
-                span(explanation),
-                el("div", Keyed::new(fields)).attr("class", "knot-scroll-fields"),
-                button("Save metadata", |state: &mut DesktopState, _| {
-                    state.message = Some(
-                        state
-                            .save_metadata()
-                            .map(|_| "Metadata saved. Existing publication is unchanged.".into())
-                            .unwrap_or_else(|e| e),
-                    );
-                }),
-                button("Discard metadata edits", |state: &mut DesktopState, _| {
-                    state.discard_metadata();
-                }),
-                span(if state.metadata_dirty() {
-                    "Unsaved metadata"
-                } else {
-                    "Metadata saved"
-                }),
-            ),
-        ))
-    } else {
-        Box::new(el("div", ()))
-    };
     let format = state.scroll.format;
-    let submission = &state.entry().site.submission;
-    let submission_busy = state.entry().site.busy();
-    let review: DesktopView = if let Some(p) = submission.prepared.as_ref() {
-        let is_titan = p.target().starts_with("titan://");
-        let send_action: DesktopView = if submission_busy {
-            Box::new(span("Sending reviewed bytes…"))
-        } else {
-            Box::new(button("Send reviewed bytes", |s: &mut DesktopState, _| {
-                s.send_submission()
-            }))
-        };
-        Box::new(
-            el(
-                "section",
-                (
-                    span(format!(
-                        "Reviewed submission: {} · {} · {} bytes · {}",
-                        p.target(),
-                        p.mime(),
-                        p.byte_len(),
-                        p.digest()
-                    )),
-                    el("pre", String::from_utf8_lossy(p.body()).into_owned()),
-                    if is_titan {
-                        password_input("Titan token", "knot-submission-token", |s| {
-                            &mut s.entry_mut().site.submission.token
-                        })
-                    } else {
-                        Box::new(span(
-                            "Spartan sends this reviewed body without a Titan token.",
-                        ))
-                    },
-                    send_action,
-                    button("Cancel reviewed submission", |s: &mut DesktopState, _| {
-                        s.entry_mut().site.submission.discard()
-                    }),
-                ),
-            )
-            .attr("class", "knot-submission-review"),
-        )
-    } else if submission_busy {
-        Box::new(
-            el("section", span("Sending reviewed bytes…")).attr("class", "knot-submission-review"),
-        )
-    } else {
-        Box::new(el("div", ()))
-    };
     let format_picker = [
         SiteFormat::Scroll,
         SiteFormat::Gemini,
@@ -1366,55 +1618,6 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
         )
     })
     .collect::<Vec<_>>();
-    let titan_prepare: DesktopView = if submission_busy {
-        Box::new(span("Sending reviewed bytes…"))
-    } else if let Some(error) = &state.scroll.titan_submission_error {
-        Box::new(span(format!("Titan upload disabled: {error}")))
-    } else {
-        Box::new(button(
-            "Prepare saved source for Titan",
-            |s: &mut DesktopState, _| s.prepare_titan(),
-        ))
-    };
-    let spartan_prepare: DesktopView = if submission_busy {
-        Box::new(span("Spartan preparation is unavailable while sending."))
-    } else {
-        Box::new(button("Prepare Spartan body", |s: &mut DesktopState, _| {
-            s.prepare_spartan()
-        }))
-    };
-    let submission_composer: DesktopView = if state.scroll.submission_visible {
-        Box::new(
-            el(
-                "section",
-                (
-                    input("Submission target", "knot-submission-target", |s| {
-                        &mut s.entry_mut().site.submission.target
-                    }),
-                    input("MIME", "knot-submission-mime", |s| {
-                        &mut s.entry_mut().site.submission.mime
-                    }),
-                    titan_prepare,
-                    el(
-                        "label",
-                        (
-                            "Spartan body",
-                            lens(
-                                |input: &mut TextInput| textarea_typed(input),
-                                |s: &mut DesktopState| &mut s.entry_mut().site.submission.body,
-                            ),
-                        ),
-                    )
-                    .attr("id", "knot-spartan-body"),
-                    spartan_prepare,
-                    span("Preparing is local only. Sending is a separate action over the reviewed bytes."),
-                ),
-            )
-            .attr("class", "knot-submission"),
-        )
-    } else {
-        Box::new(el("div", ()))
-    };
     Box::new(el("section", (
         el("div", (
             input("Site folder", "knot-scroll-folder", |s| &mut s.scroll.folder),
@@ -1422,28 +1625,10 @@ pub fn site_panel(state: &DesktopState) -> DesktopView {
             button("Create site", |s: &mut DesktopState,_| s.enter_site(true)),
             button("Open site", |s: &mut DesktopState,_| s.enter_site(false)),
             button("Close site", |s: &mut DesktopState,_| s.close_site()),
-            button("Metadata", |s: &mut DesktopState,_| s.scroll.metadata_visible = !s.scroll.metadata_visible),
+            button("Metadata", |s: &mut DesktopState,_| s.open_page_metadata()),
             button("Toggle preview", |s: &mut DesktopState,_| s.scroll.preview_visible = !s.scroll.preview_visible),
-            button(
-                if state.scroll.submission_visible {
-                    "Hide upload / submit"
-                } else {
-                    "Upload / submit"
-                },
-                |s: &mut DesktopState, _| s.scroll.submission_visible = !s.scroll.submission_visible,
-            ),
         )).attr("class", "knot-scroll-controls"),
         pages,
-        metadata,
-        submission_composer,
-        review,
-        span(submission.result.clone().unwrap_or_default())
-            .attr("class", "knot-submission-status"),
-        submission
-            .response
-            .as_ref()
-            .map(|body| Box::new(el("pre", body.clone()).attr("class", "knot-submission-response")) as DesktopView)
-            .unwrap_or_else(|| Box::new(el("div", ()))),
         el("div", (
             input("Local port", "knot-scroll-port", |s| s.scroll.port_field_mut()),
             button("Publish locally", |s: &mut DesktopState,_| s.publish_site()),
@@ -2112,8 +2297,10 @@ pub const CSS: &str = r#"
 .knot-scroll-fields label { display: flex; flex-direction: column; width: 230px; }
 .knot-submission { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; margin-top: 8px; }
 .knot-submission label { display: flex; flex-direction: column; min-width: 180px; }
-#knot-spartan-body { display: flex; flex: 1 0 100%; flex-direction: column; min-width: 0; }
-#knot-spartan-body textarea { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
+.knot-submit { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.knot-metadata { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-width: 0; }
+.knot-spartan-body { display: flex; flex: 1 0 100%; flex-direction: column; min-width: 0; }
+.knot-spartan-body textarea { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
 .knot-submission-review { max-width: 100%; margin-top: 8px; }
 .knot-submission-review pre { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
@@ -2141,7 +2328,9 @@ mod tests {
     use super::*;
     use crate::{DESKTOP_CSS, host_hooks, workspace::desktop_view};
     use cambium::TextCommand;
-    use cambium_genet_winit_host::{Harness, Init, KeyPress, NamedKey, WindowCommands};
+    use cambium_genet_winit_host::{
+        CloseRequest, Harness, Init, KeyPress, NamedKey, WindowCommands,
+    };
     use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
     use layout_dom_api::{LayoutDom, LocalName, Namespace};
     use taproot::Selector;
@@ -2166,17 +2355,31 @@ mod tests {
             knot_document::DocumentFormat::Scroll
         );
         assert_eq!(page_name(&state), Some("index.scroll"));
-        page_fields(&mut state)[0] = TextInput::new("Writer");
-        state.scroll_open_page("about.scroll");
-        assert_eq!(page_name(&state), Some("index.scroll"));
-        state.publish_site();
-        assert!(state.scroll.current_site().unwrap().server.is_none());
-        state.save_metadata().unwrap();
+        state.open_page_metadata();
+        let site = state.site_page().unwrap().site;
+        let index = state
+            .docs
+            .metadata_tile(site, "index.scroll")
+            .expect("index.scroll's metadata tile");
+        draft_fields(&mut state, index)[0] = TextInput::new("Writer");
+        // The draft lives in its tile, so the focus moves on without it.
         state.scroll_open_page("about.scroll");
         assert_eq!(page_name(&state), Some("about.scroll"));
-        assert_eq!(state.site_page().unwrap().fields[0].text(), "");
-        state.scroll_open_page("index.scroll");
-        assert_eq!(state.site_page().unwrap().fields[0].text(), "Writer");
+        state.publish_site();
+        assert!(
+            state.scroll.current_site().unwrap().server.is_none(),
+            "published over unsaved metadata"
+        );
+        state.save_metadata(site, "index.scroll").unwrap();
+        let manifest = std::fs::read_to_string(root.join(knot_site::CONFIG)).unwrap();
+        assert!(manifest.contains("Writer"), "{manifest}");
+        state.open_page_metadata();
+        let about = state
+            .docs
+            .metadata_tile(site, "about.scroll")
+            .expect("about.scroll's metadata tile");
+        assert_eq!(draft_field(&state, about, 0).text(), "");
+        assert_eq!(draft_field(&state, index, 0).text(), "Writer");
         *state.scroll.port_field_mut() = TextInput::new("0");
         state.publish_site();
         assert!(state.scroll.current_site().unwrap().server.is_some());
@@ -2417,14 +2620,18 @@ mod tests {
         assert!(text.contains("accepted"));
     }
 
+    /// The site page follows the focused tab. A page's metadata tile keeps its
+    /// draft while the focus moves, marks its tab unsaved, and asks before it
+    /// closes over unsaved edits (step 7b).
     #[test]
-    fn the_site_page_follows_the_focused_tab_and_holds_unsaved_metadata() {
+    fn the_site_page_follows_the_focused_tab_and_a_metadata_tile_keeps_its_draft() {
         let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("site");
         let mut state = DesktopState::new(
             KnotDocumentSession::scratch("scratch:site-tabs", ""),
             WindowCommands::new(),
         );
-        state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
+        state.scroll.folder = TextInput::new(root.to_string_lossy());
         state.enter_site(true);
         state.scroll_open_page("about.scroll");
         let mut host = Harness::with_hooks(
@@ -2444,28 +2651,69 @@ mod tests {
         assert!(host.click_on(&Selector::role("tab").containing("scratch:site-tabs")));
         assert_eq!(page_name(host.state()), None);
 
-        // An unsaved metadata edit keeps the focus on its page: neither
-        // another tab nor closing this one takes it away.
         assert!(host.click_on(&Selector::role("tab").containing("about.scroll")));
-        host.update(|state| page_fields(state)[0] = TextInput::new("Writer"));
+        host.update(DesktopState::open_page_metadata);
+        let tile = {
+            let state = host.state();
+            let site = state.site_page().unwrap().site;
+            state
+                .docs
+                .metadata_tile(site, "about.scroll")
+                .expect("about.scroll's metadata tile")
+        };
+        host.update(|state| draft_fields(state, tile)[0] = TextInput::new("Writer"));
+        host.relayout();
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let marked = attr_nodes(&dom, dom.document(), "aria-description", "Unsaved changes");
+            assert_eq!(marked.len(), 1, "one tab is marked unsaved");
+            assert!(text_content(&dom, marked[0]).contains("Metadata · about.scroll"));
+        }
+
+        // The focus moves on; the draft stays with its tile.
         assert!(host.click_on(&Selector::role("tab").containing("index.scroll")));
-        assert_eq!(page_name(host.state()), Some("about.scroll"));
+        assert_eq!(page_name(host.state()), Some("index.scroll"));
+        assert_eq!(draft_field(host.state(), tile, 0).text(), "Writer");
+
+        // Closing the tile over unsaved edits asks; Discard drops the draft and
+        // leaves the manifest as it was.
+        // A tab's close shows on the active tab, so bring the metadata tab up first.
+        let manifest = std::fs::read(root.join(knot_site::CONFIG)).unwrap();
+        assert!(host.click_on(&Selector::role("tab").containing("Metadata · about.scroll")));
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("aria-label", "Close Metadata · about.scroll")
+        ));
+        let discard = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let prompt = class_nodes(&dom, dom.document(), "knot-confirm");
+            assert_eq!(prompt.len(), 1, "the close asks first");
+            assert!(
+                text_content(&dom, prompt[0])
+                    .contains("Metadata · about.scroll has unsaved changes.")
+            );
+            let button = dom
+                .dom_children(prompt[0])
+                .find(|child| text_content(&dom, *child) == "Discard")
+                .expect("the prompt's Discard");
+            let (x, y, width, height) = host.painted_rect(button).expect("Discard paints");
+            (x + width / 2.0, y + height / 2.0)
+        };
+        host.click_at(discard.0, discard.1);
+        host.relayout();
+        let state = host.state();
+        assert!(
+            state
+                .docs
+                .metadata_tile(state.site_page().unwrap().site, "about.scroll")
+                .is_none()
+        );
         assert_eq!(
-            host.state().document().snapshot().display_label,
-            "about.scroll"
+            std::fs::read(root.join(knot_site::CONFIG)).unwrap(),
+            manifest
         );
-        assert_eq!(host.state().site_page().unwrap().fields[0].text(), "Writer");
-        assert!(
-            host.state()
-                .message
-                .as_deref()
-                .is_some_and(|message| message.contains("metadata edits"))
-        );
-        assert!(
-            host.click_on(&Selector::role("button").with_attr("aria-label", "Close about.scroll"))
-        );
-        assert_eq!(host.state().docs.len(), 3);
-        assert_eq!(host.state().site_page().unwrap().fields[0].text(), "Writer");
+        assert_eq!(state.docs.len(), 3);
     }
 
     /// Step 7a: each document keeps its own composer, so a target typed for
@@ -2487,14 +2735,18 @@ mod tests {
         let target = |host: &DesktopHarness| {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            let label = node_with_id(&dom, dom.document(), "knot-submission-target")
+            let label = class_nodes(&dom, dom.document(), "knot-submission-target")
+                .into_iter()
+                .next()
                 .expect("the target field");
             text_content(&dom, label)
         };
         let field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            let label = node_with_id(&dom, dom.document(), "knot-submission-target")
+            let label = class_nodes(&dom, dom.document(), "knot-submission-target")
+                .into_iter()
+                .next()
                 .expect("the target field");
             input_node(&dom, label).expect("the target input")
         };
@@ -2509,6 +2761,171 @@ mod tests {
         );
         assert!(host.click_on(&Selector::role("tab").containing("one.gmi")));
         assert!(target(&host).contains("spartan://one.test/"));
+    }
+
+    /// Step 7b: closing the window over unsaved metadata asks once, naming the
+    /// metadata tile, and Save all writes the manifest before the window goes.
+    #[test]
+    fn the_quit_prompt_names_unsaved_metadata_and_save_all_writes_it() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("site");
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:quit", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(root.to_string_lossy());
+        state.enter_site(true);
+        state.open_page_metadata();
+        let site = state.site_page().unwrap().site;
+        let tile = state.docs.metadata_tile(site, "index.scroll").unwrap();
+        draft_fields(&mut state, tile)[0] = TextInput::new("Quitter");
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        let commands = host.commands();
+        host.update(|state| state.set_window(commands.clone()));
+        host.layout_at(1100.0, 730.0);
+        host.request_close(CloseRequest::Native);
+        host.relayout();
+        assert!(
+            !host.close_requested(),
+            "the window closed over unsaved metadata"
+        );
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let prompt = class_nodes(&dom, dom.document(), "knot-confirm");
+            assert_eq!(prompt.len(), 1, "one prompt");
+            assert!(
+                text_content(&dom, prompt[0])
+                    .contains("Metadata · index.scroll has unsaved changes.")
+            );
+        }
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
+        assert!(
+            host.close_requested(),
+            "the window stayed open: {:?}",
+            host.state().message
+        );
+        let manifest = std::fs::read_to_string(root.join(knot_site::CONFIG)).unwrap();
+        assert!(manifest.contains("Quitter"), "{manifest}");
+    }
+
+    /// Step 7b: a Submit tile pinned to one document takes typing for that
+    /// document, whichever document has the focus, and a click places the
+    /// caret in that document's field.
+    #[test]
+    fn a_pinned_submit_tile_writes_its_own_documents_composer() {
+        let temp = tempfile::tempdir().unwrap();
+        let one = temp.path().join("one.gmi");
+        let two = temp.path().join("two.gmi");
+        std::fs::write(&one, "# One\n").unwrap();
+        std::fs::write(&two, "# Two\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&one).unwrap(),
+            WindowCommands::new(),
+        );
+        let one_key = state.focused_key().unwrap();
+        state.toggle_reading(ReadingKind::Submit);
+        let tile = state.docs.following_reading(ReadingKind::Submit).unwrap();
+        state.toggle_pin(tile);
+        state.entry_mut().site.submission.target = TextInput::new("one.test/");
+        assert!(state.open_path(two));
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        let field = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let labels = class_nodes(&dom, dom.document(), "knot-submission-target");
+            assert_eq!(labels.len(), 1, "one Submit tile");
+            input_node(&dom, labels[0]).expect("the target input")
+        };
+        // A click at the field's start puts the caret there, ahead of the
+        // text already in it.
+        let (x, y, _, height) = host.visible_rect(field).expect("the target input shows");
+        host.click_at(x + 1.0, y + height / 2.0);
+        host.key_injected("spartan://");
+        let state = host.state();
+        assert_eq!(state.document().snapshot().display_label, "two.gmi");
+        assert_eq!(
+            state.entry_for(one_key).site.submission.target.text(),
+            "spartan://one.test/"
+        );
+        assert_eq!(
+            state.entry().site.submission.target.text(),
+            "",
+            "the focused document's composer took the pinned tile's typing"
+        );
+    }
+
+    /// Step 7b: a page's metadata lives with its site, so its tile stays open,
+    /// draft and all, when the page's source tab closes.
+    #[test]
+    fn a_metadata_tile_outlives_its_pages_source_tab() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:outlive", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
+        state.enter_site(true);
+        state.open_page_metadata();
+        let site = state.site_page().unwrap().site;
+        let tile = state.docs.metadata_tile(site, "index.scroll").unwrap();
+        draft_fields(&mut state, tile)[0] = TextInput::new("Kept");
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        host.layout_at(1100.0, 730.0);
+        // Bring the page's own tab up, so its close shows, then close it.
+        let page_tab = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            attr_nodes(&dom, dom.document(), "role", "tab")
+                .into_iter()
+                .find(|tab| text_content(&dom, *tab).starts_with("index.scroll"))
+                .expect("index.scroll's tab")
+        };
+        let (x, y, width, height) = host.visible_rect(page_tab).expect("the tab shows");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.relayout();
+        let documents = host.state().docs.len();
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("aria-label", "Close index.scroll"))
+        );
+        assert_eq!(
+            host.state().docs.len(),
+            documents - 1,
+            "the page's tab closed"
+        );
+        assert_eq!(
+            host.state().docs.metadata_tile(site, "index.scroll"),
+            Some(tile)
+        );
+        assert_eq!(draft_field(host.state(), tile, 0).text(), "Kept");
     }
 
     /// Step 7a: a Micron reply belongs to the page it was sent from, and lands
@@ -2632,7 +3049,6 @@ mod tests {
         );
         state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
         state.enter_site(true);
-        state.save_metadata().unwrap();
         *state.scroll.port_field_mut() = TextInput::new("0");
         // Hide the site panel, so only the chip's popover offers Publish and Stop.
         state.scroll.visible = false;
@@ -3594,11 +4010,11 @@ mod tests {
             KnotDocumentSession::scratch("scratch:prompt", ""),
             WindowCommands::new(),
         );
-        assert!(!state.scroll.submission_visible);
+        assert!(state.docs.following_reading(ReadingKind::Submit).is_none());
         state.entry_mut().site.submission.token = TextInput::new("stale-token");
         state.select_spartan_prompt("spartan://example.test:3000/submit".into());
 
-        assert!(state.scroll.submission_visible);
+        assert!(state.docs.following_reading(ReadingKind::Submit).is_some());
         let submission = &state.entry().site.submission;
         assert_eq!(
             submission.target.text(),
@@ -3661,16 +4077,13 @@ mod tests {
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!("{DESKTOP_CSS}{CSS}"),
+                sheet: crate::desktop_sheet(),
                 fonts: Vec::new(),
                 images: Vec::new(),
             },
             host_hooks(),
         );
-        host.update(|state| {
-            state.scroll.visible = true;
-            state.scroll.submission_visible = true;
-        });
+        host.update(|state| state.toggle_reading(ReadingKind::Submit));
         host.layout_at(1100.0, 730.0);
         host
     }
@@ -3812,7 +4225,7 @@ mod tests {
         let textarea = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            let body = node_with_id(&dom, dom.document(), "knot-spartan-body").unwrap();
+            let body = class_nodes(&dom, dom.document(), "knot-spartan-body")[0];
             textarea_node(&dom, body).unwrap()
         };
         let (x, y, _, _) = host.painted_rect(textarea).unwrap();
@@ -3848,7 +4261,12 @@ mod tests {
         let mut host = submission_harness_with(state);
 
         assert!(host.click_on(&Selector::role("button").containing("Submit locally")));
-        assert!(host.state().scroll.submission_visible);
+        assert!(
+            host.state()
+                .docs
+                .following_reading(ReadingKind::Submit)
+                .is_some()
+        );
         assert_eq!(
             host.state().entry().site.submission.target.text(),
             "spartan://localhost:65025/upload"
@@ -3873,7 +4291,7 @@ mod tests {
         });
         let dom = host.runner().dom();
         let dom = dom.borrow();
-        let label = node_with_id(&dom, dom.document(), "knot-submission-token").unwrap();
+        let label = class_nodes(&dom, dom.document(), "knot-submission-token")[0];
         let input = input_node(&dom, label).unwrap();
         assert_eq!(
             dom.attribute(input, &Namespace::from(""), &LocalName::from("type")),

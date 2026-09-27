@@ -1108,6 +1108,81 @@ design frames either fixed or recorded.
   They also show the site folder field painting a long path past its box,
   behind the format buttons. That is D6's family, in the panel that
   retires in 7c.
+- **2026-09-26, repin.** Knot moved to mere `0418391f` and genet `0cf4f30`
+  together (`d265f03`).
+  - Genet's render boot now forwards netrender's optional features.
+  - Insigne phase B replaces `verify()` with `check()`. Five knot-editor
+    call sites in tests and the example adopted it; the library is
+    unchanged.
+
+  The Cleromancy session had relayed an ask for Knot's genet rows to move
+  first. Tried alone, that broke knot-desktop's build (22 lib errors, 505 in
+  tests) with two genet copies in the graph, so on Mark's ruling mere went
+  first. Mere's djinn then repinned to `d265f03` (mere `a464dc2a`), which
+  dropped its two old-genet copies. The headed frame is under
+  `Code/testing/knot-editor/images/2026-09-26_repin_0418/`.
+- **2026-09-26, step 7b.** The Metadata and Submit tiles.
+  - **The Metadata tile.** On Mark's ruling, a page's metadata draft lives
+    with its site, keyed by page, not with the page's document. `SiteKey`
+    moved beside `DocKey`. `TileRole::Metadata { site, page }` opens in the
+    document stack as "Metadata · ‹page›", from the panel's Metadata button
+    for the focused page. Its draft starts from the manifest's saved values
+    and goes when the tile closes.
+    - Its tab carries the unsaved mark while its draft differs from the
+      manifest.
+    - Closing it over unsaved edits asks Save, Discard or Cancel.
+    - The quit prompt lists it beside dirty documents, and Save all writes
+      it. A list holding both kinds says "N tabs have unsaved changes".
+    - It outlives its page's source tab. Entering or closing a site closes
+      that site's metadata tiles.
+    - Publishing refuses while any draft of the site is dirty, and Titan
+      preparation refuses while its page's draft is.
+    - The rule that unsaved metadata holds the focus retired, with its
+      eight guards.
+  - **The Submit tile.** `ReadingKind::Submit`, titled "Upload / submit",
+    follows the focused document or pins to one. It opens from the command
+    row's toggle, or when a Spartan prompt link is picked. Its actions and
+    fields act on the tile's own document. The fields carry classes, and the
+    tile carries its document's key, so both text routes and lenses reach
+    that document whichever one has the focus.
+  - **The panel** keeps create, open and close, the page list, Metadata,
+    the preview toggle and publishing. Its metadata form, composer and
+    Upload / submit button retired.
+
+  Tests: the metadata and composer tests are rewritten against the tiles.
+  The focus test now checks three things: the metadata tab's mark, that the
+  focus moves on with the draft kept, and that closing asks, with Discard
+  leaving the manifest untouched. Three tests are new:
+  - the quit prompt names unsaved metadata, and Save all writes it;
+  - a pinned Submit tile takes typing, and a click's caret, for its own
+    document while another has the focus;
+  - a metadata tile outlives its page's source tab.
+
+  Controls: each test fails with its behaviour broken:
+  - the quit prompt ignoring metadata;
+  - closing a document closing the metadata tiles;
+  - a dirty tile closing without asking;
+  - publish ignoring drafts;
+  - for the pinned tile, both the text route and the field's lens sent to
+    the focused document.
+
+  Typing reaches a field through its lens. The text route places a click's
+  caret and gates IME, which is why the pinned test needs both controls.
+
+  Found on the way: the composer tests' harness lacked Cambium's frame
+  sheet. Without it, a split's second stack collapsed to its tab bar and
+  clipped the tile out of hit-testing. The harness now uses the desktop
+  sheet.
+
+  The desktop library passes 142 with 1 ignored, and `cargo test --locked`
+  passes 421 with 3 ignored. Headed on a copy of the Tidewatch fixture:
+  - the panel's Metadata button opens "Metadata · index.scroll" beside its
+    page's tab, filled from the manifest;
+  - the command row's Upload / submit opens the Submit tile in a stack to
+    the right, following index.scroll.
+
+  The frames are under `Code/testing/knot-editor/images/2026-09-26_7b/`.
+  The panel still costs the frame its height until 7c retires it.
 
 ## Related material
 

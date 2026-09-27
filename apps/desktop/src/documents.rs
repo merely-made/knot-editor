@@ -27,6 +27,11 @@ use workbench::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct DocKey(pub u64);
 
+/// The runtime key of one open site. It names the site's entry, not its
+/// folder, so a folder opened again gets a new key.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct SiteKey(pub u64);
+
 /// What makes two opens the same document.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DocIdentity {
@@ -43,6 +48,8 @@ pub enum ReadingKind {
     Folded,
     Readings,
     Changes,
+    /// The Titan or Spartan composer of its document.
+    Submit,
 }
 
 /// What a tile shows.
@@ -55,6 +62,12 @@ pub enum TileRole {
         pinned: Option<DocKey>,
     },
     Navigator,
+    /// A site page's metadata form. Its draft lives with the site, so the
+    /// tile needs no tab of the page's source.
+    Metadata {
+        site: SiteKey,
+        page: String,
+    },
 }
 
 /// The Workbench lane every Knot tile rides in.
@@ -223,8 +236,47 @@ impl<D> DocumentWorkspace<D> {
         match self.roles.get(&tile)? {
             TileRole::Document(key) => Some(*key),
             TileRole::Reading { pinned, .. } => pinned.or(self.focused),
-            TileRole::Navigator => None,
+            TileRole::Navigator | TileRole::Metadata { .. } => None,
         }
+    }
+
+    /// Open the metadata tile of `page` in `site`, or activate the open one.
+    /// It joins the focused document's stack, as a document would.
+    pub fn open_metadata(&mut self, site: SiteKey, page: &str, title: impl Into<String>) -> TileId {
+        if let Some(tile) = self.metadata_tile(site, page) {
+            self.activate(tile);
+            return tile;
+        }
+        let role = TileRole::Metadata {
+            site,
+            page: page.to_owned(),
+        };
+        let tile = self.mint_tile(title.into(), role);
+        let id = tile.id;
+        self.place_document_tile(tile);
+        self.activate(id);
+        id
+    }
+
+    /// The open metadata tile of `page` in `site`, if any.
+    pub fn metadata_tile(&self, site: SiteKey, page: &str) -> Option<TileId> {
+        self.metadata_tiles(site).into_iter().find(|tile| {
+            matches!(self.roles.get(tile), Some(TileRole::Metadata { page: open, .. }) if open == page)
+        })
+    }
+
+    /// Every open metadata tile of `site`, in tile order.
+    pub fn metadata_tiles(&self, site: SiteKey) -> Vec<TileId> {
+        let mut tiles: Vec<TileId> = self
+            .roles
+            .iter()
+            .filter(
+                |(_, role)| matches!(role, TileRole::Metadata { site: open, .. } if *open == site),
+            )
+            .map(|(tile, _)| *tile)
+            .collect();
+        tiles.sort_by_key(|tile| tile.0);
+        tiles
     }
 
     /// Activate a tile, focusing its document when it has one.

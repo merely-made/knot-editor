@@ -115,6 +115,8 @@ pub(crate) enum PendingAction {
     Quit,
     /// Closing one document's tab over its unsaved changes.
     CloseDocument(DocKey),
+    /// Closing a metadata tile over its unsaved edits.
+    CloseMetadata(workbench::TileId),
     /// Reloading the focused document over its unsaved changes.
     Reload,
 }
@@ -401,6 +403,27 @@ impl DesktopState {
                 self.docs.doc_mut(key).expect("focused entry")
             },
             _ => &mut self.placeholder,
+        }
+    }
+
+    /// Route window commands to `window`, as the harness's own, so a test
+    /// sees the closes this state asks for.
+    #[cfg(test)]
+    pub(crate) fn set_window(&mut self, window: WindowCommands) {
+        self.window = window;
+    }
+
+    /// A document's entry by key, or the placeholder's once it has closed: a
+    /// tile pinned to a document reads that document, focused or not.
+    pub(crate) fn entry_for(&self, key: DocKey) -> &DocumentEntry {
+        self.docs.doc(key).unwrap_or(&self.placeholder)
+    }
+
+    pub(crate) fn entry_mut_for(&mut self, key: DocKey) -> &mut DocumentEntry {
+        if self.docs.doc(key).is_some() {
+            self.docs.doc_mut(key).expect("open entry")
+        } else {
+            &mut self.placeholder
         }
     }
 
@@ -915,7 +938,7 @@ impl DesktopState {
             },
             ReadingKind::Readings => self.refresh_readings(),
             ReadingKind::Folded => self.sync_fold_snapshots(),
-            ReadingKind::Preview | ReadingKind::Changes => {},
+            ReadingKind::Preview | ReadingKind::Changes | ReadingKind::Submit => {},
         }
     }
 
@@ -1281,10 +1304,6 @@ impl DesktopState {
     }
 
     pub(crate) fn request(&mut self, action: PendingAction) {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before changing documents.".into());
-            return;
-        }
         if self.dirty() {
             self.pending = Some(action);
         } else {
@@ -1296,6 +1315,7 @@ impl DesktopState {
         match action {
             PendingAction::Quit => self.window.close(),
             PendingAction::CloseDocument(key) => self.close_document(key),
+            PendingAction::CloseMetadata(tile) => self.close_metadata(tile),
             PendingAction::Reload => {
                 match self.document_mut().apply(KnotDocumentIntentV1::Reload) {
                     Ok(_) => {
@@ -1322,20 +1342,7 @@ impl DesktopState {
         self.sync_catalog();
     }
 
-    /// Metadata edits belong to the site page they were made on, so the focus
-    /// stays there until they are saved or discarded.
-    fn metadata_holds_focus(&mut self) -> bool {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before changing documents.".into());
-        }
-        self.metadata_dirty()
-    }
-
     fn new_document(&mut self) {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before changing documents.".into());
-            return;
-        }
         self.open_entry(DocumentEntry::new(KnotDocumentSession::scratch(
             SCRATCH_ADDRESS,
             "",
@@ -1358,10 +1365,6 @@ impl DesktopState {
     /// Open `path` in a new tab, or switch to the tab already showing it.
     /// `false` when it could not.
     pub(crate) fn open_path(&mut self, path: PathBuf) -> bool {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before changing documents.".into());
-            return false;
-        }
         let resolved = std::fs::canonicalize(&path).ok();
         let identity = DocIdentity::Path(resolved.clone().unwrap_or_else(|| path.clone()));
         if let Some(key) = self.docs.find(&identity) {
@@ -1401,10 +1404,6 @@ impl DesktopState {
     }
 
     fn save_as(&mut self) -> bool {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before Save As.".into());
-            return false;
-        }
         let Some(key) = self.focused_key() else {
             self.message = Some("No document is open.".to_owned());
             return false;
@@ -1487,10 +1486,6 @@ impl DesktopState {
     }
 
     fn confirm_save(&mut self) {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before changing documents.".into());
-            return;
-        }
         let Some(action) = self.pending.take() else {
             return;
         };
@@ -1512,10 +1507,17 @@ impl DesktopState {
                         Err(error) => failures.push(intent_error_label("Save", error)),
                     }
                 }
+                for tile in self.dirty_metadata() {
+                    if let Some(TileRole::Metadata { site, page }) = self.docs.role(tile).cloned()
+                        && let Err(error) = self.save_metadata(site, &page)
+                    {
+                        failures.push(error);
+                    }
+                }
                 if let Some(key) = focused {
                     self.docs.focus(key);
                 }
-                if self.dirty_documents().is_empty() {
+                if self.dirty_documents().is_empty() && self.dirty_metadata().is_empty() {
                     self.window.close();
                 } else {
                     self.pending = Some(PendingAction::Quit);
@@ -1535,6 +1537,18 @@ impl DesktopState {
                     self.pending = Some(PendingAction::CloseDocument(key));
                 }
             },
+            PendingAction::CloseMetadata(tile) => {
+                let Some(TileRole::Metadata { site, page }) = self.docs.role(tile).cloned() else {
+                    return;
+                };
+                match self.save_metadata(site, &page) {
+                    Ok(()) => self.close_metadata(tile),
+                    Err(error) => {
+                        self.message = Some(error);
+                        self.pending = Some(PendingAction::CloseMetadata(tile));
+                    },
+                }
+            },
             PendingAction::Reload => {
                 if self.save_for_pending() {
                     self.perform(PendingAction::Reload);
@@ -1546,10 +1560,6 @@ impl DesktopState {
     }
 
     fn confirm_discard(&mut self) {
-        if self.metadata_dirty() {
-            self.message = Some("Save or discard metadata edits before changing documents.".into());
-            return;
-        }
         let Some(action) = self.pending.take() else {
             return;
         };
@@ -1561,16 +1571,14 @@ impl DesktopState {
         }
     }
 
-    /// Leave the quit prompt and show the first document it listed.
+    /// Leave the quit prompt and show the first tab it listed.
     fn review_pending(&mut self) {
-        let first = self.dirty_documents().first().copied();
-        if first.is_some() && first != self.focused_key() && self.metadata_holds_focus() {
-            return;
-        }
         self.pending = None;
-        if let Some(key) = first {
+        if let Some(key) = self.dirty_documents().first().copied() {
             self.docs.focus(key);
             self.after_focus_change();
+        } else if let Some(tile) = self.dirty_metadata().first().copied() {
+            self.docs.activate(tile);
         }
     }
 
@@ -1585,13 +1593,6 @@ impl DesktopState {
         match &event {
             WorkspaceEvent::Tile(TileEvent::Activated(tile)) => {
                 let before = self.focused_key();
-                let target = match self.docs.role(*tile) {
-                    Some(TileRole::Document(key)) => Some(*key),
-                    _ => None,
-                };
-                if target.is_some() && target != before && self.metadata_holds_focus() {
-                    return;
-                }
                 self.docs.activate(*tile);
                 if self.focused_key() != before {
                     self.after_focus_change();
@@ -1608,25 +1609,31 @@ impl DesktopState {
     }
 
     fn request_close_tile(&mut self, tile: workbench::TileId) {
-        let Some(TileRole::Document(key)) = self.docs.role(tile).cloned() else {
-            self.docs.close(tile);
-            return;
-        };
-        let dirty = self
-            .docs
-            .doc(key)
-            .is_some_and(|entry| entry.document.snapshot().dirty);
-        // Asking about a tab focuses it, and closing the focused tab moves
-        // the focus on.
-        if (dirty || self.focused_key() == Some(key)) && self.metadata_holds_focus() {
-            return;
-        }
-        if dirty {
-            self.docs.focus(key);
-            self.after_focus_change();
-            self.pending = Some(PendingAction::CloseDocument(key));
-        } else {
-            self.close_document(key);
+        match self.docs.role(tile).cloned() {
+            Some(TileRole::Document(key)) => {
+                let dirty = self
+                    .docs
+                    .doc(key)
+                    .is_some_and(|entry| entry.document.snapshot().dirty);
+                if dirty {
+                    self.docs.focus(key);
+                    self.after_focus_change();
+                    self.pending = Some(PendingAction::CloseDocument(key));
+                } else {
+                    self.close_document(key);
+                }
+            },
+            Some(TileRole::Metadata { site, page }) => {
+                if self.draft_dirty(site, &page) {
+                    self.docs.activate(tile);
+                    self.pending = Some(PendingAction::CloseMetadata(tile));
+                } else {
+                    self.close_metadata(tile);
+                }
+            },
+            _ => {
+                self.docs.close(tile);
+            },
         }
     }
 
@@ -1663,11 +1670,6 @@ impl DesktopState {
     }
 
     fn close_request(&mut self, request: CloseRequest) -> CloseDisposition {
-        if self.metadata_dirty() {
-            self.scroll.visible = true;
-            self.message = Some("Save or discard metadata edits before closing.".into());
-            return CloseDisposition::KeepVisible;
-        }
         if self.retention_busy.is_some() {
             self.message = Some("Wait for retention to finish before closing.".to_owned());
             self.discard_close = false;
@@ -1677,7 +1679,7 @@ impl DesktopState {
             self.discard_close = false;
             return CloseDisposition::Exit;
         }
-        if !self.dirty_documents().is_empty() {
+        if !self.dirty_documents().is_empty() || !self.dirty_metadata().is_empty() {
             self.pending = Some(PendingAction::Quit);
             return CloseDisposition::KeepVisible;
         }
@@ -2059,23 +2061,32 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     };
     let prompt: DesktopView = match state.pending.as_ref() {
         Some(PendingAction::Quit) => {
-            let dirty = state.dirty_documents();
-            let title = match dirty.as_slice() {
-                [key] => format!(
-                    "{} has unsaved changes.",
-                    state
-                        .docs
-                        .doc(*key)
-                        .map_or_else(String::new, |entry| entry.document.snapshot().display_label)
-                ),
-                keys => format!("{} documents have unsaved changes.", keys.len()),
-            };
-            let listed = dirty
+            let mut labels: Vec<String> = state
+                .dirty_documents()
                 .iter()
                 .filter_map(|key| {
                     let entry = state.docs.doc(*key)?;
-                    Some((key.0, span(entry.document.snapshot().display_label)))
+                    Some(entry.document.snapshot().display_label)
                 })
+                .collect();
+            let documents = labels.len();
+            labels.extend(state.dirty_metadata().iter().filter_map(|tile| {
+                match state.docs.role(*tile) {
+                    Some(TileRole::Metadata { page, .. }) => Some(format!("Metadata · {page}")),
+                    _ => None,
+                }
+            }));
+            let title = match labels.as_slice() {
+                [label] => format!("{label} has unsaved changes."),
+                all if all.len() == documents => {
+                    format!("{} documents have unsaved changes.", all.len())
+                },
+                all => format!("{} tabs have unsaved changes.", all.len()),
+            };
+            let listed = labels
+                .into_iter()
+                .enumerate()
+                .map(|(index, label)| (index as u64, span(label)))
                 .collect::<Vec<_>>();
             Box::new(
                 el(
@@ -2113,6 +2124,12 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         .doc(*key)
                         .map_or_else(String::new, |entry| entry.document.snapshot().display_label)
                 ),
+                PendingAction::CloseMetadata(tile) => match state.docs.role(*tile) {
+                    Some(TileRole::Metadata { page, .. }) => {
+                        format!("Metadata · {page} has unsaved changes.")
+                    },
+                    _ => "These metadata edits are unsaved.".to_owned(),
+                },
                 _ => "Reload will replace unsaved changes with disk text.".to_owned(),
             };
             Box::new(
@@ -2218,6 +2235,12 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         reading_toggle(state, ReadingKind::Outline, "Show Outline", "Hide Outline"),
                         reading_toggle(state, ReadingKind::Readings, "Readings", "Hide Readings"),
                         navigator_toggle(state),
+                        reading_toggle(
+                            state,
+                            ReadingKind::Submit,
+                            "Upload / submit",
+                            "Hide upload / submit",
+                        ),
                     ),
                 )
                 .attr("class", "knot-workspace-toolbar")
@@ -2410,6 +2433,9 @@ fn document_frame(state: &DesktopState) -> DesktopView {
             .docs
             .doc(*key)
             .and_then(|entry| crate::status::tab_mark(&entry.document.snapshot())),
+        Some(TileRole::Metadata { site, page }) => state
+            .draft_dirty(*site, page)
+            .then_some(cambium::TabMark::Modified),
         _ => None,
     };
     if state.docs.is_empty() {
@@ -2449,6 +2475,9 @@ fn tile_view(state: &DesktopState, tile: workbench::TileId) -> DesktopView {
         Some(TileRole::Document(key)) => document_tile(state, *key),
         Some(TileRole::Reading { kind, pinned }) => reading_tile(state, tile, *kind, *pinned),
         Some(TileRole::Navigator) => crate::navigator::view(state, tile),
+        Some(TileRole::Metadata { site, page }) => {
+            crate::scroll_site::metadata_view(state, tile, *site, page)
+        },
         None => Box::new(el("div", ())),
     }
 }
@@ -2461,6 +2490,7 @@ pub(crate) fn reading_title(kind: ReadingKind) -> &'static str {
         ReadingKind::Folded => "Folded source",
         ReadingKind::Readings => "Readings",
         ReadingKind::Changes => "Changes",
+        ReadingKind::Submit => "Upload / submit",
     }
 }
 
@@ -2502,6 +2532,7 @@ fn reading_tile(
         ReadingKind::Readings => crate::readings::view(state, key, tile),
         ReadingKind::Folded => crate::document_folding::view(state, key, tile),
         ReadingKind::Changes => crate::changes::view(state, key, tile),
+        ReadingKind::Submit => crate::scroll_site::submit_view(state, key),
     };
     Box::new(
         el("section", (header, body))
@@ -2583,6 +2614,20 @@ fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool 
 
 /// The document whose tile holds `node`, read off the tile's
 /// `data-knot-document`.
+/// The nearest value of attribute `name` on `node` or an ancestor.
+fn ancestor_attribute<D: LayoutDom>(dom: &D, node: D::NodeId, name: &str) -> Option<String> {
+    let namespace = Namespace::from("");
+    let local = LocalName::from(name);
+    let mut node = Some(node);
+    while let Some(current) = node {
+        if let Some(value) = dom.attribute(current, &namespace, &local) {
+            return Some(value.to_string());
+        }
+        node = dom.parent(current);
+    }
+    None
+}
+
 fn document_key_of<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<DocKey> {
     let namespace = Namespace::from("");
     let local = LocalName::from("data-knot-document");
@@ -2619,12 +2664,17 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     }
     let folder = ancestor_has_id(&*dom_ref, focused, "knot-scroll-folder");
     let port = ancestor_has_id(&*dom_ref, focused, "knot-scroll-port");
-    let submission_target = ancestor_has_id(&*dom_ref, focused, "knot-submission-target");
-    let submission_mime = ancestor_has_id(&*dom_ref, focused, "knot-submission-mime");
-    let submission_body = ancestor_has_id(&*dom_ref, focused, "knot-spartan-body");
-    let submission_token = ancestor_has_id(&*dom_ref, focused, "knot-submission-token");
+    let submission = ancestor_attribute(&*dom_ref, focused, "data-knot-submission")
+        .and_then(|key| key.parse().ok())
+        .map(DocKey);
+    let composer_field = crate::scroll_site::COMPOSER_FIELDS
+        .iter()
+        .position(|class| ancestor_has_class(&*dom_ref, focused, class));
+    let metadata_tile = ancestor_attribute(&*dom_ref, focused, "data-knot-metadata")
+        .and_then(|tile| tile.parse().ok())
+        .map(workbench::TileId);
     let metadata =
-        (0..6).find(|i| ancestor_has_id(&*dom_ref, focused, &format!("knot-scroll-meta-{i}")));
+        (0..6).find(|i| ancestor_has_class(&*dom_ref, focused, &format!("knot-meta-field-{i}")));
     let path = ancestor_has_id(&*dom_ref, focused, "knot-path-field");
     let save_as_path = ancestor_has_id(&*dom_ref, focused, "knot-save-as-field");
     let document = document_key_of(&*dom_ref, focused);
@@ -2643,39 +2693,18 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
             get_mut: Box::new(|s| s.scroll.port_field_mut()),
         });
     }
-    if submission_target {
+    if let (Some(key), Some(field)) = (submission, composer_field) {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.entry().site.submission.target),
-            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.target),
+            get: Box::new(move |s| crate::scroll_site::composer_text(s, key, field)),
+            get_mut: Box::new(move |s| crate::scroll_site::composer_text_mut(s, key, field)),
         });
     }
-    if submission_mime {
+    if let (Some(tile), Some(i)) = (metadata_tile, metadata) {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| &s.entry().site.submission.mime),
-            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.mime),
-        });
-    }
-    if submission_body {
-        return Some(FocusedTextSlot {
-            node: focused,
-            get: Box::new(|s| &s.entry().site.submission.body),
-            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.body),
-        });
-    }
-    if submission_token {
-        return Some(FocusedTextSlot {
-            node: focused,
-            get: Box::new(|s| &s.entry().site.submission.token),
-            get_mut: Box::new(|s| &mut s.entry_mut().site.submission.token),
-        });
-    }
-    if let Some(i) = metadata {
-        return Some(FocusedTextSlot {
-            node: focused,
-            get: Box::new(move |s| crate::scroll_site::page_field(s, i)),
-            get_mut: Box::new(move |s| &mut crate::scroll_site::page_fields(s)[i]),
+            get: Box::new(move |s| crate::scroll_site::draft_field(s, tile, i)),
+            get_mut: Box::new(move |s| &mut crate::scroll_site::draft_fields(s, tile)[i]),
         });
     }
     if path {

@@ -18,12 +18,11 @@ pub mod status;
 pub mod workspace;
 
 use cambium::{FOLD_ROWS_CSS, FRISKET_CSS, POPOVER_CSS, STATUS_BAR_CSS, WORKSPACE_CSS};
-use cambium_genet_winit_host::{
-    HostHooks, HostOptions, Init, LaneConfig, ScenarioLane, inert_hooks, run,
-};
+use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
 use knot_capture::KnotRetainPort;
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use knot_file_catalog::KnotFileCatalog;
+use mesquite::LaneConfig;
 use std::{path::PathBuf, sync::Arc};
 use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 
@@ -78,8 +77,12 @@ pub fn run_desktop_with_targets(
 ) -> Result<(), String> {
     let mut hooks = host_hooks();
     if let Some(config) = LaneConfig::from_env("KNOT") {
-        let mut lane = ScenarioLane::new(config, scenario::KnotLane::new(desktop_sheet()))?;
-        hooks.after_frame = Box::new(move |ctx| lane.drive(ctx));
+        let mut lane = mesquite::Lane::from_config(
+            config,
+            scenario::KnotLane::new(desktop_sheet()),
+            cambium_genet_winit_host::read_file,
+        )?;
+        hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
     }
     run(
         HostOptions {

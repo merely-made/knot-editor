@@ -12,6 +12,8 @@ name = "knot"
 path = "src/main.rs"
 
 [dependencies]
+taproot.workspace = true
+mesquite.workspace = true
 knot-site = { path = "../../crates/knot-site" }
 inker.workspace = true
 nematic.workspace = true
@@ -23,7 +25,7 @@ cambium.workspace = true
 cambium-genet-winit-host.workspace = true
 workbench.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
-tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "ba44756c98424ab8ee16f21a87445ebc7d17c781" }
+tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "8fce5365d9aca943582c83e8fd4a22eb05ec021c" }
 knot-file-catalog.workspace = true
 knot-readings.workspace = true
 layout-dom-api.workspace = true
@@ -34,7 +36,6 @@ tokio = { version = "1", features = ["rt", "time"] }
 [dev-dependencies]
 pollster = "0.4"
 genet-scripted-dom.workspace = true
-taproot.workspace = true
 tempfile = "3"
 
 [lints]

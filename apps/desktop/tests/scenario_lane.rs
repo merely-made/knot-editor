@@ -1,17 +1,18 @@
 // Copyright 2026 Mark Alan Boykin
 // SPDX-License-Identifier: MPL-2.0
 
-//! Knot on the host's scenario lane, headless: the lane clicks the desktop's
+//! Knot on Mesquite's scenario lane, headless: the lane clicks the desktop's
 //! Appearance control by role and label and asserts the snapshot moved. The
 //! headed form of the same run is `scenarios/lane_smoke.scn`.
 
-use cambium_genet_winit_host::{Harness, Init, LaneConfig, ScenarioLane, WindowCommands};
+use cambium_genet_winit_host::{Harness, Init, WindowCommands};
 use knot_desktop::{
     desktop_sheet, host_hooks,
     scenario::KnotLane,
     workspace::{DesktopState, DesktopView, desktop_view},
 };
 use knot_document::KnotDocumentSession;
+use mesquite::LaneConfig;
 use tempfile::tempdir;
 
 type Logic = fn(&DesktopState) -> DesktopView;
@@ -36,9 +37,14 @@ fn the_lane_drives_the_desktop_by_role_and_label() {
         receipt: None,
     };
     let receipt = config.receipt_path().unwrap();
-    let mut lane = ScenarioLane::new(config, KnotLane::new(desktop_sheet())).unwrap();
+    let mut lane = mesquite::Lane::from_config(
+        config,
+        KnotLane::new(desktop_sheet()),
+        cambium_genet_winit_host::read_file,
+    )
+    .unwrap();
     let mut hooks = host_hooks();
-    hooks.after_frame = Box::new(move |ctx| lane.drive(ctx));
+    hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
     let state = DesktopState::with_path(
         KnotDocumentSession::open(&document).unwrap(),
         WindowCommands::new(),

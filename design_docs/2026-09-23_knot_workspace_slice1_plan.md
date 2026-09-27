@@ -2,7 +2,7 @@
 
 **Date:** 2026-09-23
 **Status:** In progress. Step 7c is implemented; its scenario-scroll follow-up
-is recorded below. Steps 7d and 7e remain open. Assessment and initial rulings
+and the Taproot/Mesquite runner unification are recorded below. Steps 7d and 7e remain open. Assessment and initial rulings
 were made 2026-09-23.
 **Owner:** Knot Editor
 **Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
@@ -1272,8 +1272,34 @@ design frames either fixed or recorded.
   page and metadata tiles are closed, and the status says "Closed site
   tidewatch." The original images and receipt remain in `before-scroll-fix/`;
   the new receipt is `scroll-fix-scenario.done`, beside `scroll-fix.md` and
-  the build/test logs. These are local acceptance receipts; integration and
-  publication await approval for the Genet main push.
+  the build/test logs. The Genet hook and the Mere/Knot follow-up commits are now published.
+  The original approval gate is resolved.
+
+- **2026-09-27, Taproot/Mesquite unification.** Knot now implements
+  `mesquite::Product` and constructs `mesquite::Lane::from_config` directly.
+  Mere `8fce5365` removes the duplicate runner from the native host and moves
+  its configuration, text receipt, scripted file chooser and capture hooks
+  into Mesquite's existing lifecycle. Taproot remains pinned at Genet
+  `34626a6c`. All Mere manifest revisions were swept, including standalone
+  `knot-document`. The host remains responsible for native file reading and
+  input/capture delivery.
+
+  `KNOT_SCENARIO`, `KNOT_CAPTURE_DIR`, `KNOT_RECEIPT`, scenario commands and
+  named PNG/text receipt conventions remain supported. The native smoke
+  example and Mere View harness use the same Product trait and lane. Shared
+  validation passes 15 scenario tests, 17 Mesquite unit tests and 16 host
+  unit tests. Native smoke and Mere View theme/resize runs each pass with
+  three distinct nonblank frames; smoke also passes without saving PNGs.
+  Knot's workspace passes 377 tests with 2 ignored; the standalone document
+  suite passes 48 with 1 ignored; retention passes 1, preserving the aggregate
+  **426 passed, 3 ignored**. Commands and full logs use the same stable
+  `C:\t\cargo-targets\knot-editor` as the prior receipt.
+  The unchanged site scenario also passes through Mesquite: three nonblank
+  2200 x 1400 frames, with the third visually inspected to confirm the site,
+  page and metadata tiles are closed and the status reads "Closed site
+  tidewatch." Receipt: `images/2026-09-27_7c/unification/knot/scenario.done`;
+  shared/native evidence and logs are alongside it and in the parent directory.
+  The broader products' custom runners remain outside this bounded migration.
 
 ## Related material
 

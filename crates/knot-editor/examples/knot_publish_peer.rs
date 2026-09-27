@@ -196,9 +196,10 @@ async fn hold(revoke_after_first_fetch: bool) -> Result<(), String> {
     if revoke_after_first_fetch {
         let revocation = revoke_share(&holder, &ticket, now_ms())
             .map_err(|error| format!("issue revocation: {error}"))?;
-        if !host.revocations().write().await.fold(&revocation) {
-            return Err("holder could not fold its own signed revocation".into());
-        }
+        let checked = revocation
+            .check()
+            .map_err(|fault| format!("holder's own signed revocation does not check: {fault}"))?;
+        host.revocations().write().await.fold(checked);
         println!("  reader delegation revoked; retry the same ticket for the refusal receipt...");
         let outcome = host
             .accept_and_serve(&carrier)

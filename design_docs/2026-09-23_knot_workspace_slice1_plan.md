@@ -1,8 +1,9 @@
 # Knot workspace slice 1: frame, tiles, status, sites and graph
 
 **Date:** 2026-09-23
-**Status:** Plan. Assessment done 2026-09-23; the decisions below were ruled
-by Mark the same day. Implementation not started.
+**Status:** In progress. Step 7c is implemented; its scenario-scroll follow-up
+is recorded below. Steps 7d and 7e remain open. Assessment and initial rulings
+were made 2026-09-23.
 **Owner:** Knot Editor
 **Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
 which includes the first workspace slice and the navigator slice of
@@ -1240,6 +1241,39 @@ design frames either fixed or recorded.
   painted place without scrolling it into view, unlike `Harness::click_on`,
   so the receipt's Close site click reached nothing and its third frame
   repeats the second.
+
+- **2026-09-27, step 7c scenario-scroll follow-up.** Knot pins Mere
+  `ba44756c` and Genet `34626a6c`. Every manifest naming the prior revisions
+  was swept, including the desktop's direct dependency and the standalone
+  `knot-document` workspace.
+
+  Taproot supplies an optional mutable click-delivery hook. Mesquite owns one
+  pending-click implementation used by both its lane and the older Cambium
+  winit scenario lane. Rootstock supplies the visible rectangle and scroll
+  request. A clipped target scrolls first; the next frame clicks the visible
+  portion and holds scenario execution until pointer dispatch. A target that
+  remains invisible fails the receipt. Mesquite's product coordinate mapping
+  still applies.
+
+  The Far-button regression failed before the fix (`count` stayed `0`) and
+  passes afterward without a settle before its assertion. Shared checks pass:
+  Taproot 21; scenarios 13; harness click-scroll 3; scroll requests 10;
+  Mesquite units 17. Knot's `cargo test --offline --workspace` passes 377 with
+  2 ignored, including the desktop library's 147 with 1 ignored.
+  The standalone `knot-document` all-features suite passes 48 with 1 ignored.
+  The `resident-retention-tests` feature's integration test also passes, giving
+  the same aggregate **426 passed, 3 ignored** as the handoff. The aggregate
+  includes these three commands; a default workspace run alone is not 426.
+
+  Native acceptance reran `images/2026-09-27_7c/site.scn` on Tidewatch at
+  1100 × 700 logical pixels. The scenario now asserts `message ~ Closed site`
+  immediately after its Close site click. The receipt is `RESULT ok`, with
+  three nonblank 2200 × 1400 captures. The third frame was inspected: the site,
+  page and metadata tiles are closed, and the status says "Closed site
+  tidewatch." The original images and receipt remain in `before-scroll-fix/`;
+  the new receipt is `scroll-fix-scenario.done`, beside `scroll-fix.md` and
+  the build/test logs. These are local acceptance receipts; integration and
+  publication await approval for the Genet main push.
 
 ## Related material
 

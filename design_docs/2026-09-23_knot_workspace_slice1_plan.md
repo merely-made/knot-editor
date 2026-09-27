@@ -1183,6 +1183,63 @@ design frames either fixed or recorded.
 
   The frames are under `Code/testing/knot-editor/images/2026-09-26_7b/`.
   The panel still costs the frame its height until 7c retires it.
+- **2026-09-27, step 7c.** The site tile and the Site popover. The panel
+  above the frame is gone.
+  - **The Site popover.** The command row's Site button opens a popover
+    with the folder, the format, Create and Open. One site is open at a
+    time until 7e. Opening another closes the open one first, and is
+    refused while it holds unsaved pages or metadata.
+  - **The site tile** (`TileRole::Site`) opens in the left stack, titled
+    by its folder's name. It joins the Navigator's stack, or takes a new
+    stack left of the documents at the Navigator's share; the Navigator
+    now joins a site tile's stack the same way. The tile shows:
+    - the format and the folder, without the verbatim prefix;
+    - a row per page, whose button opens or activates the page's tab and
+      whose Metadata opens its metadata tile;
+    - Upload / submit and Toggle preview, which stays until 7d retires the
+      aside;
+    - the port field, Publish locally, Stop serving and the serving line;
+    - Close site.
+
+    The tile carries its site's key, so its port field takes text for that
+    site. A launch on a site folder opens its tile.
+  - **Closing a site** by its ×, or by Close site, asks once, on Mark's
+    ruling. One prompt lists the site's unsaved pages and metadata, with
+    Save all, Discard all, Review and Cancel; Cancel keeps everything. A
+    site with nothing unsaved closes at once. Closing closes its page tabs,
+    its metadata tiles and its tile, and stops its server. Other documents
+    stay.
+
+  Tests: five are new. Each fails with its behaviour broken:
+  - the popover creates a site whose tile opens left of the documents, and
+    whose rows open a page and its metadata;
+  - closing a site asks once for its unsaved page and draft, Cancel keeps
+    all, and Save all writes both and closes it;
+  - a clean site closes its pages and stops its server without asking;
+  - another site replaces the open one only once it is saved;
+  - the tile's port field takes typing for its site.
+
+  Rewritten against the retired panel:
+  - The serving-chip test presses the popover's own buttons, since the
+    tile offers the same labels.
+  - The focus-rule test Tabs to the Site popover's folder field.
+  - An outline test reaches that field through the popover.
+  - The Micron in-page-link harness now uses the desktop sheet, since a
+    site tile splits its frame.
+
+  The desktop library passes 147 with 1 ignored, and `cargo test --locked`
+  passes 426 with 3 ignored. Headed, on a copy of the Tidewatch fixture,
+  the launch shows the site tile beside `index.scroll` and a row opens its
+  metadata. The frames are under
+  `Code/testing/knot-editor/images/2026-09-27_7c/`.
+
+  Found: the tile is taller than the frame at 1100 × 700, since its folder
+  path wraps in a quarter-width column, so Close site sits below the fold.
+  A person can scroll the tile to it; the harness shows a wheel bringing it
+  into view. The scenario lane cannot, though. It clicks a control at its
+  painted place without scrolling it into view, unlike `Harness::click_on`,
+  so the receipt's Close site click reached nothing and its third frame
+  repeats the second.
 
 ## Related material
 

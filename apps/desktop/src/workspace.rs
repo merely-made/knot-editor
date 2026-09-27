@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::appearance::Appearance;
-use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, TileRole};
+use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, SiteKey, TileRole};
 use crate::preferences::PreferencesStore;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
@@ -117,6 +117,9 @@ pub(crate) enum PendingAction {
     CloseDocument(DocKey),
     /// Closing a metadata tile over its unsaved edits.
     CloseMetadata(workbench::TileId),
+    /// Closing a site over its unsaved pages and metadata: one prompt for
+    /// all of them.
+    CloseSite(SiteKey),
     /// Reloading the focused document over its unsaved changes.
     Reload,
 }
@@ -255,7 +258,7 @@ pub struct DesktopState {
     /// adds or drops a file cannot silently arm a different reading.
     pub(crate) reading_scripts: HashMap<workbench::TileId, String>,
     window: WindowCommands,
-    pending: Option<PendingAction>,
+    pub(crate) pending: Option<PendingAction>,
     discard_close: bool,
     retention_targets: Vec<Arc<dyn KnotRetainPort>>,
     retention_wake: Option<HostWake>,
@@ -353,7 +356,6 @@ impl DesktopState {
                     self.scroll.port = TextInput::new(port.to_string());
                 }
                 self.hold_site(site);
-                self.scroll.visible = true;
                 page
             },
             Err(error) => {
@@ -1316,6 +1318,7 @@ impl DesktopState {
             PendingAction::Quit => self.window.close(),
             PendingAction::CloseDocument(key) => self.close_document(key),
             PendingAction::CloseMetadata(tile) => self.close_metadata(tile),
+            PendingAction::CloseSite(site) => self.close_site_now(site),
             PendingAction::Reload => {
                 match self.document_mut().apply(KnotDocumentIntentV1::Reload) {
                     Ok(_) => {
@@ -1537,6 +1540,36 @@ impl DesktopState {
                     self.pending = Some(PendingAction::CloseDocument(key));
                 }
             },
+            PendingAction::CloseSite(site) => {
+                // Save every unsaved page and metadata draft of the site; the
+                // site closes once none is left.
+                let focused = self.focused_key();
+                let mut failures = Vec::new();
+                for key in self.site_dirty_pages(site) {
+                    self.docs.focus(key);
+                    match self.document_mut().apply(KnotDocumentIntentV1::Save) {
+                        Ok(_) => self.sync_catalog(),
+                        Err(error) => failures.push(intent_error_label("Save", error)),
+                    }
+                }
+                for tile in self.site_dirty_drafts(site) {
+                    if let Some(TileRole::Metadata { page, .. }) = self.docs.role(tile).cloned()
+                        && let Err(error) = self.save_metadata(site, &page)
+                    {
+                        failures.push(error);
+                    }
+                }
+                if let Some(key) = focused {
+                    self.docs.focus(key);
+                }
+                if self.site_dirty_pages(site).is_empty() && self.site_dirty_drafts(site).is_empty()
+                {
+                    self.close_site_now(site);
+                } else {
+                    self.pending = Some(PendingAction::CloseSite(site));
+                    self.message = failures.last().cloned();
+                }
+            },
             PendingAction::CloseMetadata(tile) => {
                 let Some(TileRole::Metadata { site, page }) = self.docs.role(tile).cloned() else {
                     return;
@@ -1571,14 +1604,28 @@ impl DesktopState {
         }
     }
 
-    /// Leave the quit prompt and show the first tab it listed.
+    /// Leave a summary prompt and show the first tab it listed.
     fn review_pending(&mut self) {
-        self.pending = None;
-        if let Some(key) = self.dirty_documents().first().copied() {
+        let Some(action) = self.pending.take() else {
+            return;
+        };
+        let (pages, drafts) = self.pending_lists(&action);
+        if let Some(key) = pages.first().copied() {
             self.docs.focus(key);
             self.after_focus_change();
-        } else if let Some(tile) = self.dirty_metadata().first().copied() {
+        } else if let Some(tile) = drafts.first().copied() {
             self.docs.activate(tile);
+        }
+    }
+
+    /// What a summary prompt lists: the unsaved documents and metadata tiles
+    /// of the window when quitting, of one site when closing it.
+    fn pending_lists(&self, action: &PendingAction) -> (Vec<DocKey>, Vec<workbench::TileId>) {
+        match action {
+            PendingAction::CloseSite(site) => {
+                (self.site_dirty_pages(*site), self.site_dirty_drafts(*site))
+            },
+            _ => (self.dirty_documents(), self.dirty_metadata()),
         }
     }
 
@@ -1631,6 +1678,7 @@ impl DesktopState {
                     self.close_metadata(tile);
                 }
             },
+            Some(TileRole::Site(site)) => self.request_close_site(site),
             _ => {
                 self.docs.close(tile);
             },
@@ -1638,7 +1686,7 @@ impl DesktopState {
     }
 
     /// Close a document's tab without asking; its entry goes with it.
-    fn close_document(&mut self, key: DocKey) {
+    pub(crate) fn close_document(&mut self, key: DocKey) {
         let retaining = self
             .retention_busy
             .as_ref()
@@ -1928,14 +1976,18 @@ fn serving_detail(state: &DesktopState) -> DesktopView {
                 entry.publication_number()
             ),
             Box::new(button("Stop serving", |state: &mut DesktopState, _| {
-                state.scroll.stop_serving();
+                if let Some(site) = state.scroll.current_key() {
+                    state.scroll.stop_serving(site);
+                }
                 state.message = Some("Local serving stopped.".into());
             })),
         ),
         None => (
             "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into(),
             Box::new(button("Publish locally", |state: &mut DesktopState, _| {
-                state.publish_site()
+                if let Some(site) = state.scroll.current_key() {
+                    state.publish_site(site)
+                }
             })),
         ),
     };
@@ -2060,9 +2112,9 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         Box::new(el("div", ()))
     };
     let prompt: DesktopView = match state.pending.as_ref() {
-        Some(PendingAction::Quit) => {
-            let mut labels: Vec<String> = state
-                .dirty_documents()
+        Some(action @ (PendingAction::Quit | PendingAction::CloseSite(_))) => {
+            let (pages, drafts) = state.pending_lists(action);
+            let mut labels: Vec<String> = pages
                 .iter()
                 .filter_map(|key| {
                     let entry = state.docs.doc(*key)?;
@@ -2070,18 +2122,28 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 })
                 .collect();
             let documents = labels.len();
-            labels.extend(state.dirty_metadata().iter().filter_map(|tile| {
-                match state.docs.role(*tile) {
-                    Some(TileRole::Metadata { page, .. }) => Some(format!("Metadata · {page}")),
-                    _ => None,
-                }
-            }));
-            let title = match labels.as_slice() {
-                [label] => format!("{label} has unsaved changes."),
-                all if all.len() == documents => {
+            labels.extend(
+                drafts
+                    .iter()
+                    .filter_map(|tile| match state.docs.role(*tile) {
+                        Some(TileRole::Metadata { page, .. }) => Some(format!("Metadata · {page}")),
+                        _ => None,
+                    }),
+            );
+            let site = match action {
+                PendingAction::CloseSite(site) => state
+                    .scroll
+                    .site(*site)
+                    .map(crate::scroll_site::SiteEntry::name),
+                _ => None,
+            };
+            let title = match (labels.as_slice(), site) {
+                ([label], _) => format!("{label} has unsaved changes."),
+                (all, Some(site)) => format!("{} tabs of {site} have unsaved changes.", all.len()),
+                (all, None) if all.len() == documents => {
                     format!("{} documents have unsaved changes.", all.len())
                 },
-                all => format!("{} tabs have unsaved changes.", all.len()),
+                (all, None) => format!("{} tabs have unsaved changes.", all.len()),
             };
             let listed = labels
                 .into_iter()
@@ -2213,9 +2275,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 el(
                     "nav",
                     (
-                        button("Site", |state: &mut DesktopState, _| {
-                            state.scroll.visible = !state.scroll.visible
-                        }),
+                        crate::scroll_site::site_popover(state),
                         button("New", |state: &mut DesktopState, _| state.new_document()),
                         path_popover(state, PathCommand::Open),
                         button("Save", |state: &mut DesktopState, _| state.save()),
@@ -2245,7 +2305,6 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 )
                 .attr("class", "knot-workspace-toolbar")
                 .attr("aria-label", "Commands"),
-                crate::scroll_site::site_panel(state),
                 appearance_panel,
                 document_frame(state),
                 prompt,
@@ -2384,7 +2443,7 @@ fn field_path(field: &TextInput) -> Result<PathBuf, String> {
 
 /// A path as a person reads it: without the Windows verbatim prefix a
 /// canonical path carries (D5).
-fn display_path(path: &Path) -> String {
+pub(crate) fn display_path(path: &Path) -> String {
     let text = path.display().to_string();
     match text.strip_prefix(r"\\?\") {
         Some(rest) if rest.get(1..2) == Some(":") => rest.to_owned(),
@@ -2478,6 +2537,7 @@ fn tile_view(state: &DesktopState, tile: workbench::TileId) -> DesktopView {
         Some(TileRole::Metadata { site, page }) => {
             crate::scroll_site::metadata_view(state, tile, *site, page)
         },
+        Some(TileRole::Site(site)) => crate::scroll_site::site_view(state, *site),
         None => Box::new(el("div", ())),
     }
 }
@@ -2663,7 +2723,11 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
         return None;
     }
     let folder = ancestor_has_id(&*dom_ref, focused, "knot-scroll-folder");
-    let port = ancestor_has_id(&*dom_ref, focused, "knot-scroll-port");
+    let port = ancestor_has_class(&*dom_ref, focused, "knot-site-port")
+        .then(|| ancestor_attribute(&*dom_ref, focused, "data-knot-site"))
+        .flatten()
+        .and_then(|site| site.parse().ok())
+        .map(SiteKey);
     let submission = ancestor_attribute(&*dom_ref, focused, "data-knot-submission")
         .and_then(|key| key.parse().ok())
         .map(DocKey);
@@ -2686,11 +2750,11 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
             get_mut: Box::new(|s| &mut s.scroll.folder),
         });
     }
-    if port {
+    if let Some(site) = port {
         return Some(FocusedTextSlot {
             node: focused,
-            get: Box::new(|s| s.scroll.port_field()),
-            get_mut: Box::new(|s| s.scroll.port_field_mut()),
+            get: Box::new(move |s| crate::scroll_site::site_port_field(s, site)),
+            get_mut: Box::new(move |s| crate::scroll_site::site_port_field_mut(s, site)),
         });
     }
     if let (Some(key), Some(field)) = (submission, composer_field) {
@@ -4624,7 +4688,7 @@ mod tests {
         };
         assert_eq!(host.focus(), Some(textarea));
 
-        host.update(|state| state.scroll.visible = true);
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-site")));
         let folder_input = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
@@ -4635,6 +4699,10 @@ mod tests {
         let (x, y, width, height) = host.painted_rect(folder_input).expect("folder layout");
         host.click_at(x + width / 2.0, y + height / 2.0);
         assert_eq!(host.focus(), Some(folder_input));
+        // The folder field sits in the Site popover: a click outside closes it
+        // first, and the next reaches the outline.
+        assert!(host.click_on(&Selector::role("button").containing("Second heading")));
+        assert!(!host.state().scroll.popover.open);
         assert!(host.click_on(&Selector::role("button").containing("Second heading")));
         let textarea = {
             let dom = host.runner().dom();

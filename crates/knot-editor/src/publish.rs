@@ -666,7 +666,7 @@ mod tests {
         assert_eq!(ticket.publication, selected);
         assert_eq!(ticket.pinned_head, Some([0x9a; 32]));
         let certificate = ticket.delegations.last().unwrap();
-        assert!(certificate.verify());
+        certificate.check().expect("the share's certificate checks");
         assert_eq!(
             certificate.certificate.scope.path_prefix,
             publication_path(selected)
@@ -677,7 +677,7 @@ mod tests {
         );
 
         let revocation = revoke_share(&owner(), &ticket, NOW_MS + 1).unwrap();
-        assert!(revocation.verify());
+        revocation.check().expect("the owner's revocation checks");
         assert_eq!(
             revocation.revocation.certificate,
             certificate.certificate.id()

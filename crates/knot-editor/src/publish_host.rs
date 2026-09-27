@@ -601,7 +601,12 @@ mod tests {
             ),
         )
         .unwrap();
-        assert!(fixture.host.revocations().write().await.fold(&revocation));
+        fixture
+            .host
+            .revocations()
+            .write()
+            .await
+            .fold(revocation.check().expect("the holder's revocation checks"));
         let (outcome, response) = fetch_once(&fixture.host, fixture.publication, certificate).await;
         assert!(matches!(
             outcome,
@@ -775,7 +780,10 @@ mod tests {
         let response_guard = ledger.read().await;
         let writer = {
             let ledger = Arc::clone(&ledger);
-            tokio::spawn(async move { ledger.write().await.fold(&revocation) })
+            tokio::spawn(async move {
+                let mut ledger = ledger.write().await;
+                ledger.fold(revocation.check().expect("the holder's revocation checks"));
+            })
         };
         tokio::task::yield_now().await;
         assert!(
@@ -783,6 +791,6 @@ mod tests {
             "a revocation waits while the final bounded response guard is held"
         );
         drop(response_guard);
-        assert!(writer.await.unwrap());
+        writer.await.unwrap();
     }
 }

@@ -7,8 +7,9 @@
 use crate::documents::{DocKey, ReadingKind, SiteKey, TileRole};
 use crate::workspace::{DesktopState, DesktopView, DocumentEntry};
 use cambium::{
-    El, GenetCtx, GenetElement, KeyEvent, Keyed, TextFieldMode, TextInput, View, button,
-    button_with, el, lens, on_key, span, text_field_typed, textarea_typed,
+    El, GenetCtx, GenetElement, KeyEvent, Keyed, Popover, PopoverEvent, PopoverPlacement,
+    PopoverState, TextFieldMode, TextInput, View, button, button_with, el, lens, on_key, popover,
+    span, text_field_typed, textarea_typed,
 };
 use cambium_genet_winit_host::{AppCtx, HostWake, ScrollAlign};
 use inker::{
@@ -87,6 +88,14 @@ pub struct SiteEntry {
 }
 
 impl SiteEntry {
+    /// The site's name: its folder's.
+    pub(crate) fn name(&self) -> String {
+        let root = self.site.root();
+        root.file_name()
+            .map(|name| name.to_string_lossy().into_owned())
+            .unwrap_or_else(|| root.display().to_string())
+    }
+
     /// How many times the site has been published locally.
     pub(crate) fn publication_number(&self) -> usize {
         self.publication_number
@@ -102,19 +111,21 @@ impl SiteEntry {
     }
 }
 
-/// The window's site state: the open sites, the fields that open or create the
-/// next one, and the site panel's view flags. What belongs to one document,
-/// its page, Micron form and composer, is on its entry ([`DocumentSite`]).
+/// The window's site state: the open sites, the Site popover and the fields
+/// that open or create the next site, and whether native previews show. What
+/// belongs to one document, its page, Micron form and composer, is on its
+/// entry ([`DocumentSite`]).
 pub struct ScrollWorkspace {
     sites: BTreeMap<SiteKey, SiteEntry>,
     next_site: u64,
-    /// The site the panel shows, one at a time until sites get their own tiles.
+    /// The open site, one at a time until several sites open at once.
     current: Option<SiteKey>,
+    /// The Site popover: the folder, format, Create and Open.
+    pub(crate) popover: PopoverState,
     pub folder: TextInput,
     /// The port the next site opened or created publishes on.
     pub port: TextInput,
     pub format: SiteFormat,
-    pub visible: bool,
     pub preview_visible: bool,
     submission_wake: Option<HostWake>,
     titan_submission_error: Option<String>,
@@ -126,10 +137,10 @@ impl Default for ScrollWorkspace {
             sites: BTreeMap::new(),
             next_site: 0,
             current: None,
+            popover: PopoverState::default(),
             folder: TextInput::default(),
             port: TextInput::new("5699"),
             format: SiteFormat::Scroll,
-            visible: false,
             preview_visible: true,
             submission_wake: None,
             titan_submission_error: None,
@@ -146,13 +157,9 @@ impl ScrollWorkspace {
         self.submission_wake = Some(wake);
     }
 
-    /// The site the panel shows.
+    /// The open site.
     pub(crate) fn current_site(&self) -> Option<&SiteEntry> {
         self.current.and_then(|key| self.sites.get(&key))
-    }
-
-    pub(crate) fn current_site_mut(&mut self) -> Option<&mut SiteEntry> {
-        self.current.and_then(|key| self.sites.get_mut(&key))
     }
 
     pub(crate) fn current_key(&self) -> Option<SiteKey> {
@@ -163,8 +170,8 @@ impl ScrollWorkspace {
         self.sites.get(&key)
     }
 
-    /// Hold `site` as the panel's one site. The site it replaces is dropped,
-    /// which stops its server; the new one publishes on the port field's value.
+    /// Hold `site` as the one open site. A site it replaces is dropped, which
+    /// stops its server; the new one publishes on the port field's value.
     fn replace(&mut self, site: Site) -> SiteKey {
         self.close_current();
         let key = SiteKey(self.next_site);
@@ -184,7 +191,7 @@ impl ScrollWorkspace {
         key
     }
 
-    /// Drop the panel's site, which stops its server. Its port stays in the
+    /// Drop the open site, which stops its server. Its port stays in the
     /// field for the next site.
     fn close_current(&mut self) {
         if let Some(entry) = self.current.take().and_then(|key| self.sites.remove(&key)) {
@@ -199,24 +206,27 @@ impl ScrollWorkspace {
             .find_map(|(key, entry)| entry.page_at(path).map(|page| (*key, page)))
     }
 
-    /// The panel's port field: the panel site's, or the next site's.
-    pub(crate) fn port_field(&self) -> &TextInput {
-        match self.current_site() {
-            Some(entry) => &entry.port,
-            None => &self.port,
+    /// Drop `site`, which stops its server.
+    fn remove(&mut self, site: SiteKey) {
+        if self.current == Some(site) {
+            self.close_current();
+        } else {
+            self.sites.remove(&site);
         }
     }
 
-    pub(crate) fn port_field_mut(&mut self) -> &mut TextInput {
-        match self.current.and_then(|key| self.sites.get_mut(&key)) {
-            Some(entry) => &mut entry.port,
-            None => &mut self.port,
-        }
+    /// `site`'s port field, whose value its next publication binds.
+    pub(crate) fn site_port(&self, site: SiteKey) -> Option<&TextInput> {
+        self.sites.get(&site).map(|entry| &entry.port)
     }
 
-    /// Stop the panel site's local server.
-    pub(crate) fn stop_serving(&mut self) {
-        if let Some(entry) = self.current_site_mut() {
+    pub(crate) fn site_port_mut(&mut self, site: SiteKey) -> Option<&mut TextInput> {
+        self.sites.get_mut(&site).map(|entry| &mut entry.port)
+    }
+
+    /// Stop `site`'s local server.
+    pub(crate) fn stop_serving(&mut self, site: SiteKey) {
+        if let Some(entry) = self.sites.get_mut(&site) {
             entry.server = None;
         }
     }
@@ -916,6 +926,12 @@ impl DesktopState {
             .site
             .submission
             .select_spartan_prompt(target);
+        self.open_submit();
+    }
+
+    /// Bring up the Submit tile that follows the focused document, opening it
+    /// if none is open.
+    pub(crate) fn open_submit(&mut self) {
         match self.docs.following_reading(ReadingKind::Submit) {
             Some(tile) => self.docs.activate(tile),
             None => {
@@ -956,11 +972,36 @@ impl DesktopState {
             .is_some_and(|page| self.draft_dirty(page.site, &page.name))
     }
 
-    /// Whether any open metadata of the panel's site has unsaved edits.
-    fn current_drafts_dirty(&self) -> bool {
-        self.scroll
-            .current_site()
-            .is_some_and(|entry| entry.drafts.values().any(MetadataDraft::dirty))
+    /// The open pages of `site` with unsaved changes, in the order they opened.
+    pub(crate) fn site_dirty_pages(&self, site: SiteKey) -> Vec<DocKey> {
+        self.docs
+            .docs()
+            .filter(|(_, entry)| {
+                entry
+                    .site
+                    .page
+                    .as_ref()
+                    .is_some_and(|page| page.site == site)
+                    && entry.document.snapshot().dirty
+            })
+            .map(|(key, _)| key)
+            .collect()
+    }
+
+    /// The metadata tiles of `site` with unsaved edits, in tile order.
+    pub(crate) fn site_dirty_drafts(&self, site: SiteKey) -> Vec<TileId> {
+        self.docs
+            .metadata_tiles(site)
+            .into_iter()
+            .filter(|tile| {
+                matches!(self.docs.role(*tile), Some(TileRole::Metadata { page, .. }) if self.draft_dirty(site, page))
+            })
+            .collect()
+    }
+
+    /// Whether `site` holds anything unsaved: a page or a metadata draft.
+    fn site_unsaved(&self, site: SiteKey) -> bool {
+        !self.site_dirty_pages(site).is_empty() || !self.site_dirty_drafts(site).is_empty()
     }
 
     /// Open metadata tiles with unsaved edits, in tile order.
@@ -976,17 +1017,6 @@ impl DesktopState {
             .collect();
         tiles.sort_by_key(|tile| tile.0);
         tiles
-    }
-
-    /// Open the focused page's metadata tile.
-    pub(crate) fn open_page_metadata(&mut self) {
-        match self.site_page() {
-            Some(page) => {
-                let (site, name) = (page.site, page.name.clone());
-                self.open_metadata(site, &name);
-            },
-            None => self.message = Some("Open a page of this site first.".into()),
-        }
     }
 
     /// Open `name`'s metadata tile in `site`, its draft starting from the
@@ -1091,10 +1121,21 @@ impl DesktopState {
         }
     }
 
+    /// Create or open the site in the Site popover's folder. One site is open
+    /// at a time, so an open one closes first, and is kept while it holds
+    /// anything unsaved.
     fn enter_site(&mut self, create: bool) {
-        if self.document().snapshot().dirty || self.current_drafts_dirty() {
-            self.message =
-                Some("Save or discard document and metadata changes before changing sites.".into());
+        if let Some(open) = self.scroll.current
+            && self.site_unsaved(open)
+        {
+            let name = self
+                .scroll
+                .site(open)
+                .map(SiteEntry::name)
+                .unwrap_or_default();
+            self.message = Some(format!(
+                "Save or discard {name}'s unsaved pages and metadata before opening another site."
+            ));
             return;
         }
         let root = std::path::PathBuf::from(self.scroll.folder.text());
@@ -1108,7 +1149,11 @@ impl DesktopState {
             Ok((site, path))
         }) {
             Ok((site, path)) => {
+                if let Some(open) = self.scroll.current {
+                    self.close_site_now(open);
+                }
                 self.scroll.format = site.config.format;
+                self.scroll.popover.close();
                 self.hold_site(site);
                 let _ = self.open_path(path);
             },
@@ -1116,15 +1161,25 @@ impl DesktopState {
         }
     }
 
-    /// Hold `site` as the panel's one site, dropping the one it replaces with
-    /// its metadata tiles, and bind the open documents that are its pages.
+    /// Hold `site` as the one open site, dropping any it replaces with its
+    /// metadata tiles, bind the open documents that are its pages, and show
+    /// its tile.
     pub(crate) fn hold_site(&mut self, site: Site) -> SiteKey {
         let previous = self.scroll.current;
         let key = self.scroll.replace(site);
         if let Some(previous) = previous {
             self.close_metadata_tiles(previous);
+            if let Some(tile) = self.docs.site_tile(previous) {
+                self.docs.close(tile);
+            }
         }
         self.bind_site_pages();
+        let name = self
+            .scroll
+            .site(key)
+            .map(SiteEntry::name)
+            .unwrap_or_default();
+        self.docs.open_site_tile(key, name);
         key
     }
 
@@ -1135,28 +1190,46 @@ impl DesktopState {
         }
     }
 
-    fn close_site(&mut self) {
-        if self.document().snapshot().dirty || self.current_drafts_dirty() {
-            self.message = Some(
-                "Save or discard document and metadata changes before closing this site.".into(),
-            );
-            return;
+    /// Close `site`, asking first when it holds anything unsaved: one prompt
+    /// lists its unsaved pages and metadata.
+    pub(crate) fn request_close_site(&mut self, site: SiteKey) {
+        if self.site_unsaved(site) {
+            self.pending = Some(crate::workspace::PendingAction::CloseSite(site));
+        } else {
+            self.close_site_now(site);
         }
-        let closing = self.scroll.current;
-        self.scroll.close_current();
-        if let Some(site) = closing {
-            self.close_metadata_tiles(site);
-        }
-        self.bind_site_pages();
-        self.message = Some("Site closed. The current source remains open.".into());
     }
 
-    /// Open the page `name` of the panel's site.
-    pub(crate) fn scroll_open_page(&mut self, name: &str) {
-        match self.scroll.current {
-            Some(site) => self.open_site_page(site, name),
-            None => self.message = Some("Open a site first".to_owned()),
+    /// Close `site` without asking: its page tabs, its metadata tiles and its
+    /// tile close, and its server stops.
+    pub(crate) fn close_site_now(&mut self, site: SiteKey) {
+        let name = self
+            .scroll
+            .site(site)
+            .map(SiteEntry::name)
+            .unwrap_or_default();
+        let pages: Vec<DocKey> = self
+            .docs
+            .docs()
+            .filter(|(_, entry)| {
+                entry
+                    .site
+                    .page
+                    .as_ref()
+                    .is_some_and(|page| page.site == site)
+            })
+            .map(|(key, _)| key)
+            .collect();
+        for key in pages {
+            self.close_document(key);
         }
+        self.close_metadata_tiles(site);
+        if let Some(tile) = self.docs.site_tile(site) {
+            self.docs.close(tile);
+        }
+        self.scroll.remove(site);
+        self.bind_site_pages();
+        self.message = Some(format!("Closed site {name}."));
     }
 
     /// Open the page `name` of `site`, or activate the tab already showing it.
@@ -1174,13 +1247,20 @@ impl DesktopState {
         }
     }
 
-    pub(crate) fn publish_site(&mut self) {
-        if self.document().snapshot().dirty || self.current_drafts_dirty() {
+    /// Publish `site`'s saved pages to its local server, starting it on the
+    /// site's port the first time. Refused while the site holds anything
+    /// unsaved, since publication reads saved files.
+    pub(crate) fn publish_site(&mut self, site: SiteKey) {
+        if self.site_unsaved(site) {
             self.message = Some("Save source and metadata before publishing locally.".into());
             return;
         }
         let result = (|| {
-            let entry = self.scroll.current_site_mut().ok_or("Open a site first")?;
+            let entry = self
+                .scroll
+                .sites
+                .get_mut(&site)
+                .ok_or("Open a site first")?;
             let publication = entry.site.publication()?;
             let count = publication.page_count();
             if let Some(server) = &entry.server {
@@ -1201,6 +1281,10 @@ impl DesktopState {
             ))
         })();
         self.message = Some(result.unwrap_or_else(|e| format!("Publication failed: {e}")));
+    }
+
+    pub(crate) fn site_popover_event(&mut self, event: PopoverEvent) {
+        self.scroll.popover.apply(event);
     }
 }
 
@@ -1565,81 +1649,179 @@ pub(crate) fn submit_view(state: &DesktopState, key: DocKey) -> DesktopView {
     )
 }
 
-pub fn site_panel(state: &DesktopState) -> DesktopView {
-    if !state.scroll.visible {
-        return Box::new(el("div", ()));
-    }
-    let pages: DesktopView = if let Some(entry) = state.scroll.current_site() {
-        let rows = entry
-            .site
-            .config
-            .pages
-            .iter()
-            .enumerate()
-            .map(|(i, page)| {
-                let name = page.path.clone();
+/// An open site's tile, in the left stack: its pages, each opening its tab or
+/// its metadata, and its publishing. Its key rides on the tile, so its port
+/// field takes text for this site.
+pub(crate) fn site_view(state: &DesktopState, site: SiteKey) -> DesktopView {
+    let Some(entry) = state.scroll.site(site) else {
+        return Box::new(span("This site is closed.").attr("class", "knot-site-tile"));
+    };
+    let rows = entry
+        .site
+        .config
+        .pages
+        .iter()
+        .enumerate()
+        .map(|(i, page)| {
+            let open = page.path.clone();
+            let metadata = page.path.clone();
+            (
+                i,
+                el(
+                    "div",
+                    (
+                        button(page.path.clone(), move |state: &mut DesktopState, _| {
+                            state.open_site_page(site, &open)
+                        }),
+                        button("Metadata", move |state: &mut DesktopState, _| {
+                            state.open_metadata(site, &metadata)
+                        })
+                        .attr("aria-label", format!("Metadata of {}", page.path)),
+                    ),
+                )
+                .attr("class", "knot-site-page"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let serving = entry
+        .server
+        .as_ref()
+        .map(|server| {
+            format!(
+                "{} · revision {} · saved snapshot",
+                server.url(),
+                entry.publication_number
+            )
+        })
+        .unwrap_or_else(|| {
+            "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into()
+        });
+    Box::new(
+        el(
+            "section",
+            (
+                el("h2", entry.name()),
+                span(format!(
+                    "{} site · {}",
+                    entry.site.config.format.label(),
+                    crate::workspace::display_path(entry.site.root())
+                ))
+                .attr("class", "knot-site-folder"),
+                el("nav", Keyed::new(rows))
+                    .attr("class", "knot-site-pages")
+                    .attr("aria-label", "Pages"),
+                el(
+                    "div",
+                    (
+                        button("Upload / submit", |state: &mut DesktopState, _| {
+                            state.open_submit()
+                        }),
+                        button("Toggle preview", |state: &mut DesktopState, _| {
+                            state.scroll.preview_visible = !state.scroll.preview_visible
+                        }),
+                    ),
+                )
+                .attr("class", "knot-scroll-controls"),
+                el(
+                    "div",
+                    (
+                        el(
+                            "label",
+                            (
+                                "Local port",
+                                lens(
+                                    |input: &mut TextInput| text_field_typed(input),
+                                    move |state: &mut DesktopState| {
+                                        site_port_field_mut(state, site)
+                                    },
+                                ),
+                            ),
+                        )
+                        .attr("class", "knot-site-port"),
+                        button("Publish locally", move |state: &mut DesktopState, _| {
+                            state.publish_site(site)
+                        }),
+                        button("Stop serving", move |state: &mut DesktopState, _| {
+                            state.scroll.stop_serving(site);
+                            state.message = Some("Local serving stopped.".into());
+                        }),
+                    ),
+                )
+                .attr("class", "knot-scroll-controls"),
+                span(serving).attr("class", "knot-site-serving"),
+                button("Close site", move |state: &mut DesktopState, _| {
+                    state.request_close_site(site)
+                }),
+            ),
+        )
+        .attr("class", "knot-site-tile")
+        .attr("data-knot-site", site.0.to_string()),
+    )
+}
+
+/// A site tile's port field. It renders only while its site is open, so a
+/// lens or text route over it always finds it.
+pub(crate) fn site_port_field_mut(state: &mut DesktopState, site: SiteKey) -> &mut TextInput {
+    state
+        .scroll
+        .site_port_mut(site)
+        .expect("a site tile's port renders only while its site is open")
+}
+
+/// A site tile's port field, to read.
+pub(crate) fn site_port_field(state: &DesktopState, site: SiteKey) -> &TextInput {
+    state
+        .scroll
+        .site_port(site)
+        .expect("a site tile's port renders only while its site is open")
+}
+
+/// The command row's Site popover: the folder, the format, Create and Open.
+pub(crate) fn site_popover(state: &DesktopState) -> DesktopView {
+    let format = state.scroll.format;
+    Box::new(popover(
+        Popover::new("Site", &state.scroll.popover)
+            .with_placement(PopoverPlacement::BelowStart)
+            .with_trigger_attr("id", "knot-site"),
+        |state: &mut DesktopState, event| state.site_popover_event(event),
+        move || {
+            let format_picker = [
+                SiteFormat::Scroll,
+                SiteFormat::Gemini,
+                SiteFormat::Spartan,
+                SiteFormat::Micron,
+            ]
+            .into_iter()
+            .map(|candidate| {
                 (
-                    i,
-                    button(page.path.clone(), move |state: &mut DesktopState, _| {
-                        state.scroll_open_page(&name)
-                    }),
+                    candidate as usize,
+                    button(candidate.label(), move |s: &mut DesktopState, _| {
+                        s.scroll.format = candidate;
+                        if let Some(port) = candidate.default_port() {
+                            s.scroll.port = TextInput::new(port.to_string());
+                        }
+                    })
+                    .attr("aria-pressed", (format == candidate).to_string()),
                 )
             })
             .collect::<Vec<_>>();
-        Box::new(el("nav", Keyed::new(rows)).attr("class", "knot-scroll-pages"))
-    } else {
-        Box::new(span(
-            "Enter a new folder path to create a three-page site, or an existing folder to open it.",
-        ))
-    };
-    let format = state.scroll.format;
-    let format_picker = [
-        SiteFormat::Scroll,
-        SiteFormat::Gemini,
-        SiteFormat::Spartan,
-        SiteFormat::Micron,
-    ]
-    .into_iter()
-    .map(|candidate| {
-        (
-            candidate as usize,
-            button(candidate.label(), move |s: &mut DesktopState, _| {
-                if s.scroll.current_key().is_none() {
-                    s.scroll.format = candidate;
-                    if let Some(port) = candidate.default_port() {
-                        s.scroll.port = TextInput::new(port.to_string());
-                    }
-                } else {
-                    s.message =
-                        Some("Close or open another site before changing its format.".into());
-                }
-            })
-            .attr("aria-pressed", (format == candidate).to_string()),
-        )
-    })
-    .collect::<Vec<_>>();
-    Box::new(el("section", (
-        el("div", (
-            input("Site folder", "knot-scroll-folder", |s| &mut s.scroll.folder),
-            el("span", Keyed::new(format_picker)).attr("class", "knot-site-format-picker"),
-            button("Create site", |s: &mut DesktopState,_| s.enter_site(true)),
-            button("Open site", |s: &mut DesktopState,_| s.enter_site(false)),
-            button("Close site", |s: &mut DesktopState,_| s.close_site()),
-            button("Metadata", |s: &mut DesktopState,_| s.open_page_metadata()),
-            button("Toggle preview", |s: &mut DesktopState,_| s.scroll.preview_visible = !s.scroll.preview_visible),
-        )).attr("class", "knot-scroll-controls"),
-        pages,
-        el("div", (
-            input("Local port", "knot-scroll-port", |s| s.scroll.port_field_mut()),
-            button("Publish locally", |s: &mut DesktopState,_| s.publish_site()),
-            button("Stop serving", |s: &mut DesktopState,_| {
-                s.scroll.stop_serving();
-                s.message = Some("Local serving stopped.".into());
-            }),
-            span(state.scroll.current_site().and_then(|entry| entry.server.as_ref().map(|server| format!("{} · revision {} · saved snapshot", server.url(), entry.publication_number)))
-                .unwrap_or_else(|| "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into())),
-        )).attr("class", "knot-scroll-controls"),
-    )).attr("class", "knot-scroll-site"))
+            Some(Box::new(
+                el(
+                    "div",
+                    (
+                        input("Site folder", "knot-scroll-folder", |s| {
+                            &mut s.scroll.folder
+                        }),
+                        el("span", Keyed::new(format_picker))
+                            .attr("class", "knot-site-format-picker"),
+                        button("Create site", |s: &mut DesktopState, _| s.enter_site(true)),
+                        button("Open site", |s: &mut DesktopState, _| s.enter_site(false)),
+                    ),
+                )
+                .attr("class", "knot-site-popover"),
+            ) as DesktopView)
+        },
+    ))
 }
 
 fn inline(items: &[InlineSpan]) -> DesktopView {
@@ -2340,6 +2522,27 @@ mod tests {
         state.site_page().map(|page| page.name.as_str())
     }
 
+    /// Set the open site's port.
+    fn set_port(state: &mut DesktopState, port: &str) {
+        let site = state.scroll.current_key().expect("a site is open");
+        *state.scroll.site_port_mut(site).unwrap() = TextInput::new(port);
+    }
+
+    impl DesktopState {
+        /// Open the page `name` of the open site.
+        fn scroll_open_page(&mut self, name: &str) {
+            let site = self.scroll.current_key().expect("a site is open");
+            self.open_site_page(site, name);
+        }
+
+        /// Open the focused page's metadata tile.
+        fn open_page_metadata(&mut self) {
+            let page = self.site_page().expect("a site page has the focus");
+            let (site, name) = (page.site, page.name.clone());
+            self.open_metadata(site, &name);
+        }
+    }
+
     #[test]
     fn site_navigation_metadata_and_explicit_publication_keep_separate_authority() {
         let temp = tempfile::tempdir().unwrap();
@@ -2365,7 +2568,7 @@ mod tests {
         // The draft lives in its tile, so the focus moves on without it.
         state.scroll_open_page("about.scroll");
         assert_eq!(page_name(&state), Some("about.scroll"));
-        state.publish_site();
+        state.publish_site(site);
         assert!(
             state.scroll.current_site().unwrap().server.is_none(),
             "published over unsaved metadata"
@@ -2380,8 +2583,8 @@ mod tests {
             .expect("about.scroll's metadata tile");
         assert_eq!(draft_field(&state, about, 0).text(), "");
         assert_eq!(draft_field(&state, index, 0).text(), "Writer");
-        *state.scroll.port_field_mut() = TextInput::new("0");
-        state.publish_site();
+        set_port(&mut state, "0");
+        state.publish_site(site);
         assert!(state.scroll.current_site().unwrap().server.is_some());
         assert_eq!(state.scroll.current_site().unwrap().publication_number(), 1);
         state
@@ -2390,14 +2593,14 @@ mod tests {
                 "Unsaved ".into(),
             )))
             .unwrap();
-        state.publish_site();
+        state.publish_site(site);
         assert_eq!(state.scroll.current_site().unwrap().publication_number(), 1);
         state
             .document_mut()
             .apply(KnotDocumentIntentV1::Save)
             .unwrap();
         assert_eq!(state.scroll.current_site().unwrap().publication_number(), 1);
-        state.publish_site();
+        state.publish_site(site);
         assert_eq!(state.scroll.current_site().unwrap().publication_number(), 2);
     }
     #[test]
@@ -2462,7 +2665,6 @@ mod tests {
                 ">Heading\n---\nplain\n`[Local`:/page/next.mu]\n".into(),
             )))
             .unwrap();
-        state.scroll.visible = true;
         state.scroll.preview_visible = true;
         let host = submission_harness_with(state);
         let dom = host.runner().dom();
@@ -2601,7 +2803,6 @@ mod tests {
             .unwrap();
         state.entry_mut().site.micron.result = Some("Micron reply (8 bytes)".into());
         state.entry_mut().site.micron.response = Some("accepted".into());
-        assert!(!state.scroll.visible);
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -2761,6 +2962,315 @@ mod tests {
         );
         assert!(host.click_on(&Selector::role("tab").containing("one.gmi")));
         assert!(target(&host).contains("spartan://one.test/"));
+    }
+
+    /// A harness over the full desktop sheet whose window commands reach it.
+    fn site_harness(state: DesktopState) -> DesktopHarness {
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        let commands = host.commands();
+        host.update(|state| state.set_window(commands.clone()));
+        host.layout_at(1100.0, 730.0);
+        host
+    }
+
+    /// Every button under `node`, in document order.
+    fn buttons_under(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+        found: &mut Vec<genet_scripted_dom::NodeId>,
+    ) {
+        if dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "button")
+        {
+            found.push(node);
+        }
+        for child in dom.dom_children(node) {
+            buttons_under(dom, child, found);
+        }
+    }
+
+    /// Click the button labelled `label` in the site tile's row for `page`.
+    fn click_site_row(host: &mut DesktopHarness, page: &str, label: &str) {
+        let (x, y) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let row = class_nodes(&dom, dom.document(), "knot-site-page")
+                .into_iter()
+                .find(|row| text_content(&dom, *row).starts_with(page))
+                .expect("the page's row");
+            let mut found = Vec::new();
+            buttons_under(&dom, row, &mut found);
+            let button = found
+                .into_iter()
+                .find(|node| text_content(&dom, *node) == label)
+                .expect("the row's button");
+            let (x, y, width, height) = host.visible_rect(button).expect("the button shows");
+            (x + width / 2.0, y + height / 2.0)
+        };
+        host.click_at(x, y);
+        host.relayout();
+    }
+
+    /// The text of the one open prompt.
+    fn prompt_text(host: &DesktopHarness) -> Option<String> {
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        class_nodes(&dom, dom.document(), "knot-confirm")
+            .first()
+            .map(|prompt| text_content(&dom, *prompt))
+    }
+
+    /// Click a button of the open prompt by its label.
+    fn click_prompt(host: &mut DesktopHarness, label: &str) {
+        let (x, y) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let prompt = class_nodes(&dom, dom.document(), "knot-confirm")[0];
+            let mut found = Vec::new();
+            buttons_under(&dom, prompt, &mut found);
+            let button = found
+                .into_iter()
+                .find(|node| text_content(&dom, *node) == label)
+                .expect("the prompt's button");
+            let (x, y, width, height) = host.visible_rect(button).expect("the button shows");
+            (x + width / 2.0, y + height / 2.0)
+        };
+        host.click_at(x, y);
+        host.relayout();
+    }
+
+    /// Step 7c: the Site popover creates a site, whose tile opens left of the
+    /// documents; its rows open a page's tab and a page's metadata, and the
+    /// panel above the frame is gone.
+    #[test]
+    fn the_site_popover_creates_a_site_whose_tile_opens_pages_and_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut host = site_harness(DesktopState::new(
+            KnotDocumentSession::scratch("scratch:tile", ""),
+            WindowCommands::new(),
+        ));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-site")));
+        let folder = temp.path().join("tidewater");
+        host.update(|state| state.scroll.folder = TextInput::new(folder.to_string_lossy()));
+        assert!(host.click_on(&Selector::role("button").containing("Create site")));
+        let (site, tile) = {
+            let state = host.state();
+            let site = state.scroll.current_key().expect("the site opened");
+            (site, state.docs.site_tile(site).expect("its tile"))
+        };
+        assert!(!host.state().scroll.popover.open, "the popover closed");
+        assert_eq!(page_name(host.state()), Some("index.scroll"));
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            assert!(class_nodes(&dom, dom.document(), "knot-scroll-site").is_empty());
+            let tiles = class_nodes(&dom, dom.document(), "knot-site-tile");
+            assert_eq!(tiles.len(), 1);
+            assert!(text_content(&dom, tiles[0]).starts_with("tidewater"));
+            let document = class_nodes(&dom, dom.document(), "knot-document-tile")[0];
+            let (site_x, ..) = host.painted_rect(tiles[0]).unwrap();
+            let (document_x, ..) = host.painted_rect(document).unwrap();
+            assert!(
+                site_x < document_x,
+                "the site tile sits left of the documents"
+            );
+        }
+        assert!(host.state().docs.role(tile) == Some(&TileRole::Site(site)));
+
+        click_site_row(&mut host, "about.scroll", "about.scroll");
+        assert_eq!(page_name(host.state()), Some("about.scroll"));
+        click_site_row(&mut host, "about.scroll", "Metadata");
+        assert!(
+            host.state()
+                .docs
+                .metadata_tile(site, "about.scroll")
+                .is_some()
+        );
+    }
+
+    /// Step 7c: closing a site with unsaved work asks once, listing its
+    /// unsaved page and metadata. Cancel keeps everything; Save all writes both
+    /// and closes the site, its tabs and tile, and leaves other documents.
+    #[test]
+    fn closing_a_site_asks_once_for_its_unsaved_pages_and_metadata() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("site");
+        let loose = temp.path().join("loose.djot");
+        std::fs::write(&loose, "loose\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&loose).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(root.to_string_lossy());
+        state.enter_site(true);
+        let site = state.scroll.current_key().unwrap();
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "Edited ".into(),
+            )))
+            .unwrap();
+        state.open_metadata(site, "about.scroll");
+        let metadata = state.docs.metadata_tile(site, "about.scroll").unwrap();
+        draft_fields(&mut state, metadata)[0] = TextInput::new("Closer");
+        let mut host = site_harness(state);
+
+        assert!(host.click_on(&Selector::role("button").containing("Close site")));
+        let prompt = prompt_text(&host).expect("closing asks");
+        assert!(
+            prompt.contains("2 tabs of site have unsaved changes."),
+            "{prompt}"
+        );
+        assert!(prompt.contains("index.scroll") && prompt.contains("Metadata · about.scroll"));
+        click_prompt(&mut host, "Cancel");
+        assert!(prompt_text(&host).is_none());
+        assert!(
+            host.state().docs.site_tile(site).is_some(),
+            "Cancel keeps the site"
+        );
+        assert_eq!(host.state().docs.len(), 2);
+
+        assert!(host.click_on(&Selector::role("button").containing("Close site")));
+        click_prompt(&mut host, "Save all");
+        let state = host.state();
+        assert!(state.scroll.current_site().is_none(), "the site closed");
+        assert!(state.docs.site_tile(site).is_none());
+        assert!(state.docs.metadata_tile(site, "about.scroll").is_none());
+        assert_eq!(state.docs.len(), 1, "only the loose document stays");
+        assert_eq!(state.document().snapshot().display_label, "loose.djot");
+        assert!(
+            std::fs::read_to_string(root.join("index.scroll"))
+                .unwrap()
+                .contains("Edited ")
+        );
+        assert!(
+            std::fs::read_to_string(root.join(knot_site::CONFIG))
+                .unwrap()
+                .contains("Closer")
+        );
+    }
+
+    /// Step 7c: a site with nothing unsaved closes without asking: its page
+    /// tabs close and its server stops.
+    #[test]
+    fn closing_a_clean_site_closes_its_pages_and_stops_its_server() {
+        let temp = tempfile::tempdir().unwrap();
+        let loose = temp.path().join("loose.djot");
+        std::fs::write(&loose, "loose\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&loose).unwrap(),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
+        state.enter_site(true);
+        let site = state.scroll.current_key().unwrap();
+        state.open_site_page(site, "about.scroll");
+        set_port(&mut state, "0");
+        let mut host = site_harness(state);
+        assert!(host.click_on(&Selector::role("button").containing("Publish locally")));
+        assert!(host.state().scroll.current_site().unwrap().server.is_some());
+        assert_eq!(host.state().docs.len(), 3);
+
+        assert!(host.click_on(&Selector::role("button").containing("Close site")));
+        assert!(prompt_text(&host).is_none(), "a clean site closes at once");
+        let state = host.state();
+        assert!(
+            state.scroll.current_site().is_none(),
+            "the server went with its site"
+        );
+        assert!(state.docs.site_tile(site).is_none());
+        assert_eq!(state.docs.len(), 1);
+        assert_eq!(state.message.as_deref(), Some("Closed site site."));
+    }
+
+    /// Step 7c: one site is open at a time. Opening another is refused while
+    /// the open one holds unsaved work; once saved, the new one replaces it.
+    #[test]
+    fn another_site_replaces_the_open_one_only_once_it_is_saved() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:replace", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(temp.path().join("first").to_string_lossy());
+        state.enter_site(true);
+        let first = state.scroll.current_key().unwrap();
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                "Draft ".into(),
+            )))
+            .unwrap();
+        state.scroll.folder = TextInput::new(temp.path().join("second").to_string_lossy());
+        state.enter_site(true);
+        assert_eq!(
+            state.scroll.current_key(),
+            Some(first),
+            "refused over unsaved work"
+        );
+        assert!(
+            state
+                .message
+                .as_deref()
+                .is_some_and(|message| message.contains("first"))
+        );
+
+        state
+            .document_mut()
+            .apply(KnotDocumentIntentV1::Save)
+            .unwrap();
+        state.enter_site(true);
+        let second = state.scroll.current_key().unwrap();
+        assert_ne!(second, first);
+        assert!(state.docs.site_tile(first).is_none());
+        assert!(state.docs.site_tile(second).is_some());
+        assert_eq!(
+            state.docs.len(),
+            2,
+            "the first site's page closed; the scratch and the new index stay"
+        );
+        assert_eq!(page_name(&state), Some("index.scroll"));
+        assert_eq!(state.site_page().unwrap().site, second);
+    }
+
+    /// Step 7c: a site tile's port field takes typing for its own site.
+    #[test]
+    fn a_site_tiles_port_field_takes_typing_for_its_site() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:port", ""),
+            WindowCommands::new(),
+        );
+        state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
+        state.enter_site(true);
+        let site = state.scroll.current_key().unwrap();
+        set_port(&mut state, "");
+        let mut host = site_harness(state);
+        let field = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let label = class_nodes(&dom, dom.document(), "knot-site-port")[0];
+            input_node(&dom, label).expect("the port input")
+        };
+        let (x, y, width, height) = host.visible_rect(field).expect("the port input shows");
+        host.click_at(x + width / 2.0, y + height / 2.0);
+        host.key_injected("8123");
+        assert_eq!(host.state().scroll.site_port(site).unwrap().text(), "8123");
+        assert_eq!(
+            host.state().scroll.port.text(),
+            "5699",
+            "the next site's port stays"
+        );
     }
 
     /// Step 7b: closing the window over unsaved metadata asks once, naming the
@@ -3049,9 +3559,7 @@ mod tests {
         );
         state.scroll.folder = TextInput::new(temp.path().join("site").to_string_lossy());
         state.enter_site(true);
-        *state.scroll.port_field_mut() = TextInput::new("0");
-        // Hide the site panel, so only the chip's popover offers Publish and Stop.
-        state.scroll.visible = false;
+        set_port(&mut state, "0");
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -3083,6 +3591,39 @@ mod tests {
             assert_eq!(detail.len(), 1, "one popover open");
             text_content(&dom, detail[0])
         };
+        // The site tile offers Publish and Stop too; press the popover's own.
+        fn buttons(
+            dom: &genet_scripted_dom::ScriptedDom,
+            node: genet_scripted_dom::NodeId,
+            found: &mut Vec<genet_scripted_dom::NodeId>,
+        ) {
+            if dom
+                .element_name(node)
+                .is_some_and(|name| name.local.as_ref() == "button")
+            {
+                found.push(node);
+            }
+            for child in dom.dom_children(node) {
+                buttons(dom, child, found);
+            }
+        }
+        let press_in_detail = |host: &mut DesktopHarness, label: &str| {
+            let (x, y) = {
+                let dom = host.runner().dom();
+                let dom = dom.borrow();
+                let detail = class_nodes(&dom, dom.document(), "knot-status-detail")[0];
+                let mut found = Vec::new();
+                buttons(&dom, detail, &mut found);
+                let button = found
+                    .into_iter()
+                    .find(|node| text_content(&dom, *node) == label)
+                    .expect("the popover's button");
+                let (x, y, width, height) = host.visible_rect(button).expect("the button shows");
+                (x + width / 2.0, y + height / 2.0)
+            };
+            host.click_at(x, y);
+            host.relayout();
+        };
 
         let (label, (x, y)) = chip(&host);
         assert_eq!(label, "Not serving");
@@ -3094,7 +3635,7 @@ mod tests {
         );
         assert!(detail(&host).contains("Not published."));
 
-        assert!(host.click_on(&Selector::role("button").containing("Publish locally")));
+        press_in_detail(&mut host, "Publish locally");
         let url = host
             .state()
             .scroll
@@ -3110,7 +3651,7 @@ mod tests {
             "{served}"
         );
 
-        assert!(host.click_on(&Selector::role("button").containing("Stop serving")));
+        press_in_detail(&mut host, "Stop serving");
         assert!(host.state().scroll.current_site().unwrap().server.is_none());
         assert_eq!(
             host.state().message.as_deref(),
@@ -3165,7 +3706,14 @@ mod tests {
         assert_eq!(state.docs.len(), 3);
         assert_eq!(state.focused_key(), front);
         assert_eq!(state.path.text(), first.to_string_lossy().as_ref());
-        assert!(state.scroll.current_site().is_some());
+        let site = state
+            .scroll
+            .current_key()
+            .expect("the launch's site opened");
+        assert!(
+            state.docs.site_tile(site).is_some(),
+            "a launch's site opens its tile"
+        );
         assert_eq!(
             page_name(&state),
             None,
@@ -3426,7 +3974,7 @@ mod tests {
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!("{DESKTOP_CSS}{CSS}"),
+                sheet: crate::desktop_sheet(),
                 fonts: Vec::new(),
                 images: Vec::new(),
             },
@@ -3937,7 +4485,6 @@ mod tests {
             WindowCommands::new(),
         );
         state.scroll.preview_visible = true;
-        state.scroll.visible = true;
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -3950,6 +4497,10 @@ mod tests {
         );
         host.layout_at(1100.0, 730.0);
         assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+        // A text input to Tab to that leaves the frame's layout alone: the
+        // Site popover's folder field.
+        host.update(|state| state.site_popover_event(PopoverEvent::Toggle));
+        host.relayout();
 
         let controls = {
             let dom = host.runner().dom();
@@ -4256,7 +4807,6 @@ mod tests {
                 "=: spartan://localhost:65025/upload Submit locally\n".into(),
             )))
             .unwrap();
-        state.scroll.visible = true;
         state.scroll.preview_visible = true;
         let mut host = submission_harness_with(state);
 

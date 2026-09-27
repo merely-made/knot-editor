@@ -68,6 +68,8 @@ pub enum TileRole {
         site: SiteKey,
         page: String,
     },
+    /// An open site: its pages, publishing and serving.
+    Site(SiteKey),
 }
 
 /// The Workbench lane every Knot tile rides in.
@@ -236,7 +238,7 @@ impl<D> DocumentWorkspace<D> {
         match self.roles.get(&tile)? {
             TileRole::Document(key) => Some(*key),
             TileRole::Reading { pinned, .. } => pinned.or(self.focused),
-            TileRole::Navigator | TileRole::Metadata { .. } => None,
+            TileRole::Navigator | TileRole::Metadata { .. } | TileRole::Site(_) => None,
         }
     }
 
@@ -340,13 +342,53 @@ impl<D> DocumentWorkspace<D> {
         if let Some(tile) = self.navigator() {
             return tile;
         }
+        self.open_left(title.into(), TileRole::Navigator)
+    }
+
+    /// The open site tile of `site`, if any.
+    pub fn site_tile(&self, site: SiteKey) -> Option<TileId> {
+        self.roles
+            .iter()
+            .find(|(_, role)| **role == TileRole::Site(site))
+            .map(|(tile, _)| *tile)
+    }
+
+    /// Open `site`'s tile, or activate the open one. It joins the Navigator's
+    /// stack or another site's, else takes a new stack left of the documents
+    /// at the Navigator's share.
+    pub fn open_site_tile(&mut self, site: SiteKey, title: impl Into<String>) -> TileId {
+        if let Some(tile) = self.site_tile(site) {
+            self.activate(tile);
+            return tile;
+        }
+        let tile = self.open_left(title.into(), TileRole::Site(site));
+        self.activate(tile);
+        tile
+    }
+
+    /// Place a left-stack tile: beside an open Navigator or site tile, else
+    /// in a new stack left of the documents taking [`NAVIGATOR_SHARE`] of the
+    /// split; with no document open it joins the frame's stack.
+    fn open_left(&mut self, title: String, role: TileRole) -> TileId {
+        let beside_left = self
+            .roles
+            .iter()
+            .filter(|(_, role)| matches!(role, TileRole::Navigator | TileRole::Site(_)))
+            .map(|(tile, _)| *tile)
+            .min_by_key(|tile| tile.0)
+            .filter(|tile| self.workspace.tiled().find(*tile).is_some());
         let beside_document = self
             .focused
             .or_else(|| self.entries.keys().next().copied())
             .and_then(|key| self.tile_of(key));
-        let tile = self.mint_tile(title.into(), TileRole::Navigator);
+        let tile = self.mint_tile(title, role);
         let id = tile.id;
         let tree = self.workspace.tiled_mut();
+        if let Some(left) = beside_left
+            && tree.insert_tab_after(left, tile.clone())
+        {
+            return id;
+        }
         let placed = beside_document
             .is_some_and(|document| tree.split_beside(document, Edge::Left, tile.clone()));
         if placed {

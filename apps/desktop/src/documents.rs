@@ -77,6 +77,12 @@ pub enum TileRole {
 /// The Workbench lane every Knot tile rides in.
 pub const TILE_KIND: &str = "knot";
 
+/// The singleton Graph's reserved tile identity. Knot uses its stable
+/// `data-tile` value to exempt only that Workbench content slot from the
+/// renderer-hostile overflow topology around the shared Mere view.
+const GRAPH_TILE_ID: TileId = TileId(u64::MAX);
+pub(crate) const GRAPH_TILE_ID_ATTR: &str = "18446744073709551615";
+
 /// The share of its split the Navigator opens at: about a quarter, the rest
 /// going to the documents (Mark's ruling, 2026-09-26). The divider moves it.
 pub const NAVIGATOR_SHARE: f32 = 0.25;
@@ -571,8 +577,15 @@ impl<D> DocumentWorkspace<D> {
     }
 
     fn mint_tile(&mut self, title: String, role: TileRole) -> Tile {
-        let id = TileId(self.next_tile);
-        self.next_tile += 1;
+        let id = if role == TileRole::Graph {
+            GRAPH_TILE_ID
+        } else {
+            let id = TileId(self.next_tile);
+            self.next_tile += 1;
+            id
+        };
+        debug_assert_eq!(GRAPH_TILE_ID.0.to_string(), GRAPH_TILE_ID_ATTR);
+        debug_assert!(!self.roles.contains_key(&id));
         self.roles.insert(id, role);
         Tile {
             id,
@@ -824,7 +837,9 @@ mod tests {
     fn graph_is_singleton_in_the_document_stack() {
         let mut space = DocumentWorkspace::new();
         let (document, _) = space.open(path("a.djot"), "a.djot", "A");
+        let document_tile = space.tile_of(document).unwrap();
         let graph = space.open_graph("Graph");
+        assert_eq!(graph, GRAPH_TILE_ID);
         assert_eq!(space.open_graph("Graph again"), graph);
         assert_eq!(space.graph(), Some(graph));
         assert_eq!(space.role(graph), Some(&TileRole::Graph));
@@ -832,6 +847,9 @@ mod tests {
         assert_eq!(space.focused(), Some(document));
         space.close(graph);
         assert_eq!(space.graph(), None);
+        let (second, _) = space.open(path("b.djot"), "b.djot", "B");
+        assert_eq!(space.tile_of(second), Some(TileId(document_tile.0 + 1)));
+        assert_eq!(space.open_graph("Graph reopened"), GRAPH_TILE_ID);
     }
 
     #[test]

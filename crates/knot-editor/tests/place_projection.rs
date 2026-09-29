@@ -40,12 +40,13 @@ use graphshell::network_carrier::{
 };
 use graphshell::session_notices::serve_admitted_session_notifying;
 use graphshell_endpoint::ResumableProjectionSource;
+use insigne::delegation::{
+    CapabilityScope, DelegationCertificate, DelegationParent, SignedDelegationCertificate,
+};
 use notochord::{
     LocalNetworkPolicy, NetworkId, ProfileRef, RevocationLedger, TrafficClass, TrustedRoot,
 };
-use personae::delegation::{
-    CapabilityScope, DelegationCertificate, DelegationParent, Issue, SignedDelegationCertificate,
-};
+use personae::delegation::Issue;
 use personae::{IdentityProvider, InMemoryProvider};
 use tempfile::tempdir;
 use transport::PeerID;

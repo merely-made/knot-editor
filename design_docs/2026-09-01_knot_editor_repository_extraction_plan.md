@@ -138,3 +138,19 @@ turning review-state changes into default-branch claims.
   against the external package. Turnstone's half of E1 is green at its own
   pushed `e68e2764e4d`. The stale PRs (turnstone #4, mere #5) are superseded by
   these fresh commits and are Mark's to close.
+
+### 2026-09-29: direct Insigne proof imports
+
+Knot imports delegation statements and `path_covers` from Insigne directly;
+`Issue`, `DelegationError` and identity providers stay in Personae. Its new
+Insigne dependency uses the same Mere `8fce5365` pin as the other contracts,
+so this import migration does not require a Mere repin. Mere's phase C must
+patch that dependency to its workspace Insigne before embedding this Knot
+revision. Authority and publication behavior are unchanged.
+
+The governing phase and validation receipts live in
+`mere/design_docs/dramatis_docs/implementation_strategy/2026-09-23_insigne_proofs_plan.md`.
+
+Validation: `cargo check -p knot-editor --all-targets --all-features` passed
+on 2026-09-29 with the existing Mere and Genet pins. The lock change is the
+new direct Insigne dependency only.

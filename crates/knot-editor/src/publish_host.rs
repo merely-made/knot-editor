@@ -411,14 +411,15 @@ mod tests {
         PublishRequest, decode_response, encode_request, publication_path, publish_alpn,
         publish_policy,
     };
+    use insigne::delegation::{
+        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation,
+        SignedDelegationCertificate, SignedDelegationRevocation,
+    };
     use notochord::{
         NetworkId, ProfileRef, RequestedAction, SessionHello, TrafficClass, TrustedRoot,
         initiate_session, read_frame, write_frame,
     };
-    use personae::delegation::{
-        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation, Issue,
-        SignedDelegationCertificate, SignedDelegationRevocation,
-    };
+    use personae::delegation::Issue;
     use personae::{IdentityProvider, InMemoryProvider};
     use tempfile::tempdir;
     use transport::memory::MemoryTransport;

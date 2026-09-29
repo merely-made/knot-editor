@@ -11,12 +11,12 @@
 //! application bytes belong to Knot; carrier facts, Noise, and Notochord do
 //! not.
 
+use insigne::delegation::path_covers;
 use notochord::{
     AdmittedSession, DenyReason, IoHandshakeError, LocalNetworkPolicy, NetworkId, ProfileRef,
     RevocationLedger, ServiceAccess, ServiceRule, TrustedRoot, admit_session,
 };
 use personae::Ed25519Keypair;
-use personae::delegation::path_covers;
 use tokio::io::AsyncWriteExt;
 use transport::noise::{NoiseStream, secure_responder};
 use transport::{Alpn, Transport, TransportError};

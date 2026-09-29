@@ -49,6 +49,7 @@ mora-cmudict.workspace = true
 nematic = { workspace = true, features = ["html-fragment"] }
 notify = "8"
 notochord = { workspace = true, features = ["tokio"] }
+insigne.workspace = true
 personae.workspace = true
 p2panda-core = "0.7.0"
 # Every p2panda-net feature except `sqlite`. The address book runs on

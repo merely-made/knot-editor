@@ -1,7 +1,8 @@
 # Shared Graph sizing and scenario focus
 
 Date: 2026-09-29
-Status: Automated checks and both native acceptance captures passed.
+Status: Prior presentation pins passed automated and native acceptance checks.
+The diagnostics adoption below has separate Windows automated evidence.
 
 ## Scope and revisions
 
@@ -82,3 +83,40 @@ so the pin can remain a bounded update rather than an unrelated main upgrade.
 The branch was published to Mere's origin and its remote ref verified at the
 exact pinned commit above. Knot's own integration remains a local commit until
 separately pushed. The native test process exited after writing its receipt.
+
+## Shared diagnostics adoption
+
+The follow-up pins Mere `ca2351b3fa21de1ca40a8553eed20fc503faf15c`
+and Genet `19c206873ab08ae227217892d9e74d0df18b349a` in the root workspace,
+desktop manifest and excluded document workspace. Mere retains the Graph sizing
+and tall-textbox behavior above while adding bounded Apparatus observations and
+Mesquite diagnostic attachments. Taproot remains the semantic selection seam;
+Mesquite owns scenario execution and receipts. Product diagnostics remain
+product-owned; this adoption adds no Knot diagnostic producer or Inspector UI.
+
+The locked root graph has one source each for Mere, Genet and Netrender, with
+no caller-local path overrides. Package/version comparison with the previous
+lock, after normalizing the intentional source changes, adds only
+`mere-apparatus` 0.0.1 and `genet-text` 0.1.0, and advances `netrender-vello`
+from 0.10.0 to the version required by the new graph, 0.10.1.
+
+On Windows with Rust 1.97.1 at Knot base `8a454fb7`,
+`cargo test --workspace --locked --offline -j2` passed 425 tests with two
+existing ignores. All four scenario-lane tests passed,
+including the stationary-toolbar regression and all five step-9 fixtures.
+The in-memory resident route and real editor network tests also passed.
+The excluded document workspace also passed 34 tests with its existing manual
+outline-performance ignore, including Windows atomic replacement checks.
+The concurrent Nomadnet merge at `701d0f0b` is preserved. Strict desktop clippy
+initially rejected a Unix-only mutable binding in the recovery options helper
+and the backend-free Micron config's redundant struct update. The narrow cfg
+adjustments retain Unix file permissions and Retinue's default map limits.
+`cargo clippy --locked --offline -p knot-desktop --lib -j2 -- -D warnings`
+then passed.
+The integrated default desktop gate passed 210 tests with the existing timing
+probe ignore, including all four scenario-lane tests again.
+`cargo check --locked --offline -p knot-desktop --features retinue -j2`
+also passed, qualifying the preserved optional backend alongside the default.
+The native captures above qualify their recorded older pins; they were not
+repeated for this dependency adoption. Automated receipts are under
+`C:/Users/mark_/Code/testing/knot-editor/apparatus-adoption/`.

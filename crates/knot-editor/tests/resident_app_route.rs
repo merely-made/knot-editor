@@ -18,6 +18,16 @@ use graphshell::native::endpoint_catalog::{ResidentEndpointCatalog, ResidentEndp
 use graphshell::native::personae_host::PersonaeHost;
 use personae::{Ed25519Keypair, IdentityVault, InMemoryStorage, Profile, ProfileId};
 
+#[cfg(not(windows))]
+struct SocketPath(std::path::PathBuf);
+
+#[cfg(not(windows))]
+impl Drop for SocketPath {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
 fn resident_host() -> Arc<PersonaeHost<InMemoryStorage>> {
     let profile = Profile::new(
         ProfileId("default".into()),
@@ -45,13 +55,11 @@ async fn turnstone_opens_the_in_memory_knot_route() {
     #[cfg(windows)]
     let endpoint = format!(r"\\.\pipe\graphshell-knot-route-{}", uuid::Uuid::new_v4());
     #[cfg(not(windows))]
-    let endpoint = std::env::temp_dir()
-        .join(format!(
-            "graphshell-knot-route-{}.sock",
-            uuid::Uuid::new_v4()
-        ))
-        .display()
-        .to_string();
+    let socket_path = SocketPath(
+        std::path::Path::new("/tmp").join(format!("knot-route-{}.sock", uuid::Uuid::new_v4())),
+    );
+    #[cfg(not(windows))]
+    let endpoint = socket_path.0.display().to_string();
 
     let server_endpoint = endpoint.clone();
     let server = tokio::spawn(async move {
@@ -98,4 +106,5 @@ async fn turnstone_opens_the_in_memory_knot_route() {
     );
     client.close().await.unwrap();
     server.abort();
+    let _ = server.await;
 }

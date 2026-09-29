@@ -585,25 +585,44 @@ impl<D> DocumentWorkspace<D> {
         }
     }
 
-    /// A new document goes beside the focused document's tile, else into the
-    /// first stack that holds a document, else into an empty root.
+    /// A new document goes into the existing document/Graph stack. If that
+    /// centre stack was explicitly closed while side stacks survived, rebuild
+    /// it immediately left of a reading stack or right of the left stack;
+    /// never turn a Navigator, site, or reading into a document stack.
     fn place_document_tile(&mut self, tile: Tile) {
         let beside = self
             .focused
             .and_then(|key| self.entries.get(&key))
             .map(|entry| entry.tile)
             .or_else(|| self.entries.values().map(|entry| entry.tile).next())
-            .or_else(|| self.graph())
-            .or_else(|| {
-                self.roles
-                    .keys()
-                    .copied()
-                    .filter(|tile| self.workspace.tiled().find(*tile).is_some())
-                    .min_by_key(|tile| tile.0)
-            });
+            .or_else(|| self.graph());
+        let reading = self
+            .roles
+            .iter()
+            .filter(|(_, role)| matches!(role, TileRole::Reading { .. }))
+            .map(|(tile, _)| *tile)
+            .filter(|tile| self.workspace.tiled().find(*tile).is_some())
+            .min_by_key(|tile| tile.0);
+        let left = self
+            .roles
+            .iter()
+            .filter(|(_, role)| matches!(role, TileRole::Navigator | TileRole::Site(_)))
+            .map(|(tile, _)| *tile)
+            .filter(|tile| self.workspace.tiled().find(*tile).is_some())
+            .min_by_key(|tile| tile.0);
         let tree = self.workspace.tiled_mut();
         if let Some(target) = beside
             && tree.insert_tab_after(target, tile.clone())
+        {
+            return;
+        }
+        if let Some(target) = reading
+            && tree.split_beside(target, Edge::Left, tile.clone())
+        {
+            return;
+        }
+        if let Some(target) = left
+            && tree.split_beside(target, Edge::Right, tile.clone())
         {
             return;
         }
@@ -613,7 +632,14 @@ impl<D> DocumentWorkspace<D> {
                 stack.active = 0;
             },
             _ => {
-                *tree = TileTree::stack(vec![tile], 0);
+                // All retained tiles have a role, so this is only defensive:
+                // preserve an unexpected survivor in a separate stack.
+                let target = tree.tiles().first().map(|survivor| survivor.id);
+                if !target
+                    .is_some_and(|target| tree.split_beside(target, Edge::Right, tile.clone()))
+                {
+                    *tree = TileTree::stack(vec![tile], 0);
+                }
             },
         }
     }

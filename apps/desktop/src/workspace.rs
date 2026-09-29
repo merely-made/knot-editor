@@ -444,7 +444,17 @@ impl DesktopState {
     /// Open `entry` in a new tab, or focus the tab already showing the same
     /// source. Returns the entry's key.
     fn open_entry(&mut self, entry: DocumentEntry) -> DocKey {
-        let (title, identity) = entry.tab();
+        let (title, fallback_identity) = entry.tab();
+        // Resolve catalog identity before inserting the tile. The first copy
+        // of an unbound launch path is catalogued synchronously below, so a
+        // later copy in the same launcher batch also resolves here and reuses
+        // its tab instead of briefly creating a second writer for one file.
+        let identity = entry
+            .document
+            .session()
+            .source_path()
+            .and_then(|path| self.catalog.as_ref()?.lookup(path).ok().flatten())
+            .map_or(fallback_identity, |record| DocIdentity::Catalog(record.id));
         let (key, inserted) = self.docs.open(identity, title, entry);
         if inserted {
             self.sync_catalog_for(key);
@@ -3366,11 +3376,37 @@ mod tests {
             assert!(state.docs.workspace().tiled().find(tile).is_some());
         }
 
-        state.new_document();
-        let document = state.docs.tile_of(state.focused_key().unwrap()).unwrap();
-        for tile in [navigator, reading, site_tile, graph, document] {
+        // Explicitly closing the centre placeholder must not make New join
+        // either surviving side stack.
+        state.docs.close(graph);
+        assert!(state.docs.graph().is_none());
+        for tile in [navigator, reading, site_tile] {
             assert!(state.docs.workspace().tiled().find(tile).is_some());
         }
+
+        state.new_document();
+        let document = state.docs.tile_of(state.focused_key().unwrap()).unwrap();
+        for tile in [navigator, reading, site_tile, document] {
+            assert!(state.docs.workspace().tiled().find(tile).is_some());
+        }
+        let mut stacks = Vec::new();
+        fn collect_stacks(tree: &workbench::TileTree, out: &mut Vec<Vec<workbench::TileId>>) {
+            match tree {
+                workbench::TileTree::Stack(stack) => {
+                    out.push(stack.tabs.iter().map(|tile| tile.id).collect())
+                },
+                workbench::TileTree::Split { children, .. } => {
+                    for child in children {
+                        collect_stacks(&child.tree, out);
+                    }
+                },
+            }
+        }
+        collect_stacks(state.docs.workspace().tiled(), &mut stacks);
+        assert_eq!(
+            stacks,
+            [vec![navigator, site_tile], vec![document], vec![reading]]
+        );
         assert_eq!(state.docs.navigator(), Some(navigator));
         assert_eq!(state.docs.site_tile(site), Some(site_tile));
         assert_eq!(
@@ -3379,9 +3415,9 @@ mod tests {
         );
 
         state.toggle_graph();
-        assert!(state.docs.graph().is_none());
-        state.toggle_graph();
         assert!(state.docs.graph().is_some());
+        state.toggle_graph();
+        assert!(state.docs.graph().is_none());
         state.toggle_navigator();
         assert!(state.docs.navigator().is_none());
         state.toggle_navigator();
@@ -3520,6 +3556,69 @@ mod tests {
         assert!(model.graph.nodes.iter().any(|node| node.key == second_id));
     }
 
+    #[test]
+    fn duplicate_catalog_path_in_one_launch_reuses_one_tab_and_graph_node() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("same.djot");
+        std::fs::write(&path, "# Same").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let id = catalog.bind(&path).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
+
+        host.update(|state| {
+            state.open_behind(
+                vec![
+                    KnotDocumentSession::open(&path).unwrap(),
+                    KnotDocumentSession::open(&path).unwrap(),
+                ],
+                &[],
+            )
+        });
+        drain_wake(&mut host);
+
+        assert_eq!(host.state().docs.len(), 1);
+        assert_eq!(
+            host.state()
+                .docs
+                .workspace()
+                .tiled()
+                .tiles()
+                .iter()
+                .filter(|tile| {
+                    matches!(host.state().docs.role(tile.id), Some(TileRole::Document(_)))
+                })
+                .count(),
+            1
+        );
+        assert_eq!(
+            host.state()
+                .docs
+                .identity(host.state().focused_key().unwrap()),
+            Some(&DocIdentity::Catalog(id.clone()))
+        );
+        let model = host.state().graph.model(&host.state().graph_open_nodes());
+        assert_eq!(
+            model
+                .graph
+                .nodes
+                .iter()
+                .filter(|node| node.key == id)
+                .count(),
+            1
+        );
+        assert!(
+            model
+                .graph
+                .nodes
+                .iter()
+                .find(|node| node.key == id)
+                .is_some_and(|node| node.state == mere_view::NodeState::Open)
+        );
+    }
+
     fn graph_reading_label(state: &DesktopState) -> String {
         state
             .graph
@@ -3533,7 +3632,7 @@ mod tests {
     }
 
     #[test]
-    fn save_then_close_refreshes_catalog_links_before_the_document_leaves() {
+    fn dirty_close_save_refreshes_catalog_links_before_the_document_leaves() {
         let temp = tempdir().unwrap();
         let root = temp.path().join("root");
         std::fs::create_dir(&root).unwrap();
@@ -3550,6 +3649,7 @@ mod tests {
         let mut host =
             harness_with_catalog(KnotDocumentSession::open(&a_path).unwrap(), Some(catalog));
         drain_wake(&mut host);
+        host.layout_at(1100.0, 700.0);
         let before = graph_reading_label(host.state());
         let key = host.state().focused_key().unwrap();
         host.update(|state| {
@@ -3563,9 +3663,16 @@ mod tests {
                     "[C](c.djot)".to_owned(),
                 )))
                 .unwrap();
-            state.save();
-            state.close_document(key);
         });
+        assert!(close_tab(&mut host, "a.djot"));
+        assert_eq!(
+            host.state().pending,
+            Some(PendingAction::CloseDocument(key))
+        );
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-confirm-save")));
+        assert!(host.state().pending.is_none());
+        assert!(host.state().docs.is_empty());
+        assert!(host.state().docs.graph().is_some());
         drain_wake(&mut host);
         let model = host.state().graph.model(&host.state().graph_open_nodes());
         assert_ne!(graph_reading_label(host.state()), before);

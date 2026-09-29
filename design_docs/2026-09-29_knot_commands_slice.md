@@ -1,8 +1,8 @@
 # Commands slice
 
 Date: 2026-09-29
-Status: Implemented and headless-verified; native macOS acceptance in progress.
-Candidate branch only; not integrated into Knot main.
+Status: Implemented; automated and native macOS palette acceptance passed.
+Ready for integration into Knot main.
 Base: Knot `8a454fb`, published to main before this slice began.
 
 The candidate subsequently merged remote main `701d0f0` (NomadNet backend
@@ -127,53 +127,84 @@ The outer dialog remains overflow-visible; only the list clips and scrolls.
 
 Subsequent interaction testing found that keyboard selection could move below
 the visible rows without revealing them. A wheel action addressed to the list
-also moved the entire workspace. These remain acceptance failures pending the
-focused scroll/focus repair and retest, not a reason to accept the capture alone.
-Native AX exposed anonymous selectable rows; full native accessibility remains
-unqualified. A source-selection paint spill over Appearance controls was also
+also moved the entire workspace. The focused repair now reveals the active row only when its query/identity
+changes, retaining wheel scrolling across unrelated events. Transform-free
+centering keeps painted and hit-test geometry aligned. A 640x340 regression
+covers full-row reveal, dialog bounds and stationary workspace chrome. Native
+retesting confirmed keyboard reveal and wheel scrolling at the visible list
+center. The earlier AX-addressed wheel action is not treated as proof of ordinary
+wheel routing. Native AX initially exposed anonymous rows; the combined shared
+pin now exposes their names and disabled reasons. Full native accessibility
+remains unqualified. A source-selection paint spill over Appearance controls was also
 observed separately; its cause and whether it predates this slice are unverified.
 
 ## Verification receipt
 
-Shared pin: `ba3ecfda5cc748f05fe54460af0b98ed128bbf32`, published and independently
-verified on Mere branch `codex/knot-command-menu`. It is a bounded descendant
-of the prior `ac1a5e5dc` presentation pin; Mere main was not changed.
+Production source revision: Knot `216be40` (the following receipt update is
+documentation-only). It contains remote main `c92ad04`, including NomadNet
+backend decoupling and shared diagnostics adoption.
 
-Final Knot commands (all exited successfully):
+Final shared pin: `8cb9b3095f71be31ae3097209d7b53d13b947beb`, published and
+independently verified on Mere branch `codex/knot-command-menu`. Its parents
+are Commands `ba3ecfda5` and diagnostics `ca2351b3`; all Mere manifest and
+lockfile references use the combined pin, alongside Genet
+`19c206873ab08ae227217892d9e74d0df18b349a`. The Mesquite merge retains both
+semantic matching/rechecks and the earlier partially visible tall-textbox
+focus behavior. Mere main was not changed.
+
+Final commands all exited successfully:
 
 ```sh
 CARGO_TARGET_DIR=/Users/markik/Code/repos/knot-editor/target cargo test --locked --workspace
 CARGO_TARGET_DIR=/Users/markik/Code/repos/knot-editor/target cargo clippy --locked -p knot-desktop --lib -- -D warnings
 CARGO_TARGET_DIR=/Users/markik/Code/repos/knot-editor/target cargo build --locked -p knot-desktop --bin knot
+CARGO_TARGET_DIR=/Users/markik/Code/repos/knot-editor/target cargo check --locked -p knot-desktop --features retinue
 ```
 
-The workspace run includes desktop library **198 passed, 1 ignored** (the
-existing outline timing probe), desktop launcher **7 passed**, independent
-command chrome **7 passed**, and scenario lane **4 passed**, including all five
-step-9 scenarios and the clipped-editor stationary-toolbar regression. The
-remaining workspace suites and doc tests passed as well. Optional feature-gated
-resident-retention suites were not enabled by this invocation.
+The workspace run includes desktop library **199 passed, 1 ignored** (the
+existing outline timing probe), launcher **7 passed**, command chrome **8 passed**,
+and scenario lane **4 passed**, including all five step-9 scenarios and the
+stationary-toolbar regression. Remaining workspace suites and doc tests passed.
+Optional resident-retention tests were not enabled by this invocation; the
+Retinue result above is a compilation check, not a runtime receipt.
 
-Shared tests: Cambium library **238 passed**, cambium-winit library **5 passed**,
-rootstock library **42 passed**, native host library **16 passed**. The final two
-host suites include end-to-end F10/Alt lowering; the earlier Cambium run includes
-seven new menu-bar tests. See the shared-Clippy limitation above.
+Shared merged-candidate tests passed: Cambium **239**, mere-view **16**,
+rootstock **45**, native-host unit **16**, and native-host scenario **24**,
+plus the Mesquite and cambium-winit library/integration suites. These cover
+menu keys/reentry, semantic clicks, tall-textbox stationarity and graph sizing.
+The earlier strict shared-Clippy limitation remains; it is not claimed green.
 
 Local artifacts: `/Users/markik/Code/testing/knot-editor/commands-20260929/`.
-`workspace-tests.log` and `desktop-clippy.log` preserve the final command output.
-The isolated `KnotCommandsTest.app` wrapper is ready for interactive testing,
-followed by `palette.scn` and its native capture receipt.
+Logs: `accepted-workspace-tests.log`, `accepted-desktop-clippy.log`,
+`accepted-retinue-check.log`. Earlier failures and diagnostic variants are
+retained separately.
+
+Final native capture:
 
 - Binary SHA-256:
-  `f99f34a504ab9b32fcb58aa31b451bd6b24b599e95f35b67ba10b77dbd87d786`
-- Copied `field_notes.djot` SHA-256 before native testing:
-  `55750ca64366fa50f7ea77d60c731b27ac6948a5b752cb4796fddf8dd99df34c`
-- Native launch request returned: "The Mac is locked and automatic unlock
-  could not unlock it." No native acceptance or capture is claimed.
+  `6c9509d2605155b169a15af5e6442419d912aab83305fbebfbc4c99937207223`
+- Receipt: `receipts/palette/scenario.done`, **RESULT ok**, **2414 frames**,
+  **2 captures**, **0 blank frames**, **2 distinct digests**.
+- Baseline digest: `63daa084b3d2b367`.
+- Palette digest: `d1fb44c7e3a4e05b`.
+- Palette PNG: 2200x1400; SHA-256
+  `d1ff22331d15c4e4029f7491925b9a42d6c9899aab3a8e972619f801dd484208`.
+- Fixture SHA-256 before and after native testing:
+  `55750ca64366fa50f7ea77d60c731b27ac6948a5b752cb4796fddf8dd99df34c`.
 
-Next gate: unlock the Mac, launch the exact isolated candidate, exercise
-Cmd+Shift+P, filtering, keyboard activation, Escape/focus return and unchanged
-source bytes, then capture and inspect the whole palette frame. Only after
-that receipt should this candidate be integrated into Knot main. Windows/Linux
-window-manager and native accessibility validation remain separate platform
-gates, even when macOS palette acceptance passes.
+Whole-frame review confirmed the contained, centered palette, visible selected
+row and shortcuts, dimmed source, and intact toolbar/status. Theme-derived
+primary/on-primary fill supplies selection feedback without relying on the
+renderer’s outline support; text contrast is tested in both themes.
+
+The combined-pin interactive build immediately before the selection-fill-only
+change (SHA-256 `48e48addae145c307a692c5a65ff08a048331f3004ecc16c8c5697d98402fa06`)
+passed Cmd+Shift+P, twelve Down presses revealing View Preview, wheel scrolling
+inside the visible list, filtering across Tab, Enter activation, Escape/source
+focus, and typing followed by undo back to Saved. The final capture above
+qualifies the subsequent visual-only selection fill. No source save occurred.
+
+Remaining validation limits: actual Windows/Linux client-frame window-manager
+behavior and complete native accessibility need platform receipts. The separate
+source-selection paint spill noted above remains a follow-up, not attributed
+to this Commands change without evidence.

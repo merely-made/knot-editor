@@ -13,13 +13,14 @@
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use insigne::delegation::{
+    CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation,
+    SignedDelegationCertificate, SignedDelegationRevocation,
+};
 use muniment::Backend;
 use notochord::{NetworkId, RetainedAuthority, RevocationLedger};
 use personae::IdentityProvider;
-use personae::delegation::{
-    CapabilityScope, DelegationCertificate, DelegationError, DelegationParent,
-    DelegationRevocation, Issue, SignedDelegationCertificate, SignedDelegationRevocation,
-};
+use personae::delegation::{DelegationError, Issue};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -572,8 +573,9 @@ fn share_nonce() -> [u8; 32] {
 mod tests {
     use super::*;
     use crate::KnotSyncEvent;
+    use insigne::delegation::{CapabilityScope, DelegationCertificate, DelegationParent};
     use notochord::{AdmittedPrincipal, RequestedAction, TrafficClass};
-    use personae::delegation::{CapabilityScope, DelegationCertificate, DelegationParent, Issue};
+    use personae::delegation::Issue;
     use personae::{IdentityProvider, InMemoryProvider};
     use tempfile::tempdir;
 

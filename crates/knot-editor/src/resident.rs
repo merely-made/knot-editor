@@ -657,10 +657,11 @@ mod tests {
     use chirograph::{KnotClipArtifactRoleV1, KnotClipArtifactV1, PortableContentRefV1};
     use gemot::moot::constitution::{CapabilityGrant, ConstitutionRules};
     use gemot::moot::{MOOT_ACT_ACTION, MOOT_DELEGATION_DOMAIN, MootAuthority, MootDelegations};
-    use personae::delegation::{
-        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation, Issue,
+    use insigne::delegation::{
+        CapabilityScope, DelegationCertificate, DelegationParent, DelegationRevocation,
         SignedDelegationCertificate, SignedDelegationRevocation,
     };
+    use personae::delegation::Issue;
     use personae::{IdentityProvider, InMemoryProvider};
     use servitor::cap::Cap;
     use servitor::cap_path;

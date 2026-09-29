@@ -58,10 +58,11 @@ use graphshell::native::projection_host::ResidentProjectionHost;
 use graphshell::network_carrier::{
     CarrierRuntime, NetworkCarrier, dial_projection_session, projection_binding,
 };
-use notochord::{NetworkId, ProfileRef, TrustedRoot};
-use personae::delegation::{
-    CapabilityScope, DelegationCertificate, DelegationParent, Issue, SignedDelegationCertificate,
+use insigne::delegation::{
+    CapabilityScope, DelegationCertificate, DelegationParent, SignedDelegationCertificate,
 };
+use notochord::{NetworkId, ProfileRef, TrustedRoot};
+use personae::delegation::Issue;
 use personae::{IdentityProvider, InMemoryProvider};
 use transport::p2panda_transport::{MdnsDiscoveryMode, P2pandaTransport};
 use transport::{PeerID, Transport};

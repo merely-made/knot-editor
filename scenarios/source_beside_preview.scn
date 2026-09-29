@@ -5,7 +5,9 @@ settle 1
 assert snap document_count == 1
 assert snap reading_count == 1
 assert snap preview_open == true
+assert snap preview_rendered == true
+assert snap preview_heading_count >= 3
 assert text Preview
-assert text Field notes on the estuary
+assert text Diagnostics: none
 capture source-beside-preview
 log knot source-beside-preview: done

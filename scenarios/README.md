@@ -51,3 +51,11 @@ The integration test in `apps/desktop/tests/scenario_lane.rs` runs all five
 scenario action/assertion streams against the real retained desktop controls.
 It removes only `capture` lines because the windowless harness has no native
 swapchain. The headed invocation remains the authority for PNG receipts.
+
+The focused-writing receipt clicks the source textbox and asserts its
+host-owned keyboard focus without dirtying the document. Preview receipts
+assert a successfully rendered Preview and its heading count rather than
+matching source text on the global surface. Research asserts both the reading
+result row count and exact labels emitted by `references.rhai`. Open-reading
+snapshot flags count pinned and following tiles alike, and `wait` includes
+graph, publication, retention, and pending capture work.

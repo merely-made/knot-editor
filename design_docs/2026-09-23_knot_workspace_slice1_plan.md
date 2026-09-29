@@ -1427,9 +1427,16 @@ design frames either fixed or recorded.
   Mesquite/Taproot lane as every earlier receipt. Scenario snapshots now name
   document and reading counts plus the open Preview, Outline, Readings,
   Navigator and Graph roles, so each scenario proves its arrangement before
-  capture. The last-tab scenario closes the real document tab, waits for the
-  bounded catalog worker and requires the shared view's “Catalog reading”
-  state. Checked-in Djot, Rhai and two-site fixtures make the runs repeatable.
+  capture. Focused writing clicks the source textbox and requires its
+  host-owned keyboard focus without dirtying it; Preview requires a successful
+  derived render and its heading count; research requires the script's result
+  row count and exact emitted
+  labels, not source text that happened to be elsewhere in the frame. Reading
+  role flags include pinned as well as following tiles, and scenario waiting
+  includes retention work alongside graph and publication work. The last-tab
+  scenario closes the real document tab, waits for the bounded catalog worker
+  and requires the shared view's “Catalog reading” state. Checked-in Djot,
+  Rhai and two-site fixtures make the runs repeatable.
 
   All five action and assertion streams pass through the real desktop controls
   in the windowless harness; only their `capture` lines are omitted there

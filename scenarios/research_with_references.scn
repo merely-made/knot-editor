@@ -11,7 +11,8 @@ assert snap reading_count == 2
 click role:button references.rhai
 click role:button Run
 settle 1
-assert text Estuary archive
-assert text Shared transect note
+assert snap reading_result_rows >= 3
+assert text Estuary archive · archive.djot
+assert text Shared transect note · shared-note.djot
 capture research-with-references
 log knot research-with-references: done

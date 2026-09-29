@@ -5,5 +5,9 @@ assert snap document_count == 1
 assert snap reading_count == 0
 assert snap graph_open == false
 assert snap document == field_notes.djot
+click role:textbox
+settle 1
+assert snap source_focused == true
+assert snap dirty == false
 capture focused-writing
 log knot focused-writing: done

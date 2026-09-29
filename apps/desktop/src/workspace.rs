@@ -23,7 +23,7 @@ use knot_document::{
     KnotDocumentSession, KnotDocumentStatus, KnotDocumentSurfaceState, KnotOutlineItemV1,
     KnotOutlineSnapshotV1, knot_document_refusal_label, knot_document_view_with_status,
 };
-use knot_file_catalog::{KnotFileCatalog, KnotFileRevisionV1};
+use knot_file_catalog::{KnotFileCatalog, KnotFileCatalogAvailability, KnotFileRevisionV1};
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::collections::HashMap;
@@ -445,7 +445,10 @@ impl DesktopState {
     /// source. Returns the entry's key.
     fn open_entry(&mut self, entry: DocumentEntry) -> DocKey {
         let (title, identity) = entry.tab();
-        let key = self.docs.open(identity, title, entry).0;
+        let (key, inserted) = self.docs.open(identity, title, entry);
+        if inserted {
+            self.sync_catalog_for(key);
+        }
         self.bind_site_page_for(key);
         let open = self.graph_open_nodes();
         self.graph.relayout(&open);
@@ -531,12 +534,22 @@ impl DesktopState {
                 if let Some(open) = already_open {
                     self.docs.focus(open);
                     self.after_focus_change();
-                } else if let Some(path) = self.graph.path(&key) {
-                    if !path.is_file() {
-                        self.graph.notice =
-                            Some("That catalog document is unavailable.".to_owned());
-                    } else {
-                        self.open_path(path);
+                } else {
+                    let authorized = self.catalog.as_ref().and_then(|catalog| {
+                        let record = catalog.record(&key)?;
+                        (record.availability == KnotFileCatalogAvailability::Available)
+                            .then(|| catalog.root().join(record.relative_path))
+                    });
+                    match authorized {
+                        Some(path) => {
+                            self.open_path(path);
+                        },
+                        None => {
+                            self.graph.notice = Some(
+                                "That catalog document is unavailable or no longer authorized."
+                                    .to_owned(),
+                            );
+                        },
                     }
                 }
             },
@@ -838,31 +851,63 @@ impl DesktopState {
         }
     }
 
-    fn sync_catalog(&mut self) {
+    fn sync_catalog_for(&mut self, key: DocKey) {
         if self.catalog.is_none() {
             return;
         }
-        let source_path = self
-            .document()
+        let Some(entry) = self.docs.doc(key) else {
+            return;
+        };
+        let source_path = entry
+            .document
             .session()
             .source_path()
             .map(Path::to_path_buf);
-        if self.entry().catalog_sync_attempted && self.entry().catalog_source_path == source_path {
+        if entry.catalog_sync_attempted && entry.catalog_source_path == source_path {
+            if let Some(id) = entry.catalog_id.clone() {
+                self.docs.set_identity(key, DocIdentity::Catalog(id));
+            }
             return;
         }
-        self.entry_mut().catalog_sync_attempted = true;
-        self.entry_mut().catalog_source_path = source_path.clone();
-        self.entry_mut().catalog_id = None;
-        self.entry_mut().catalog_error = None;
+        if let Some(entry) = self.docs.doc_mut(key) {
+            entry.catalog_sync_attempted = true;
+            entry.catalog_source_path = source_path.clone();
+            entry.catalog_id = None;
+            entry.catalog_error = None;
+        }
         let Some(source_path) = source_path else {
             return;
         };
-        if let Some(catalog) = self.catalog.as_mut() {
-            match catalog.bind(source_path) {
-                Ok(id) => self.entry_mut().catalog_id = Some(id),
-                Err(error) => self.entry_mut().catalog_error = Some(error),
-            }
+        let result = self
+            .catalog
+            .as_mut()
+            .expect("catalog checked above")
+            .bind(source_path);
+        match result {
+            Ok(id) => {
+                if let Some(entry) = self.docs.doc_mut(key) {
+                    entry.catalog_id = Some(id.clone());
+                }
+                self.docs.set_identity(key, DocIdentity::Catalog(id));
+            },
+            Err(error) => {
+                if let Some(entry) = self.docs.doc_mut(key) {
+                    entry.catalog_error = Some(error);
+                }
+            },
         }
+    }
+
+    fn sync_catalog(&mut self) {
+        if let Some(key) = self.focused_key() {
+            self.sync_catalog_for(key);
+        }
+        self.refresh_graph();
+    }
+
+    fn after_successful_document_write(&mut self, key: DocKey) {
+        self.sync_catalog_for(key);
+        self.graph.invalidate_catalog();
         self.refresh_graph();
     }
 
@@ -1468,7 +1513,14 @@ impl DesktopState {
     /// `false` when it could not.
     pub(crate) fn open_path(&mut self, path: PathBuf) -> bool {
         let resolved = std::fs::canonicalize(&path).ok();
-        let identity = DocIdentity::Path(resolved.clone().unwrap_or_else(|| path.clone()));
+        let identity = self
+            .catalog
+            .as_ref()
+            .and_then(|catalog| catalog.lookup(&path).ok().flatten())
+            .map_or_else(
+                || DocIdentity::Path(resolved.clone().unwrap_or_else(|| path.clone())),
+                |record| DocIdentity::Catalog(record.id),
+            );
         if let Some(key) = self.docs.find(&identity) {
             self.docs.focus(key);
             self.after_focus_change();
@@ -1492,15 +1544,13 @@ impl DesktopState {
     }
 
     fn save(&mut self) {
-        if self.focused_key().is_none() {
+        let Some(key) = self.focused_key() else {
             self.message = Some("No document is open.".to_owned());
             return;
-        }
+        };
         match self.document_mut().apply(KnotDocumentIntentV1::Save) {
             Ok(_) => {
-                self.sync_catalog();
-                self.graph.invalidate_catalog();
-                self.refresh_graph();
+                self.after_successful_document_write(key);
                 self.message = Some("Saved.".to_owned());
             },
             Err(error) => self.message = Some(intent_error_label("Save", error)),
@@ -1530,10 +1580,10 @@ impl DesktopState {
                 self.clear_readings();
                 self.sync_outline_snapshot();
                 self.sync_fold_snapshots();
-                self.sync_catalog();
                 let (title, identity) = self.entry().tab();
                 self.docs.set_identity(key, identity);
                 self.docs.set_title(key, title);
+                self.after_successful_document_write(key);
                 self.bind_site_page_for(key);
                 self.message = Some(format!("Saved as {}.", path.display()));
                 true
@@ -1556,6 +1606,9 @@ impl DesktopState {
     /// Save the focused document for a pending action: Save As from the path
     /// field for scratch, an ordinary save otherwise.
     fn save_for_pending(&mut self) -> bool {
+        let Some(key) = self.focused_key() else {
+            return false;
+        };
         if self.document().snapshot().write_posture
             == knot_document::KnotDocumentWritePostureV1::Scratch
         {
@@ -1569,7 +1622,7 @@ impl DesktopState {
         } else {
             match self.document_mut().apply(KnotDocumentIntentV1::Save) {
                 Ok(_) => {
-                    self.sync_catalog();
+                    self.after_successful_document_write(key);
                     true
                 },
                 Err(error) => {
@@ -1607,7 +1660,7 @@ impl DesktopState {
                         continue;
                     }
                     match self.document_mut().apply(KnotDocumentIntentV1::Save) {
-                        Ok(_) => self.sync_catalog(),
+                        Ok(_) => self.after_successful_document_write(key),
                         Err(error) => failures.push(intent_error_label("Save", error)),
                     }
                 }
@@ -1649,7 +1702,7 @@ impl DesktopState {
                 for key in self.site_dirty_pages(site) {
                     self.docs.focus(key);
                     match self.document_mut().apply(KnotDocumentIntentV1::Save) {
-                        Ok(_) => self.sync_catalog(),
+                        Ok(_) => self.after_successful_document_write(key),
                         Err(error) => failures.push(intent_error_label("Save", error)),
                     }
                 }
@@ -1807,6 +1860,7 @@ impl DesktopState {
             .doc(key)
             .map(|entry| entry.document.snapshot().display_label);
         let before = self.focused_key();
+        self.docs.prepare_last_document_close(key, "Graph");
         if let Some(tile) = self.docs.tile_of(key) {
             self.docs.close(tile);
         }
@@ -2649,9 +2703,6 @@ fn document_frame(state: &DesktopState) -> DesktopView {
             .then_some(cambium::TabMark::Modified),
         _ => None,
     };
-    if state.docs.is_empty() {
-        return Box::new(el("div", graph_view(state)).attr("class", "knot-frame"));
-    }
     Box::new(
         el(
             "div",
@@ -3295,6 +3346,54 @@ mod tests {
     }
 
     #[test]
+    fn last_close_replaces_only_the_document_and_new_preserves_every_surviving_tile() {
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:workspace-graph", "# Graph"),
+            WindowCommands::new(),
+        );
+        state.toggle_navigator();
+        state.toggle_reading(ReadingKind::Preview);
+        let site = SiteKey(77);
+        let site_tile = state.docs.open_site_tile(site, "Site");
+        let navigator = state.docs.navigator().unwrap();
+        let reading = state.docs.following_reading(ReadingKind::Preview).unwrap();
+        let document = state.focused_key().unwrap();
+
+        state.close_document(document);
+        assert!(state.docs.is_empty());
+        let graph = state.docs.graph().expect("last document became Graph");
+        for tile in [navigator, reading, site_tile, graph] {
+            assert!(state.docs.workspace().tiled().find(tile).is_some());
+        }
+
+        state.new_document();
+        let document = state.docs.tile_of(state.focused_key().unwrap()).unwrap();
+        for tile in [navigator, reading, site_tile, graph, document] {
+            assert!(state.docs.workspace().tiled().find(tile).is_some());
+        }
+        assert_eq!(state.docs.navigator(), Some(navigator));
+        assert_eq!(state.docs.site_tile(site), Some(site_tile));
+        assert_eq!(
+            state.docs.following_reading(ReadingKind::Preview),
+            Some(reading)
+        );
+
+        state.toggle_graph();
+        assert!(state.docs.graph().is_none());
+        state.toggle_graph();
+        assert!(state.docs.graph().is_some());
+        state.toggle_navigator();
+        assert!(state.docs.navigator().is_none());
+        state.toggle_navigator();
+        assert!(state.docs.navigator().is_some());
+        state.toggle_reading(ReadingKind::Preview);
+        assert!(state.docs.following_reading(ReadingKind::Preview).is_none());
+        state.toggle_reading(ReadingKind::Preview);
+        assert!(state.docs.following_reading(ReadingKind::Preview).is_some());
+        assert_eq!(state.docs.site_tile(site), Some(site_tile));
+    }
+
+    #[test]
     fn graph_layout_request_is_host_owned() {
         let mut host = harness(KnotDocumentSession::scratch("scratch:graph", ""));
         host.layout_at(1100.0, 700.0);
@@ -3333,6 +3432,209 @@ mod tests {
         assert_eq!(host.state().docs.len(), 2);
         assert_eq!(host.state().entry().catalog_id.as_deref(), Some(b.as_str()));
         assert_ne!(a, b);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn graph_activation_refuses_a_bound_path_replaced_by_an_out_of_root_symlink() {
+        use std::os::unix::fs::symlink;
+
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let open_path = root.join("open.djot");
+        let target_path = root.join("target.djot");
+        let outside = temp.path().join("outside.djot");
+        std::fs::write(&open_path, "# Open").unwrap();
+        std::fs::write(&target_path, "# Authorized once").unwrap();
+        std::fs::write(&outside, "# Outside").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        catalog.bind(&open_path).unwrap();
+        let target = catalog.bind(&target_path).unwrap();
+        let mut host = harness_with_catalog(
+            KnotDocumentSession::open(&open_path).unwrap(),
+            Some(catalog),
+        );
+        std::fs::remove_file(&target_path).unwrap();
+        symlink(&outside, &target_path).unwrap();
+
+        let activate = target.clone();
+        host.update(|state| {
+            state.carry_graph_request(mere_view::MereViewRequest::Activate(activate.clone()))
+        });
+        assert_eq!(host.state().docs.len(), 1);
+        assert_eq!(
+            host.state()
+                .document()
+                .session()
+                .source_path()
+                .and_then(|path| std::fs::canonicalize(path).ok()),
+            Some(std::fs::canonicalize(&open_path).unwrap())
+        );
+        assert!(
+            host.state()
+                .graph
+                .notice
+                .as_deref()
+                .unwrap()
+                .contains("unavailable or no longer authorized")
+        );
+    }
+
+    #[test]
+    fn every_launch_document_merges_with_its_catalog_node() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let first = root.join("first.djot");
+        let second = root.join("second.djot");
+        std::fs::write(&first, "# First").unwrap();
+        std::fs::write(&second, "# Second").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let first_id = catalog.bind(&first).unwrap();
+        let second_id = catalog.bind(&second).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&first).unwrap(), Some(catalog));
+        host.update(|state| {
+            state.open_behind(vec![KnotDocumentSession::open(&second).unwrap()], &[])
+        });
+        drain_wake(&mut host);
+        let open = host.state().graph_open_nodes();
+        let model = host.state().graph.model(&open);
+        assert_eq!(model.graph.nodes.len(), 2);
+        assert!(
+            model
+                .graph
+                .nodes
+                .iter()
+                .all(|node| node.state == mere_view::NodeState::Open)
+        );
+        assert!(
+            model
+                .graph
+                .nodes
+                .iter()
+                .all(|node| !node.key.starts_with("open:"))
+        );
+        assert!(model.graph.nodes.iter().any(|node| node.key == first_id));
+        assert!(model.graph.nodes.iter().any(|node| node.key == second_id));
+    }
+
+    fn graph_reading_label(state: &DesktopState) -> String {
+        state
+            .graph
+            .model(&state.graph_open_nodes())
+            .notice
+            .as_deref()
+            .and_then(|notice| notice.strip_prefix("Catalog reading "))
+            .and_then(|notice| notice.split('.').next())
+            .expect("catalog reading label")
+            .to_owned()
+    }
+
+    #[test]
+    fn save_then_close_refreshes_catalog_links_before_the_document_leaves() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let a_path = root.join("a.djot");
+        let b_path = root.join("b.djot");
+        let c_path = root.join("c.djot");
+        std::fs::write(&a_path, "[B](b.djot)").unwrap();
+        std::fs::write(&b_path, "# B").unwrap();
+        std::fs::write(&c_path, "# C").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let a = catalog.bind(&a_path).unwrap();
+        let b = catalog.bind(&b_path).unwrap();
+        let c = catalog.bind(&c_path).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&a_path).unwrap(), Some(catalog));
+        drain_wake(&mut host);
+        let before = graph_reading_label(host.state());
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+                .unwrap();
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "[C](c.djot)".to_owned(),
+                )))
+                .unwrap();
+            state.save();
+            state.close_document(key);
+        });
+        drain_wake(&mut host);
+        let model = host.state().graph.model(&host.state().graph_open_nodes());
+        assert_ne!(graph_reading_label(host.state()), before);
+        assert!(
+            model
+                .graph
+                .relations
+                .iter()
+                .any(|edge| edge.from == a && edge.to == c)
+        );
+        assert!(
+            !model
+                .graph
+                .relations
+                .iter()
+                .any(|edge| edge.from == a && edge.to == b)
+        );
+    }
+
+    #[test]
+    fn save_as_over_bound_path_refreshes_graph_digest_and_edges() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let a_path = root.join("a.djot");
+        let b_path = root.join("b.djot");
+        let c_path = root.join("c.djot");
+        std::fs::write(&a_path, "[B](b.djot)").unwrap();
+        std::fs::write(&b_path, "# B").unwrap();
+        std::fs::write(&c_path, "# C").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let a = catalog.bind(&a_path).unwrap();
+        catalog.bind(&b_path).unwrap();
+        let c = catalog.bind(&c_path).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&a_path).unwrap(), Some(catalog));
+        drain_wake(&mut host);
+        let before = graph_reading_label(host.state());
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+                .unwrap();
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "[C](c.djot)".to_owned(),
+                )))
+                .unwrap();
+            state.save_as_path = TextInput::new(a_path.to_string_lossy());
+            assert!(state.save_as());
+        });
+        drain_wake(&mut host);
+        let model = host.state().graph.model(&host.state().graph_open_nodes());
+        assert_ne!(graph_reading_label(host.state()), before);
+        assert!(
+            model
+                .graph
+                .relations
+                .iter()
+                .any(|edge| edge.from == a && edge.to == c)
+        );
+        assert_eq!(host.state().entry().catalog_id.as_deref(), Some(a.as_str()));
+        assert_eq!(
+            host.state()
+                .docs
+                .identity(host.state().focused_key().unwrap()),
+            Some(&DocIdentity::Catalog(a))
+        );
     }
 
     fn input_node(
@@ -4903,7 +5205,7 @@ mod tests {
             let dom = dom.borrow();
             let frame = class_node(&dom, dom.document(), "knot-frame").expect("frame");
             assert!(text_content(&dom, frame).contains("No catalog is configured"));
-            assert_eq!(count_class(&dom, dom.document(), "frisket-tab"), 0);
+            assert_eq!(count_class(&dom, dom.document(), "frisket-tab"), 1);
         }
         assert!(host.click_on(&Selector::role("button").containing("Save")));
         assert_eq!(

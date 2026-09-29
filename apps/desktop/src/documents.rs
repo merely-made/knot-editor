@@ -372,6 +372,36 @@ impl<D> DocumentWorkspace<D> {
         id
     }
 
+    /// Put the singleton Graph beside the last document before that document
+    /// leaves. Closing the document then preserves its stack and every other
+    /// workspace branch.
+    pub fn prepare_last_document_close(
+        &mut self,
+        document: DocKey,
+        title: impl Into<String>,
+    ) -> Option<TileId> {
+        if self.entries.len() != 1 || !self.entries.contains_key(&document) {
+            return None;
+        }
+        if let Some(graph) = self.graph() {
+            self.activate(graph);
+            return Some(graph);
+        }
+        let document_tile = self.tile_of(document)?;
+        let tile = self.mint_tile(title.into(), TileRole::Graph);
+        let graph = tile.id;
+        if !self
+            .workspace
+            .tiled_mut()
+            .insert_tab_after(document_tile, tile)
+        {
+            self.roles.remove(&graph);
+            return None;
+        }
+        self.activate(graph);
+        Some(graph)
+    }
+
     /// The open site tile of `site`, if any.
     pub fn site_tile(&self, site: SiteKey) -> Option<TileId> {
         self.roles
@@ -562,7 +592,15 @@ impl<D> DocumentWorkspace<D> {
             .focused
             .and_then(|key| self.entries.get(&key))
             .map(|entry| entry.tile)
-            .or_else(|| self.entries.values().map(|entry| entry.tile).next());
+            .or_else(|| self.entries.values().map(|entry| entry.tile).next())
+            .or_else(|| self.graph())
+            .or_else(|| {
+                self.roles
+                    .keys()
+                    .copied()
+                    .filter(|tile| self.workspace.tiled().find(*tile).is_some())
+                    .min_by_key(|tile| tile.0)
+            });
         let tree = self.workspace.tiled_mut();
         if let Some(target) = beside
             && tree.insert_tab_after(target, tile.clone())

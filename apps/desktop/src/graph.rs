@@ -32,21 +32,79 @@ pub(crate) struct OpenNode {
 #[derive(Clone, Debug)]
 struct CatalogReading {
     graph: GraphModel,
-    paths: HashMap<String, PathBuf>,
     label: String,
     errors: Vec<String>,
+}
+
+struct CatalogRequest {
+    catalog: KnotFileCatalogSnapshot,
+    max_bytes: usize,
+    generation: u64,
+}
+
+struct CatalogCompletion {
+    reading: CatalogReading,
+    generation: u64,
+}
+
+#[cfg(test)]
+#[derive(Clone, Default)]
+struct WorkerControl {
+    state: std::sync::Arc<(std::sync::Mutex<(usize, usize)>, std::sync::Condvar)>,
+}
+
+#[cfg(test)]
+impl WorkerControl {
+    fn started(&self) {
+        let (lock, changed) = &*self.state;
+        let mut state = lock.lock().unwrap();
+        state.0 += 1;
+        changed.notify_all();
+        while state.1 == 0 {
+            state = changed.wait(state).unwrap();
+        }
+        state.1 -= 1;
+    }
+
+    fn wait_for_starts(&self, expected: usize) {
+        let (lock, changed) = &*self.state;
+        let state = lock.lock().unwrap();
+        let (state, timeout) = changed
+            .wait_timeout_while(state, std::time::Duration::from_secs(2), |state| {
+                state.0 < expected
+            })
+            .unwrap();
+        assert!(!timeout.timed_out(), "worker {expected} did not start");
+        assert_eq!(state.0, expected);
+    }
+
+    fn release(&self) {
+        let (lock, changed) = &*self.state;
+        let mut state = lock.lock().unwrap();
+        state.1 += 1;
+        changed.notify_all();
+    }
+
+    fn starts(&self) -> usize {
+        self.state.0.lock().unwrap().0
+    }
 }
 
 pub(crate) struct GraphState {
     pub view: MereViewState,
     reading: Option<CatalogReading>,
-    receiver: Option<Receiver<CatalogReading>>,
+    receiver: Option<Receiver<CatalogCompletion>>,
+    queued: Option<CatalogRequest>,
     wake: Option<HostWake>,
     pub layout: String,
     pub size: (u32, u32),
     pub notice: Option<String>,
     configured: bool,
-    source_key: Option<String>,
+    requested_signature: Option<String>,
+    desired_generation: u64,
+    invalidated: bool,
+    #[cfg(test)]
+    worker_control: Option<WorkerControl>,
 }
 
 impl Default for GraphState {
@@ -55,12 +113,17 @@ impl Default for GraphState {
             view: MereViewState::default(),
             reading: None,
             receiver: None,
+            queued: None,
             wake: None,
             layout: mere_view::DEFAULT_LAYOUT.to_owned(),
             size: (900, 560),
             notice: None,
             configured: false,
-            source_key: None,
+            requested_signature: None,
+            desired_generation: 0,
+            invalidated: false,
+            #[cfg(test)]
+            worker_control: None,
         }
     }
 }
@@ -71,49 +134,80 @@ impl GraphState {
     }
 
     pub fn invalidate_catalog(&mut self) {
-        self.source_key = None;
+        self.invalidated = true;
     }
 
     pub fn start(&mut self, catalog: Option<KnotFileCatalogSnapshot>, max_bytes: usize) {
         self.configured = catalog.is_some();
         self.notice = None;
         let Some(catalog) = catalog else {
-            self.receiver = None;
             self.reading = None;
-            self.source_key = None;
+            self.queued = None;
+            self.requested_signature = None;
+            self.desired_generation = self.desired_generation.wrapping_add(1);
+            self.invalidated = false;
             return;
         };
-        if self.wake.is_none() {
-            self.source_key = None;
+        #[cfg(not(test))]
+        let can_start = self.wake.is_some();
+        #[cfg(test)]
+        let can_start = self.wake.is_some() || self.worker_control.is_some();
+        if !can_start {
+            self.requested_signature = None;
             return;
         }
-        let source_key = catalog
-            .records()
-            .iter()
-            .fold(blake3::Hasher::new(), |mut digest, record| {
-                digest.update(record.id.as_bytes());
-                digest.update(record.relative_path.to_string_lossy().as_bytes());
-                digest.update(format!("{:?}", record.availability).as_bytes());
-                digest
-            })
-            .finalize()
-            .to_hex()
-            .to_string();
-        if self.source_key.as_deref() == Some(&source_key)
-            && (self.reading.is_some() || self.receiver.is_some())
+        let mut digest =
+            catalog
+                .records()
+                .iter()
+                .fold(blake3::Hasher::new(), |mut digest, record| {
+                    digest.update(record.id.as_bytes());
+                    digest.update(record.relative_path.to_string_lossy().as_bytes());
+                    digest.update(format!("{:?}", record.availability).as_bytes());
+                    digest
+                });
+        digest.update(&max_bytes.to_le_bytes());
+        let signature = digest.finalize().to_hex().to_string();
+        let forced = std::mem::take(&mut self.invalidated);
+        if !forced
+            && self.requested_signature.as_deref() == Some(&signature)
+            && (self.reading.is_some() || self.receiver.is_some() || self.queued.is_some())
         {
             return;
         }
-        self.source_key = Some(source_key);
+        self.desired_generation = self.desired_generation.wrapping_add(1);
+        self.requested_signature = Some(signature.clone());
+        let request = CatalogRequest {
+            catalog,
+            max_bytes,
+            generation: self.desired_generation,
+        };
+        if self.receiver.is_some() {
+            self.queued = Some(request);
+            return;
+        }
+        self.spawn(request);
+    }
+
+    fn spawn(&mut self, request: CatalogRequest) {
         let (sender, receiver) = mpsc::channel();
         self.receiver = Some(receiver);
         self.reading = None;
         let wake = self.wake.clone();
+        #[cfg(test)]
+        let control = self.worker_control.clone();
         let spawned = std::thread::Builder::new()
             .name("knot-catalog-graph".to_owned())
             .spawn(move || {
-                let reading = read_catalog(catalog, max_bytes);
-                let _ = sender.send(reading);
+                #[cfg(test)]
+                if let Some(control) = control {
+                    control.started();
+                }
+                let reading = read_catalog(request.catalog, request.max_bytes);
+                let _ = sender.send(CatalogCompletion {
+                    reading,
+                    generation: request.generation,
+                });
                 if let Some(wake) = wake {
                     wake.wake();
                 }
@@ -133,16 +227,25 @@ impl GraphState {
             return false;
         };
         match receiver.try_recv() {
-            Ok(reading) => {
-                self.reading = Some(reading);
+            Ok(completion) => {
                 self.receiver = None;
+                if let Some(request) = self.queued.take() {
+                    self.spawn(request);
+                } else if self.configured && completion.generation == self.desired_generation {
+                    self.reading = Some(completion.reading);
+                }
                 true
             },
             Err(TryRecvError::Empty) => false,
             Err(TryRecvError::Disconnected) => {
                 self.receiver = None;
-                self.notice =
-                    Some("The catalog graph worker stopped before returning a reading.".to_owned());
+                if let Some(request) = self.queued.take() {
+                    self.spawn(request);
+                } else {
+                    self.notice = Some(
+                        "The catalog graph worker stopped before returning a reading.".to_owned(),
+                    );
+                }
                 true
             },
         }
@@ -181,7 +284,7 @@ impl GraphState {
                 });
             }
         }
-        let status = if self.receiver.is_some() {
+        let status = if self.configured && self.receiver.is_some() {
             ViewStatus::Building(StatusNote {
                 message: "Reading catalog links within the configured capture limit.".to_owned(),
                 action: None,
@@ -240,10 +343,6 @@ impl GraphState {
         }
     }
 
-    pub fn path(&self, key: &str) -> Option<PathBuf> {
-        self.reading.as_ref()?.paths.get(key).cloned()
-    }
-
     pub fn set_size(&mut self, size: (u32, u32), open: &[OpenNode]) -> bool {
         if self.size == size {
             return false;
@@ -260,14 +359,12 @@ impl GraphState {
 }
 
 fn read_catalog(catalog: KnotFileCatalogSnapshot, max_bytes: usize) -> CatalogReading {
-    let root = catalog.root().to_path_buf();
     let records = catalog.records();
     let by_path: HashMap<PathBuf, String> = records
         .iter()
         .map(|record| (record.relative_path.clone(), record.id.clone()))
         .collect();
     let mut graph = GraphModel::default();
-    let mut paths = HashMap::new();
     let mut errors = Vec::new();
     let mut digest = blake3::Hasher::new();
     for record in &records {
@@ -286,7 +383,6 @@ fn read_catalog(catalog: KnotFileCatalogSnapshot, max_bytes: usize) -> CatalogRe
                 KnotFileCatalogAvailability::Unavailable => NodeState::Unavailable,
             },
         });
-        paths.insert(record.id.clone(), root.join(&record.relative_path));
         digest.update(record.id.as_bytes());
         digest.update(record.relative_path.to_string_lossy().as_bytes());
         if record.availability == KnotFileCatalogAvailability::Unavailable {
@@ -328,7 +424,6 @@ fn read_catalog(catalog: KnotFileCatalogSnapshot, max_bytes: usize) -> CatalogRe
     let label = digest.finalize().to_hex()[..12].to_owned();
     CatalogReading {
         graph,
-        paths,
         label,
         errors,
     }
@@ -354,13 +449,16 @@ fn resolve_local(source: &Path, target: &str) -> Option<PathBuf> {
     if target.is_empty() || target.contains("://") || target.starts_with("mailto:") {
         return None;
     }
+    let target = percent_encoding::percent_decode_str(target)
+        .decode_utf8()
+        .ok()?;
     let raw = if let Some(rooted) = target.strip_prefix('/') {
         PathBuf::from(rooted)
     } else {
         source
             .parent()
             .unwrap_or_else(|| Path::new(""))
-            .join(target)
+            .join(target.as_ref())
     };
     let mut clean = PathBuf::new();
     for component in raw.components() {
@@ -440,8 +538,60 @@ mod tests {
         );
         assert_eq!(resolve_local(Path::new("a.djot"), "../outside"), None);
         assert_eq!(
+            resolve_local(Path::new("notes/a.djot"), "b%20note.djot#section"),
+            Some(PathBuf::from("notes/b note.djot"))
+        );
+        assert_eq!(
             resolve_local(Path::new("a.djot"), "https://example.test"),
             None
         );
+    }
+
+    #[test]
+    fn overlapping_refreshes_run_one_worker_and_coalesce_one_latest_request() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("a.djot"), "# A").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        catalog.bind("a.djot").unwrap();
+        let snapshot = catalog.snapshot();
+        let control = WorkerControl::default();
+        let mut state = GraphState {
+            worker_control: Some(control.clone()),
+            ..GraphState::default()
+        };
+
+        state.start(Some(snapshot.clone()), 64);
+        control.wait_for_starts(1);
+        for limit in [32, 16, 8] {
+            state.invalidate_catalog();
+            state.start(Some(snapshot.clone()), limit);
+        }
+        assert_eq!(
+            control.starts(),
+            1,
+            "queued refreshes spawned overlapping workers"
+        );
+
+        control.release();
+        for _ in 0..200 {
+            if state.drain() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        control.wait_for_starts(2);
+        assert_eq!(control.starts(), 2, "more than one queued refresh survived");
+        control.release();
+        for _ in 0..200 {
+            if state.drain() && !state.busy() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert!(!state.busy());
+        assert!(state.reading.is_some());
+        assert_eq!(control.starts(), 2);
     }
 }

@@ -1386,6 +1386,29 @@ design frames either fixed or recorded.
   `knot-document`. Step 9's headed graph receipt and whole-frame comparison
   remain outstanding.
 
+  Review corrections keep catalog authority live at activation: Knot looks up
+  the current record and requires current `Available` status, so a removed
+  file or a binding replaced by a symlink cannot be opened from a stale graph.
+  Percent-encoded local link paths are decoded before containment resolution.
+  The last document is now replaced by the singleton Graph tab inside its
+  existing workspace stack rather than bypassing the workspace renderer;
+  Navigator, site and reading branches survive both the close and a later New.
+  Every launch document is catalog-bound before the graph merges open state.
+
+  All successful document-write paths share one graph invalidation seam,
+  including Save As, dirty-close, Save all and site-close saves. The graph
+  worker is single-flight: while one bounded read runs, refreshes replace one
+  coalesced queued generation rather than spawning overlapping catalog scans,
+  and a superseded completion is never installed. Regression coverage includes
+  replaced-symlink activation, surviving workspace roles, a two-file launch
+  without duplicate `open:` nodes, Save-plus-close and same-path Save As link
+  freshness, and deterministic worker overlap/coalescing. Cargo.lock now keeps
+  only the new direct dependencies and the shared view's solver-required
+  package entries; unrelated resolver churn was removed. After these review
+  corrections, `knot-desktop --lib` passes 164 tests with 1 ignored, the full
+  default workspace passes, and the same strict clippy and locked-check lanes
+  remain clean.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

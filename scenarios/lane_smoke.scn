@@ -10,6 +10,8 @@
 log knot lane: launched
 assert snap format == Djot
 assert snap appearance_open == false
+assert snap site_count == 0
+assert snap serving_count == 0
 capture launch
 
 click role:button Appearance

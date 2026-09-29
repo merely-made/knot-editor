@@ -1,10 +1,10 @@
 # Knot workspace slice 1: frame, tiles, status, sites and graph
 
 **Date:** 2026-09-23
-**Status:** In progress. Step 7d is implemented. Step 7e remains open. The
-step 7c scenario-scroll follow-up and the Taproot/Mesquite runner unification
-are recorded below. Assessment and initial rulings
-were made 2026-09-23.
+**Status:** In progress. Steps 7d and 7e are implemented; the two-site headed
+scenario is ready for its native frame receipt. The step 7c scenario-scroll
+follow-up and the Taproot/Mesquite runner unification are recorded below.
+Assessment and initial rulings were made 2026-09-23.
 **Owner:** Knot Editor
 **Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
 which includes the first workspace slice and the navigator slice of
@@ -1320,6 +1320,40 @@ design frames either fixed or recorded.
   page while focus moves to a loose Gemtext file, and pin a Micron page while
   its form stays with that page. The desktop library passes 148 tests with 1
   ignored. Step 7e remains the next site sub-step.
+
+- **2026-09-29, step 7e.** Several sites now coexist in one window. The
+  `SiteKey` map is the authority; opening another site no longer closes or
+  preflights its siblings, and reopening the same canonical folder activates
+  its existing entry. Each site keeps its own tile, metadata drafts, local
+  server and publication count. Page-owned Submit and Micron state remains on
+  its `DocumentEntry`, preserving step 7d's keyed Preview behavior when a
+  preview is pinned while another site's page has focus.
+
+  The launcher accepts several site folders and attaches all of them before
+  opening their index sessions behind the first named target. When a site's
+  format default is already claimed by another open site, the later site's
+  port field starts at `0`; publication then uses the actual free loopback
+  port reported by `LocalServer`. The serving chip is scoped through the
+  focused page's `SiteKey`, reads “‹folder› · serving :‹port›” (or names that
+  folder as not serving), and its Publish and Stop actions affect only that
+  site. Drive and UNC verbatim path prefixes are removed before paths reach
+  launcher failures, fields, site tiles or site-name fallbacks.
+
+  Tests cover an unsaved first site surviving a second open; colliding
+  defaults; two simultaneously serving sites on distinct free ports; separate
+  composers and publication counts; focus switching the qualified chip; its
+  Stop action leaving the other server alive; multiple launch folders; and
+  drive plus UNC display paths. `site_count` and `serving_count` are scenario
+  snapshot fields. `scenarios/two_sites.scn` publishes both launch fixtures,
+  asserts both counts and captures `two-sites-serving` for the native receipt.
+
+  Validation on macOS: knot-desktop passed 166 tests with 1 ignored across its
+  unit, binary and integration targets; the full workspace passed; standalone
+  knot-document all-features passed 46 with 1 ignored; and the resident
+  retention feature receipt passed. `cargo clippy -p knot-desktop --lib --
+  -D warnings` is clean. The all-target clippy run still reports pre-existing
+  test-only lints outside this step. The headed two-site scenario is authored
+  but its native PNG has not yet been captured or reviewed.
 
 ## Related material
 

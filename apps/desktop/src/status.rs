@@ -60,8 +60,8 @@ pub(crate) fn retention_chip(retention: Retention) -> StatusChip {
     StatusChip::new(RETENTION, label).with_severity(severity)
 }
 
-pub(crate) fn serving_chip(serving: bool) -> StatusChip {
-    StatusChip::new(SERVING, if serving { "Serving" } else { "Not serving" })
+pub(crate) fn serving_chip(label: impl Into<String>) -> StatusChip {
+    StatusChip::new(SERVING, label)
 }
 
 /// One document's chips, in bar order. Quiet while inert; a refusal raises
@@ -303,8 +303,14 @@ mod tests {
             read(retention_chip(Retention::Idle)),
             ("Not retained".into(), quiet)
         );
-        assert_eq!(read(serving_chip(true)), ("Serving".into(), quiet));
-        assert_eq!(read(serving_chip(false)), ("Not serving".into(), quiet));
+        assert_eq!(
+            read(serving_chip("field-notes · serving :5699")),
+            ("field-notes · serving :5699".into(), quiet)
+        );
+        assert_eq!(
+            read(serving_chip("field-notes · not serving")),
+            ("field-notes · not serving".into(), quiet)
+        );
     }
 
     #[test]

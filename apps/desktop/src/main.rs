@@ -101,13 +101,10 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
         capture_max_bytes: capture_max_bytes.unwrap_or(DEFAULT_CAPTURE_MAX_BYTES),
     })
 }
-/// Open the named documents in order, the first in front. A site folder
-/// opens its index page, and one folder is the limit until sites get their
-/// own tiles. A path that fails is reported unless none opens.
+/// Open the named documents in order, the first in front. Every site folder
+/// opens its own site tile and index page. A path that fails is reported
+/// unless none opens.
 fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
-    if paths.iter().filter(|path| path.is_dir()).count() > 1 {
-        return Err("one site folder at a time until sites get their own tiles".into());
-    }
     let mut opened = Vec::new();
     let mut failures = Vec::new();
     for path in paths {
@@ -115,7 +112,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
             Ok(session) => opened.push((session, path)),
             Err(error) => {
                 // Name the path unless the error already does.
-                let shown = path.display().to_string();
+                let shown = workspace::display_path(&path);
                 failures.push(if error.contains(&shown) {
                     error
                 } else {
@@ -127,11 +124,12 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
     if opened.is_empty() && !failures.is_empty() {
         return Err(failures.join("; "));
     }
-    let site = opened
+    let sites = opened
         .iter()
         .skip(1)
-        .find(|(_, path)| path.is_dir())
-        .map(|(_, path)| path.clone());
+        .filter(|(_, path)| path.is_dir())
+        .map(|(_, path)| path.clone())
+        .collect();
     let mut opened = opened.into_iter();
     let (first, first_path) = match opened.next() {
         Some((session, path)) => (session, Some(path)),
@@ -141,7 +139,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
         first,
         first_path,
         behind: opened.map(|(session, _)| session).collect(),
-        site,
+        sites,
         failures,
     })
 }
@@ -337,28 +335,27 @@ mod tests {
         assert!(scratch.first_path.is_none() && scratch.behind.is_empty());
     }
     #[test]
-    fn launch_takes_one_site_folder_until_sites_get_tiles() {
+    fn launch_takes_several_site_folders_in_order() {
         let temp = tempdir().unwrap();
         let one = temp.path().join("one");
         let two = temp.path().join("two");
         knot_site::Site::create_for(&one, knot_site::SiteFormat::Scroll).unwrap();
         knot_site::Site::create_for(&two, knot_site::SiteFormat::Scroll).unwrap();
-        let error = open_documents(vec![one.clone(), two]).err().unwrap();
-        assert_eq!(
-            error,
-            "one site folder at a time until sites get their own tiles"
-        );
+        let from_sites = open_documents(vec![one.clone(), two.clone()]).unwrap();
+        assert_eq!(from_sites.first_path.as_deref(), Some(one.as_path()));
+        assert_eq!(from_sites.sites.as_slice(), std::slice::from_ref(&two));
+        assert_eq!(from_sites.behind.len(), 1);
 
         let loose = temp.path().join("loose.djot");
         std::fs::write(&loose, "loose\n").unwrap();
-        let opened = open_documents(vec![loose, one.clone()]).unwrap();
-        assert_eq!(opened.site.as_deref(), Some(one.as_path()));
-        assert_eq!(opened.behind.len(), 1);
+        let opened = open_documents(vec![loose, one.clone(), two.clone()]).unwrap();
+        assert_eq!(opened.sites, [one.clone(), two]);
+        assert_eq!(opened.behind.len(), 2);
         assert_eq!(opened.behind[0].snapshot().display_label, "index.scroll");
         let front = open_documents(vec![one.clone()]).unwrap();
         assert_eq!(front.first_path.as_deref(), Some(one.as_path()));
         assert!(
-            front.site.is_none(),
+            front.sites.is_empty(),
             "a leading folder opens through first_path"
         );
     }

@@ -164,6 +164,10 @@ to y=-91 after source focus. The failing experiments were reverted. Shared
 component changes and a dependency repin require separate authorization and
 verification.
 
+Follow-up: that authorization and verification are now complete in the
+[shared presentation receipt](2026-09-29_knot_shared_presentation_review.md).
+Both shared fixes passed native captures as well as their automated regressions.
+
 Local artifacts: `/Users/markik/Code/testing/knot-editor/recovery-visuals-20260929/knot-visual-followups-graph-footer/`.
 This directory includes `REVIEW.md`, native receipts, PNGs, and the preserved
 toolbar reproduction snippet and experiment log.

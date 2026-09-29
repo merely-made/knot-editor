@@ -1,0 +1,9 @@
+# Step 9: the quiet, source-first arrangement.
+log knot focused-writing: launched
+assert snap format == Djot
+assert snap document_count == 1
+assert snap reading_count == 0
+assert snap graph_open == false
+assert snap document == field_notes.djot
+capture focused-writing
+log knot focused-writing: done

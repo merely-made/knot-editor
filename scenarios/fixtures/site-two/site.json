@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "format": "scroll",
+  "pages": [
+    {"path":"index.scroll","author":"Knot","language":"en","classification":4,"published":"","modified":"","abstract_source":"# Site two\n"},
+    {"path":"notes.scroll","author":"Knot","language":"en","classification":4,"published":"","modified":"","abstract_source":"# Notes from site two\n"}
+  ]
+}

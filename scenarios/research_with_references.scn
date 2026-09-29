@@ -1,0 +1,17 @@
+# Step 9: current research arrangement. `references.rhai` projects the
+# document's authored links while the dedicated References/custody panel
+# remains a recorded post-slice difference from the design frame.
+log knot research-with-references: launched
+click role:button Show Outline
+click role:button Readings
+settle 1
+assert snap outline_open == true
+assert snap readings_open == true
+assert snap reading_count == 2
+click role:button references.rhai
+click role:button Run
+settle 1
+assert text Estuary archive
+assert text Shared transect note
+capture research-with-references
+log knot research-with-references: done

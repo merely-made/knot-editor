@@ -12,6 +12,7 @@ use knot_desktop::{
     workspace::{DesktopState, DesktopView, desktop_view},
 };
 use knot_document::KnotDocumentSession;
+use knot_file_catalog::KnotFileCatalog;
 use mesquite::LaneConfig;
 use tempfile::tempdir;
 
@@ -19,10 +20,143 @@ type Logic = fn(&DesktopState) -> DesktopView;
 
 const SCENARIO: &str = "assert snap format == Djot
 assert snap appearance_open == false
+assert snap document_count == 1
+assert snap reading_count == 0
+assert snap graph_open == false
 click role:button Appearance
 settle 1
 assert snap appearance_open == true
 ";
+
+const STEP_9_SCENARIOS: &[&str] = &[
+    "focused_writing.scn",
+    "source_beside_preview.scn",
+    "research_with_references.scn",
+    "last_tab_graph.scn",
+    "two_sites.scn",
+];
+
+fn scenario_path(name: &str) -> std::path::PathBuf {
+    std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../scenarios")
+        .join(name)
+}
+
+#[test]
+fn every_step_9_scenario_uses_the_shared_parseable_lane() {
+    for name in STEP_9_SCENARIOS {
+        let path = scenario_path(name);
+        let source = std::fs::read_to_string(&path).unwrap();
+        taproot::Scenario::parse(&source)
+            .unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+    }
+}
+
+fn run_without_native_capture(state: DesktopState, name: &str, temp: &tempfile::TempDir) -> String {
+    let source = std::fs::read_to_string(scenario_path(name)).unwrap();
+    let source = source
+        .lines()
+        .filter(|line| !line.trim_start().starts_with("capture "))
+        .collect::<Vec<_>>()
+        .join("\n");
+    let scenario = temp.path().join(name);
+    std::fs::write(&scenario, source).unwrap();
+    let config = LaneConfig {
+        scenario,
+        capture_dir: None,
+        receipt: Some(temp.path().join(format!("{name}.done"))),
+    };
+    let receipt = config.receipt_path().unwrap();
+    let mut lane = mesquite::Lane::from_config(
+        config,
+        KnotLane::new(desktop_sheet()),
+        cambium_genet_winit_host::read_file,
+    )
+    .unwrap();
+    let mut hooks = host_hooks();
+    hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
+    let mut h = Harness::with_hooks(
+        Init {
+            state,
+            logic: desktop_view as Logic,
+            sheet: desktop_sheet(),
+            fonts: Vec::new(),
+            images: Vec::new(),
+        },
+        hooks,
+    );
+    let wake = h.wake();
+    h.update(|state| state.set_retention_targets(Vec::new(), wake));
+    for _ in 0..1_000 {
+        h.layout_at(1100.0, 700.0);
+        h.after_frame();
+        h.drain_pointer();
+        h.after_dispatch();
+        h.process_wake();
+        if h.close_requested() {
+            break;
+        }
+    }
+    let text = std::fs::read_to_string(&receipt).expect("the lane wrote its receipt");
+    assert!(h.close_requested(), "{name} did not finish: {text}");
+    text
+}
+
+#[test]
+fn every_step_9_scenario_passes_through_the_real_desktop_controls() {
+    let root = tempdir().unwrap();
+    let fixture = scenario_path("fixtures/field_notes.djot");
+    let readings = scenario_path("fixtures/readings");
+
+    for name in ["focused_writing.scn", "source_beside_preview.scn"] {
+        let state = DesktopState::with_path(
+            KnotDocumentSession::open(&fixture).unwrap(),
+            WindowCommands::new(),
+            Some(fixture.clone()),
+        );
+        let receipt = run_without_native_capture(state, name, &root);
+        assert!(receipt.starts_with("RESULT ok"), "{name}: {receipt}");
+    }
+
+    let mut research = DesktopState::with_path(
+        KnotDocumentSession::open(&fixture).unwrap(),
+        WindowCommands::new(),
+        Some(fixture.clone()),
+    );
+    research.set_readings_root(Some(readings));
+    let receipt = run_without_native_capture(research, "research_with_references.scn", &root);
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+
+    let catalog = KnotFileCatalog::open(
+        scenario_path("fixtures"),
+        root.path().join("step-9-catalog.redb"),
+    )
+    .unwrap();
+    let graph = DesktopState::with_catalog(
+        KnotDocumentSession::open(&fixture).unwrap(),
+        WindowCommands::new(),
+        Some(fixture),
+        Some(catalog),
+    );
+    let receipt = run_without_native_capture(graph, "last_tab_graph.scn", &root);
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+
+    let first = scenario_path("fixtures/site-one");
+    let second = scenario_path("fixtures/site-two");
+    let mut sites = DesktopState::with_catalog(
+        KnotDocumentSession::open(first.join("index.scroll")).unwrap(),
+        WindowCommands::new(),
+        Some(first),
+        None,
+    );
+    sites.attach_site(&second);
+    sites.open_behind(
+        vec![KnotDocumentSession::open(second.join("index.scroll")).unwrap()],
+        &[],
+    );
+    let receipt = run_without_native_capture(sites, "two_sites.scn", &root);
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+}
 
 #[test]
 fn the_lane_drives_the_desktop_by_role_and_label() {

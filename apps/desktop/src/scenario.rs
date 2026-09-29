@@ -40,11 +40,14 @@ impl mesquite::Product for KnotLane {
         _captures: usize,
         _: f32,
     ) -> ProbeSnapshot {
-        ctx.runner.state().scenario_snapshot()
+        ctx.runner.state().scenario_snapshot().with_field(
+            "source_focused",
+            crate::workspace::source_is_focused(ctx.runner).to_string(),
+        )
     }
 
     fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
         let state = ctx.runner.state();
-        Some(capture_pending || state.graph.busy() || state.submissions_busy())
+        Some(capture_pending || state.background_busy())
     }
 }

@@ -470,6 +470,15 @@ impl DesktopState {
         self.placeholder.site.busy() || self.docs.docs().any(|(_, entry)| entry.site.busy())
     }
 
+    /// Whether a scenario must keep pumping frames before it can truthfully
+    /// inspect derived or externally confirmed state.
+    pub(crate) fn background_busy(&self) -> bool {
+        self.graph.busy()
+            || self.submissions_busy()
+            || self.retention_receiver.is_some()
+            || self.retention_busy.is_some()
+    }
+
     /// Take every finished send's outcome into the document it was sent from.
     pub(crate) fn drain_submissions(&mut self) {
         let entries = std::iter::once(&mut self.placeholder)
@@ -703,6 +712,23 @@ impl DesktopState {
     /// The facts a scenario asserts on. Grows as scenarios need more.
     pub(crate) fn scenario_snapshot(&self) -> taproot::ProbeSnapshot {
         let snapshot = self.document().snapshot();
+        let has_reading = |kind| self.docs.readings().any(|(_, open, _)| open == kind);
+        let preview_snapshot = self
+            .docs
+            .readings()
+            .filter(|(_, kind, _)| *kind == ReadingKind::Preview)
+            .filter_map(|(tile, _, _)| self.docs.document_for(tile))
+            .filter_map(|key| self.docs.doc(key))
+            .find_map(|entry| entry.document.session().preview_snapshot().ok());
+        let reading_result_rows = self
+            .docs
+            .readings()
+            .filter(|(_, kind, _)| *kind == ReadingKind::Readings)
+            .filter_map(|(tile, _, _)| self.docs.document_for(tile))
+            .filter_map(|key| self.docs.doc(key)?.reading_result.as_ref())
+            .map(|result| result.rows.len())
+            .max()
+            .unwrap_or(0);
         taproot::ProbeSnapshot::default()
             .with_field("document", snapshot.display_label)
             .with_field("format", format!("{:?}", snapshot.format))
@@ -712,25 +738,25 @@ impl DesktopState {
             .with_field("reading_count", self.docs.readings().count().to_string())
             .with_field(
                 "preview_open",
-                self.docs
-                    .following_reading(ReadingKind::Preview)
-                    .is_some()
-                    .to_string(),
+                has_reading(ReadingKind::Preview).to_string(),
             )
             .with_field(
                 "outline_open",
-                self.docs
-                    .following_reading(ReadingKind::Outline)
-                    .is_some()
-                    .to_string(),
+                has_reading(ReadingKind::Outline).to_string(),
             )
             .with_field(
                 "readings_open",
-                self.docs
-                    .following_reading(ReadingKind::Readings)
-                    .is_some()
+                has_reading(ReadingKind::Readings).to_string(),
+            )
+            .with_field("preview_rendered", preview_snapshot.is_some().to_string())
+            .with_field(
+                "preview_heading_count",
+                preview_snapshot
+                    .as_ref()
+                    .map_or(0, |preview| preview.headings.len())
                     .to_string(),
             )
+            .with_field("reading_result_rows", reading_result_rows.to_string())
             .with_field(
                 "navigator_open",
                 self.docs.navigator().is_some().to_string(),
@@ -3042,6 +3068,18 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     None
 }
 
+/// Whether keyboard focus is in an open document's source editor. Scenario
+/// receipts use this host fact instead of inferring focus from visible text.
+pub(crate) fn source_is_focused(runner: &DesktopRunner) -> bool {
+    let Some(focused) = runner.focus() else {
+        return false;
+    };
+    let dom = runner.dom();
+    let dom = dom.borrow();
+    LayoutDom::element_name(&*dom, focused).is_some_and(|name| name.local.as_ref() == "textarea")
+        && document_key_of(&*dom, focused).is_some()
+}
+
 pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
     if !press.modifiers.is_command_chord() {
         return false;
@@ -4103,6 +4141,27 @@ mod tests {
             "an unpinned reading follows the focus"
         );
         assert_eq!(host.state().docs.document_for(pinned), Some(a));
+    }
+
+    #[test]
+    fn scenario_snapshot_counts_every_pinned_reading_kind() {
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:pinned-snapshot", "# Pinned\n"),
+            WindowCommands::new(),
+        );
+        let document = state.focused_key().unwrap();
+        for (kind, title) in [
+            (ReadingKind::Preview, "Preview"),
+            (ReadingKind::Outline, "Outline"),
+            (ReadingKind::Readings, "Readings"),
+        ] {
+            state.docs.open_reading(kind, Some(document), title);
+        }
+
+        let snapshot = state.scenario_snapshot();
+        assert_eq!(snapshot.field("preview_open"), Some("true"));
+        assert_eq!(snapshot.field("outline_open"), Some("true"));
+        assert_eq!(snapshot.field("readings_open"), Some("true"));
     }
 
     #[test]
@@ -6273,6 +6332,32 @@ mod tests {
             writer: [byte + 1; 32],
             encryption: knot_capture::KnotRetainEncryptionV1::PersonalVaultV1,
         }
+    }
+
+    #[test]
+    fn background_busy_includes_both_retention_states() {
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:retention-busy", ""),
+            WindowCommands::new(),
+        );
+        assert!(!state.background_busy());
+
+        let (_sender, receiver) = mpsc::channel();
+        state.retention_receiver = Some(receiver);
+        assert!(
+            state.background_busy(),
+            "a pending receiver keeps wait armed"
+        );
+
+        state.retention_receiver = None;
+        state.retention_busy = Some(RetentionRequest {
+            target: target("Busy persona", 3),
+            document_id: "file:busy".into(),
+        });
+        assert!(
+            state.background_busy(),
+            "an active request keeps wait armed"
+        );
     }
 
     fn revision(id: &str, body: &[u8]) -> KnotFileRevisionV1 {

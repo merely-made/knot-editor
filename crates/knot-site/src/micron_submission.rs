@@ -14,6 +14,9 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
+/// Request bounds for Micron submission. `map_limits` is available when the
+/// optional `retinue` feature is enabled; backend-free builds expose only the
+/// transport-independent timeout and response-size bounds through the stub.
 #[derive(Clone, Copy, Debug)]
 pub struct MicronSubmissionConfig {
     pub timeout: Duration,

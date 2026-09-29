@@ -47,3 +47,4 @@ workspace = true
 
 [features]
 resident-retention-tests = ["dep:knot-editor", "dep:personae"]
+retinue = ["knot-site/retinue"]

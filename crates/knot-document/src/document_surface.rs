@@ -186,8 +186,17 @@ impl KnotDocumentSession {
 
     /// Builds an intentionally immutable in-memory document projection.
     pub fn read_only(address: impl Into<String>, source: impl Into<String>) -> Self {
+        Self::read_only_with_format(address, source, crate::DocumentFormat::Djot)
+    }
+
+    /// Builds an immutable in-memory projection parsed as `format`.
+    pub fn read_only_with_format(
+        address: impl Into<String>,
+        source: impl Into<String>,
+        format: crate::DocumentFormat,
+    ) -> Self {
         Self {
-            editor: KnotEditor::scratch(address, source),
+            editor: KnotEditor::scratch_with_format(address, source, format),
             write_posture: KnotDocumentWritePostureV1::ReadOnly,
             last_save_outcome: None,
             refusal: None,

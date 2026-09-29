@@ -62,6 +62,8 @@ pub enum TileRole {
         pinned: Option<DocKey>,
     },
     Navigator,
+    /// The shared Mere graph view over this host's catalog and open documents.
+    Graph,
     /// A site page's metadata form. Its draft lives with the site, so the
     /// tile needs no tab of the page's source.
     Metadata {
@@ -238,7 +240,10 @@ impl<D> DocumentWorkspace<D> {
         match self.roles.get(&tile)? {
             TileRole::Document(key) => Some(*key),
             TileRole::Reading { pinned, .. } => pinned.or(self.focused),
-            TileRole::Navigator | TileRole::Metadata { .. } | TileRole::Site(_) => None,
+            TileRole::Navigator
+            | TileRole::Graph
+            | TileRole::Metadata { .. }
+            | TileRole::Site(_) => None,
         }
     }
 
@@ -345,6 +350,26 @@ impl<D> DocumentWorkspace<D> {
             return tile;
         }
         self.open_left(title.into(), TileRole::Navigator)
+    }
+
+    pub fn graph(&self) -> Option<TileId> {
+        self.roles
+            .iter()
+            .find(|(_, role)| **role == TileRole::Graph)
+            .map(|(tile, _)| *tile)
+    }
+
+    /// Open the singleton graph in the document stack.
+    pub fn open_graph(&mut self, title: impl Into<String>) -> TileId {
+        if let Some(tile) = self.graph() {
+            self.activate(tile);
+            return tile;
+        }
+        let tile = self.mint_tile(title.into(), TileRole::Graph);
+        let id = tile.id;
+        self.place_document_tile(tile);
+        self.activate(id);
+        id
     }
 
     /// The open site tile of `site`, if any.
@@ -721,6 +746,20 @@ mod tests {
         let (b, _) = space.open(path("b.djot"), "b.djot", "B");
         assert_eq!(space.focused(), Some(b));
         assert_eq!(tabs(&space), ["b.djot"]);
+    }
+
+    #[test]
+    fn graph_is_singleton_in_the_document_stack() {
+        let mut space = DocumentWorkspace::new();
+        let (document, _) = space.open(path("a.djot"), "a.djot", "A");
+        let graph = space.open_graph("Graph");
+        assert_eq!(space.open_graph("Graph again"), graph);
+        assert_eq!(space.graph(), Some(graph));
+        assert_eq!(space.role(graph), Some(&TileRole::Graph));
+        assert_eq!(tabs(&space), ["a.djot", "Graph"]);
+        assert_eq!(space.focused(), Some(document));
+        space.close(graph);
+        assert_eq!(space.graph(), None);
     }
 
     #[test]

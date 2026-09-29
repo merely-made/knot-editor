@@ -6,6 +6,7 @@
 
 use crate::appearance::Appearance;
 use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, SiteKey, TileRole};
+use crate::graph::{GraphState, OpenNode};
 use crate::preferences::PreferencesStore;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
@@ -249,6 +250,7 @@ pub struct DesktopState {
     pub message: Option<String>,
     pub(crate) catalog: Option<KnotFileCatalog>,
     pub(crate) capture_limit: usize,
+    pub(crate) graph: GraphState,
     appearance_open: bool,
     preferences: Option<PreferencesStore>,
     readings_root: Option<PathBuf>,
@@ -319,6 +321,7 @@ impl DesktopState {
             message: None,
             catalog,
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
+            graph: GraphState::default(),
             appearance_open: false,
             preferences: None,
             readings_root: None,
@@ -444,6 +447,8 @@ impl DesktopState {
         let (title, identity) = entry.tab();
         let key = self.docs.open(identity, title, entry).0;
         self.bind_site_page_for(key);
+        let open = self.graph_open_nodes();
+        self.graph.relayout(&open);
         key
     }
 
@@ -479,11 +484,84 @@ impl DesktopState {
     }
 
     pub fn set_retention_targets(&mut self, targets: Vec<Arc<dyn KnotRetainPort>>, wake: HostWake) {
+        self.graph.set_wake(wake.clone());
+        self.refresh_graph();
         self.scroll.set_submission_wake(wake.clone());
         self.retention_targets = targets;
         self.retention_wake = Some(wake);
         self.retention_selected = None;
         self.retention_error = None;
+    }
+
+    pub(crate) fn graph_open_nodes(&self) -> Vec<OpenNode> {
+        self.docs
+            .docs()
+            .map(|(key, entry)| {
+                let snapshot = entry.document.snapshot();
+                OpenNode {
+                    key: key.0,
+                    catalog_id: entry.catalog_id.clone(),
+                    label: snapshot.display_label,
+                    dirty: snapshot.dirty,
+                }
+            })
+            .collect()
+    }
+
+    fn refresh_graph(&mut self) {
+        let catalog = self.catalog.as_ref().map(KnotFileCatalog::snapshot);
+        self.graph.start(catalog, self.capture_limit);
+        let open = self.graph_open_nodes();
+        self.graph.relayout(&open);
+    }
+
+    fn carry_graph_request(&mut self, request: mere_view::MereViewRequest) {
+        match request {
+            mere_view::MereViewRequest::Activate(key) => {
+                if let Some(raw) = key.strip_prefix("open:")
+                    && let Ok(raw) = raw.parse()
+                {
+                    self.docs.focus(DocKey(raw));
+                    self.after_focus_change();
+                    return;
+                }
+                let already_open = self.docs.docs().find_map(|(doc, entry)| {
+                    (entry.catalog_id.as_deref() == Some(&key)).then_some(doc)
+                });
+                if let Some(open) = already_open {
+                    self.docs.focus(open);
+                    self.after_focus_change();
+                } else if let Some(path) = self.graph.path(&key) {
+                    if !path.is_file() {
+                        self.graph.notice =
+                            Some("That catalog document is unavailable.".to_owned());
+                    } else {
+                        self.open_path(path);
+                    }
+                }
+            },
+            mere_view::MereViewRequest::Host(action) if action == "new" => self.new_document(),
+            mere_view::MereViewRequest::Host(action) if action == "open" => {
+                self.show_path_popover(PathCommand::Open)
+            },
+            mere_view::MereViewRequest::Layout(layout) => {
+                self.graph.layout = layout;
+                let open = self.graph_open_nodes();
+                self.graph.relayout(&open);
+                if let Some(store) = self.preferences.as_mut()
+                    && let Err(error) = store.save_graph_layout(&self.graph.layout)
+                {
+                    self.graph.notice = Some(format!("Layout preference was not saved: {error}"));
+                }
+            },
+            mere_view::MereViewRequest::Mint | mere_view::MereViewRequest::Session(_, _) => {
+                self.graph.notice =
+                    Some("Knot does not offer reservoir session changes here.".to_owned());
+            },
+            mere_view::MereViewRequest::Host(action) => {
+                self.graph.notice = Some(format!("Knot does not offer the graph action {action}."));
+            },
+        }
     }
 
     fn select_retention_target(&mut self, index: usize) {
@@ -612,10 +690,12 @@ impl DesktopState {
             .with_field("message", self.message.clone().unwrap_or_default())
     }
 
-    /// Set the maximum number of source bytes prepared by the saved revision
-    /// review control. This only affects the next explicit preparation.
+    /// Set the maximum source bytes used by saved-revision review and each
+    /// catalog document in the asynchronous graph reading.
     pub fn set_capture_limit(&mut self, max_bytes: usize) {
         self.capture_limit = max_bytes;
+        self.graph.invalidate_catalog();
+        self.refresh_graph();
     }
 
     fn clear_prepared_capture(&mut self) {
@@ -783,6 +863,7 @@ impl DesktopState {
                 Err(error) => self.entry_mut().catalog_error = Some(error),
             }
         }
+        self.refresh_graph();
     }
 
     fn retry_catalog_binding(&mut self) {
@@ -958,6 +1039,17 @@ impl DesktopState {
         }
     }
 
+    pub(crate) fn toggle_graph(&mut self) {
+        match self.docs.graph() {
+            Some(tile) => {
+                self.docs.close(tile);
+            },
+            None => {
+                self.docs.open_graph("Graph");
+            },
+        }
+    }
+
     /// Pin a reading tile to the document it shows, or let it follow the
     /// focus again.
     pub(crate) fn toggle_pin(&mut self, tile: workbench::TileId) {
@@ -998,6 +1090,9 @@ impl DesktopState {
             return;
         };
         self.appearance = store.preferences().appearance.known.clone();
+        self.graph.layout = store.preferences().graph_layout.clone();
+        let open = self.graph_open_nodes();
+        self.graph.relayout(&open);
         let line = store
             .unreadable()
             .map(|why| {
@@ -1331,6 +1426,8 @@ impl DesktopState {
                         self.sync_outline_snapshot();
                         self.sync_fold_snapshots();
                         self.sync_catalog();
+                        self.graph.invalidate_catalog();
+                        self.refresh_graph();
                         self.message = Some("Reloaded from disk.".to_owned());
                     },
                     Err(error) => self.message = Some(intent_error_label("Reload", error)),
@@ -1402,6 +1499,8 @@ impl DesktopState {
         match self.document_mut().apply(KnotDocumentIntentV1::Save) {
             Ok(_) => {
                 self.sync_catalog();
+                self.graph.invalidate_catalog();
+                self.refresh_graph();
                 self.message = Some("Saved.".to_owned());
             },
             Err(error) => self.message = Some(intent_error_label("Save", error)),
@@ -1717,6 +1816,8 @@ impl DesktopState {
         if let Some(label) = label {
             self.message = Some(format!("Closed {label}."));
         }
+        let open = self.graph_open_nodes();
+        self.graph.relayout(&open);
     }
 
     fn close_request(&mut self, request: CloseRequest) -> CloseDisposition {
@@ -2302,6 +2403,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         reading_toggle(state, ReadingKind::Outline, "Show Outline", "Hide Outline"),
                         reading_toggle(state, ReadingKind::Readings, "Readings", "Hide Readings"),
                         navigator_toggle(state),
+                        graph_toggle(state),
                         reading_toggle(
                             state,
                             ReadingKind::Submit,
@@ -2368,6 +2470,23 @@ fn navigator_toggle(state: &DesktopState) -> DesktopView {
     .attr("aria-expanded", open.is_some().to_string());
     match open {
         Some(tile) => Box::new(toggle.attr("aria-controls", crate::navigator::region_id(tile))),
+        None => Box::new(toggle),
+    }
+}
+
+fn graph_toggle(state: &DesktopState) -> DesktopView {
+    let open = state.docs.graph();
+    let toggle = button(
+        if open.is_some() {
+            "Hide Graph"
+        } else {
+            "Graph"
+        },
+        |state: &mut DesktopState, _| state.toggle_graph(),
+    )
+    .attr("aria-expanded", open.is_some().to_string());
+    match open {
+        Some(_) => Box::new(toggle.attr("aria-controls", crate::graph::REGION_ID)),
         None => Box::new(toggle),
     }
 }
@@ -2485,6 +2604,30 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     )
 }
 
+fn graph_view(state: &DesktopState) -> DesktopView {
+    let open = state.graph_open_nodes();
+    let model = state.graph.model(&open);
+    let view = mere_view::MereView {
+        model: &model,
+        state: &state.graph.view,
+        leaf_key: crate::graph::LEAF_KEY,
+        width: state.graph.size.0,
+        height: state.graph.size.1,
+    };
+    Box::new(
+        el(
+            "div",
+            mere_view::mere_view(
+                view,
+                |state: &mut DesktopState, event| state.graph.view.apply(event),
+                |state: &mut DesktopState, request| state.carry_graph_request(request),
+            ),
+        )
+        .attr("id", crate::graph::REGION_ID)
+        .attr("class", "knot-graph"),
+    )
+}
+
 /// The Workbench frame: every open document as a tab, its tile rendered on
 /// demand through an identity lens so the tile can read the whole window's
 /// state. A document's tab carries its mark: needs attention after a
@@ -2507,14 +2650,7 @@ fn document_frame(state: &DesktopState) -> DesktopView {
         _ => None,
     };
     if state.docs.is_empty() {
-        return Box::new(
-            el(
-                "div",
-                span("No document is open. Use New or Open to start one.")
-                    .attr("class", "knot-empty-frame"),
-            )
-            .attr("class", "knot-frame"),
-        );
+        return Box::new(el("div", graph_view(state)).attr("class", "knot-frame"));
     }
     Box::new(
         el(
@@ -2543,6 +2679,7 @@ fn tile_view(state: &DesktopState, tile: workbench::TileId) -> DesktopView {
         Some(TileRole::Document(key)) => document_tile(state, *key),
         Some(TileRole::Reading { kind, pinned }) => reading_tile(state, tile, *kind, *pinned),
         Some(TileRole::Navigator) => crate::navigator::view(state, tile),
+        Some(TileRole::Graph) => graph_view(state),
         Some(TileRole::Metadata { site, page }) => {
             crate::scroll_site::metadata_view(state, tile, *site, page)
         },
@@ -2937,12 +3074,74 @@ fn focus_path_field(
 pub fn after_wake(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
+    if ctx.runner.state().graph.busy() {
+        ctx.runner.update(|state| {
+            if state.graph.drain() {
+                let open = state.graph_open_nodes();
+                state.graph.relayout(&open);
+            }
+        });
+    }
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
     if ctx.runner.state().submissions_busy() {
         ctx.runner.update(DesktopState::drain_submissions);
     }
+}
+
+/// Measure the graph's actual tile and register the shared component's paint
+/// leaf from the same model and layout used by its native targets.
+pub fn graph_frame(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    fn find<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
+        let namespace = Namespace::from("");
+        let id = LocalName::from("id");
+        if dom.attribute(node, &namespace, &id) == Some(crate::graph::REGION_ID) {
+            return Some(node);
+        }
+        dom.dom_children(node).find_map(|child| find(dom, child))
+    }
+    let node = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        find(&*dom, ctx.runner.root())
+    };
+    let Some(node) = node else {
+        ctx.leaves.remove(&crate::graph::LEAF_KEY);
+        return false;
+    };
+    let Some((_, _, width, height)) = ctx.painted_rect(node) else {
+        ctx.leaves.remove(&crate::graph::LEAF_KEY);
+        return false;
+    };
+    let size = (
+        width.round().max(1.0) as u32,
+        height.round().max(1.0) as u32,
+    );
+    let current = ctx.runner.state().graph.size;
+    if current != size {
+        ctx.runner.update(|state| {
+            let open = state.graph_open_nodes();
+            state.graph.set_size(size, &open);
+        });
+    }
+    let leaf = {
+        let state = ctx.runner.state();
+        let open = state.graph_open_nodes();
+        let model = state.graph.model(&open);
+        mere_view::MereView {
+            model: &model,
+            state: &state.graph.view,
+            leaf_key: crate::graph::LEAF_KEY,
+            width: state.graph.size.0,
+            height: state.graph.size.1,
+        }
+        .paint_leaf(|kind| state.appearance.graph_color(kind))
+    };
+    ctx.leaves.insert(crate::graph::LEAF_KEY, Box::new(leaf));
+    current != size
 }
 
 pub const DESKTOP_CSS: &str = concat!(
@@ -2988,6 +3187,8 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-confirm-list { display:flex; flex-direction:column; gap:2px; }",
     ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:240px; }",
+    ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }",
+    ".knot-graph > .mere-view { max-width:100%; max-height:100%; }",
     ".knot-frame .frisket-tabbar { flex:0 0 30px; height:30px; align-items:flex-end; gap:2px; padding:0 6px; border-bottom:1px solid; overflow:hidden; }",
     ".knot-frame .frisket-tab { flex:0 1 auto; max-width:240px; height:26px; margin-right:0; padding:0 6px 0 12px; gap:6px; font-size:13px; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }",
     ".knot-frame .frisket-tab.active { height:27px; margin-bottom:-1px; }",
@@ -3048,6 +3249,7 @@ mod tests {
             },
             {
                 let mut hooks = inert_hooks();
+                hooks.frame = Box::new(graph_frame);
                 hooks.after_dispatch = Box::new(after_dispatch);
                 hooks.after_wake = Box::new(after_wake);
                 hooks.close_request = Box::new(|ctx, request| close_request(ctx.runner, request));
@@ -3057,8 +3259,80 @@ mod tests {
             },
         );
         let commands = host.commands();
-        host.update(|state| state.window = commands.clone());
+        let wake = host.wake();
+        host.update(|state| {
+            state.window = commands.clone();
+            state.graph.set_wake(wake.clone());
+            state.refresh_graph();
+        });
         host
+    }
+
+    #[test]
+    fn last_document_closes_onto_the_shared_mere_view_and_graph_command_is_singleton() {
+        let mut host = harness(KnotDocumentSession::scratch("scratch:graph", "# Graph"));
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Graph")));
+        assert!(host.state().docs.graph().is_some());
+        assert!(
+            host.resolve(&Selector::role("region").with_attr("aria-label", "Mere: Knot graph"))
+                .is_some()
+        );
+        assert!(host.click_on(&Selector::role("button").containing("Hide Graph")));
+        assert!(host.state().docs.graph().is_none());
+
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| state.close_document(key));
+        host.relayout();
+        let graph = Selector::role("region").with_attr("aria-label", "Mere: Knot graph");
+        assert!(host.resolve(&graph).is_some());
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        assert!(text_content(&*dom, dom.document()).contains("No catalog is configured"));
+        drop(dom);
+        assert!(host.click_on(&Selector::role("button").with_attr("data-action", "new")));
+        assert_eq!(host.state().docs.len(), 1);
+    }
+
+    #[test]
+    fn graph_layout_request_is_host_owned() {
+        let mut host = harness(KnotDocumentSession::scratch("scratch:graph", ""));
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Graph")));
+        assert!(host.click_on(&Selector::role("button").with_attr("data-layout", "grid.default")));
+        assert_eq!(host.state().graph.layout, "grid.default");
+    }
+
+    #[test]
+    fn catalog_graph_worker_labels_its_reading_and_activation_opens_the_document() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("root");
+        std::fs::create_dir(&root).unwrap();
+        let a_path = root.join("a.djot");
+        let b_path = root.join("b.djot");
+        std::fs::write(&a_path, "[B](b.djot)").unwrap();
+        std::fs::write(&b_path, "# B").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let a = catalog.bind(&a_path).unwrap();
+        let b = catalog.bind(&b_path).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&a_path).unwrap(), Some(catalog));
+        drain_wake(&mut host);
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Graph")));
+        host.relayout();
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let all = text_content(&*dom, dom.document());
+        assert!(all.contains("Catalog reading "), "{all}");
+        drop(dom);
+        let activate = b.clone();
+        host.update(|state| {
+            state.carry_graph_request(mere_view::MereViewRequest::Activate(activate.clone()))
+        });
+        assert_eq!(host.state().docs.len(), 2);
+        assert_eq!(host.state().entry().catalog_id.as_deref(), Some(b.as_str()));
+        assert_ne!(a, b);
     }
 
     fn input_node(
@@ -4619,7 +4893,7 @@ mod tests {
     }
 
     #[test]
-    fn closing_the_last_tab_leaves_an_empty_frame_that_new_refills() {
+    fn closing_the_last_tab_shows_the_graph_and_new_refills_the_document_stack() {
         let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
         host.layout_at(900.0, 640.0);
         assert!(close_tab(&mut host, SCRATCH_ADDRESS));
@@ -4628,7 +4902,7 @@ mod tests {
             let dom = host.runner().dom();
             let dom = dom.borrow();
             let frame = class_node(&dom, dom.document(), "knot-frame").expect("frame");
-            assert!(text_content(&dom, frame).contains("No document is open."));
+            assert!(text_content(&dom, frame).contains("No catalog is configured"));
             assert_eq!(count_class(&dom, dom.document(), "frisket-tab"), 0);
         }
         assert!(host.click_on(&Selector::role("button").containing("Save")));

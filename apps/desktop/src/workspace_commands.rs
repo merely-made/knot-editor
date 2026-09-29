@@ -27,6 +27,8 @@ pub(super) const PREVIEW: &str = "view.preview";
 pub(super) const FOLDS: &str = "view.folds";
 pub(super) const READINGS: &str = "view.readings";
 pub(super) const CHANGES: &str = "view.changes";
+pub(super) const LINKS: &str = "view.links";
+pub(super) const LINK_DOCUMENT: &str = "document.link";
 pub(super) const APPEARANCE: &str = "view.appearance";
 pub(super) const SUBMIT: &str = "document.submit";
 pub(super) const COMPARE: &str = "document.compare";
@@ -199,12 +201,18 @@ pub(super) fn groups(state: &DesktopState) -> Vec<CommandItem> {
                 ),
                 item(READINGS, "Readings", no_doc),
                 item(CHANGES, "Changes", no_doc),
+                item(LINKS, "Links", no_doc),
                 item(APPEARANCE, "Appearance", None),
             ]),
         CommandItem::new("Document")
             .with_id("group.document")
             .with_children([
                 item(COMPARE, "Compare with disk", comparable),
+                item(
+                    LINK_DOCUMENT,
+                    "Link to document",
+                    crate::link_workflow::unavailable(state),
+                ),
                 item(SUBMIT, "Upload / submit", no_doc),
             ]),
         CommandItem::new("Site")
@@ -339,6 +347,8 @@ impl DesktopState {
             FOLDS => self.toggle_reading(ReadingKind::Folded),
             READINGS => self.toggle_reading(ReadingKind::Readings),
             CHANGES => self.toggle_reading(ReadingKind::Changes),
+            LINKS => self.toggle_reading(ReadingKind::Links),
+            LINK_DOCUMENT => crate::link_workflow::begin(self),
             APPEARANCE => self.toggle_appearance(),
             COMPARE => self.compare_disk(),
             SUBMIT => self.toggle_reading(ReadingKind::Submit),

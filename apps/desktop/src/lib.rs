@@ -10,6 +10,8 @@ pub mod document_folding;
 pub mod document_preview;
 pub mod documents;
 pub mod graph;
+mod document_links;
+mod link_workflow;
 pub mod navigator;
 pub mod preferences;
 pub mod readings;

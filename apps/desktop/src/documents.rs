@@ -48,6 +48,8 @@ pub enum ReadingKind {
     Folded,
     Readings,
     Changes,
+    /// Outgoing links and backlinks from documents currently open in this window.
+    Links,
     /// The Titan or Spartan composer of its document.
     Submit,
 }

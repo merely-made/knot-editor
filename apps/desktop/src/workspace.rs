@@ -3319,6 +3319,10 @@ pub const DESKTOP_CSS: &str = concat!(
     // the positioned notice and self-clipping graph blank netrender's whole
     // native frame; ordinary Workbench content slots remain scrollable.
     ".knot-graph > .mere-view { max-width:100%; max-height:100%; overflow:visible; }",
+    // Knot's workspace-wide button treatment must not turn Mere's transparent
+    // graph hit targets into visible boxes over their node labels.
+    ".knot-graph button.graph-canvas-swatch-node { padding:0; border:0; border-radius:0; background:transparent; color:inherit; }",
+    ".knot-graph button.graph-canvas-swatch-node:hover { background:transparent; }",
     ".knot-frame .frisket-tabbar { flex:0 0 30px; height:30px; align-items:flex-end; gap:2px; padding:0 6px; border-bottom:1px solid; overflow:hidden; }",
     ".knot-frame .frisket-tab { flex:0 1 auto; max-width:240px; height:26px; margin-right:0; padding:0 6px 0 12px; gap:6px; font-size:13px; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }",
     ".knot-frame .frisket-tab.active { height:27px; margin-bottom:-1px; }",
@@ -3409,6 +3413,12 @@ mod tests {
         ));
         assert!(DESKTOP_CSS.contains(
             ".knot-graph > .mere-view { max-width:100%; max-height:100%; overflow:visible; }"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-graph button.graph-canvas-swatch-node { padding:0; border:0; border-radius:0; background:transparent; color:inherit; }"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-graph button.graph-canvas-swatch-node:hover { background:transparent; }"
         ));
         assert!(DESKTOP_CSS.contains(
             ".knot-frame .frisket-content { flex:1 1 0px; min-height:0; overflow:auto; padding:12px; }"

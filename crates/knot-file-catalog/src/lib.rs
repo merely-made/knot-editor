@@ -81,6 +81,43 @@ pub struct KnotFileCatalogRecord {
     pub availability: KnotFileCatalogAvailability,
 }
 
+/// An owned, read-only view of the catalog's admitted bindings.
+///
+/// A host can move this value to a worker without moving the catalog's sole
+/// mutable backend owner. Captures repeat the catalog's containment and file
+/// checks at the moment each revision is read.
+#[derive(Clone, Debug)]
+pub struct KnotFileCatalogSnapshot {
+    root: PathBuf,
+    bindings: Vec<StoredBinding>,
+}
+
+impl KnotFileCatalogSnapshot {
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn records(&self) -> Vec<KnotFileCatalogRecord> {
+        self.bindings
+            .iter()
+            .map(|binding| record_for(&self.root, binding))
+            .collect()
+    }
+
+    pub fn capture_file_revision(
+        &self,
+        id: &str,
+        max_bytes: usize,
+    ) -> io::Result<KnotFileRevisionV1> {
+        let binding = self
+            .bindings
+            .iter()
+            .find(|binding| binding.id == id)
+            .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "file catalog id is unknown"))?;
+        capture_binding(&self.root, binding, max_bytes)
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 struct StoredBinding {
     id: String,
@@ -249,6 +286,14 @@ impl KnotFileCatalog {
             .collect()
     }
 
+    /// Copy the catalog authority needed for bounded background reads.
+    pub fn snapshot(&self) -> KnotFileCatalogSnapshot {
+        KnotFileCatalogSnapshot {
+            root: self.root.clone(),
+            bindings: self.state.bindings.clone(),
+        }
+    }
+
     /// Capture one available, exact canonical binding into a bounded revision.
     ///
     /// The binding must still resolve directly to its stored canonical path
@@ -269,29 +314,7 @@ impl KnotFileCatalog {
             .iter()
             .find(|binding| binding.id == id)
             .ok_or_else(|| io::Error::new(io::ErrorKind::NotFound, "file catalog id is unknown"))?;
-        let path = self.root.join(&binding.relative_path);
-        let canonical = fs::canonicalize(&path)?;
-        if canonical != path || !canonical.starts_with(&self.root) {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                "file catalog binding is unavailable",
-            ));
-        }
-        if !fs::metadata(&canonical)?.is_file() {
-            return Err(io::Error::new(
-                io::ErrorKind::NotFound,
-                "file catalog binding is not a regular file",
-            ));
-        }
-        let (title, media_type) = file_revision_metadata(&canonical);
-        let revision = KnotFileRevisionV1 {
-            document_id: binding.id.clone(),
-            title,
-            media_type,
-            body: read_file_bounded(&canonical, max_bytes)?,
-        };
-        revision.validate().map_err(io::Error::other)?;
-        Ok(revision)
+        capture_binding(&self.root, binding, max_bytes)
     }
 
     fn persist(&mut self, next: StoredCatalog) -> Result<(), String> {
@@ -347,26 +370,60 @@ impl KnotFileCatalog {
     }
 
     fn record_for(&self, binding: &StoredBinding) -> KnotFileCatalogRecord {
-        KnotFileCatalogRecord {
-            id: binding.id.clone(),
-            relative_path: binding.relative_path.clone(),
-            availability: self.availability(binding),
-        }
+        record_for(&self.root, binding)
     }
+}
 
-    fn availability(&self, binding: &StoredBinding) -> KnotFileCatalogAvailability {
-        let path = self.root.join(&binding.relative_path);
-        let Ok(canonical) = fs::canonicalize(&path) else {
-            return KnotFileCatalogAvailability::Unavailable;
-        };
-        if canonical != path || !canonical.starts_with(&self.root) {
-            return KnotFileCatalogAvailability::Unavailable;
-        }
-        match fs::metadata(canonical) {
-            Ok(metadata) if metadata.is_file() => KnotFileCatalogAvailability::Available,
-            _ => KnotFileCatalogAvailability::Unavailable,
-        }
+fn record_for(root: &Path, binding: &StoredBinding) -> KnotFileCatalogRecord {
+    KnotFileCatalogRecord {
+        id: binding.id.clone(),
+        relative_path: binding.relative_path.clone(),
+        availability: availability(root, binding),
     }
+}
+
+fn availability(root: &Path, binding: &StoredBinding) -> KnotFileCatalogAvailability {
+    let path = root.join(&binding.relative_path);
+    let Ok(canonical) = fs::canonicalize(&path) else {
+        return KnotFileCatalogAvailability::Unavailable;
+    };
+    if canonical != path || !canonical.starts_with(root) {
+        return KnotFileCatalogAvailability::Unavailable;
+    }
+    match fs::metadata(canonical) {
+        Ok(metadata) if metadata.is_file() => KnotFileCatalogAvailability::Available,
+        _ => KnotFileCatalogAvailability::Unavailable,
+    }
+}
+
+fn capture_binding(
+    root: &Path,
+    binding: &StoredBinding,
+    max_bytes: usize,
+) -> io::Result<KnotFileRevisionV1> {
+    let path = root.join(&binding.relative_path);
+    let canonical = fs::canonicalize(&path)?;
+    if canonical != path || !canonical.starts_with(root) {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "file catalog binding is unavailable",
+        ));
+    }
+    if !fs::metadata(&canonical)?.is_file() {
+        return Err(io::Error::new(
+            io::ErrorKind::NotFound,
+            "file catalog binding is not a regular file",
+        ));
+    }
+    let (title, media_type) = file_revision_metadata(&canonical);
+    let revision = KnotFileRevisionV1 {
+        document_id: binding.id.clone(),
+        title,
+        media_type,
+        body: read_file_bounded(&canonical, max_bytes)?,
+    };
+    revision.validate().map_err(io::Error::other)?;
+    Ok(revision)
 }
 
 /// Read one caller-admitted file without allocating from the requested maximum.
@@ -665,6 +722,23 @@ mod tests {
                 .kind(),
             io::ErrorKind::NotFound
         );
+    }
+
+    #[test]
+    fn owned_snapshot_captures_on_a_worker_without_moving_the_catalog_owner() {
+        let (_temp, root, catalog_path) = setup();
+        let path = root.join("essay.djot");
+        fs::write(&path, "worker bytes").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, &catalog_path).unwrap();
+        let id = catalog.bind(&path).unwrap();
+        let snapshot = catalog.snapshot();
+        let worker_id = id.clone();
+        let revision =
+            std::thread::spawn(move || snapshot.capture_file_revision(&worker_id, 32).unwrap())
+                .join()
+                .unwrap();
+        assert_eq!(revision.body, b"worker bytes");
+        assert_eq!(catalog.record(&id).unwrap().id, id);
     }
 
     #[test]

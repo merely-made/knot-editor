@@ -99,12 +99,21 @@ impl KnotEditor {
     }
 
     pub fn scratch(address: impl Into<String>, source: impl Into<String>) -> Self {
+        Self::scratch_with_format(address, source, DocumentFormat::Djot)
+    }
+
+    /// Build an in-memory source with an explicit parser format.
+    pub fn scratch_with_format(
+        address: impl Into<String>,
+        source: impl Into<String>,
+        format: DocumentFormat,
+    ) -> Self {
         let address = address.into();
         Self {
             path: None,
             editor: SharedKnotEditor::scratch(address.clone(), source),
             address,
-            format: DocumentFormat::Djot,
+            format,
             baseline: None,
         }
     }

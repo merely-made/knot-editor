@@ -34,6 +34,8 @@ pub struct DesktopPreferences {
     /// Kept as loaded, so a file a newer Knot wrote is not relabelled older.
     pub version: u32,
     pub appearance: StoredAppearance,
+    /// Cartography strategy used by the shared mere view.
+    pub graph_layout: String,
     /// A knot-editor `KnotEmbeddingPreference`, uninterpreted here.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<Value>,
@@ -58,6 +60,7 @@ impl Default for DesktopPreferences {
         Self {
             version: PREFERENCES_VERSION,
             appearance: StoredAppearance::default(),
+            graph_layout: mere_view::DEFAULT_LAYOUT.to_owned(),
             embedding: None,
             other: Map::new(),
         }
@@ -181,6 +184,22 @@ impl PreferencesStore {
         Ok(true)
     }
 
+    pub fn save_graph_layout(&mut self, layout: &str) -> Result<bool, String> {
+        if self.saved.graph_layout == layout {
+            return Ok(false);
+        }
+        if let Some(why) = &self.unreadable {
+            return Err(format!(
+                "the preferences file could not be read ({why}); reset it in Appearance to save again"
+            ));
+        }
+        let mut next = self.saved.clone();
+        next.graph_layout = layout.to_owned();
+        next.save(&self.path)?;
+        self.saved = next;
+        Ok(true)
+    }
+
     /// The writer's explicit reset: replace the file with `appearance` and
     /// defaults for everything else. The only path that overwrites a file
     /// that could not be read.
@@ -245,6 +264,19 @@ mod tests {
             }
         );
         assert_eq!(partial.version, PREFERENCES_VERSION);
+    }
+
+    #[test]
+    fn graph_layout_is_a_persistent_surface_preference() {
+        let root = tempdir().unwrap();
+        let path = root.path().join(PREFERENCES_FILE);
+        let mut store = PreferencesStore::open(path.clone());
+        assert_eq!(store.save_graph_layout("grid.default"), Ok(true));
+        assert_eq!(
+            DesktopPreferences::load(&path).unwrap().graph_layout,
+            "grid.default"
+        );
+        assert_eq!(store.save_graph_layout("grid.default"), Ok(false));
     }
 
     #[test]

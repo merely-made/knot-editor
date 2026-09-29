@@ -50,6 +50,22 @@ impl Appearance {
             if self.wide { "none" } else { "900px" },
         )
     }
+
+    pub(crate) fn graph_color(&self, state: &mere_view::NodeState) -> sprigging::ColorF {
+        let palette = derive_palette(&seeds(self.dark));
+        let color = match state {
+            mere_view::NodeState::Available => palette.primary,
+            mere_view::NodeState::Unavailable => palette.text_dim,
+            mere_view::NodeState::Open => palette.success,
+            mere_view::NodeState::Dirty => palette.danger,
+        };
+        sprigging::ColorF::new(
+            color.r as f32 / 255.0,
+            color.g as f32 / 255.0,
+            color.b as f32 / 255.0,
+            1.0,
+        )
+    }
 }
 
 fn seeds(dark: bool) -> Seeds {

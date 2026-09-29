@@ -1355,6 +1355,37 @@ design frames either fixed or recorded.
   test-only lints outside this step. The headed two-site scenario is authored
   but its native PNG has not yet been captured or reviewed.
 
+- **2026-09-29, step 8.** Knot now embeds Mere's V2b `mere-view` component at
+  the existing pinned Mere revision `8fce5365`; it has no app-local graph
+  drawing and neither Mere nor Genet moved. The singleton Graph tile opens
+  from the command row, and the same shared component fills the centre when
+  the last document closes. Native labelled node targets carry stable catalog
+  or open-document keys back to Knot for activation, while New and Open remain
+  host actions.
+
+  A bounded background catalog reading captures saved bytes without moving the
+  catalog owner, parses links through each document format's normal reading
+  projection and hands V2b available, unavailable, open and dirty nodes plus
+  extracted-provenance edges. Open documents merge with their catalog nodes.
+  Building, empty and unavailable states are explicit, and the ready notice
+  names a deterministic 12-character catalog-reading digest plus any read
+  failures. An absent catalog still shows open documents and says what is
+  absent. Spectral, Grid and Spiral requests route through the host; the chosen
+  cartography strategy persists with the desktop preferences.
+
+  Knot registers the shared graph paint leaf from the measured tile geometry,
+  removes it when the graph is not present, supplies light/dark Tinct-derived
+  node colors and includes Cambium's graph swatches plus `mere-view` CSS. The
+  existing Mesquite scenario `after_frame` hook remains composed beside the
+  graph frame hook. Focused coverage exercises snapshot capture, the bounded
+  worker, unavailable history, open/catalog merging, last-document and
+  singleton behavior, host-owned actions, activation and layout persistence.
+  `knot-file-catalog` passes 10 tests; `knot-desktop --lib` passes 158 with 1
+  ignored, and the default full workspace passes. Strict clippy is clean for
+  the desktop library, file catalog and standalone engine-enabled
+  `knot-document`. Step 9's headed graph receipt and whole-frame comparison
+  remain outstanding.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

@@ -2468,8 +2468,7 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     Box::new(
         el(
             "div",
-            el("div", (source_wrapper, crate::scroll_site::preview(state)))
-                .attr("class", "knot-writing-area"),
+            el("div", source_wrapper).attr("class", "knot-writing-area"),
         )
         .attr("class", "knot-document-tile")
         .attr("data-knot-document", key.0.to_string()),
@@ -4072,7 +4071,7 @@ mod tests {
     }
 
     #[test]
-    fn ordinary_preview_is_absent_for_native_formats() {
+    fn native_formats_use_the_standard_preview_tile() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("native.gmi");
         std::fs::write(&path, "# Native\n").unwrap();
@@ -4080,14 +4079,18 @@ mod tests {
         host.layout_at(900.0, 640.0);
         assert!(
             host.resolve(&Selector::role("button").containing("Show Preview"))
-                .is_none(),
-            "a native format offers no ordinary preview"
+                .is_some()
         );
         let dom = host.runner().dom();
         let dom = dom.borrow();
         assert!(class_node(&dom, dom.document(), "knot-document-preview").is_none());
-        let native_preview = class_node(&dom, dom.document(), "knot-scroll-preview").unwrap();
+        drop(dom);
+        assert!(host.click_on(&Selector::role("button").containing("Show Preview")));
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let native_preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
         assert!(text_content(&dom, native_preview).contains("Native"));
+        assert!(class_node(&dom, dom.document(), "knot-scroll-preview").is_some());
         assert!(!text_content(&dom, dom.document()).contains("Show folds"));
         assert!(host.state().entry().fold_snapshot.is_none());
     }

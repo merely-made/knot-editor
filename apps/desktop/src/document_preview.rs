@@ -302,7 +302,11 @@ fn diagnostic_text(diagnostic: &DocumentDiagnostic) -> String {
 pub fn supported(format: knot_document::DocumentFormat) -> bool {
     matches!(
         format,
-        knot_document::DocumentFormat::Djot | knot_document::DocumentFormat::Knot
+        knot_document::DocumentFormat::Djot
+            | knot_document::DocumentFormat::Knot
+            | knot_document::DocumentFormat::Scroll
+            | knot_document::DocumentFormat::Gemtext
+            | knot_document::DocumentFormat::Micron
     )
 }
 
@@ -310,6 +314,9 @@ pub fn supported(format: knot_document::DocumentFormat) -> bool {
 /// id is the tile's, so two previews can be open at once.
 pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
     let surface = state.surface_for(key);
+    if surface.snapshot().format.native_source() {
+        return crate::scroll_site::preview(state, key, tile);
+    }
     if !supported(surface.snapshot().format) {
         return Box::new(
             el("div", span("This document's format has no preview."))

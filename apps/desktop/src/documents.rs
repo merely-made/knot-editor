@@ -323,6 +323,8 @@ impl<D> DocumentWorkspace<D> {
                 _ => *tree = TileTree::stack(vec![tile], 0),
             }
         }
+        self.workspace
+            .apply(&WorkspaceEvent::Tile(TileEvent::Activated(id)));
         self.last_reading = Some(id);
         id
     }

@@ -27,13 +27,12 @@ mere-view.workspace = true
 sprigging.workspace = true
 workbench.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
-tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "ba3ecfda5cc748f05fe54460af0b98ed128bbf32" }
+tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "8cb9b3095f71be31ae3097209d7b53d13b947beb" }
 knot-file-catalog.workspace = true
 knot-readings.workspace = true
 blake3.workspace = true
 percent-encoding.workspace = true
 layout-dom-api.workspace = true
-genet-scripted-dom.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
@@ -41,6 +40,7 @@ tokio = { version = "1", features = ["rt", "time"] }
 
 [dev-dependencies]
 pollster = "0.4"
+genet-scripted-dom.workspace = true
 tempfile = "3"
 
 [lints]

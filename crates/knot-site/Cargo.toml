@@ -22,8 +22,8 @@ gemini-protocol = { version = "=0.1.7", features = ["server"] }
 spartan-protocol = "=0.1.1"
 tokio = { version = "1", features = ["rt", "sync", "net", "time", "macros"] }
 blake3 = "1"
-retinue = { git = "https://github.com/merely-made/retinue.git", rev = "2563202b7d004395adc7021a2e1bfca6f76664d7" }
-getrandom = "0.2"
+retinue = { git = "https://github.com/merely-made/retinue.git", rev = "2563202b7d004395adc7021a2e1bfca6f76664d7", optional = true }
+getrandom = { version = "0.2", optional = true }
 tempfile = "3"
 
 [dev-dependencies]
@@ -32,3 +32,12 @@ tokio-rustls = { version = "0.26", default-features = false, features = ["ring",
 
 [patch.crates-io]
 gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "882baeb1b59bbdbb305e475f6675f69af997c4f4" }
+
+[features]
+default = []
+retinue = ["dep:retinue", "dep:getrandom"]
+
+[[test]]
+name = "nomadnet"
+path = "tests/nomadnet.rs"
+required-features = ["retinue"]

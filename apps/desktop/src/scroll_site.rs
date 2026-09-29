@@ -2022,8 +2022,7 @@ fn preview_manifest_page_for<'a>(
     let active_destination = entry
         .server
         .as_ref()
-        .and_then(|server| server.nomadnet_destination())
-        .map(|destination| destination.to_string());
+        .and_then(|server| server.nomadnet_destination_string());
     let name = preview_page_name(destination, active_destination.as_deref())?;
     entry.site.page_path(name).ok().map(|_| (site, name))
 }

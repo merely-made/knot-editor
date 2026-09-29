@@ -115,7 +115,7 @@ pub fn appearance_css() -> String {
             "{scope} {{ background:{};color:{}; }} \
              {scope} button,{scope} input {{ background:{};color:{};border-color:{}; }} \
              {scope} button:hover {{ background:{}; }} \
-             {scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-folded-source,{scope} .knot-status-detail {{ background:{};color:{};border-color:{}; }} \
+             {scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail {{ background:{};color:{};border-color:{}; }} \
              {scope} .status-bar {{ border-color:{}; }} \
              {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error,{scope} .status-chip[data-severity=warning] {{ color:{}; }} \
              {scope} .status-chip[data-severity=refused] {{ color:{};border-color:{}; }} \

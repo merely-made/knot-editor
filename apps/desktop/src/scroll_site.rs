@@ -1802,11 +1802,25 @@ pub(crate) fn site_port_field(state: &DesktopState, site: SiteKey) -> &TextInput
 
 /// The command row's Site popover: the folder, the format, Create and Open.
 pub(crate) fn site_popover(state: &DesktopState) -> DesktopView {
+    site_popover_with_hidden_trigger(state, false)
+}
+
+pub(crate) fn site_popover_with_hidden_trigger(
+    state: &DesktopState,
+    hidden_trigger: bool,
+) -> DesktopView {
     let format = state.scroll.format;
+    let mut model = Popover::new("Site", &state.scroll.popover)
+        .with_placement(PopoverPlacement::BelowStart)
+        .with_trigger_attr("id", "knot-site");
+    if hidden_trigger {
+        model = model
+            .with_trigger_attr("style", "display:none")
+            .with_trigger_attr("aria-hidden", "true")
+            .with_trigger_attr("tabindex", "-1");
+    }
     Box::new(popover(
-        Popover::new("Site", &state.scroll.popover)
-            .with_placement(PopoverPlacement::BelowStart)
-            .with_trigger_attr("id", "knot-site"),
+        model,
         |state: &mut DesktopState, event| state.site_popover_event(event),
         move || {
             let format_picker = [
@@ -4019,7 +4033,11 @@ mod tests {
             let dom = dom.borrow();
             let footer = class_nodes(&dom, dom.document(), "knot-site-footer");
             let serving = class_nodes(&dom, dom.document(), "knot-site-serving");
-            assert_eq!(footer.len(), 1, "serving status and close action share a footer");
+            assert_eq!(
+                footer.len(),
+                1,
+                "serving status and close action share a footer"
+            );
             assert_eq!(serving.len(), 1, "one saved-snapshot status line");
             let mut buttons = Vec::new();
             buttons_under(&dom, footer[0], &mut buttons);

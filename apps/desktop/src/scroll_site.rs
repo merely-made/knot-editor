@@ -595,7 +595,8 @@ fn micron_submission_config() -> MicronSubmissionConfig {
     MicronSubmissionConfig {
         timeout: std::time::Duration::from_secs(secs),
         max_response_bytes,
-        ..MicronSubmissionConfig::default()
+        #[cfg(feature = "retinue")]
+        map_limits: MicronSubmissionConfig::default().map_limits,
     }
 }
 

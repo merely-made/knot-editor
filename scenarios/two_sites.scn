@@ -6,7 +6,9 @@ log knot two-site lane: launched
 assert snap site_count == 2
 assert snap serving_count == 0
 
-# The later site is the active tab in the shared left stack.
+# Select and publish each site through its own tile. Port 5699 belongs to the
+# first fixture; the second launch site truthfully falls back to port 0.
+click role:tab site-two
 click role:button Publish locally
 settle 2
 assert snap serving_count == 1

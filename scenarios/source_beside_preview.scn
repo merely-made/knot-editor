@@ -1,0 +1,11 @@
+# Step 9: the document and its reader presentation in sibling stacks.
+log knot source-beside-preview: launched
+click role:button Show Preview
+settle 1
+assert snap document_count == 1
+assert snap reading_count == 1
+assert snap preview_open == true
+assert text Preview
+assert text Field notes on the estuary
+capture source-beside-preview
+log knot source-beside-preview: done

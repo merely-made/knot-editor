@@ -1,0 +1,10 @@
+# Step 9: closing the last source reveals the actual shared Mere V2b view.
+log knot last-tab-graph: launched
+assert snap document_count == 1
+click role:button @aria-label=Close field_notes.djot
+wait 600
+assert snap document_count == 0
+assert snap graph_open == true
+assert text Catalog reading
+capture last-tab-graph
+log knot last-tab-graph: done

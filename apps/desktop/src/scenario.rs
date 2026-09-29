@@ -42,4 +42,9 @@ impl mesquite::Product for KnotLane {
     ) -> ProbeSnapshot {
         ctx.runner.state().scenario_snapshot()
     }
+
+    fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
+        let state = ctx.runner.state();
+        Some(capture_pending || state.graph.busy() || state.submissions_busy())
+    }
 }

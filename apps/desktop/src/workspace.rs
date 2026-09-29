@@ -708,6 +708,34 @@ impl DesktopState {
             .with_field("format", format!("{:?}", snapshot.format))
             .with_field("dirty", snapshot.dirty.to_string())
             .with_field("appearance_open", self.appearance_open.to_string())
+            .with_field("document_count", self.docs.len().to_string())
+            .with_field("reading_count", self.docs.readings().count().to_string())
+            .with_field(
+                "preview_open",
+                self.docs
+                    .following_reading(ReadingKind::Preview)
+                    .is_some()
+                    .to_string(),
+            )
+            .with_field(
+                "outline_open",
+                self.docs
+                    .following_reading(ReadingKind::Outline)
+                    .is_some()
+                    .to_string(),
+            )
+            .with_field(
+                "readings_open",
+                self.docs
+                    .following_reading(ReadingKind::Readings)
+                    .is_some()
+                    .to_string(),
+            )
+            .with_field(
+                "navigator_open",
+                self.docs.navigator().is_some().to_string(),
+            )
+            .with_field("graph_open", self.docs.graph().is_some().to_string())
             .with_field("site_count", self.scroll.site_count().to_string())
             .with_field("serving_count", self.scroll.serving_count().to_string())
             .with_field("message", self.message.clone().unwrap_or_default())

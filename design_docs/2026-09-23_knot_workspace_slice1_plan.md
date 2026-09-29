@@ -1421,6 +1421,45 @@ design frames either fixed or recorded.
   Graph close, so New joins that metadata as a tab without creating a second
   centre or disturbing the Navigator/site and reading branches.
 
+- **2026-09-29, step 9.** Five checked-in scenarios now cover focused writing,
+  source beside Preview, research over authored references, the last-tab
+  shared Mere graph, and two independently serving sites. They use the same
+  Mesquite/Taproot lane as every earlier receipt. Scenario snapshots now name
+  document and reading counts plus the open Preview, Outline, Readings,
+  Navigator and Graph roles, so each scenario proves its arrangement before
+  capture. The last-tab scenario closes the real document tab, waits for the
+  bounded catalog worker and requires the shared view's “Catalog reading”
+  state. Checked-in Djot, Rhai and two-site fixtures make the runs repeatable.
+
+  All five action and assertion streams pass through the real desktop controls
+  in the windowless harness; only their `capture` lines are omitted there
+  because that harness has no native swapchain. The dedicated References
+  custody panel and index-progress chip in the design research frame belong to
+  later A3/E1 work and do not exist in this slice. The truthful current
+  research receipt therefore shows Outline and a bounded authored-link Reading
+  as tabs in the one right-hand stack, not the design frame's vertically split
+  Outline/References pair. Automatic folded rails and the native/client-drawn
+  menu work described by the design pass are likewise later Cambium/host work;
+  the focused and Preview receipts exercise the slice's current toolbar and
+  full stacks rather than pretending those seams landed here.
+
+  Native capture was attempted on this macOS host both as the debug executable
+  and through a LaunchServices application wrapper intended to foreground the
+  same executable. In both cases
+  the window and accessibility tree existed, but every surface acquisition
+  reported `Occluded`; the lane exhausted its 120-frame capture patience and
+  wrote `RESULT fail`, zero captures, and no PNG. The first exact receipt is
+  retained at `/tmp/knot-step9.nJt4Xd/focused/scenario.done`; the wrapper
+  receipt is `/tmp/knot-step9.nJt4Xd/focused-app/scenario.done`, and the
+  120-second foreground probe wrote the same zero-frame result at
+  `/tmp/knot-step9.nJt4Xd/root-foreground-probe/scenario.done`. Because
+  no PNG exists, no whole-frame visual review is claimed. The original design
+  PNGs referenced by the design pass are also absent from this checkout and
+  from the current `Code` tree, so its annotated criteria in
+  `2026-09-23_knot_design_pass.md` are the available comparison authority.
+  Native whole-frame review, including the still-missing 7e two-site PNG,
+  remains an environmental receipt blocker rather than a scenario omission.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

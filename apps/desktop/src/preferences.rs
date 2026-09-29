@@ -36,6 +36,8 @@ pub struct DesktopPreferences {
     pub appearance: StoredAppearance,
     /// Cartography strategy used by the shared mere view.
     pub graph_layout: String,
+    /// Maximum age of private local recovery copies in this standalone app.
+    pub recovery_days: u16,
     /// A knot-editor `KnotEmbeddingPreference`, uninterpreted here.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<Value>,
@@ -61,6 +63,7 @@ impl Default for DesktopPreferences {
             version: PREFERENCES_VERSION,
             appearance: StoredAppearance::default(),
             graph_layout: mere_view::DEFAULT_LAYOUT.to_owned(),
+            recovery_days: 30,
             embedding: None,
             other: Map::new(),
         }
@@ -80,6 +83,7 @@ impl DesktopPreferences {
         let mut preferences: Self =
             serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))?;
         let appearance = &mut preferences.appearance.known;
+        preferences.recovery_days = preferences.recovery_days.clamp(1, 90);
         appearance.font_size = appearance
             .font_size
             .clamp(Appearance::MIN_FONT_SIZE, Appearance::MAX_FONT_SIZE);
@@ -200,6 +204,25 @@ impl PreferencesStore {
         Ok(true)
     }
 
+    pub fn save_recovery_days(&mut self, days: u16) -> Result<bool, String> {
+        if !matches!(days, 7 | 30 | 90) {
+            return Err("recovery retention must be 7, 30, or 90 days".into());
+        }
+        if self.saved.recovery_days == days {
+            return Ok(false);
+        }
+        if let Some(why) = &self.unreadable {
+            return Err(format!(
+                "the preferences file could not be read ({why}); reset it in Appearance to save again"
+            ));
+        }
+        let mut next = self.saved.clone();
+        next.recovery_days = days;
+        next.save(&self.path)?;
+        self.saved = next;
+        Ok(true)
+    }
+
     /// The writer's explicit reset: replace the file with `appearance` and
     /// defaults for everything else. The only path that overwrites a file
     /// that could not be read.
@@ -277,6 +300,20 @@ mod tests {
             "grid.default"
         );
         assert_eq!(store.save_graph_layout("grid.default"), Ok(false));
+    }
+
+    #[test]
+    fn recovery_retention_is_bounded_and_persists_without_changing_other_preferences() {
+        let root = tempdir().unwrap();
+        let path = root.path().join(PREFERENCES_FILE);
+        let mut store = PreferencesStore::open(path.clone());
+        store.save_appearance(&changed()).unwrap();
+        assert_eq!(store.save_recovery_days(7), Ok(true));
+        assert_eq!(store.save_recovery_days(7), Ok(false));
+        assert!(store.save_recovery_days(365).is_err());
+        let reopened = DesktopPreferences::load(&path).unwrap();
+        assert_eq!(reopened.recovery_days, 7);
+        assert_eq!(reopened.appearance.known, changed());
     }
 
     #[test]

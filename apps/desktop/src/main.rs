@@ -141,6 +141,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
         behind: opened.map(|(session, _)| session).collect(),
         sites,
         failures,
+        recovery_path: None,
     })
 }
 fn open_path(path: &Path) -> Result<KnotDocumentSession, String> {
@@ -171,10 +172,11 @@ fn main() {
             eprintln!("knot: catalog could not be opened: {error}");
             std::process::exit(1)
         });
-    let launch = open_documents(options.documents).unwrap_or_else(|error| {
+    let mut launch = open_documents(options.documents).unwrap_or_else(|error| {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
+    launch.recovery_path = Some(settings_root.join("recovery"));
     if let Err(error) = run_desktop_with_targets(
         launch,
         catalog,

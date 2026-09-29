@@ -135,6 +135,11 @@ pub fn appearance_css() -> String {
             rgb(p.surface), rgb(p.text), rgb(p.surface_hover), rgb(p.surface), rgb(p.text),
             rgb(p.text_dim), rgb(p.primary),
         ));
+        css.push_str(&format!(
+            "{scope} .knot-command-palette .command-item.selected {{ background:{};color:{}; }}",
+            rgb(p.primary),
+            rgb(p.on_primary),
+        ));
         for rule in cambium::syntax_css(&seeds) {
             css.push_str(&format!("{scope} {rule}"));
         }
@@ -150,6 +155,26 @@ pub fn appearance_css() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn palette_selection_has_a_contrasting_fill_in_both_themes() {
+        let css = appearance_css();
+        for dark in [false, true] {
+            let p = derive_palette(&seeds(dark));
+            let scope = if dark {
+                ".knot-theme-dark"
+            } else {
+                ".knot-theme-light"
+            };
+            let rule = format!(
+                "{scope} .knot-command-palette .command-item.selected {{ background:{};color:{}; }}",
+                rgb(p.primary),
+                rgb(p.on_primary)
+            );
+            assert!(css.contains(&rule));
+            assert!(tinct::contrast(p.on_primary, p.primary) >= 4.5);
+        }
+    }
+
     #[test]
     fn both_themes_keep_body_and_syntax_legible_on_writing_surface() {
         for dark in [false, true] {

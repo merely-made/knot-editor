@@ -3314,8 +3314,11 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-confirm-list { display:flex; flex-direction:column; gap:2px; }",
     ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:240px; }",
-    ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; overflow:hidden; }",
-    ".knot-graph > .mere-view { max-width:100%; max-height:100%; }",
+    ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }",
+    // Keep these exemptions inside the Graph tile. Extra overflow clips around
+    // the positioned notice and self-clipping graph blank netrender's whole
+    // native frame; ordinary Workbench content slots remain scrollable.
+    ".knot-graph > .mere-view { max-width:100%; max-height:100%; overflow:visible; }",
     ".knot-frame .frisket-tabbar { flex:0 0 30px; height:30px; align-items:flex-end; gap:2px; padding:0 6px; border-bottom:1px solid; overflow:hidden; }",
     ".knot-frame .frisket-tab { flex:0 1 auto; max-width:240px; height:26px; margin-right:0; padding:0 6px 0 12px; gap:6px; font-size:13px; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }",
     ".knot-frame .frisket-tab.active { height:27px; margin-bottom:-1px; }",
@@ -3323,6 +3326,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-frame .frisket-close { flex:0 0 18px; width:18px; height:auto; margin-left:0; padding:0; font-size:13px; visibility:hidden; }",
     ".knot-frame .frisket-tab.active .frisket-close, .knot-frame .frisket-tab:hover .frisket-close { visibility:visible; }",
     ".knot-frame .frisket-content { flex:1 1 0px; min-height:0; overflow:auto; padding:12px; }",
+    ".knot-frame .frisket-content[data-tile=\"18446744073709551615\"] { overflow:visible; padding:0; }",
     ".knot-empty-frame { display:block; padding:24px 0; }",
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
@@ -3396,6 +3400,26 @@ mod tests {
     }
 
     #[test]
+    fn only_the_graph_host_and_shared_view_are_exempt_from_extra_clips() {
+        assert!(DESKTOP_CSS.contains(
+            ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }"
+        ));
+        assert!(!DESKTOP_CSS.contains(
+            ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; overflow:"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-graph > .mere-view { max-width:100%; max-height:100%; overflow:visible; }"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-frame .frisket-content { flex:1 1 0px; min-height:0; overflow:auto; padding:12px; }"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-frame .frisket-content[data-tile=\"18446744073709551615\"] { overflow:visible; padding:0; }"
+        ));
+        assert!(!DESKTOP_CSS.contains(".knot-frame .mere-view {"));
+    }
+
+    #[test]
     fn last_document_closes_onto_the_shared_mere_view_and_graph_command_is_singleton() {
         let mut host = harness(KnotDocumentSession::scratch("scratch:graph", "# Graph"));
         host.layout_at(1100.0, 700.0);
@@ -3415,6 +3439,26 @@ mod tests {
         assert!(host.resolve(&graph).is_some());
         let dom = host.runner().dom();
         let dom = dom.borrow();
+        let graph_root = class_node(&dom, dom.document(), "knot-graph").expect("the graph root");
+        let mut ancestor = dom.parent(graph_root);
+        let mut graph_content = None;
+        while let Some(node) = ancestor {
+            if dom.has_class(node, "frisket-content") {
+                graph_content = Some(node);
+                break;
+            }
+            ancestor = dom.parent(node);
+        }
+        let graph_content = graph_content.expect("Graph belongs to a Workbench content slot");
+        assert_eq!(
+            dom.attribute(
+                graph_content,
+                &Namespace::from(""),
+                &LocalName::from("data-tile")
+            )
+            .as_deref(),
+            Some(crate::documents::GRAPH_TILE_ID_ATTR)
+        );
         assert!(text_content(&*dom, dom.document()).contains("No catalog is configured"));
         drop(dom);
         assert!(host.click_on(&Selector::role("button").with_attr("data-action", "new")));

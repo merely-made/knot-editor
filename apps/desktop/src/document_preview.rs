@@ -37,7 +37,14 @@ pub(crate) fn block_presentation_css(presentation: &inker::BlockPresentation) ->
     )
 }
 
-fn inline(items: &[InlineSpan]) -> DesktopView {
+#[derive(Clone)]
+struct LinkSource {
+    document: DocKey,
+    address: Arc<str>,
+    text: Arc<str>,
+}
+
+fn inline(items: &[InlineSpan], source: Option<&LinkSource>) -> DesktopView {
     let children = items
         .iter()
         .enumerate()
@@ -47,18 +54,30 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     presentation,
                     spans,
                 } => Box::new(
-                    el("span", inline(spans)).attr("style", inline_presentation_css(presentation)),
+                    el("span", inline(spans, source))
+                        .attr("style", inline_presentation_css(presentation)),
                 ),
                 InlineSpan::Text(text) => Box::new(span(text.clone())),
                 InlineSpan::Code(text) => Box::new(el("code", text.clone())),
-                InlineSpan::Emphasis(items) => Box::new(el("em", inline(items))),
-                InlineSpan::Strong(items) => Box::new(el("strong", inline(items))),
+                InlineSpan::Emphasis(items) => Box::new(el("em", inline(items, source))),
+                InlineSpan::Strong(items) => Box::new(el("strong", inline(items, source))),
                 InlineSpan::Link { url, spans, .. } => {
                     let destination = url.clone();
                     let accessible_destination = destination.clone();
+                    let origin = source.cloned();
                     Box::new(
-                        button_with(inline(spans), move |state: &mut DesktopState, _| {
-                            state.message = Some(format!("Preview link: {destination}"));
+                        button_with(inline(spans, source), move |state: &mut DesktopState, _| {
+                            if let Some(origin) = &origin {
+                                crate::link_workflow::follow_link(
+                                    state,
+                                    origin.document,
+                                    &origin.address,
+                                    &origin.text,
+                                    &destination,
+                                );
+                            } else {
+                                state.message = Some(format!("Preview link: {destination}"));
+                            }
                         })
                         .attr(
                             "aria-label",
@@ -84,7 +103,7 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     )
                 },
                 // An in-page link is its label here; this preview has no anchors.
-                InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans))),
+                InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans, source))),
                 InlineSpan::LineBreak => Box::new(el("br", ())),
                 InlineSpan::SoftBreak => Box::new(span(" ")),
             };
@@ -94,14 +113,18 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
     Box::new(el("span", Keyed::new(children)))
 }
 
-fn table_row(cells: &[Vec<InlineSpan>], cell_element: &'static str) -> DesktopView {
+fn table_row(
+    cells: &[Vec<InlineSpan>],
+    cell_element: &'static str,
+    source: Option<&LinkSource>,
+) -> DesktopView {
     Box::new(el(
         "tr",
         Keyed::new(
             cells
                 .iter()
                 .enumerate()
-                .map(|(index, cell)| (index, el(cell_element, inline(cell))))
+                .map(|(index, cell)| (index, el(cell_element, inline(cell, source))))
                 .collect::<Vec<_>>(),
         ),
     ))
@@ -124,6 +147,11 @@ fn blocks(
     document: Option<DocKey>,
     next_heading: &mut usize,
 ) -> DesktopView {
+    let link_source = document.map(|document| LinkSource {
+        document,
+        address: Arc::clone(address),
+        text: Arc::clone(source_text),
+    });
     let children = items
         .iter()
         .enumerate()
@@ -179,7 +207,9 @@ fn blocks(
                         .attr("aria-label", format!("Select source heading: {label}")),
                     ))
                 },
-                Block::Paragraph { spans } => Box::new(el("p", inline(spans))),
+                Block::Paragraph { spans } => {
+                    Box::new(el("p", inline(spans, link_source.as_ref())))
+                },
                 Block::CodeBlock { text, .. } | Block::Preformatted { text } => {
                     Box::new(el("pre", text.clone()))
                 },
@@ -269,12 +299,12 @@ fn blocks(
                     let head: DesktopView = if header.is_empty() {
                         Box::new(el("thead", ()))
                     } else {
-                        Box::new(el("thead", table_row(header, "th")))
+                        Box::new(el("thead", table_row(header, "th", link_source.as_ref())))
                     };
                     let body = rows
                         .iter()
                         .enumerate()
-                        .map(|(row, cells)| (row, table_row(cells, "td")))
+                        .map(|(row, cells)| (row, table_row(cells, "td", link_source.as_ref())))
                         .collect::<Vec<_>>();
                     Box::new(el("table", (head, el("tbody", Keyed::new(body)))))
                 },
@@ -375,6 +405,55 @@ mod tests {
     use inker::{Engine, EngineInput};
     use knot_document::KnotDocumentSession;
     use layout_dom_api::LayoutDom;
+    use taproot::Selector;
+
+    fn pinned_preview(state: &DesktopState) -> DesktopView {
+        view(state, DocKey(1), workbench::TileId(900))
+    }
+
+    #[test]
+    fn pinned_preview_resolves_links_from_its_source_and_activates_existing_target() {
+        let temp = tempfile::tempdir().unwrap();
+        let folder = temp.path().join("notes");
+        std::fs::create_dir(&folder).unwrap();
+        let source = folder.join("essay.djot");
+        let target = temp.path().join("reference.djot");
+        let other = temp.path().join("other.djot");
+        std::fs::write(&source, "[Reference](../reference.djot)\n").unwrap();
+        std::fs::write(&target, "# Reference\n").unwrap();
+        std::fs::write(&other, "# Other\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&source).unwrap(),
+            WindowCommands::new(),
+        );
+        state.open_behind(
+            vec![
+                KnotDocumentSession::open_read_only(&target).unwrap(),
+                KnotDocumentSession::open(&other).unwrap(),
+            ],
+            &[],
+        );
+        state.docs.focus(DocKey(3));
+        let mut host = Harness::new(
+            crate::desktop_sheet(),
+            state,
+            pinned_preview as fn(&DesktopState) -> DesktopView,
+        );
+        host.layout_at(900.0, 600.0);
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("aria-label", "Preview link: ../reference.djot")
+        ));
+        assert_eq!(host.state().focused_key(), Some(DocKey(2)));
+        assert_eq!(host.state().docs.len(), 3);
+        assert_eq!(
+            host.state().document().snapshot().write_posture,
+            knot_document::KnotDocumentWritePostureV1::ReadOnly
+        );
+        assert_eq!(
+            std::fs::read_to_string(&source).unwrap(),
+            "[Reference](../reference.djot)\n"
+        );
+    }
 
     fn in_page_note(_: &DesktopState) -> DesktopView {
         let document = nematic::MicronEngine::new()

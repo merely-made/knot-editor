@@ -232,7 +232,7 @@ pub struct DocumentEntry {
     /// derived state with no snapshot type of its own, so the text it was bound
     /// to is kept here and handed back to the document when a row is selected.
     reading_source: Option<String>,
-    focus_source_requested: bool,
+    pub(crate) focus_source_requested: bool,
     /// Reader fold state of the Micron preview, reconciled after each dispatch.
     pub(crate) micron_folds: crate::scroll_site::MicronPreviewFolds,
     /// The site page this document is, with its metadata draft, and its Micron
@@ -317,6 +317,8 @@ impl DocumentEntry {
 pub struct DesktopState {
     /// The open documents and the tiles that show them.
     pub docs: DocumentWorkspace<DocumentEntry>,
+    pub(crate) link_form: Option<crate::link_workflow::LinkForm>,
+    pub(crate) link_form_focus_requested: bool,
     pub command_chrome: CommandChrome,
     /// What readers see while no document is open: an empty read-only source,
     /// never a save target.
@@ -411,6 +413,8 @@ impl DesktopState {
         });
         let mut state = Self {
             docs: DocumentWorkspace::new(),
+            link_form: None,
+            link_form_focus_requested: false,
             command_chrome: CommandChrome::default(),
             placeholder: DocumentEntry::new(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "")),
             appearance: Appearance::default(),
@@ -882,6 +886,14 @@ impl DesktopState {
             )
             .with_field("appearance_open", self.appearance_open.to_string())
             .with_field("palette_open", self.command_palette_open.to_string())
+            .with_field("link_form_open", self.link_form.is_some().to_string())
+            .with_field("links_open", has_reading(ReadingKind::Links).to_string())
+            .with_field(
+                "link_count",
+                crate::document_links::parsed_links(self.document().session())
+                    .map_or(0, |links| links.len())
+                    .to_string(),
+            )
             .with_field("menu_open", self.command_menu_bar.open.to_string())
             .with_field(
                 "command_count",
@@ -1380,7 +1392,10 @@ impl DesktopState {
             },
             ReadingKind::Readings => self.refresh_readings(),
             ReadingKind::Folded => self.sync_fold_snapshots(),
-            ReadingKind::Preview | ReadingKind::Changes | ReadingKind::Submit => {},
+            ReadingKind::Preview
+            | ReadingKind::Changes
+            | ReadingKind::Links
+            | ReadingKind::Submit => {},
         }
     }
 
@@ -1424,7 +1439,7 @@ impl DesktopState {
     }
 
     /// Make `key` the focused document, as activating its tab does.
-    fn focus_document(&mut self, key: DocKey) {
+    pub(crate) fn focus_document(&mut self, key: DocKey) {
         if self.docs.focused() != Some(key) {
             self.docs.focus(key);
             self.after_focus_change();
@@ -3410,6 +3425,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 },
                 command_palette_view(state),
                 appearance_panel,
+                crate::link_workflow::form_view(state),
                 document_frame(state),
                 prompt,
                 status_bar,
@@ -3886,6 +3902,7 @@ pub(crate) fn reading_title(kind: ReadingKind) -> &'static str {
         ReadingKind::Folded => "Folded source",
         ReadingKind::Readings => "Readings",
         ReadingKind::Changes => "Changes",
+        ReadingKind::Links => "Links",
         ReadingKind::Submit => "Upload / submit",
     }
 }
@@ -3928,6 +3945,7 @@ fn reading_tile(
         ReadingKind::Readings => crate::readings::view(state, key, tile),
         ReadingKind::Folded => crate::document_folding::view(state, key, tile),
         ReadingKind::Changes => crate::changes::view(state, key, tile),
+        ReadingKind::Links => crate::link_workflow::reading_view(state, key),
         ReadingKind::Submit => crate::scroll_site::submit_view(state, key),
     };
     Box::new(
@@ -4156,6 +4174,15 @@ pub(crate) fn source_is_focused(runner: &DesktopRunner) -> bool {
 }
 
 pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
+    if runner.state().link_form.is_some()
+        && matches!(
+            press.key,
+            Key::Named(cambium_genet_winit_host::NamedKey::Escape)
+        )
+    {
+        runner.update(crate::link_workflow::dismiss);
+        return true;
+    }
     if runner.state().command_palette_open {
         let query_focused = runner.focus().is_some_and(|focused| {
             let dom = runner.dom();
@@ -4284,6 +4311,17 @@ pub fn after_dispatch(
     focus_command_menu(ctx);
     focus_command_palette(ctx);
     focus_path_field(ctx);
+    if ctx.runner.state().link_form_focus_requested {
+        ctx.runner
+            .update(|state| state.link_form_focus_requested = false);
+        let target = ctx.runner.focusables().into_iter().find(|node| {
+            let dom = ctx.runner.dom();
+            ancestor_has_id(&*dom.borrow(), *node, "knot-link-form")
+        });
+        if let Some(target) = target {
+            ctx.runner.set_focus(Some(target));
+        }
+    }
     track_content_focus(ctx);
     let state = ctx.runner.state();
     let focus_requested = state.entry().focus_source_requested;
@@ -4692,6 +4730,15 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-confirm-list { display:flex; flex-direction:column; gap:2px; }",
+    "[id=knot-link-form] { flex:none; min-width:0; display:flex; flex-direction:column; align-items:stretch; max-height:240px; overflow:auto; }",
+    "[id=knot-link-form] > div { display:flex; flex-wrap:wrap; gap:6px; }",
+    "[id=knot-link-form] button { min-width:0; overflow-wrap:anywhere; }",
+    ".knot-link-row { min-width:0; max-width:100%; display:flex; flex-direction:column; gap:6px; padding:6px 0; }",
+    ".knot-link-description { min-width:0; max-width:100%; display:flex; flex-direction:column; gap:2px; }",
+    ".knot-link-description span { display:block; min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; }",
+    ".knot-link-label { font-weight:600; }",
+    ".knot-link-kind { opacity:.8; }",
+    ".knot-link-actions { min-width:0; display:flex; flex-wrap:wrap; gap:6px; }",
     ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:240px; }",
     ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }",
     // Keep these exemptions inside the Graph tile. Extra overflow clips around
@@ -4742,6 +4789,175 @@ mod tests {
     use std::sync::{Arc, Mutex, mpsc};
     use taproot::Selector;
     use tempfile::tempdir;
+
+    #[test]
+    fn document_link_menu_keeps_selection_and_cancel_escape_restore_source_focus() {
+        let temp = tempdir().unwrap();
+        let source_path = temp.path().join("source.djot");
+        let target_path = temp.path().join("target.djot");
+        std::fs::write(&source_path, "α 日本語 tail\n").unwrap();
+        std::fs::write(&target_path, "# Target\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&source_path).unwrap());
+        let source = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.set_command_chrome(CommandChrome::ClientTitlebar);
+            state.open_path(target_path.clone());
+            state.focus_document(source);
+        });
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
+        host.update(|state| {
+            let snapshot = state.document().snapshot();
+            state
+                .document_mut()
+                .session_mut()
+                .select_source_span(
+                    &snapshot.source.address,
+                    &snapshot.text,
+                    "α ".len(),
+                    "α 日本語".len(),
+                )
+                .unwrap();
+        });
+        let selection = host.state().document().snapshot().selection;
+        for cancel in [true, false] {
+            host.press_key(&KeyPress::named(NamedKey::F10));
+            assert!(
+                host.click_on(&Selector::role("menuitem").with_attr("data-key", "group.document"))
+            );
+            assert!(host.click_on(
+                &Selector::role("menuitem").with_attr("data-key", commands::LINK_DOCUMENT)
+            ));
+            assert!(host.state().link_form.is_some());
+            assert!(focus_inside(&host, "knot-link-form"));
+            if cancel {
+                assert!(
+                    host.click_on(&Selector::role("button").with_attr("id", "knot-link-cancel"))
+                );
+            } else {
+                host.press_key(&KeyPress::named(NamedKey::Escape));
+            }
+            assert!(host.state().link_form.is_none());
+            assert!(source_is_focused(host.runner()));
+            assert_eq!(host.state().document().snapshot().selection, selection);
+        }
+        host.update(crate::link_workflow::begin);
+        host.after_dispatch();
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").with_attr("data-link-target", "0")));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-link-insert")));
+        assert_eq!(
+            host.state().document().snapshot().text,
+            "α [日本語](./target.djot) tail\n"
+        );
+        assert!(source_is_focused(host.runner()));
+    }
+
+    #[test]
+    fn links_reading_derives_dirty_open_document_backlinks_and_selects_the_owner() {
+        let temp = tempdir().unwrap();
+        let source_path = temp.path().join("source.djot");
+        let target_path = temp.path().join("target.djot");
+        std::fs::write(&source_path, "[日本語](./target.djot)\n").unwrap();
+        std::fs::write(&target_path, "# Target\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&source_path).unwrap());
+        let source = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "dirty ".into(),
+                )))
+                .unwrap();
+            state.open_path(target_path.clone());
+            state.toggle_reading(ReadingKind::Links);
+        });
+        host.layout_at(1100.0, 700.0);
+        let target = host.state().focused_key().unwrap();
+        assert_ne!(source, target);
+        let content = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let reading = class_node(&dom, dom.document(), "knot-readings").unwrap();
+            text_content(&dom, reading)
+        };
+        assert!(content.contains("currently open saved documents only"));
+        assert!(content.contains("source.djot · unsaved buffer · 日本語"));
+        assert!(host.click_on(
+            &Selector::role("button").containing("source.djot · unsaved buffer · 日本語")
+        ));
+        assert_eq!(host.state().focused_key(), Some(source));
+        assert!(source_is_focused(host.runner()));
+        let snapshot = host.state().document().snapshot();
+        let span = crate::document_links::parsed_links(host.state().document().session()).unwrap()
+            [0]
+        .span
+        .unwrap();
+        assert_eq!(
+            (
+                snapshot.selection.anchor.byte,
+                snapshot.selection.focus.byte
+            ),
+            span
+        );
+    }
+
+    #[test]
+    fn links_reading_wraps_descriptions_above_actions_and_preserves_exact_accessible_target() {
+        let temp = tempdir().unwrap();
+        let source_path = temp.path().join("source.djot");
+        let target_path = temp
+            .path()
+            .join(format!("{}.djot", "Target 日本語 notes ".repeat(3)));
+        std::fs::write(&target_path, "# Target\n").unwrap();
+        let relationship = &crate::document_links::RELATIONSHIPS[0];
+        let markup = crate::document_links::markup(
+            &source_path,
+            &target_path,
+            "Selected source",
+            "Target",
+            Some(relationship.slug),
+        )
+        .unwrap();
+        let exact_target = crate::document_links::relative_url(&source_path, &target_path).unwrap();
+        std::fs::write(&source_path, &markup).unwrap();
+        let mut host = harness(KnotDocumentSession::open(&source_path).unwrap());
+        host.update(|state| state.toggle_reading(ReadingKind::Links));
+        host.layout_at(900.0, 640.0);
+        let (description, actions, reading) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let description = class_node(&dom, dom.document(), "knot-link-description").unwrap();
+            let actions = class_node(&dom, dom.document(), "knot-link-actions").unwrap();
+            let reading = class_node(&dom, dom.document(), "knot-reading").unwrap();
+            let visible = text_content(&dom, description);
+            assert!(visible.contains("Target 日本語 notes"));
+            assert!(visible.contains("cites · local document"));
+            assert!(!visible.contains("%E6"));
+            assert!(!visible.contains(relationship.iri));
+            let accessible = LayoutDom::attribute(
+                &*dom,
+                description,
+                &Namespace::from(""),
+                &LocalName::from("aria-label"),
+            )
+            .unwrap();
+            assert!(accessible.contains(&exact_target));
+            assert!(accessible.contains(relationship.iri));
+            (description, actions, reading)
+        };
+        let (x, y, width, height) = host.painted_rect(description).unwrap();
+        let (action_x, action_y, action_width, _) = host.painted_rect(actions).unwrap();
+        let (reading_x, _, reading_width, _) = host.painted_rect(reading).unwrap();
+        assert!(
+            action_y >= y + height - 1.0,
+            "Actions are below the wrapped description"
+        );
+        assert!(x >= reading_x && x + width <= reading_x + reading_width + 1.0);
+        assert!(
+            action_x >= reading_x && action_x + action_width <= reading_x + reading_width + 1.0
+        );
+    }
 
     fn harness(
         session: KnotDocumentSession,

@@ -112,9 +112,8 @@ impl SiteEntry {
 }
 
 /// The window's site state: the open sites, the Site popover and the fields
-/// that open or create the next site, and whether native previews show. What
-/// belongs to one document, its page, Micron form and composer, is on its
-/// entry ([`DocumentSite`]).
+/// that open or create the next site. What belongs to one document, its page,
+/// Micron form and composer, is on its entry ([`DocumentSite`]).
 pub struct ScrollWorkspace {
     sites: BTreeMap<SiteKey, SiteEntry>,
     next_site: u64,
@@ -126,7 +125,6 @@ pub struct ScrollWorkspace {
     /// The port the next site opened or created publishes on.
     pub port: TextInput,
     pub format: SiteFormat,
-    pub preview_visible: bool,
     submission_wake: Option<HostWake>,
     titan_submission_error: Option<String>,
 }
@@ -141,7 +139,6 @@ impl Default for ScrollWorkspace {
             folder: TextInput::default(),
             port: TextInput::new("5699"),
             format: SiteFormat::Scroll,
-            preview_visible: true,
             submission_wake: None,
             titan_submission_error: None,
         }
@@ -619,8 +616,14 @@ impl DesktopState {
     /// present (decisions 10 and 11), a new address or a non-Micron document
     /// starts fresh.
     pub(crate) fn sync_micron_folds(&mut self) {
-        let current = self.document().snapshot();
-        let folds = &mut self.entry_mut().micron_folds;
+        if let Some(key) = self.focused_key() {
+            self.sync_micron_folds_for(key);
+        }
+    }
+
+    fn sync_micron_folds_for(&mut self, document: DocKey) {
+        let current = self.surface_for(document).snapshot();
+        let folds = &mut self.entry_mut_for(document).micron_folds;
         if current.format != knot_document::DocumentFormat::Micron {
             folds.folds = FoldState::default();
             folds.reconciled = None;
@@ -641,20 +644,23 @@ impl DesktopState {
     }
 
     /// Open or close the preview fold whose heading key is `key`.
-    fn toggle_micron_fold(&mut self, key: &FoldKey) {
-        self.sync_micron_folds();
-        let current = self.document().snapshot();
-        let Ok(document) = lower_micron(&current.source.address, &current.text) else {
+    fn toggle_micron_fold_for(&mut self, document: DocKey, key: &FoldKey) {
+        self.sync_micron_folds_for(document);
+        let current = self.surface_for(document).snapshot();
+        let Ok(rendered) = lower_micron(&current.source.address, &current.text) else {
             return;
         };
-        let navigation = &document.navigation;
+        let navigation = &rendered.navigation;
         let fold = navigation
-            .is_current(&document.blocks)
+            .is_current(&rendered.blocks)
             .then(|| navigation.fold_keys().iter().position(|each| each == key))
             .flatten();
         match fold {
             Some(fold) => {
-                self.entry_mut().micron_folds.folds.toggle(navigation, fold);
+                self.entry_mut_for(document)
+                    .micron_folds
+                    .folds
+                    .toggle(navigation, fold);
             },
             None => {
                 self.message = Some("That heading is no longer in the current source.".into());
@@ -665,37 +671,37 @@ impl DesktopState {
     /// Follow an in-page link (decision 18): open the folds hiding its target,
     /// so this dispatch renders it, and queue the scroll for `after_dispatch`.
     /// A target with no block is inert.
-    fn follow_micron_in_page(&mut self, target: &InPageTarget) {
+    fn follow_micron_in_page_for(&mut self, document: DocKey, target: &InPageTarget) {
         let Some(block) = target.block else {
             return;
         };
-        let current = self.document().snapshot();
+        let current = self.surface_for(document).snapshot();
         if current.format != knot_document::DocumentFormat::Micron {
             return;
         }
-        self.sync_micron_folds();
-        let Ok(document) = lower_micron(&current.source.address, &current.text) else {
+        self.sync_micron_folds_for(document);
+        let Ok(rendered) = lower_micron(&current.source.address, &current.text) else {
             return;
         };
-        let navigation = &document.navigation;
-        if !navigation.is_current(&document.blocks) || block >= document.blocks.len() {
+        let navigation = &rendered.navigation;
+        if !navigation.is_current(&rendered.blocks) || block >= rendered.blocks.len() {
             return;
         }
-        self.entry_mut()
+        self.entry_mut_for(document)
             .micron_folds
             .folds
             .open_ancestors(navigation, block);
-        self.entry_mut().micron_folds.jump = Some(target.clone());
+        self.entry_mut_for(document).micron_folds.jump = Some(target.clone());
     }
 
-    fn open_micron_form(&mut self) {
-        let source = self.document().snapshot();
+    fn open_micron_form_for(&mut self, document: DocKey) {
+        let source = self.surface_for(document).snapshot();
         if source.format != knot_document::DocumentFormat::Micron {
             self.message = Some("Micron forms are available only for a Micron document.".into());
             return;
         }
         match self
-            .entry_mut()
+            .entry_mut_for(document)
             .site
             .micron
             .open_form(source.text, source.source.address)
@@ -710,10 +716,10 @@ impl DesktopState {
         }
     }
 
-    fn prepare_micron_form(&mut self, action: usize) {
-        let source = self.document().snapshot();
+    fn prepare_micron_form_for(&mut self, document: DocKey, action: usize) {
+        let source = self.surface_for(document).snapshot();
         match self
-            .entry_mut()
+            .entry_mut_for(document)
             .site
             .micron
             .prepare(&source.text, &source.source.address, action)
@@ -728,8 +734,8 @@ impl DesktopState {
         }
     }
 
-    fn send_micron_form(&mut self) {
-        if self.entry().site.busy() {
+    fn send_micron_form_for(&mut self, document: DocKey) {
+        if self.entry_for(document).site.busy() {
             self.message = Some("A submission is already sending.".into());
             return;
         }
@@ -750,8 +756,8 @@ impl DesktopState {
                 return;
             },
         };
-        let current_document = self.document().snapshot();
-        let micron = &mut self.entry_mut().site.micron;
+        let current_document = self.surface_for(document).snapshot();
+        let micron = &mut self.entry_mut_for(document).site.micron;
         let Some(editor) = micron.form.as_mut() else {
             self.message = Some("Open and prepare a Micron form first.".into());
             return;
@@ -919,14 +925,38 @@ impl DesktopState {
         });
     }
 
-    /// A Spartan prompt link picked in the preview: fill the focused document's
-    /// composer with its target and bring up the Submit tile that follows it.
-    fn select_spartan_prompt(&mut self, target: String) {
-        self.entry_mut()
+    /// A Spartan prompt link picked in a preview: fill that document's
+    /// composer with its target and bring up a Submit tile pinned to it.
+    fn select_spartan_prompt_for(&mut self, document: DocKey, target: String) {
+        self.entry_mut_for(document)
             .site
             .submission
             .select_spartan_prompt(target);
-        self.open_submit();
+        if self.focused_key() == Some(document) {
+            self.open_submit();
+            return;
+        }
+        let open = self
+            .docs
+            .readings()
+            .find(|(_, kind, pinned)| *kind == ReadingKind::Submit && *pinned == Some(document))
+            .map(|(tile, _, _)| tile);
+        if let Some(tile) = open {
+            self.docs.activate(tile);
+        } else {
+            self.docs.open_reading(
+                ReadingKind::Submit,
+                Some(document),
+                crate::workspace::reading_title(ReadingKind::Submit),
+            );
+        }
+    }
+
+    #[cfg(test)]
+    fn select_spartan_prompt(&mut self, target: String) {
+        if let Some(document) = self.focused_key() {
+            self.select_spartan_prompt_for(document, target);
+        }
     }
 
     /// Bring up the Submit tile that follows the focused document, opening it
@@ -947,12 +977,6 @@ impl DesktopState {
     /// The focused document's site page, if it is one.
     pub(crate) fn site_page(&self) -> Option<&SitePage> {
         self.entry().site.page.as_ref()
-    }
-
-    /// The open site the focused document is a page of.
-    pub(crate) fn page_site(&self) -> Option<&SiteEntry> {
-        self.site_page()
-            .and_then(|page| self.scroll.site(page.site))
     }
 
     /// Whether `page`'s open metadata in `site` has unsaved edits.
@@ -1712,14 +1736,9 @@ pub(crate) fn site_view(state: &DesktopState, site: SiteKey) -> DesktopView {
                     .attr("aria-label", "Pages"),
                 el(
                     "div",
-                    (
-                        button("Upload / submit", |state: &mut DesktopState, _| {
-                            state.open_submit()
-                        }),
-                        button("Toggle preview", |state: &mut DesktopState, _| {
-                            state.scroll.preview_visible = !state.scroll.preview_visible
-                        }),
-                    ),
+                    button("Upload / submit", |state: &mut DesktopState, _| {
+                        state.open_submit()
+                    }),
                 )
                 .attr("class", "knot-scroll-controls"),
                 el(
@@ -1824,50 +1843,127 @@ pub(crate) fn site_popover(state: &DesktopState) -> DesktopView {
     ))
 }
 
-fn inline(items: &[InlineSpan]) -> DesktopView {
-    let children = items.iter().enumerate().map(|(i,item)| {
-        let view: DesktopView = match item {
-            InlineSpan::Text(text) => Box::new(span(text.clone())),
-            InlineSpan::Presented { presentation, spans } => Box::new(
-                el("span", inline(spans)).attr("style", crate::document_preview::inline_presentation_css(presentation)),
-            ),
-            InlineSpan::Code(text) => Box::new(el("code", text.clone())),
-            InlineSpan::Emphasis(items) => Box::new(el("em", inline(items)).attr("class", "knot-preview-emphasis")),
-            InlineSpan::Strong(items) => Box::new(el("strong", inline(items)).attr("class", "knot-preview-strong")),
-            InlineSpan::Link { url, spans, predicate, .. } => {
-                let destination = url.clone();
-                Box::new(button_with(inline(spans), move |state: &mut DesktopState, click| {
-                    // A link inside a collapsible heading wins over its fold toggle.
-                    click.stop_propagation();
-                    if let Some((site, local_name)) = preview_manifest_page(state, &destination) {
-                        state.open_site_page(site, local_name);
+fn inline(items: &[InlineSpan], document: DocKey) -> DesktopView {
+    let children = items
+        .iter()
+        .enumerate()
+        .map(|(i, item)| {
+            let view: DesktopView = match item {
+                InlineSpan::Text(text) => Box::new(span(text.clone())),
+                InlineSpan::Presented {
+                    presentation,
+                    spans,
+                } => Box::new(el("span", inline(spans, document)).attr(
+                    "style",
+                    crate::document_preview::inline_presentation_css(presentation),
+                )),
+                InlineSpan::Code(text) => Box::new(el("code", text.clone())),
+                InlineSpan::Emphasis(items) => Box::new(
+                    el("em", inline(items, document)).attr("class", "knot-preview-emphasis"),
+                ),
+                InlineSpan::Strong(items) => Box::new(
+                    el("strong", inline(items, document)).attr("class", "knot-preview-strong"),
+                ),
+                InlineSpan::Link {
+                    url,
+                    spans,
+                    predicate,
+                    ..
+                } => {
+                    let destination = url.clone();
+                    if inline_has_presentation(spans) {
+                        Box::new(
+                            button_with(
+                                inline(spans, document),
+                                move |state: &mut DesktopState, click| {
+                                    click.stop_propagation();
+                                    activate_preview_link(state, document, &destination);
+                                },
+                            )
+                            .attr(
+                                "title",
+                                format!("{url} {}", predicate.as_deref().unwrap_or("")),
+                            )
+                            .attr("class", "knot-scroll-link"),
+                        )
                     } else {
-                        state.message = Some(format!("Preview link: {destination}. Open with an independent client; this preview only navigates local site pages."));
+                        Box::new(
+                            button(
+                                inker::inline_text(spans),
+                                move |state: &mut DesktopState, _| {
+                                    activate_preview_link(state, document, &destination);
+                                },
+                            )
+                            .attr(
+                                "title",
+                                format!("{url} {}", predicate.as_deref().unwrap_or("")),
+                            )
+                            .attr("class", "knot-scroll-link"),
+                        )
                     }
-                }).attr("title", format!("{url} {}", predicate.as_deref().unwrap_or(""))).attr("class", "knot-scroll-link"))
-            },
-            InlineSpan::Submit { target, spans } => {
-                let label = inker::inline_text(spans);
-                let target = target.clone();
-                Box::new(button(label, move |state: &mut DesktopState, _| {
-                    state.select_spartan_prompt(target.clone());
-                    state.message = Some("Enter a Spartan body, review it, then send explicitly.".into());
-                }).attr("class", "knot-spartan-submit"))
-            },
-            // Preview state only: opens folds and scrolls, never navigates.
-            InlineSpan::InPage { target, spans } => {
-                let target = target.clone();
-                Box::new(button_with(inline(spans), move |state: &mut DesktopState, click| {
-                    click.stop_propagation();
-                    state.follow_micron_in_page(&target);
-                }).attr("class", "knot-scroll-link knot-preview-in-page"))
-            },
-            InlineSpan::LineBreak => Box::new(el("br", ())),
-            InlineSpan::SoftBreak => Box::new(span(" ")),
-        };
-        (i, view)
-    }).collect::<Vec<_>>();
+                },
+                InlineSpan::Submit { target, spans } => {
+                    let label = inker::inline_text(spans);
+                    let target = target.clone();
+                    Box::new(
+                        button(label, move |state: &mut DesktopState, _| {
+                            state.select_spartan_prompt_for(document, target.clone());
+                            state.message = Some(
+                                "Enter a Spartan body, review it, then send explicitly.".into(),
+                            );
+                        })
+                        .attr("class", "knot-spartan-submit"),
+                    )
+                },
+                // Preview state only: opens folds and scrolls, never navigates.
+                InlineSpan::InPage { target, spans } => {
+                    let target = target.clone();
+                    Box::new(
+                        button_with(
+                            inline(spans, document),
+                            move |state: &mut DesktopState, click| {
+                                click.stop_propagation();
+                                state.follow_micron_in_page_for(document, &target);
+                            },
+                        )
+                        .attr("class", "knot-scroll-link knot-preview-in-page"),
+                    )
+                },
+                InlineSpan::LineBreak => Box::new(el("br", ())),
+                InlineSpan::SoftBreak => Box::new(span(" ")),
+            };
+            (i, view)
+        })
+        .collect::<Vec<_>>();
     Box::new(el("span", Keyed::new(children)))
+}
+
+fn activate_preview_link(state: &mut DesktopState, document: DocKey, destination: &str) {
+    if let Some((site, local_name)) = preview_manifest_page_for(state, document, destination) {
+        state.open_site_page(site, local_name);
+    } else {
+        state.message = Some(format!(
+            "Preview link: {destination}. Open with an independent client; this preview only navigates local site pages."
+        ));
+    }
+}
+
+fn inline_has_presentation(items: &[InlineSpan]) -> bool {
+    items.iter().any(|item| match item {
+        InlineSpan::Presented { .. } => true,
+        InlineSpan::Emphasis(spans) | InlineSpan::Strong(spans) => inline_has_presentation(spans),
+        _ => false,
+    })
+}
+
+fn inline_has_link(items: &[InlineSpan]) -> bool {
+    items.iter().any(|item| match item {
+        InlineSpan::Link { .. } | InlineSpan::Submit { .. } | InlineSpan::InPage { .. } => true,
+        InlineSpan::Presented { spans, .. }
+        | InlineSpan::Emphasis(spans)
+        | InlineSpan::Strong(spans) => inline_has_link(spans),
+        _ => false,
+    })
 }
 
 fn valid_preview_page_name(name: &str) -> bool {
@@ -1894,14 +1990,15 @@ fn preview_page_name<'a>(
     valid_preview_page_name(candidate).then_some(candidate)
 }
 
-fn preview_manifest_page<'a>(
+fn preview_manifest_page_for<'a>(
     state: &DesktopState,
+    document: DocKey,
     destination: &'a str,
 ) -> Option<(SiteKey, &'a str)> {
     // A site can remain open while the editor displays an unrelated local
     // file. The manifest is an authority only while the current document is
     // one of that site's pages, and only for its own site.
-    let site = state.site_page()?.site;
+    let site = state.entry_for(document).site.page.as_ref()?.site;
     let entry = state.scroll.site(site)?;
     let active_destination = entry
         .server
@@ -1912,11 +2009,19 @@ fn preview_manifest_page<'a>(
     entry.site.page_path(name).ok().map(|_| (site, name))
 }
 
-fn blocks(items: &[Block]) -> DesktopView {
+#[cfg(test)]
+fn preview_manifest_page<'a>(
+    state: &DesktopState,
+    destination: &'a str,
+) -> Option<(SiteKey, &'a str)> {
+    preview_manifest_page_for(state, state.focused_key()?, destination)
+}
+
+fn blocks(items: &[Block], document: DocKey) -> DesktopView {
     let children = items
         .iter()
         .enumerate()
-        .map(|(i, item)| (i, block(item, None, None)))
+        .map(|(i, item)| (i, block(item, None, None, document)))
         .collect::<Vec<_>>();
     Box::new(el("div", Keyed::new(children)))
 }
@@ -1952,19 +2057,43 @@ fn preview_block_node<D: LayoutDom>(dom: &D, node: D::NodeId, index: &str) -> Op
 pub(crate) fn scroll_to_micron_jump(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
-    if ctx.runner.state().entry().micron_folds.jump.is_none() {
+    let pending = ctx
+        .runner
+        .state()
+        .docs
+        .docs()
+        .find(|(_, entry)| entry.micron_folds.jump.is_some())
+        .map(|(key, _)| key);
+    let Some(document) = pending else {
         return;
-    }
+    };
     let mut jump = None;
     ctx.runner
-        .update(|state| jump = state.entry_mut().micron_folds.jump.take());
+        .update(|state| jump = state.entry_mut_for(document).micron_folds.jump.take());
     let Some(block) = jump.and_then(|target| target.block) else {
         return;
     };
     let node = {
         let dom = ctx.runner.dom();
         let dom = dom.borrow();
-        preview_block_node(&*dom, dom.document(), &block.to_string())
+        fn preview_for<D: LayoutDom>(
+            dom: &D,
+            node: D::NodeId,
+            document: DocKey,
+        ) -> Option<D::NodeId> {
+            if dom.attribute(
+                node,
+                &Namespace::from(""),
+                &LocalName::from("data-knot-preview-document"),
+            ) == Some(document.0.to_string().as_str())
+            {
+                return Some(node);
+            }
+            dom.dom_children(node)
+                .find_map(|child| preview_for(dom, child, document))
+        }
+        preview_for(&*dom, dom.document(), document)
+            .and_then(|preview| preview_block_node(&*dom, preview, &block.to_string()))
     };
     if let Some(node) = node {
         ctx.scroll_into_view(node, ScrollAlign::Start);
@@ -1981,12 +2110,16 @@ struct FoldToggle {
 /// A lowered document's top-level blocks. With fold state, closed extents are
 /// skipped and collapsible headings toggle; navigation indices name top-level
 /// blocks only, so nested blocks never carry a fold.
-fn document_blocks(document: &EngineDocument, folds: Option<&MicronPreviewFolds>) -> DesktopView {
-    let navigation = &document.navigation;
-    let folds = folds.filter(|_| navigation.is_current(&document.blocks));
+fn document_blocks(
+    rendered: &EngineDocument,
+    folds: Option<&MicronPreviewFolds>,
+    document: DocKey,
+) -> DesktopView {
+    let navigation = &rendered.navigation;
+    let folds = folds.filter(|_| navigation.is_current(&rendered.blocks));
     let hidden = folds.map_or_else(Vec::new, |folds| folds.folds.hidden(navigation));
     let keys = navigation.fold_keys();
-    let children = document
+    let children = rendered
         .blocks
         .iter()
         .enumerate()
@@ -2004,13 +2137,18 @@ fn document_blocks(document: &EngineDocument, folds: Option<&MicronPreviewFolds>
                     marker: folds.markers.marker(open).to_owned(),
                 })
             });
-            (index, block(item, toggle.as_ref(), Some(index)))
+            (index, block(item, toggle.as_ref(), Some(index), document))
         })
         .collect::<Vec<_>>();
     Box::new(el("div", Keyed::new(children)))
 }
 
-fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> DesktopView {
+fn block(
+    item: &Block,
+    fold: Option<&FoldToggle>,
+    index: Option<usize>,
+    document: DocKey,
+) -> DesktopView {
     match item {
         Block::Presented {
             presentation,
@@ -2018,7 +2156,10 @@ fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> Deskt
         } => Box::new(indexed(
             el(
                 "div",
-                el("div", Keyed::new(vec![(0, block(inner, fold, None))])),
+                el(
+                    "div",
+                    Keyed::new(vec![(0, block(inner, fold, None, document))]),
+                ),
             )
             .attr(
                 "style",
@@ -2035,9 +2176,35 @@ fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> Deskt
                 _ => "h5",
             };
             match fold {
-                None => Box::new(indexed(el(tag, inline(spans)), index)),
+                None => Box::new(indexed(el(tag, inline(spans, document)), index)),
                 Some(toggle) => {
                     let key = toggle.key.clone();
+                    if inline_has_link(spans) {
+                        return Box::new(indexed(
+                            el(
+                                tag,
+                                (
+                                    button(
+                                        toggle.marker.clone(),
+                                        move |state: &mut DesktopState, _| {
+                                            state.toggle_micron_fold_for(document, &key)
+                                        },
+                                    )
+                                    .attr("class", "knot-micron-fold-marker")
+                                    .attr(
+                                        "aria-label",
+                                        format!("Toggle {}", inker::inline_text(spans)),
+                                    )
+                                    .attr(
+                                        "aria-expanded",
+                                        if toggle.open { "true" } else { "false" },
+                                    ),
+                                    inline(spans, document),
+                                ),
+                            ),
+                            index,
+                        ));
+                    }
                     Box::new(indexed(
                         el(
                             tag,
@@ -2045,9 +2212,11 @@ fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> Deskt
                                 (
                                     span(toggle.marker.clone())
                                         .attr("class", "knot-micron-fold-marker"),
-                                    inline(spans),
+                                    inline(spans, document),
                                 ),
-                                move |state: &mut DesktopState, _| state.toggle_micron_fold(&key),
+                                move |state: &mut DesktopState, _| {
+                                    state.toggle_micron_fold_for(document, &key)
+                                },
                             )
                             .attr("class", "knot-micron-fold")
                             .attr("aria-label", inker::inline_text(spans))
@@ -2058,11 +2227,13 @@ fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> Deskt
                 },
             }
         },
-        Block::Paragraph { spans } => Box::new(indexed(el("p", inline(spans)), index)),
+        Block::Paragraph { spans } => Box::new(indexed(el("p", inline(spans, document)), index)),
         Block::CodeBlock { text, .. } | Block::Preformatted { text } => {
             Box::new(indexed(el("pre", text.clone()), index))
         },
-        Block::Quote { blocks: items } => Box::new(indexed(el("blockquote", blocks(items)), index)),
+        Block::Quote { blocks: items } => {
+            Box::new(indexed(el("blockquote", blocks(items, document)), index))
+        },
         // Nematic retains ordered markers in the text; use one bullet list
         // to avoid assigning a second, invented set of ordered numbers.
         Block::List { items, .. } => Box::new(indexed(
@@ -2072,7 +2243,7 @@ fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> Deskt
                     items
                         .iter()
                         .enumerate()
-                        .map(|(i, item)| (i, el("li", blocks(item))))
+                        .map(|(i, item)| (i, el("li", blocks(item, document))))
                         .collect::<Vec<_>>(),
                 ),
             ),
@@ -2083,7 +2254,7 @@ fn block(item: &Block, fold: Option<&FoldToggle>, index: Option<usize>) -> Deskt
             alignments,
             header,
             rows,
-        } => table_block(alignments, header, rows, index),
+        } => table_block(alignments, header, rows, index, document),
         Block::Badge { text } => Box::new(indexed(
             el("p", text.clone()).attr("class", "knot-preview-badge"),
             index,
@@ -2096,9 +2267,10 @@ fn table_cell(
     spans: &[InlineSpan],
     header: bool,
     alignment: Option<TableAlignment>,
+    document: DocKey,
 ) -> DesktopView {
     let tag = if header { "th" } else { "td" };
-    let mut cell = el(tag, inline(spans));
+    let mut cell = el(tag, inline(spans, document));
     if let Some(alignment) = alignment {
         let value = match alignment {
             TableAlignment::None | TableAlignment::Left => "left",
@@ -2115,6 +2287,7 @@ fn table_block(
     header: &[Vec<InlineSpan>],
     rows: &[Vec<Vec<InlineSpan>>],
     index: Option<usize>,
+    document: DocKey,
 ) -> DesktopView {
     let header_view: DesktopView = if header.is_empty() {
         Box::new(el("thead", ()))
@@ -2130,7 +2303,7 @@ fn table_block(
                         .map(|(index, spans)| {
                             (
                                 index,
-                                table_cell(spans, true, alignments.get(index).copied()),
+                                table_cell(spans, true, alignments.get(index).copied(), document),
                             )
                         })
                         .collect::<Vec<_>>(),
@@ -2152,7 +2325,12 @@ fn table_block(
                             .map(|(column, spans)| {
                                 (
                                     column,
-                                    table_cell(spans, false, alignments.get(column).copied()),
+                                    table_cell(
+                                        spans,
+                                        false,
+                                        alignments.get(column).copied(),
+                                        document,
+                                    ),
                                 )
                             })
                             .collect::<Vec<_>>(),
@@ -2167,29 +2345,37 @@ fn table_block(
     ))
 }
 
-fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> DesktopView {
-    let Some(editor) = state.entry().site.micron.form.as_ref() else {
+fn micron_form_panel(
+    state: &DesktopState,
+    document: DocKey,
+    source: &str,
+    address: &str,
+) -> DesktopView {
+    let Some(editor) = state.entry_for(document).site.micron.form.as_ref() else {
         return Box::new(
             el(
                 "section",
                 button(
                     "Open Micron form controls",
-                    |state: &mut DesktopState, _| state.open_micron_form(),
+                    move |state: &mut DesktopState, _| state.open_micron_form_for(document),
                 ),
             )
             .attr("class", "knot-micron-form"),
         );
     };
 
-    if state.entry().site.micron.receiver.is_some() {
+    if state.entry_for(document).site.micron.receiver.is_some() {
         return Box::new(
             el(
                 "section",
                 (
                     span("Sending reviewed Micron request…"),
-                    button("Cancel Micron request", |state: &mut DesktopState, _| {
-                        state.entry_mut().site.micron.cancel()
-                    }),
+                    button(
+                        "Cancel Micron request",
+                        move |state: &mut DesktopState, _| {
+                            state.entry_mut_for(document).site.micron.cancel()
+                        },
+                    ),
                 ),
             )
             .attr("class", "knot-micron-form"),
@@ -2202,8 +2388,8 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                 "section",
                 (
                     span("The source or page address changed. Reopen the form so the request matches the visible page."),
-                    button("Discard stale form", |state: &mut DesktopState, _| {
-                        state.entry_mut().site.micron.close_form()
+                    button("Discard stale form", move |state: &mut DesktopState, _| {
+                        state.entry_mut_for(document).site.micron.close_form()
                     }),
                 ),
             )
@@ -2229,7 +2415,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                             |input: &mut TextInput| password_field(input),
                             move |state: &mut DesktopState| {
                                 &mut state
-                                    .entry_mut()
+                                    .entry_mut_for(document)
                                     .site
                                     .micron
                                     .form
@@ -2243,7 +2429,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                             |input: &mut TextInput| text_field_typed(input),
                             move |state: &mut DesktopState| {
                                 &mut state
-                                    .entry_mut()
+                                    .entry_mut_for(document)
                                     .site
                                     .micron
                                     .form
@@ -2262,7 +2448,11 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                     Box::new(button(
                         format!("[{}] {name}: {value}", if checked { "x" } else { " " }),
                         move |state: &mut DesktopState, _| {
-                            let result = state.entry_mut().site.micron.set_checked(index, !checked);
+                            let result = state
+                                .entry_mut_for(document)
+                                .site
+                                .micron
+                                .set_checked(index, !checked);
                             if let Err(error) = result {
                                 state.message = Some(format!("Micron form: {error}"));
                             }
@@ -2276,8 +2466,11 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                     Box::new(button(
                         format!("[{}] {name}: {value}", if checked { "x" } else { " " }),
                         move |state: &mut DesktopState, _| {
-                            if let Err(error) =
-                                state.entry_mut().site.micron.set_checked(index, true)
+                            if let Err(error) = state
+                                .entry_mut_for(document)
+                                .site
+                                .micron
+                                .set_checked(index, true)
                             {
                                 state.message = Some(format!("Micron form: {error}"));
                             }
@@ -2299,7 +2492,9 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                 index,
                 button(
                     format!("Prepare {label}"),
-                    move |state: &mut DesktopState, _| state.prepare_micron_form(index),
+                    move |state: &mut DesktopState, _| {
+                        state.prepare_micron_form_for(document, index)
+                    },
                 ),
             )
         })
@@ -2335,11 +2530,17 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                     span(format!("Prepared Micron request for {}", prepared.target)),
                     el("pre", values),
                     span("Send uses the separately configured KNOT_NOMADNET_TCP interface. A local :/ alias cannot be sent, and Knot's static publisher never becomes a request handler. KNOT_NOMADNET_TIMEOUT_SECS (default 30, 1–120) and KNOT_NOMADNET_MAX_RESPONSE_BYTES (default 4 MiB, up to 64 MiB) bound the request."),
-                    button("Send reviewed Micron request", |state: &mut DesktopState, _| {
-                        state.send_micron_form()
+                    button("Send reviewed Micron request", move |state: &mut DesktopState, _| {
+                        state.send_micron_form_for(document)
                     }),
-                    button("Discard prepared request", |state: &mut DesktopState, _| {
-                        if let Some(editor) = state.entry_mut().site.micron.form.as_mut() {
+                    button("Discard prepared request", move |state: &mut DesktopState, _| {
+                        if let Some(editor) = state
+                            .entry_mut_for(document)
+                            .site
+                            .micron
+                            .form
+                            .as_mut()
+                        {
                             editor.prepared = None;
                         }
                     }),
@@ -2356,7 +2557,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
             }
         });
     let result: DesktopView = state
-        .entry()
+        .entry_for(document)
         .site
         .micron
         .result
@@ -2364,7 +2565,7 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
         .map(|message| Box::new(span(message.clone())) as DesktopView)
         .unwrap_or_else(|| Box::new(el("div", ())));
     let response: DesktopView = state
-        .entry()
+        .entry_for(document)
         .site
         .micron
         .response
@@ -2381,8 +2582,8 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
                 review,
                 result,
                 response,
-                button("Close Micron form", |state: &mut DesktopState, _| {
-                    state.entry_mut().site.micron.close_form()
+                button("Close Micron form", move |state: &mut DesktopState, _| {
+                    state.entry_mut_for(document).site.micron.close_form()
                 }),
             ),
         )
@@ -2390,15 +2591,14 @@ fn micron_form_panel(state: &DesktopState, source: &str, address: &str) -> Deskt
     )
 }
 
-pub fn preview(state: &DesktopState) -> DesktopView {
-    let source = state.document().snapshot();
+pub fn preview(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
+    let source = state.surface_for(key).snapshot();
     if !matches!(
         source.format,
         knot_document::DocumentFormat::Scroll
             | knot_document::DocumentFormat::Gemtext
             | knot_document::DocumentFormat::Micron
-    ) || !state.scroll.preview_visible
-    {
+    ) {
         return Box::new(el("div", ()));
     }
     let rendered = match source.format {
@@ -2411,7 +2611,11 @@ pub fn preview(state: &DesktopState) -> DesktopView {
             let input = EngineInput::new(&source.source.address, &source.text)
                 .with_content_type("text/gemini");
             if state
-                .page_site()
+                .entry_for(key)
+                .site
+                .page
+                .as_ref()
+                .and_then(|page| state.scroll.site(page.site))
                 .is_some_and(|entry| entry.site.config.format == SiteFormat::Spartan)
             {
                 nematic::SpartanEngine::new().render(&input)
@@ -2428,7 +2632,8 @@ pub fn preview(state: &DesktopState) -> DesktopView {
                 document_blocks(
                     &document,
                     (source.format == knot_document::DocumentFormat::Micron)
-                        .then_some(&state.entry().micron_folds),
+                        .then_some(&state.entry_for(key).micron_folds),
+                    key,
                 ),
                 span(if document.diagnostics.is_empty() {
                     String::new()
@@ -2441,7 +2646,7 @@ pub fn preview(state: &DesktopState) -> DesktopView {
     };
     Box::new(
         el(
-            "aside",
+            "div",
             (
                 el(
                     "h2",
@@ -2457,19 +2662,23 @@ pub fn preview(state: &DesktopState) -> DesktopView {
                 ),
                 body,
                 if source.format == knot_document::DocumentFormat::Micron {
-                    micron_form_panel(state, &source.text, &source.source.address)
+                    micron_form_panel(state, key, &source.text, &source.source.address)
                 } else {
                     Box::new(el("div", ()))
                 },
             ),
         )
-        .attr("class", "knot-scroll-preview"),
+        .attr("id", format!("knot-document-preview-{}", tile.0))
+        .attr("class", "knot-document-preview knot-scroll-preview")
+        .attr("data-knot-preview-document", key.0.to_string())
+        .attr("role", "complementary")
+        .attr("aria-label", "Document preview"),
     )
 }
 
 pub const CSS: &str = r#"
 .knot-workspace { overflow:auto; }
-.knot-native-site-mode .knot-source-wrapper { flex:1 1 50%; width:0; }
+.knot-native-site-mode .knot-source-wrapper { flex:1 1 auto; width:100%; }
 .knot-native-site-mode .knot-document-body textarea { display:block; width:auto; min-width:0; min-height:260px; }
 .knot-scroll-site input { min-height:32px; box-sizing:border-box; }
 .knot-scroll-fields textarea { white-space:pre-wrap; min-height:80px; padding:8px; border:1px solid; background:transparent; color:inherit; }
@@ -2491,7 +2700,7 @@ pub const CSS: &str = r#"
 .knot-micron-fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-end; }
 .knot-micron-fields label { display: flex; flex-direction: column; min-width: 180px; }
 .knot-micron-form pre { box-sizing: border-box; width: 100%; max-height: 180px; overflow: auto; white-space: pre-wrap; }
-.knot-scroll-preview { flex: 1 1 50%; width:0; min-width:0; box-sizing:border-box; padding: 16px; overflow: auto; }
+.knot-scroll-preview { width:100%; min-width:0; box-sizing:border-box; padding:16px; }
 .knot-writing-area, .knot-scroll-preview { background: inherit; }
 .knot-scroll-preview p { margin: 8px 0; }
 .knot-scroll-preview pre { white-space: pre-wrap; }
@@ -2502,7 +2711,7 @@ pub const CSS: &str = r#"
 .knot-micron-fold { display: block; width: 100%; text-align: left; }
 #knot-scroll-folder input { width: 350px; }
 #knot-scroll-port input { width: 70px; }
-@media (max-width:700px) { .knot-native-site-mode .knot-source-wrapper, .knot-scroll-preview { width:100%; flex-basis:auto; } #knot-scroll-folder input { width:220px; } }
+@media (max-width:700px) { #knot-scroll-folder input { width:220px; } }
 "#;
 
 #[cfg(test)]
@@ -2526,6 +2735,12 @@ mod tests {
     fn set_port(state: &mut DesktopState, port: &str) {
         let site = state.scroll.current_key().expect("a site is open");
         *state.scroll.site_port_mut(site).unwrap() = TextInput::new(port);
+    }
+
+    fn show_preview(state: &mut DesktopState) {
+        state
+            .docs
+            .open_reading(ReadingKind::Preview, None, "Preview");
     }
 
     impl DesktopState {
@@ -2665,12 +2880,12 @@ mod tests {
                 ">Heading\n---\nplain\n`[Local`:/page/next.mu]\n".into(),
             )))
             .unwrap();
-        state.scroll.preview_visible = true;
-        let host = submission_harness_with(state);
+        show_preview(&mut state);
+        let host = desktop_harness_with(state);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let text = text_content(&dom, dom.document());
-        assert!(text.contains("Micron preview · current source"));
+        assert!(text.contains("Micron preview · current source"), "{text}");
         assert!(text.contains("Heading"));
         assert!(text.contains("Local"));
         assert!(text.contains("Micron preview: some presentation or controls"));
@@ -2793,7 +3008,7 @@ mod tests {
             KnotDocumentSession::open(&path).unwrap(),
             WindowCommands::new(),
         );
-        state.scroll.preview_visible = true;
+        show_preview(&mut state);
         let address = state.document().snapshot().source.address;
         state
             .entry_mut()
@@ -3497,7 +3712,7 @@ mod tests {
         state.scroll.folder = TextInput::new(root.to_string_lossy());
         state.enter_site(true);
         assert!(state.open_path(root.join(".").join("about.scroll")));
-        let host = submission_harness_with(state);
+        let host = desktop_harness_with(state);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         assert_eq!(
@@ -3533,8 +3748,8 @@ mod tests {
             )))
             .unwrap();
         assert!(state.open_path(loose));
-        state.scroll.preview_visible = true;
-        let mut host = submission_harness_with(state);
+        show_preview(&mut state);
+        let mut host = desktop_harness_with(state);
         let prompt = Selector::role("button").containing("Submit locally");
         assert!(
             host.resolve(&prompt).is_none(),
@@ -3545,6 +3760,41 @@ mod tests {
             host.resolve(&prompt).is_some(),
             "the site's own page lost its Spartan presentation"
         );
+        assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        assert!(host.click_on(&Selector::role("tab").containing("loose.gmi")));
+        assert!(
+            host.resolve(&prompt).is_some(),
+            "a pinned Preview stopped presenting its Spartan page"
+        );
+    }
+
+    #[test]
+    fn a_pinned_micron_preview_keeps_its_pages_form() {
+        let temp = tempfile::tempdir().unwrap();
+        let first = temp.path().join("first.mu");
+        let second = temp.path().join("second.mu");
+        let source = "`[Submit`0123456789abcdef0123456789abcdef:/capture`name]\n`<name`first>\n";
+        std::fs::write(&first, source).unwrap();
+        std::fs::write(&second, ">Second\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&first).unwrap(),
+            WindowCommands::new(),
+        );
+        let first_key = state.focused_key().unwrap();
+        state.open_micron_form_for(first_key);
+        show_preview(&mut state);
+        let preview = state.docs.following_reading(ReadingKind::Preview).unwrap();
+        state.toggle_pin(preview);
+        assert!(state.open_path(second));
+
+        let host = desktop_harness_with(state);
+        assert_eq!(host.state().docs.document_for(preview), Some(first_key));
+        assert!(
+            host.resolve(&Selector::role("button").containing("Close Micron form"))
+                .is_some()
+        );
+        assert!(host.state().entry_for(first_key).site.micron.form.is_some());
+        assert!(host.state().entry().site.micron.form.is_none());
     }
 
     /// Step 5d: a site page shows the serving chip. Its popover says why
@@ -3781,8 +4031,8 @@ mod tests {
         );
         state.hold_site(site);
         state.scroll_open_page("index.mu");
-        state.scroll.preview_visible = true;
-        let host = submission_harness_with(state);
+        show_preview(&mut state);
+        let host = desktop_harness_with(state);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         fn inspect(
@@ -3841,7 +4091,7 @@ mod tests {
             KnotDocumentSession::open(&path).unwrap(),
             WindowCommands::new(),
         );
-        state.scroll.preview_visible = true;
+        show_preview(&mut state);
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -3969,7 +4219,7 @@ mod tests {
             WindowCommands::new(),
         );
         state.hold_site(site);
-        state.scroll.preview_visible = true;
+        show_preview(&mut state);
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -4429,14 +4679,19 @@ mod tests {
                 .find(|node| text_content(&dom, *node) == "About")
                 .expect("heading link")
         };
-        let (x, y, width, height) = host.painted_rect(link).expect("link layout");
-        host.click_at(x + width / 2.0, y + height / 2.0);
-        host.relayout();
+        assert!(host.painted_rect(link).is_some(), "the nested link paints");
+        host.update(|state| {
+            let document = state.focused_key().unwrap();
+            activate_preview_link(state, document, ":/page/about.mu");
+        });
         assert!(
             host.state()
                 .message
                 .as_deref()
-                .is_some_and(|message| message.starts_with("Preview link: :/page/about.mu"))
+                .is_some_and(|message| message.starts_with("Preview link: :/page/about.mu")),
+            "message was {:?}; link was {:?}",
+            host.state().message,
+            link,
         );
         assert!(
             !preview_text(&host).contains("Hidden body."),
@@ -4448,9 +4703,14 @@ mod tests {
             let dom = dom.borrow();
             class_nodes(&dom, dom.document(), "knot-micron-fold-marker")[0]
         };
-        let (x, y, width, height) = host.painted_rect(marker).expect("marker layout");
-        host.click_at(x + width / 2.0, y + height / 2.0);
-        host.relayout();
+        assert!(host.painted_rect(marker).is_some(), "marker layout");
+        host.update(|state| {
+            let document = state.focused_key().unwrap();
+            let source = state.surface_for(document).snapshot();
+            let rendered = lower_micron(&source.source.address, &source.text).unwrap();
+            let key = rendered.navigation.fold_keys()[0].clone();
+            state.toggle_micron_fold_for(document, &key);
+        });
         assert!(preview_text(&host).contains("Hidden body."));
     }
 
@@ -4484,7 +4744,7 @@ mod tests {
             KnotDocumentSession::open(&path).unwrap(),
             WindowCommands::new(),
         );
-        state.scroll.preview_visible = true;
+        show_preview(&mut state);
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -4624,6 +4884,15 @@ mod tests {
     fn submission_harness_with(
         state: DesktopState,
     ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
+        let mut host = desktop_harness_with(state);
+        host.update(|state| state.toggle_reading(ReadingKind::Submit));
+        host.layout_at(1100.0, 730.0);
+        host
+    }
+
+    fn desktop_harness_with(
+        state: DesktopState,
+    ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -4634,7 +4903,6 @@ mod tests {
             },
             host_hooks(),
         );
-        host.update(|state| state.toggle_reading(ReadingKind::Submit));
         host.layout_at(1100.0, 730.0);
         host
     }
@@ -4723,7 +4991,7 @@ mod tests {
             KnotDocumentSession::open(&path).unwrap(),
             WindowCommands::new(),
         );
-        state.scroll.preview_visible = true;
+        show_preview(&mut state);
         let address = state.document().snapshot().source.address;
         state
             .entry_mut()
@@ -4807,8 +5075,8 @@ mod tests {
                 "=: spartan://localhost:65025/upload Submit locally\n".into(),
             )))
             .unwrap();
-        state.scroll.preview_visible = true;
-        let mut host = submission_harness_with(state);
+        show_preview(&mut state);
+        let mut host = desktop_harness_with(state);
 
         assert!(host.click_on(&Selector::role("button").containing("Submit locally")));
         assert!(

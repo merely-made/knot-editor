@@ -1,8 +1,9 @@
 # Knot workspace slice 1: frame, tiles, status, sites and graph
 
 **Date:** 2026-09-23
-**Status:** In progress. Step 7c is implemented; its scenario-scroll follow-up
-and the Taproot/Mesquite runner unification are recorded below. Steps 7d and 7e remain open. Assessment and initial rulings
+**Status:** In progress. Step 7d is implemented. Step 7e remains open. The
+step 7c scenario-scroll follow-up and the Taproot/Mesquite runner unification
+are recorded below. Assessment and initial rulings
 were made 2026-09-23.
 **Owner:** Knot Editor
 **Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
@@ -1300,6 +1301,25 @@ design frames either fixed or recorded.
   tidewatch." Receipt: `images/2026-09-27_7c/unification/knot/scenario.done`;
   shared/native evidence and logs are alongside it and in the parent directory.
   The broader products' custom runners remain outside this bounded migration.
+- **2026-09-29, step 7d.** Native pages now use the standard Preview reading
+  tile. Scroll, Gemtext and Micron presentations follow the focused document
+  and can be pinned exactly like Djot; a Gemtext page chooses Spartan only from
+  the site that owns that page. The editor-side preview aside and the site
+  tile's provisional Toggle preview command are gone.
+
+  Micron forms render inside the Preview tile and continue to live on their
+  page's `DocumentEntry`. Every form, fold, link and submission action is keyed
+  to the document the tile presents, so a pinned preview remains attached to
+  its page after focus moves. In-page jump scrolling is likewise scoped to the
+  keyed preview instead of whichever document happens to have focus. A
+  collapsible heading with an interactive link exposes the fold marker as its
+  own button, avoiding nested buttons.
+
+  Existing native-preview and Micron tests were moved to opening the Preview
+  reading rather than relying on the retired aside. New receipts pin a Spartan
+  page while focus moves to a loose Gemtext file, and pin a Micron page while
+  its form stays with that page. The desktop library passes 148 tests with 1
+  ignored. Step 7e remains the next site sub-step.
 
 ## Related material
 

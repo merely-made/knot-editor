@@ -53,6 +53,16 @@ fn every_step_9_scenario_uses_the_shared_parseable_lane() {
 }
 
 fn run_without_native_capture(state: DesktopState, name: &str, temp: &tempfile::TempDir) -> String {
+    run_without_native_capture_at_height(state, name, temp, 700.0, false)
+}
+
+fn run_without_native_capture_at_height(
+    state: DesktopState,
+    name: &str,
+    temp: &tempfile::TempDir,
+    height: f32,
+    check_toolbar: bool,
+) -> String {
     let source = std::fs::read_to_string(scenario_path(name)).unwrap();
     let source = source
         .lines()
@@ -87,8 +97,13 @@ fn run_without_native_capture(state: DesktopState, name: &str, temp: &tempfile::
     );
     let wake = h.wake();
     h.update(|state| state.set_retention_targets(Vec::new(), wake));
+    let toolbar = taproot::Selector::class("knot-workspace-toolbar");
+    let mut toolbar_before = None;
     for _ in 0..1_000 {
-        h.layout_at(1100.0, 700.0);
+        h.layout_at(1100.0, height);
+        if check_toolbar && toolbar_before.is_none() {
+            toolbar_before = h.resolve(&toolbar);
+        }
         h.after_frame();
         h.drain_pointer();
         h.after_dispatch();
@@ -99,7 +114,34 @@ fn run_without_native_capture(state: DesktopState, name: &str, temp: &tempfile::
     }
     let text = std::fs::read_to_string(&receipt).expect("the lane wrote its receipt");
     assert!(h.close_requested(), "{name} did not finish: {text}");
+    if check_toolbar {
+        let before = toolbar_before.expect("the toolbar starts laid out");
+        let after = h.resolve(&toolbar).expect("the toolbar remains laid out");
+        assert_eq!(
+            after.1, before.1,
+            "focusing the clipped source must not scroll the command toolbar"
+        );
+    }
     text
+}
+
+#[test]
+fn revealing_a_clipped_focused_textbox_keeps_the_command_toolbar_stationary() {
+    let root = tempdir().unwrap();
+    let fixture = scenario_path("fixtures/field_notes.djot");
+    let state = DesktopState::with_path(
+        KnotDocumentSession::open(&fixture).unwrap(),
+        WindowCommands::new(),
+        Some(fixture),
+    );
+    let receipt = run_without_native_capture_at_height(
+        state,
+        "focused_writing.scn",
+        &root,
+        420.0,
+        true,
+    );
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
 }
 
 #[test]

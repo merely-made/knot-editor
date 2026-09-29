@@ -8,6 +8,8 @@ use crate::appearance::Appearance;
 use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, SiteKey, TileRole};
 use crate::graph::{GraphState, OpenNode};
 use crate::preferences::PreferencesStore;
+use crate::recovery::{RecoveryId, RecoveryRecord, RecoveryRetention};
+use crate::recovery_runtime::RecoveryRuntime;
 use cambium::{
     AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
     Slot, TextInput, WorkspaceModel, button, el, lens, on_key, popover, span, text_field_typed,
@@ -27,6 +29,7 @@ use knot_file_catalog::{KnotFileCatalog, KnotFileCatalogAvailability, KnotFileRe
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use std::collections::HashMap;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::{
     Arc,
@@ -93,6 +96,57 @@ fn encryption_label(profile: knot_capture::KnotRetainEncryptionV1) -> &'static s
         knot_capture::KnotRetainEncryptionV1::CommonsDataV1 => "Shared space encryption",
     }
 }
+
+fn recovery_format(format: knot_document::DocumentFormat) -> Option<&'static str> {
+    use knot_document::DocumentFormat;
+    match format {
+        DocumentFormat::Knot => Some("Knot"),
+        DocumentFormat::Djot => Some("Djot"),
+        DocumentFormat::Scroll => Some("Scroll"),
+        DocumentFormat::Gemtext => Some("Gemtext"),
+        DocumentFormat::Micron => Some("Micron"),
+        _ => None,
+    }
+}
+
+fn parse_recovery_format(format: &str) -> Option<knot_document::DocumentFormat> {
+    use knot_document::DocumentFormat;
+    match format {
+        "Knot" => Some(DocumentFormat::Knot),
+        "Djot" => Some(DocumentFormat::Djot),
+        "Scroll" => Some(DocumentFormat::Scroll),
+        "Gemtext" => Some(DocumentFormat::Gemtext),
+        "Micron" => Some(DocumentFormat::Micron),
+        _ => None,
+    }
+}
+
+fn read_recovery_original(path: &Path) -> Result<String, String> {
+    let limit = RecoveryRetention::default().max_item_bytes;
+    let metadata = std::fs::metadata(path)
+        .map_err(|error| format!("could not inspect original {}: {error}", path.display()))?;
+    if !metadata.is_file() {
+        return Err(format!("original {} is not a regular file", path.display()));
+    }
+    if metadata.len() > limit {
+        return Err(format!(
+            "original {} is too large to compare",
+            path.display()
+        ));
+    }
+    let mut bytes = Vec::new();
+    std::fs::File::open(path)
+        .and_then(|file| file.take(limit + 1).read_to_end(&mut bytes))
+        .map_err(|error| format!("could not read original {}: {error}", path.display()))?;
+    if bytes.len() as u64 > limit {
+        return Err(format!(
+            "original {} grew too large to compare",
+            path.display()
+        ));
+    }
+    String::from_utf8(bytes)
+        .map_err(|error| format!("original {} is not UTF-8: {error}", path.display()))
+}
 pub const DEFAULT_CAPTURE_MAX_BYTES: usize = 1_048_576;
 /// Ceilings on the readings folder listing: enough for a working set, small
 /// enough that a stuffed directory cannot become a startup cost.
@@ -130,6 +184,13 @@ pub(crate) enum PendingAction {
 /// [`DesktopState`].
 pub struct DocumentEntry {
     pub document: KnotDocumentSurfaceState,
+    recovery_id: Option<RecoveryId>,
+    /// Restored copies have no original write authority, even if their text
+    /// happens to match the recovered source exactly.
+    pub(crate) recovery_candidate: bool,
+    recovery_origin: Option<PathBuf>,
+    recovery_origin_address: Option<String>,
+    recovery_fingerprint: Option<[u8; 32]>,
     catalog_source_path: Option<PathBuf>,
     catalog_sync_attempted: bool,
     pub(crate) catalog_id: Option<String>,
@@ -162,6 +223,11 @@ impl DocumentEntry {
     pub fn new(session: KnotDocumentSession) -> Self {
         Self {
             document: KnotDocumentSurfaceState::new(session),
+            recovery_id: None,
+            recovery_candidate: false,
+            recovery_origin: None,
+            recovery_origin_address: None,
+            recovery_fingerprint: None,
             catalog_source_path: None,
             catalog_sync_attempted: false,
             catalog_id: None,
@@ -253,6 +319,8 @@ pub struct DesktopState {
     pub(crate) graph: GraphState,
     appearance_open: bool,
     preferences: Option<PreferencesStore>,
+    recovery: Option<RecoveryRuntime>,
+    recovery_error: Option<String>,
     readings_root: Option<PathBuf>,
     pub(crate) readings: Vec<ReadingScript>,
     pub(crate) readings_load_notes: Vec<String>,
@@ -324,6 +392,8 @@ impl DesktopState {
             graph: GraphState::default(),
             appearance_open: false,
             preferences: None,
+            recovery: None,
+            recovery_error: None,
             readings_root: None,
             readings: Vec::new(),
             readings_load_notes: Vec::new(),
@@ -706,7 +776,7 @@ impl DesktopState {
     }
 
     fn dirty(&self) -> bool {
-        self.document().snapshot().dirty
+        self.document().snapshot().dirty || self.entry().recovery_candidate
     }
 
     /// The facts a scenario asserts on. Grows as scenarios need more.
@@ -732,7 +802,28 @@ impl DesktopState {
         taproot::ProbeSnapshot::default()
             .with_field("document", snapshot.display_label)
             .with_field("format", format!("{:?}", snapshot.format))
-            .with_field("dirty", snapshot.dirty.to_string())
+            .with_field(
+                "dirty",
+                (snapshot.dirty || self.entry().recovery_candidate).to_string(),
+            )
+            .with_field(
+                "recovery_candidate",
+                self.entry().recovery_candidate.to_string(),
+            )
+            .with_field(
+                "recovery_available",
+                self.recovery
+                    .as_ref()
+                    .map_or(0, |runtime| runtime.records.len())
+                    .to_string(),
+            )
+            .with_field(
+                "recovery_issues",
+                self.recovery
+                    .as_ref()
+                    .map_or(0, |runtime| runtime.issues.len())
+                    .to_string(),
+            )
             .with_field("appearance_open", self.appearance_open.to_string())
             .with_field("document_count", self.docs.len().to_string())
             .with_field("reading_count", self.docs.readings().count().to_string())
@@ -970,6 +1061,7 @@ impl DesktopState {
     }
 
     fn after_successful_document_write(&mut self, key: DocKey) {
+        self.clear_recovery_for(key);
         self.sync_catalog_for(key);
         self.graph.invalidate_catalog();
         self.refresh_graph();
@@ -1218,6 +1310,341 @@ impl DesktopState {
         }
     }
 
+    /// Opt in a standalone host to local document recovery. Embeddings that
+    /// never call this make no plaintext recovery writes.
+    pub fn set_recovery_path(&mut self, path: Option<PathBuf>, wake: HostWake) {
+        self.recovery = None;
+        self.recovery_error = None;
+        let Some(path) = path else {
+            return;
+        };
+        let days = self
+            .preferences
+            .as_ref()
+            .map_or(30, |store| store.preferences().recovery_days);
+        let retention = RecoveryRetention {
+            max_age_days: Some(u32::from(days)),
+            ..RecoveryRetention::default()
+        };
+        match RecoveryRuntime::start(path, retention, wake) {
+            Ok(mut recovery) => {
+                let count = recovery.records.len();
+                let issues = recovery.issues.len();
+                self.recovery_error = recovery.drain_error().0;
+                self.recovery = Some(recovery);
+                if count > 0 || issues > 0 {
+                    self.message = Some(format!(
+                        "Document recovery: {count} available, {issues} unreadable. Open Recovery for details."
+                    ));
+                }
+            },
+            Err(error) => self.recovery_error = Some(error),
+        }
+    }
+
+    fn sync_recovery(&mut self) {
+        let Some(recovery) = self.recovery.as_ref() else {
+            return;
+        };
+        let session_id = recovery.session_id.clone();
+        let focused = self.focused_key();
+        let mut offers = Vec::new();
+        let mut resolved = Vec::new();
+        for (key, entry) in self.docs.docs_mut() {
+            let session = entry.document.session();
+            let (source, format, selection, dirty, posture, address) =
+                session.recovery_observation();
+            if !dirty && !entry.recovery_candidate {
+                if entry.recovery_id.is_some() {
+                    resolved.push(key);
+                }
+                continue;
+            }
+            let local_file = session.source_path().is_some();
+            let local_scratch = posture == knot_document::KnotDocumentWritePostureV1::Scratch
+                && (address == SCRATCH_ADDRESS || address.starts_with("recovery:"));
+            if !(dirty || entry.recovery_candidate)
+                || posture == knot_document::KnotDocumentWritePostureV1::ReadOnly
+                || !(local_file || local_scratch)
+                || recovery_format(format).is_none()
+            {
+                continue;
+            }
+            if source.len() > RecoveryRetention::default().max_item_bytes as usize {
+                self.recovery_error = Some(format!(
+                    "{} exceeds the local recovery item size limit.",
+                    address
+                ));
+                continue;
+            }
+            let mut hasher = blake3::Hasher::new();
+            hasher.update(source.as_bytes());
+            hasher.update(&selection.anchor.byte.to_le_bytes());
+            hasher.update(&selection.focus.byte.to_le_bytes());
+            hasher.update(&[
+                u8::from(selection.anchor.affinity == cambium::CaretAffinity::Upstream),
+                u8::from(selection.focus.affinity == cambium::CaretAffinity::Upstream),
+            ]);
+            hasher.update(&[u8::from(focused == Some(key))]);
+            let fingerprint = *hasher.finalize().as_bytes();
+            if entry.recovery_fingerprint == Some(fingerprint) {
+                continue;
+            }
+            let id = *entry.recovery_id.get_or_insert_with(RecoveryId::new);
+            offers.push((
+                key,
+                fingerprint,
+                RecoveryRecord {
+                    id,
+                    source_text: source.to_owned(),
+                    format: recovery_format(format).expect("checked above").into(),
+                    original_path: entry
+                        .recovery_origin
+                        .clone()
+                        .or_else(|| session.source_path().map(Path::to_path_buf)),
+                    original_address: entry
+                        .recovery_origin_address
+                        .clone()
+                        .or_else(|| Some(address.to_owned())),
+                    selection: crate::recovery::CaretSelection {
+                        anchor: selection.anchor.byte,
+                        head: selection.focus.byte,
+                        anchor_upstream: selection.anchor.affinity
+                            == cambium::CaretAffinity::Upstream,
+                        head_upstream: selection.focus.affinity == cambium::CaretAffinity::Upstream,
+                    },
+                    active_hint: focused == Some(key),
+                    created_at_ms: 0,
+                    updated_at_ms: 0,
+                    session_id: session_id.clone(),
+                },
+            ));
+        }
+        for key in resolved {
+            self.clear_recovery_for(key);
+        }
+        if let Some(recovery) = self.recovery.as_mut() {
+            let mut accepted = Vec::new();
+            for (key, fingerprint, record) in offers {
+                if recovery.offer(record) {
+                    accepted.push((key, fingerprint));
+                }
+            }
+            recovery.retry();
+            let (error, failed) = recovery.drain_error();
+            for (key, fingerprint) in accepted {
+                if let Some(entry) = self.docs.doc_mut(key) {
+                    entry.recovery_fingerprint = Some(fingerprint);
+                }
+            }
+            for id in failed {
+                for (_, entry) in self.docs.docs_mut() {
+                    if entry.recovery_id == Some(id) {
+                        entry.recovery_fingerprint = None;
+                    }
+                }
+            }
+            if let Some(error) = error {
+                self.recovery_error = Some(error);
+            }
+        }
+    }
+
+    fn clear_recovery_for(&mut self, key: DocKey) {
+        let id = self.docs.doc(key).and_then(|entry| entry.recovery_id);
+        let Some(id) = id else {
+            return;
+        };
+        if !self.clear_recovery_id(id) {
+            return;
+        }
+        if let Some(entry) = self.docs.doc_mut(key) {
+            entry.recovery_id = None;
+            entry.recovery_candidate = false;
+            entry.recovery_origin = None;
+            entry.recovery_origin_address = None;
+            entry.recovery_fingerprint = None;
+        }
+    }
+
+    fn clear_recovery_id(&mut self, id: RecoveryId) -> bool {
+        if let Some(recovery) = self.recovery.as_mut()
+            && let Err(error) = recovery.clear(id)
+        {
+            self.recovery_error = Some(format!("Could not clear document recovery copy: {error}"));
+            return false;
+        }
+        true
+    }
+
+    fn restore_recovery(&mut self, id: RecoveryId) {
+        let already_open = self
+            .docs
+            .docs()
+            .find(|(_, entry)| entry.recovery_id == Some(id))
+            .map(|(key, _)| key);
+        if let Some(key) = already_open {
+            self.docs.focus(key);
+            self.after_focus_change();
+            self.message = Some("Recovery candidate is already open.".into());
+            return;
+        }
+        let record = match self.recovery.as_mut().map(|runtime| runtime.claim(id)) {
+            Some(Ok(Some(record))) => record,
+            Some(Err(error)) => {
+                self.recovery_error = Some(format!("Cannot claim recovery copy: {error}"));
+                return;
+            },
+            _ => {
+                self.recovery_error = Some("Recovery copy is no longer available.".into());
+                return;
+            },
+        };
+        let Some(format) = parse_recovery_format(&record.format) else {
+            self.message = Some(format!(
+                "Cannot restore recovery item: unsupported format {}.",
+                record.format
+            ));
+            return;
+        };
+        let affinity = |upstream| {
+            if upstream {
+                cambium::CaretAffinity::Upstream
+            } else {
+                cambium::CaretAffinity::Downstream
+            }
+        };
+        let selection = cambium::CaretSelection {
+            anchor: cambium::CaretPosition {
+                byte: record.selection.anchor,
+                affinity: affinity(record.selection.anchor_upstream),
+            },
+            focus: cambium::CaretPosition {
+                byte: record.selection.head,
+                affinity: affinity(record.selection.head_upstream),
+            },
+        };
+        let address = format!("recovery:{:?}", record.id);
+        match KnotDocumentSession::recovery_candidate(
+            address,
+            record.source_text,
+            format,
+            selection,
+        ) {
+            Ok(session) => {
+                let mut entry = DocumentEntry::new(session);
+                entry.recovery_id = Some(record.id);
+                entry.recovery_candidate = true;
+                entry.recovery_origin = record.original_path.clone();
+                entry.recovery_origin_address = record.original_address.clone();
+                let key = self.open_entry(entry);
+                let label = record
+                    .original_path
+                    .as_deref()
+                    .and_then(Path::file_name)
+                    .and_then(|name| name.to_str())
+                    .unwrap_or("scratch document");
+                self.docs.set_title(key, format!("Recovered {label}"));
+                self.save_as_path = TextInput::default();
+                self.after_focus_change();
+                self.message = Some(format!(
+                    "Recovered {label} as a new unsaved candidate. Compare the original, then Save As to a new path or Discard the copy."
+                ));
+            },
+            Err(error) => self.message = Some(format!("Cannot restore recovery item: {error}")),
+        }
+    }
+
+    fn discard_recovery(&mut self, id: RecoveryId) {
+        let Some(recovery) = self.recovery.as_mut() else {
+            return;
+        };
+        match recovery.clear(id) {
+            Ok(()) => {
+                let open = self
+                    .docs
+                    .docs()
+                    .find(|(_, entry)| entry.recovery_id == Some(id))
+                    .map(|(key, _)| key);
+                if let Some(key) = open {
+                    self.close_document(key);
+                }
+                self.message = Some("Recovery copy discarded.".into());
+            },
+            Err(error) => self.recovery_error = Some(format!("Recovery discard failed: {error}")),
+        }
+    }
+
+    fn compare_recovery(&mut self, id: RecoveryId) {
+        let open = self
+            .docs
+            .docs()
+            .find(|(_, entry)| entry.recovery_id == Some(id))
+            .map(|(key, _)| key);
+        if let Some(key) = open {
+            self.docs.focus(key);
+            self.after_focus_change();
+            self.compare_disk_for(key);
+            self.show_changes_for(key);
+            self.message = Some(self.docs.doc(key).and_then(|entry| entry.comparison_error.as_ref())
+                .map_or_else(
+                    || "Compared recovery candidate with the current original in Changes. Neither source was written.".to_owned(),
+                    |error| format!("Recovery comparison unavailable: {error}"),
+                ));
+            return;
+        }
+        let record = self
+            .recovery
+            .as_ref()
+            .and_then(|runtime| runtime.records.iter().find(|item| item.id == id));
+        let Some(record) = record else {
+            return;
+        };
+        let Some(path) = record.original_path.as_ref() else {
+            self.message =
+                Some("This scratch recovery copy has no original file to compare.".into());
+            return;
+        };
+        let candidate = self
+            .docs
+            .docs()
+            .find(|(_, entry)| entry.recovery_id == Some(id))
+            .map(|(_, entry)| entry.document.snapshot().text)
+            .unwrap_or_else(|| record.source_text.clone());
+        let limit = RecoveryRetention::default().max_item_bytes;
+        self.message = Some(match std::fs::metadata(path) {
+            Ok(metadata) if !metadata.is_file() => format!(
+                "Original {} is not a regular file; it was not changed.",
+                path.display()
+            ),
+            Ok(metadata) if metadata.len() > limit => format!(
+                "Original {} is too large to compare here; it was not changed.",
+                path.display()
+            ),
+            Ok(_) => {
+                let mut bytes = Vec::new();
+                let result = std::fs::File::open(path)
+                    .and_then(|file| file.take(limit + 1).read_to_end(&mut bytes));
+                match result {
+                    Ok(_) if bytes.len() as u64 > limit => format!(
+                        "Original {} grew too large to compare; it was not changed.",
+                        path.display()
+                    ),
+                    Ok(_) if bytes == candidate.as_bytes() => format!(
+                        "Original {} currently matches this recovery copy. It was not changed.",
+                        path.display()
+                    ),
+                    Ok(_) => format!(
+                        "Original {} differs from this recovery copy. It was not changed; use Save As for the candidate.",
+                        path.display()
+                    ),
+                    Err(error) => format!("Could not read original {}: {error}", path.display()),
+                }
+            },
+            Err(error) => format!("Could not inspect original {}: {error}", path.display()),
+        });
+    }
+
     pub fn preferences(&self) -> Option<&PreferencesStore> {
         self.preferences.as_ref()
     }
@@ -1241,6 +1668,27 @@ impl DesktopState {
             Ok(()) => format!("Preferences file reset: {}.", store.path().display()),
             Err(error) => format!("Preferences reset failed: {error}"),
         });
+    }
+
+    fn set_recovery_days(&mut self, days: u16) {
+        let Some(store) = self.preferences.as_mut() else {
+            return;
+        };
+        match store.save_recovery_days(days) {
+            Ok(_) => {
+                if let Some(recovery) = self.recovery.as_mut()
+                    && let Err(error) = recovery.set_retention_days(days)
+                {
+                    self.recovery_error =
+                        Some(format!("Recovery retention update failed: {error}"));
+                    return;
+                }
+                self.message = Some(format!(
+                    "Local recovery copies are kept for up to {days} days."
+                ));
+            },
+            Err(error) => self.message = Some(format!("Recovery preference not saved: {error}")),
+        }
     }
 
     pub(crate) fn readings_root_label(&self) -> String {
@@ -1471,7 +1919,25 @@ impl DesktopState {
         let Some(entry) = self.docs.doc_mut(key) else {
             return;
         };
-        match entry.document.session().compare_disk() {
+        let comparison = if entry.recovery_candidate {
+            match entry.recovery_origin.as_deref() {
+                Some(path) => read_recovery_original(path).map(|disk_text| {
+                    let snapshot = entry.document.snapshot();
+                    KnotDiskComparisonV1 {
+                        address: snapshot.source.address,
+                        buffer_text: snapshot.text,
+                        disk_text,
+                        // A restored candidate has no saved baseline with
+                        // authority over the original; the UI labels this.
+                        disk_changed_since_baseline: false,
+                    }
+                }),
+                None => Err("Scratch recovery has no original file to compare.".into()),
+            }
+        } else {
+            entry.document.session().compare_disk()
+        };
+        match comparison {
             Ok(comparison) => {
                 entry.comparison = Some(comparison);
                 entry.comparison_error = None;
@@ -1526,6 +1992,10 @@ impl DesktopState {
             PendingAction::CloseMetadata(tile) => self.close_metadata(tile),
             PendingAction::CloseSite(site) => self.close_site_now(site),
             PendingAction::Reload => {
+                if self.entry().recovery_candidate {
+                    self.reload_recovery_candidate();
+                    return;
+                }
                 match self.document_mut().apply(KnotDocumentIntentV1::Reload) {
                     Ok(_) => {
                         self.clear_comparison();
@@ -1541,6 +2011,45 @@ impl DesktopState {
                     },
                     Err(error) => self.message = Some(intent_error_label("Reload", error)),
                 }
+            },
+        }
+    }
+
+    fn reload_recovery_candidate(&mut self) {
+        let Some(candidate) = self.focused_key() else {
+            return;
+        };
+        let Some(path) = self.entry().recovery_origin.clone() else {
+            self.message = Some(
+                "Scratch recovery has no original to reload. Save As or Discard the copy.".into(),
+            );
+            return;
+        };
+        let already_open_dirty = self.docs.docs().any(|(key, entry)| {
+            key != candidate
+                && entry.document.session().source_path() == Some(path.as_path())
+                && entry.document.snapshot().dirty
+        });
+        if already_open_dirty {
+            self.message = Some("The original is already open with unsaved changes; review that tab before discarding this recovery copy.".into());
+            return;
+        }
+        match KnotDocumentSession::open(&path) {
+            Ok(session) => {
+                let original = self.open_entry(DocumentEntry::new(session));
+                self.close_document(candidate);
+                self.docs.focus(original);
+                self.after_focus_change();
+                self.message = Some(format!(
+                    "Loaded current original {}. The recovery candidate was discarded without writing the original.",
+                    path.display()
+                ));
+            },
+            Err(error) => {
+                self.message = Some(format!(
+                    "Could not reload original {}: {error}; recovery candidate remains open.",
+                    path.display()
+                ))
             },
         }
     }
@@ -1701,7 +2210,7 @@ impl DesktopState {
     pub(crate) fn dirty_documents(&self) -> Vec<DocKey> {
         self.docs
             .docs()
-            .filter(|(_, entry)| entry.document.snapshot().dirty)
+            .filter(|(_, entry)| entry.document.snapshot().dirty || entry.recovery_candidate)
             .map(|(key, _)| key)
             .collect()
     }
@@ -1815,10 +2324,60 @@ impl DesktopState {
             return;
         };
         if matches!(action, PendingAction::Quit) {
+            for key in self.dirty_documents() {
+                self.clear_recovery_for(key);
+            }
+            if self
+                .docs
+                .docs()
+                .any(|(_, entry)| entry.recovery_id.is_some())
+            {
+                self.pending = Some(PendingAction::Quit);
+                self.message = self.recovery_error.clone();
+                return;
+            }
             self.discard_close = true;
             self.window.close();
         } else {
+            let ids = match &action {
+                PendingAction::CloseDocument(key) => self
+                    .docs
+                    .doc(*key)
+                    .and_then(|entry| entry.recovery_id)
+                    .map(|id| vec![(*key, id)])
+                    .unwrap_or_default(),
+                PendingAction::CloseSite(site) => self
+                    .site_dirty_pages(*site)
+                    .into_iter()
+                    .filter_map(|key| {
+                        self.docs
+                            .doc(key)
+                            .and_then(|entry| entry.recovery_id)
+                            .map(|id| (key, id))
+                    })
+                    .collect(),
+                PendingAction::Reload => self
+                    .focused_key()
+                    .and_then(|key| {
+                        self.docs
+                            .doc(key)
+                            .and_then(|entry| entry.recovery_id)
+                            .map(|id| (key, id))
+                    })
+                    .into_iter()
+                    .collect(),
+                PendingAction::CloseMetadata(_) | PendingAction::Quit => Vec::new(),
+            };
             self.perform(action);
+            for (key, id) in ids {
+                if self.docs.doc(key).is_none()
+                    || self.docs.doc(key).is_some_and(|entry| {
+                        !entry.document.snapshot().dirty && !entry.recovery_candidate
+                    })
+                {
+                    self.clear_recovery_id(id);
+                }
+            }
         }
     }
 
@@ -1876,10 +2435,9 @@ impl DesktopState {
     fn request_close_tile(&mut self, tile: workbench::TileId) {
         match self.docs.role(tile).cloned() {
             Some(TileRole::Document(key)) => {
-                let dirty = self
-                    .docs
-                    .doc(key)
-                    .is_some_and(|entry| entry.document.snapshot().dirty);
+                let dirty = self.docs.doc(key).is_some_and(|entry| {
+                    entry.document.snapshot().dirty || entry.recovery_candidate
+                });
                 if dirty {
                     self.docs.focus(key);
                     self.after_focus_change();
@@ -1919,6 +2477,8 @@ impl DesktopState {
                 Some("Wait for retention to finish before closing this document.".to_owned());
             return;
         }
+        // Direct clean-tab close has no unsaved bytes; only explicit Discard
+        // or a successful Save may clear an existing recovery copy.
         let label = self
             .docs
             .doc(key)
@@ -1953,6 +2513,12 @@ impl DesktopState {
             return CloseDisposition::KeepVisible;
         }
         if matches!(request, CloseRequest::Native | CloseRequest::Command) {
+            if let Some(recovery) = self.recovery.as_mut()
+                && let Err(error) = recovery.flush()
+            {
+                self.recovery_error = Some(format!("Document recovery flush failed: {error}"));
+                return CloseDisposition::KeepVisible;
+            }
             CloseDisposition::Exit
         } else {
             CloseDisposition::KeepVisible
@@ -2223,6 +2789,73 @@ fn serving_detail(state: &DesktopState) -> DesktopView {
     )
 }
 
+fn recovery_detail(state: &DesktopState) -> DesktopView {
+    let Some(runtime) = state.recovery.as_ref() else {
+        let reason = state.recovery_error.as_ref().map_or_else(
+            || "Local document recovery is unavailable.".to_owned(),
+            |error| format!("Local document recovery is unavailable: {error}"),
+        );
+        return Box::new(
+            el("div", span(reason))
+                .attr("class", "knot-status-detail knot-recovery")
+                .attr("role", "status"),
+        );
+    };
+    let rows = runtime
+        .records
+        .iter()
+        .map(|record| {
+            let id = record.id;
+            let title = record
+                .original_path
+                .as_deref()
+                .and_then(Path::file_name)
+                .and_then(|name| name.to_str())
+                .or(record.original_address.as_deref())
+                .unwrap_or("scratch document");
+            (
+                format!("{:?}", id),
+                el(
+                    "div",
+                    (
+                        span(format!(
+                            "{title} · {} bytes · {}",
+                            record.source_text.len(),
+                            record.format
+                        )),
+                        button("Restore", move |state: &mut DesktopState, _| {
+                            state.restore_recovery(id)
+                        }),
+                        button("Compare original", move |state: &mut DesktopState, _| {
+                            state.compare_recovery(id)
+                        }),
+                        button("Discard copy", move |state: &mut DesktopState, _| {
+                            state.discard_recovery(id)
+                        }),
+                    ),
+                )
+                .attr("class", "knot-recovery-row"),
+            )
+        })
+        .collect::<Vec<_>>();
+    let issues = runtime
+        .issues
+        .iter()
+        .enumerate()
+        .map(|(index, issue)| (index, span(format!("Unreadable recovery item: {issue:?}"))))
+        .collect::<Vec<_>>();
+    let error: DesktopView = state.recovery_error.as_ref().map_or_else(
+        || Box::new(el("div", ())) as DesktopView,
+        |error| Box::new(span(error.clone()).attr("role", "status")) as DesktopView,
+    );
+    Box::new(el("div", (
+        span("Local document drafts only. Sealed vault content and site forms are excluded. Restoring opens a new unsaved candidate; Save As creates a new file."),
+        el("div", Keyed::new(rows)),
+        el("div", Keyed::new(issues)),
+        error,
+    )).attr("class", "knot-status-detail knot-recovery"))
+}
+
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
@@ -2320,6 +2953,28 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                                 state.update_appearance(|appearance| appearance.relaxed = true);
                             })
                             .attr("aria-pressed", appearance.relaxed.to_string()),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row"),
+                    el(
+                        "div",
+                        (
+                            span(format!(
+                                "Document recovery retention: {} days",
+                                state
+                                    .preferences
+                                    .as_ref()
+                                    .map_or(30, |store| store.preferences().recovery_days)
+                            )),
+                            button("7 days", |state: &mut DesktopState, _| {
+                                state.set_recovery_days(7)
+                            }),
+                            button("30 days", |state: &mut DesktopState, _| {
+                                state.set_recovery_days(30)
+                            }),
+                            button("90 days", |state: &mut DesktopState, _| {
+                                state.set_recovery_days(90)
+                            }),
                         ),
                     )
                     .attr("class", "knot-appearance-row"),
@@ -2440,7 +3095,11 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         None => Box::new(el("div", ())),
     };
     let message = state.message.clone().unwrap_or_else(|| "Ready.".to_owned());
-    let snapshot = state.focused_key().map(|_| state.document().snapshot());
+    let snapshot = state.focused_key().map(|_| {
+        let mut snapshot = state.document().snapshot();
+        snapshot.dirty |= state.entry().recovery_candidate;
+        snapshot
+    });
     let mut chips = snapshot
         .as_ref()
         .map(crate::status::chips)
@@ -2461,6 +3120,15 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         };
         chips.push(crate::status::serving_chip(label));
     }
+    if let Some(recovery) = state.recovery.as_ref() {
+        chips.push(crate::status::recovery_chip(
+            recovery.records.len(),
+            recovery.issues.len(),
+            state.recovery_error.is_some(),
+        ));
+    } else if state.recovery_error.is_some() {
+        chips.push(crate::status::recovery_chip(0, 0, true));
+    }
     let status_bar = cambium::status_bar(
         cambium::StatusBar::new(&message, &chips),
         &state.status_bar,
@@ -2469,6 +3137,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             crate::status::CATALOG => Some(catalog_detail(state)),
             crate::status::RETENTION => Some(retention_detail(state)),
             crate::status::SERVING => Some(serving_detail(state)),
+            crate::status::RECOVERY => Some(recovery_detail(state)),
             _ => {
                 let sections = crate::status::sections(key, snapshot.as_ref()?)?;
                 let save: Option<DesktopView> = (key == crate::status::SAVE).then(|| {
@@ -2758,10 +3427,11 @@ fn document_frame(state: &DesktopState) -> DesktopView {
         float_layer_visible: false,
     };
     let marks = |tile: workbench::TileId| match state.docs.role(tile) {
-        Some(TileRole::Document(key)) => state
-            .docs
-            .doc(*key)
-            .and_then(|entry| crate::status::tab_mark(&entry.document.snapshot())),
+        Some(TileRole::Document(key)) => state.docs.doc(*key).and_then(|entry| {
+            let mut snapshot = entry.document.snapshot();
+            snapshot.dirty |= entry.recovery_candidate;
+            crate::status::tab_mark(&snapshot)
+        }),
         Some(TileRole::Metadata { site, page }) => state
             .draft_dirty(*site, page)
             .then_some(cambium::TabMark::Modified),
@@ -3110,6 +3780,7 @@ pub fn close_request(runner: &mut DesktopRunner, request: CloseRequest) -> Close
 pub fn after_dispatch(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
+    ctx.runner.update(DesktopState::sync_recovery);
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
@@ -3201,6 +3872,22 @@ fn focus_path_field(
 pub fn after_wake(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
+    ctx.runner.update(|state| {
+        if let Some(recovery) = state.recovery.as_mut() {
+            recovery.retry();
+            let (error, failed) = recovery.drain_error();
+            for id in failed {
+                for (_, entry) in state.docs.docs_mut() {
+                    if entry.recovery_id == Some(id) {
+                        entry.recovery_fingerprint = None;
+                    }
+                }
+            }
+            if let Some(error) = error {
+                state.recovery_error = Some(error);
+            }
+        }
+    });
     if ctx.runner.state().graph.busy() {
         ctx.runner.update(|state| {
             if state.graph.drain() {
@@ -3319,6 +4006,10 @@ pub const DESKTOP_CSS: &str = concat!(
     // the positioned notice and self-clipping graph blank netrender's whole
     // native frame; ordinary Workbench content slots remain scrollable.
     ".knot-graph > .mere-view { max-width:100%; max-height:100%; overflow:visible; }",
+    // Knot's workspace-wide button treatment must not turn Mere's transparent
+    // graph hit targets into visible boxes over their node labels.
+    ".knot-graph button.graph-canvas-swatch-node { padding:0; border:0; border-radius:0; background:transparent; color:inherit; }",
+    ".knot-graph button.graph-canvas-swatch-node:hover { background:transparent; }",
     ".knot-frame .frisket-tabbar { flex:0 0 30px; height:30px; align-items:flex-end; gap:2px; padding:0 6px; border-bottom:1px solid; overflow:hidden; }",
     ".knot-frame .frisket-tab { flex:0 1 auto; max-width:240px; height:26px; margin-right:0; padding:0 6px 0 12px; gap:6px; font-size:13px; border:1px solid transparent; border-bottom:none; border-radius:6px 6px 0 0; }",
     ".knot-frame .frisket-tab.active { height:27px; margin-bottom:-1px; }",
@@ -3401,14 +4092,21 @@ mod tests {
 
     #[test]
     fn only_the_graph_host_and_shared_view_are_exempt_from_extra_clips() {
-        assert!(DESKTOP_CSS.contains(
-            ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }"
-        ));
+        assert!(
+            DESKTOP_CSS
+                .contains(".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }")
+        );
         assert!(!DESKTOP_CSS.contains(
             ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; overflow:"
         ));
         assert!(DESKTOP_CSS.contains(
             ".knot-graph > .mere-view { max-width:100%; max-height:100%; overflow:visible; }"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-graph button.graph-canvas-swatch-node { padding:0; border:0; border-radius:0; background:transparent; color:inherit; }"
+        ));
+        assert!(DESKTOP_CSS.contains(
+            ".knot-graph button.graph-canvas-swatch-node:hover { background:transparent; }"
         ));
         assert!(DESKTOP_CSS.contains(
             ".knot-frame .frisket-content { flex:1 1 0px; min-height:0; overflow:auto; padding:12px; }"
@@ -6819,5 +7517,292 @@ mod tests {
         );
         host.request_close(CloseRequest::Native);
         assert!(host.close_requested());
+    }
+
+    #[test]
+    fn restart_restores_exact_document_candidate_without_changing_original() {
+        let temp = tempdir().unwrap();
+        let original = temp.path().join("original.djot");
+        std::fs::write(&original, "aéz").unwrap();
+        let root = temp.path().canonicalize().unwrap().join("recovery");
+        let mut first = harness(KnotDocumentSession::open(&original).unwrap());
+        let wake = first.wake();
+        first.update(|state| {
+            state.set_recovery_path(Some(root.clone()), wake);
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert("!".into())))
+                .unwrap();
+            let selection = cambium::CaretSelection {
+                anchor: cambium::CaretPosition {
+                    byte: 4,
+                    affinity: cambium::CaretAffinity::Upstream,
+                },
+                focus: cambium::CaretPosition {
+                    byte: 1,
+                    affinity: cambium::CaretAffinity::Downstream,
+                },
+            };
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::SetSelection(
+                    selection,
+                )))
+                .unwrap();
+            state.sync_recovery();
+            state.recovery.take().unwrap().shutdown().unwrap();
+        });
+        let wanted = first.state().document().snapshot();
+        assert_eq!(std::fs::read_to_string(&original).unwrap(), "aéz");
+        drop(first);
+
+        let mut second = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = second.wake();
+        second.update(|state| state.set_recovery_path(Some(root), wake));
+        let item = second.state().recovery.as_ref().unwrap().records[0].clone();
+        let first_key = second.state().focused_key().unwrap();
+        second.layout_at(900.0, 640.0);
+        open_chip(&mut second, crate::status::RECOVERY);
+        assert!(second.click_on(&Selector::role("button").containing("Restore")));
+        let candidate_key = second.state().focused_key().unwrap();
+        assert_ne!(first_key, candidate_key);
+        let recovered = second.state().document().snapshot();
+        assert_eq!(recovered.text, wanted.text);
+        assert_eq!(recovered.selection, wanted.selection);
+        assert_eq!(
+            recovered.write_posture,
+            knot_document::KnotDocumentWritePostureV1::Scratch
+        );
+        second.update(|state| state.restore_recovery(item.id));
+        assert_eq!(second.state().focused_key(), Some(candidate_key));
+        second.update(|state| state.compare_recovery(item.id));
+        let compared = second
+            .state()
+            .docs
+            .doc(candidate_key)
+            .unwrap()
+            .comparison
+            .as_ref()
+            .unwrap();
+        assert_eq!(compared.buffer_text, wanted.text);
+        assert_eq!(compared.disk_text, "aéz");
+        assert_eq!(std::fs::read_to_string(&original).unwrap(), "aéz");
+        let destination = temp.path().join("saved-copy.djot");
+        second.update(|state| {
+            state.save_as_path = TextInput::new(destination.to_string_lossy());
+            assert!(state.save_as());
+        });
+        assert_eq!(std::fs::read_to_string(&destination).unwrap(), wanted.text);
+        assert_eq!(std::fs::read_to_string(&original).unwrap(), "aéz");
+        assert!(second.state().recovery.as_ref().unwrap().records.is_empty());
+    }
+
+    #[test]
+    fn discard_one_dirty_tab_keeps_other_document_recovery() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap().join("recovery");
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_recovery_path(Some(root.clone()), wake);
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "first".into(),
+                )))
+                .unwrap();
+            state.sync_recovery();
+            state.new_document();
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "second".into(),
+                )))
+                .unwrap();
+            state.sync_recovery();
+            state.recovery.as_mut().unwrap().flush().unwrap();
+            let second = state.focused_key().unwrap();
+            state.pending = Some(PendingAction::CloseDocument(second));
+            state.confirm_discard();
+            state.recovery.as_mut().unwrap().flush().unwrap();
+            assert_eq!(state.dirty_documents().len(), 1);
+        });
+        let store =
+            crate::recovery::RecoveryStore::open(root, RecoveryRetention::default()).unwrap();
+        let records = store.list().records;
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].source_text, "first");
+    }
+
+    #[test]
+    fn failed_save_and_canceled_close_keep_the_recovery_copy() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap().join("recovery");
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_recovery_path(Some(root.clone()), wake);
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "unsaved".into(),
+                )))
+                .unwrap();
+            state.sync_recovery();
+            state.recovery.as_mut().unwrap().flush().unwrap();
+            state.save_as_path = TextInput::new(
+                temp.path()
+                    .join("missing")
+                    .join("bad.djot")
+                    .to_string_lossy(),
+            );
+            assert!(!state.save_as());
+            let key = state.focused_key().unwrap();
+            state.pending = Some(PendingAction::CloseDocument(key));
+            state.cancel_pending();
+            assert_eq!(state.focused_key(), Some(key));
+        });
+        let store =
+            crate::recovery::RecoveryStore::open(root, RecoveryRetention::default()).unwrap();
+        let records = store.list().records;
+        assert_eq!(records.len(), 1);
+        assert_eq!(records[0].source_text, "unsaved");
+    }
+
+    #[test]
+    fn undo_to_clean_resolves_stale_file_and_scratch_recovery() {
+        for file_backed in [false, true] {
+            let temp = tempdir().unwrap();
+            let root = temp.path().canonicalize().unwrap().join("recovery");
+            let session = if file_backed {
+                let path = temp.path().join("source.djot");
+                std::fs::write(&path, "base").unwrap();
+                KnotDocumentSession::open(path).unwrap()
+            } else {
+                KnotDocumentSession::scratch(SCRATCH_ADDRESS, "")
+            };
+            let mut host = harness(session);
+            let wake = host.wake();
+            host.update(|state| {
+                state.set_recovery_path(Some(root.clone()), wake);
+                state
+                    .document_mut()
+                    .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                        "edit".into(),
+                    )))
+                    .unwrap();
+                state.sync_recovery();
+                state.recovery.as_mut().unwrap().flush().unwrap();
+                state
+                    .document_mut()
+                    .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+                    .unwrap();
+                assert!(!state.document().snapshot().dirty);
+                state.sync_recovery();
+                state.recovery.as_mut().unwrap().flush().unwrap();
+            });
+            let store =
+                crate::recovery::RecoveryStore::open(root, RecoveryRetention::default()).unwrap();
+            assert!(store.list().records.is_empty());
+        }
+    }
+
+    #[test]
+    fn sealed_style_scratch_and_read_only_projection_are_not_copied() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap().join("recovery");
+        let mut host = harness(KnotDocumentSession::read_only(
+            "scratch:untitled",
+            "read only",
+        ));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_recovery_path(Some(root.clone()), wake);
+            state.open_entry(DocumentEntry::new(KnotDocumentSession::scratch(
+                "vault:sealed-note",
+                "private",
+            )));
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    " edit".into(),
+                )))
+                .unwrap();
+            state.sync_recovery();
+            state.recovery.as_mut().unwrap().flush().unwrap();
+            assert!(
+                state
+                    .docs
+                    .docs()
+                    .all(|(_, entry)| entry.recovery_id.is_none())
+            );
+        });
+        let store =
+            crate::recovery::RecoveryStore::open(root, RecoveryRetention::default()).unwrap();
+        assert!(store.list().records.is_empty());
+    }
+
+    #[test]
+    fn empty_restored_candidate_still_requires_explicit_discard() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap().join("recovery");
+        let id = RecoveryId::new();
+        {
+            let store =
+                crate::recovery::RecoveryStore::open(&root, RecoveryRetention::default()).unwrap();
+            store
+                .upsert(RecoveryRecord::new(id, String::new(), "Djot"))
+                .unwrap();
+        }
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_recovery_path(Some(root.clone()), wake);
+            state.restore_recovery(id);
+            let key = state.focused_key().unwrap();
+            assert!(state.entry().recovery_candidate);
+            assert_eq!(state.dirty_documents(), vec![key]);
+            state.pending = Some(PendingAction::CloseDocument(key));
+            state.cancel_pending();
+            assert!(state.docs.doc(key).is_some());
+            state.pending = Some(PendingAction::CloseDocument(key));
+            state.confirm_discard();
+            assert!(state.docs.doc(key).is_none());
+        });
+        let store =
+            crate::recovery::RecoveryStore::open(root, RecoveryRetention::default()).unwrap();
+        assert!(store.list().records.is_empty());
+    }
+
+    #[test]
+    fn reload_after_explicit_discard_opens_original_without_writing_it() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().canonicalize().unwrap().join("recovery");
+        let original = temp.path().join("original.djot");
+        std::fs::write(&original, "disk text").unwrap();
+        let id = RecoveryId::new();
+        {
+            let store =
+                crate::recovery::RecoveryStore::open(&root, RecoveryRetention::default()).unwrap();
+            let mut record = RecoveryRecord::new(id, "recovered text".into(), "Djot");
+            record.original_path = Some(original.clone());
+            store.upsert(record).unwrap();
+        }
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        let wake = host.wake();
+        host.update(|state| {
+            state.set_recovery_path(Some(root.clone()), wake);
+            state.restore_recovery(id);
+            let candidate = state.focused_key().unwrap();
+            state.pending = Some(PendingAction::Reload);
+            state.confirm_discard();
+            assert!(state.docs.doc(candidate).is_none());
+            assert_eq!(state.document().snapshot().text, "disk text");
+            assert!(!state.entry().recovery_candidate);
+        });
+        assert_eq!(std::fs::read_to_string(&original).unwrap(), "disk text");
+        let store =
+            crate::recovery::RecoveryStore::open(root, RecoveryRetention::default()).unwrap();
+        assert!(store.list().records.is_empty());
     }
 }

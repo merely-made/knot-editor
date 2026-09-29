@@ -1766,10 +1766,16 @@ pub(crate) fn site_view(state: &DesktopState, site: SiteKey) -> DesktopView {
                     ),
                 )
                 .attr("class", "knot-scroll-controls"),
-                span(serving).attr("class", "knot-site-serving"),
-                button("Close site", move |state: &mut DesktopState, _| {
-                    state.request_close_site(site)
-                }),
+                el(
+                    "footer",
+                    (
+                        span(serving).attr("class", "knot-site-serving"),
+                        button("Close site", move |state: &mut DesktopState, _| {
+                            state.request_close_site(site)
+                        }),
+                    ),
+                )
+                .attr("class", "knot-site-footer"),
             ),
         )
         .attr("class", "knot-site-tile")
@@ -2705,6 +2711,9 @@ pub const CSS: &str = r#"
 .knot-micron-fields label { display: flex; flex-direction: column; min-width: 180px; }
 .knot-micron-form pre { box-sizing: border-box; width: 100%; max-height: 180px; overflow: auto; white-space: pre-wrap; }
 .knot-scroll-preview { width:100%; min-width:0; box-sizing:border-box; padding:16px; }
+.knot-site-footer { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:8px; }
+.knot-site-footer .knot-site-serving { flex:1 1 320px; min-width:0; overflow-wrap:anywhere; }
+.knot-site-footer button { flex:0 0 auto; }
 .knot-writing-area, .knot-scroll-preview { background: inherit; }
 .knot-scroll-preview p { margin: 8px 0; }
 .knot-scroll-preview pre { white-space: pre-wrap; }
@@ -4004,6 +4013,34 @@ mod tests {
             served.contains(&url) && served.contains("revision 1"),
             "{served}"
         );
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let footer = class_nodes(&dom, dom.document(), "knot-site-footer");
+            let serving = class_nodes(&dom, dom.document(), "knot-site-serving");
+            assert_eq!(footer.len(), 1, "serving status and close action share a footer");
+            assert_eq!(serving.len(), 1, "one saved-snapshot status line");
+            let mut buttons = Vec::new();
+            buttons_under(&dom, footer[0], &mut buttons);
+            let close = buttons
+                .into_iter()
+                .find(|node| text_content(&dom, *node) == "Close site")
+                .expect("close button is inside the footer");
+            assert_eq!(dom.parent(close), Some(footer[0]));
+            let (status_x, status_y, status_w, status_h) =
+                host.painted_rect(serving[0]).expect("status paints");
+            let (close_x, close_y, _close_w, close_h) =
+                host.painted_rect(close).expect("close action paints");
+            let same_row = close_y < status_y + status_h && status_y < close_y + close_h;
+            assert!(
+                if same_row {
+                    close_x >= status_x + status_w
+                } else {
+                    close_y >= status_y + status_h
+                },
+                "the saved-snapshot text and Close site control do not overlap"
+            );
+        }
 
         press_in_detail(&mut host, "Stop serving");
         assert!(host.state().scroll.site(site).unwrap().server.is_none());

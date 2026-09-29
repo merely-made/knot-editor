@@ -85,7 +85,9 @@ fn comparison(entry: &DocumentEntry, key: DocKey) -> DesktopView {
     } else {
         "Buffer snapshot matches current source"
     };
-    let disk_status = if comparison.disk_changed_since_baseline {
+    let disk_status = if entry.recovery_candidate {
+        "Recovery candidate: original read at comparison; no saved write baseline"
+    } else if comparison.disk_changed_since_baseline {
         "Disk changed since the saved baseline at comparison: yes"
     } else {
         "Disk changed since the saved baseline at comparison: no"

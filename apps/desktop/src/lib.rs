@@ -13,6 +13,8 @@ pub mod graph;
 pub mod navigator;
 pub mod preferences;
 pub mod readings;
+pub mod recovery;
+mod recovery_runtime;
 pub mod scenario;
 pub mod scroll_site;
 pub mod status;
@@ -69,6 +71,9 @@ pub struct DesktopLaunch {
     pub sites: Vec<PathBuf>,
     /// One line for each path that would not open.
     pub failures: Vec<String>,
+    /// Private local recovery root. None keeps optional embeddings free of
+    /// plaintext recovery writes until their host grants that policy.
+    pub recovery_path: Option<PathBuf>,
 }
 
 pub fn run_desktop_with_targets(
@@ -102,6 +107,7 @@ pub fn run_desktop_with_targets(
                 behind,
                 sites,
                 failures,
+                recovery_path,
             } = launch;
             let mut state =
                 DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
@@ -117,6 +123,7 @@ pub fn run_desktop_with_targets(
             state.set_capture_limit(capture_max_bytes);
             state.set_readings_root(readings_root.clone());
             state.set_preferences_path(preferences_path.clone());
+            state.set_recovery_path(recovery_path, wake.clone());
             state.set_retention_targets(targets, wake.clone());
             state.open_behind(behind, &failures);
             Init {

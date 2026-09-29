@@ -595,7 +595,15 @@ impl<D> DocumentWorkspace<D> {
             .and_then(|key| self.entries.get(&key))
             .map(|entry| entry.tile)
             .or_else(|| self.entries.values().map(|entry| entry.tile).next())
-            .or_else(|| self.graph());
+            .or_else(|| self.graph())
+            .or_else(|| {
+                self.roles
+                    .iter()
+                    .filter(|(_, role)| matches!(role, TileRole::Metadata { .. }))
+                    .map(|(tile, _)| *tile)
+                    .filter(|tile| self.workspace.tiled().find(*tile).is_some())
+                    .min_by_key(|tile| tile.0)
+            });
         let reading = self
             .roles
             .iter()
@@ -836,13 +844,51 @@ mod tests {
     }
 
     fn stacks(space: &DocumentWorkspace<&'static str>) -> Vec<Vec<TileId>> {
-        match space.workspace().tiled() {
-            TileTree::Split { children, .. } => children
-                .iter()
-                .map(|branch| branch.tree.tiles().iter().map(|tile| tile.id).collect())
-                .collect(),
-            tree => vec![tree.tiles().iter().map(|tile| tile.id).collect()],
+        fn collect(tree: &TileTree, stacks: &mut Vec<Vec<TileId>>) {
+            match tree {
+                TileTree::Stack(stack) => {
+                    stacks.push(stack.tabs.iter().map(|tile| tile.id).collect())
+                },
+                TileTree::Split { children, .. } => {
+                    for child in children {
+                        collect(&child.tree, stacks);
+                    }
+                },
+            }
         }
+        let mut stacks = Vec::new();
+        collect(space.workspace().tiled(), &mut stacks);
+        stacks
+    }
+
+    #[test]
+    fn metadata_keeps_the_centre_stack_for_new_after_graph_closes() {
+        let mut space = DocumentWorkspace::new();
+        let (source, _) = space.open(path("page.djot"), "page.djot", "source");
+        let navigator = space.open_navigator("Navigator");
+        let reading = space.open_reading(ReadingKind::Preview, None, "Preview");
+        let metadata = space.open_metadata(SiteKey(1), "page.djot", "Metadata");
+
+        let graph = space
+            .prepare_last_document_close(source, "Graph")
+            .expect("last source is replaced by Graph");
+        space.close(space.tile_of(source).unwrap());
+        space.close(graph);
+        assert_eq!(
+            stacks(&space),
+            [vec![navigator], vec![metadata], vec![reading]]
+        );
+
+        let (new, inserted) = space.open(DocIdentity::Scratch, "Untitled", "new");
+        assert!(inserted);
+        assert_eq!(
+            stacks(&space),
+            [
+                vec![navigator],
+                vec![metadata, space.tile_of(new).unwrap()],
+                vec![reading]
+            ]
+        );
     }
 
     #[test]

@@ -33,6 +33,7 @@ knot-readings.workspace = true
 blake3.workspace = true
 percent-encoding.workspace = true
 layout-dom-api.workspace = true
+genet-scripted-dom.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
@@ -40,7 +41,6 @@ tokio = { version = "1", features = ["rt", "time"] }
 
 [dev-dependencies]
 pollster = "0.4"
-genet-scripted-dom.workspace = true
 tempfile = "3"
 
 [lints]

@@ -8,6 +8,40 @@ permissions:
   contents: read
 
 jobs:
+  go-launcher:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.27.1'
+          cache: false
+      - name: Test external page-server launcher
+        working-directory: tools/knot-nomadnet-go
+        run: go test ./...
+  site-backends:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        backend: [none, retinue]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Test backend-independent publication
+        if: matrix.backend == 'none'
+        run: cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features
+      - name: Verify publication does not pull in Retinue
+        if: matrix.backend == 'none'
+        run: |
+          cargo tree --manifest-path crates/knot-site/Cargo.toml --no-default-features -e normal --prefix none > site-dependencies.txt
+          if grep -q '^retinue ' site-dependencies.txt; then
+            cat site-dependencies.txt
+            exit 1
+          fi
+      - name: Test optional Retinue backend
+        if: matrix.backend == 'retinue'
+        run: cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features --features retinue
   test:
     runs-on: windows-latest
     env:
@@ -27,3 +61,5 @@ jobs:
         run: cargo test -p knot-editor --lib
       - name: Test desktop host receipt
         run: cargo test -p knot-desktop
+      - name: Check optional desktop Retinue backend
+        run: cargo check -p knot-desktop --features retinue

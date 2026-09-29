@@ -1,9 +1,16 @@
 # Commands slice
 
 Date: 2026-09-29
-Status: Implemented and headless-verified; native macOS acceptance blocked by
-the locked desktop. Candidate branch only; not integrated into Knot main.
+Status: Implemented and headless-verified; native macOS acceptance in progress.
+Candidate branch only; not integrated into Knot main.
 Base: Knot `8a454fb`, published to main before this slice began.
+
+The candidate subsequently merged remote main `701d0f0` (NomadNet backend
+decoupling) at `8e55ddd`; that independent work is preserved. The merged workspace
+test run passed. While native acceptance was underway, remote main advanced to
+`c92ad04` with coherent diagnostics pins and cfg-scoped Clippy fixes. Integration
+must preserve that update as well as Commands, combining the shared revisions
+before repinning; choosing either existing Mere pin alone would drop work.
 
 ## Scope
 
@@ -93,6 +100,38 @@ later refused to a disabled command with a reason. The lower-level Save As
 refusal test remains, and verifies that no destination file is written. Scratch
 Save similarly explains that Save As is required; these are availability
 projections, not new write authority.
+
+## Native diagnostic progress
+
+Unlocking the desktop allowed real macOS keyboard acceptance on the candidate
+and NomadNet-merged binary. Cmd+Shift+P, query filtering across Tab, Enter to
+toggle Appearance, and Escape back to source were exercised. Typing a temporary
+`FOCUSCHECK` marker after Escape made the source dirty; Cmd+Z restored Saved.
+No save was performed, and the copied fixture SHA-256 remained unchanged.
+
+The first durable palette capture failed: 2413 scenario frames, one capture,
+one blank frame, digest `a5543af33cd56725`. A baseline-plus-palette diagnostic
+also failed at 2414 frames: the baseline was visible, but opening the palette
+produced the same entirely black digest. Failed receipts are retained in
+`receipts/palette-failed-2413` and `receipts/palette-failed-2414` under the local
+artifact directory below. These observations isolate the palette-open scene;
+they do not establish that window occlusion caused the failure.
+
+Removing both palette overflow clips yielded two visible captures, but whole-
+frame inspection rejected that variant because command rows spilled outside
+the dialog. Keeping only a bounded inner command-list scroll region passed
+the same 2414-frame scenario with two captures, zero blank frames, and palette
+digest `f9821fe248ecdb76`. Its binary SHA-256 was
+`f1003afcbf7f0f6cf247cff7787703d650f612b23425383b7f3109ab141a10c2`.
+The outer dialog remains overflow-visible; only the list clips and scrolls.
+
+Subsequent interaction testing found that keyboard selection could move below
+the visible rows without revealing them. A wheel action addressed to the list
+also moved the entire workspace. These remain acceptance failures pending the
+focused scroll/focus repair and retest, not a reason to accept the capture alone.
+Native AX exposed anonymous selectable rows; full native accessibility remains
+unqualified. A source-selection paint spill over Appearance controls was also
+observed separately; its cause and whether it predates this slice are unverified.
 
 ## Verification receipt
 

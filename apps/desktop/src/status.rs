@@ -22,6 +22,23 @@ pub(crate) const POSTURE: &str = "posture";
 pub(crate) const CATALOG: &str = "catalog";
 pub(crate) const RETENTION: &str = "retention";
 pub(crate) const SERVING: &str = "serving";
+pub(crate) const RECOVERY: &str = "recovery";
+
+pub(crate) fn recovery_chip(copies: usize, issues: usize, error: bool) -> StatusChip {
+    let severity = if error || issues > 0 {
+        StatusSeverity::Warning
+    } else {
+        StatusSeverity::Quiet
+    };
+    let label = if error {
+        "Recovery error".to_owned()
+    } else if issues > 0 {
+        format!("Recovery · {copies} copies, {issues} issues")
+    } else {
+        format!("Recovery · {copies} copies")
+    };
+    StatusChip::new(RECOVERY, label).with_severity(severity)
+}
 
 /// Where the focused document stands in the catalog (step 5d).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

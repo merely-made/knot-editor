@@ -1405,7 +1405,7 @@ design frames either fixed or recorded.
   freshness, and deterministic worker overlap/coalescing. Cargo.lock now keeps
   only the new direct dependencies and the shared view's solver-required
   package entries; unrelated resolver churn was removed. After these review
-  corrections, `knot-desktop --lib` passes 165 tests with 1 ignored, the full
+  corrections, `knot-desktop --lib` passes 166 tests with 1 ignored, the full
   default workspace passes, and the same strict clippy and locked-check lanes
   remain clean.
 
@@ -1416,6 +1416,10 @@ design frames either fixed or recorded.
   document stack instead of joining either side. The write-freshness receipt
   now drives a dirty tab through the close confirmation's Save path before it
   checks the refreshed catalog digest and link edge.
+
+  A surviving metadata tile remains a centre-stack anchor after its source and
+  Graph close, so New joins that metadata as a tab without creating a second
+  centre or disturbing the Navigator/site and reading branches.
 
 ## Related material
 

@@ -58,9 +58,25 @@ fn old_scroll_manifest_and_native_saved_snapshots() {
             );
         }
         if format == SiteFormat::Micron {
-            let server = LocalServer::start(snapshot, 0).unwrap();
-            assert!(server.nomadnet_destination().is_some());
-            assert!(server.url().contains("ephemeral destination"));
+            #[cfg(feature = "retinue")]
+            {
+                let server = LocalServer::start(snapshot, 0).unwrap();
+                assert!(server.nomadnet_destination().is_some());
+                assert!(server.url().contains("ephemeral destination"));
+            }
+            #[cfg(not(feature = "retinue"))]
+            {
+                let snapshot = snapshot.to_snapshot_v1().unwrap();
+                assert_eq!(snapshot.format, SiteFormat::Micron);
+                let error = match LocalServer::start(
+                    knot_site::Publication::from_snapshot_v1(snapshot).unwrap(),
+                    0,
+                ) {
+                    Ok(_) => panic!("Micron serving unexpectedly found a backend"),
+                    Err(error) => error,
+                };
+                assert!(error.contains("retinue"));
+            }
         }
     }
 }

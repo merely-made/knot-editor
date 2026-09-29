@@ -110,7 +110,11 @@ Knot also opens `.gmi`/`.gemini` and `.mu`/`.micron` ordinary files. Micron
 editing and exact saves preserve the native source. Preview uses Nematic's
 source preserving native projection for qualified headings, inline emphasis,
 ordinary native links and tables; unsupported controls and styles stay visible
-with diagnostics. NomadNet page transport remains a separate adapter.
+with diagnostics. The embedded NomadNet server and remote Micron request client
+are optional: build with `cargo run -p knot-desktop --features retinue` to enable
+them. Without that feature, Micron authoring, local form review and snapshots
+remain available; embedded serving and sending requests report that the backend
+is unavailable.
 Gemtext, Micron and Scrolltext cannot be converted by renaming a Save As target.
 
 The submission controls prepare either a saved file for **Titan** or a typed
@@ -132,6 +136,44 @@ records tests, independent client receipts, remaining Micron/Reticulum gates,
 and the separate Djinn persistent-serving proposal. The site-library Gemini
 implementation was browsed with Lagrange 1.21.1; ordinary readers need neither
 Turnstone nor Gemot.
+
+## Publish Micron through an existing server
+
+The site library can export a saved Micron site without the Retinue backend:
+
+```sh
+cargo run --manifest-path crates/knot-site/Cargo.toml --no-default-features \
+  --example export_nomadnet -- path/to/site path/to/new-export
+```
+
+The input can also be a saved `PublishedSnapshotV1` JSON file. The destination
+must be new, with an existing parent. It contains `snapshot.json` and exact saved
+bytes under `pages/`; exporting neither opens a listener nor changes a live node.
+Later edits to the source site do not change this export. Make a new export for
+each publication, and explicitly select it in the server you operate.
+
+An existing NomadNet or MeshChatX node can host the exported page files. Keep them
+non-executable and retain the node's own persistent identity. Knot does not need
+to implement the reader's network stack to author those files. The export does
+not convert other source formats into Micron or include arbitrary site assets.
+
+For a Python-free runtime, the optional
+[Go launcher](tools/knot-nomadnet-go/README.md) validates an export and starts an
+already-installed Reticulum-Go page server with a private copy of the saved
+pages. You supply the server's config and persistent identity path explicitly.
+
+The [backend independence plan](design_docs/2026-09-29_nomadnet_backend_independence.md)
+separates local tests from independent-client and constrained-network acceptance.
+Test the site library with both configurations:
+
+```sh
+cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features
+cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features --features retinue
+```
+
+On a memory-constrained machine, use `CARGO_BUILD_JOBS=1` and
+`CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0` for these focused checks.
+The site crate is a separate workspace and does not build the desktop renderer.
 
 ## Application development
 

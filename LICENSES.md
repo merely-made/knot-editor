@@ -71,6 +71,17 @@ comment naming the brief, and it is listed here.
 5. Re-run `python scripts/relicense_headers.py --audit` and confirm the owned
    source count moved by exactly what you expected.
 
+## Optional external page server
+
+The owned launcher in `tools/knot-nomadnet-go` invokes a separately installed
+[Reticulum-Go](https://github.com/Quad4-Software/Reticulum-Go) executable. It does
+not link, vendor, copy or relicense that implementation. Reticulum-Go uses the
+Reticulum License; any distribution bundling the executable must retain its
+upstream license and notices. The
+[integration record](design_docs/2026-09-29_reticulum_go_backend.md) identifies
+the researched revision and the scope of local runtime validation. Installing
+this launcher alone does not install or bundle Reticulum-Go.
+
 ## A note on the discovery grep
 
 The sweep plan's invariant 1 lists `Copyright (c)` among its discovery

@@ -1,9 +1,12 @@
 # Knot workspace slice 1: frame, tiles, status, sites and graph
 
 **Date:** 2026-09-23
-**Status:** In progress. Steps 7d and 7e are implemented; the two-site headed
-scenario is ready for its native frame receipt. The step 7c scenario-scroll
-follow-up and the Taproot/Mesquite runner unification are recorded below.
+**Status:** Slice 1 complete with recorded visual differences. Steps 7d, 7e
+and 8 are implemented; step 9's five native scenarios pass, and all six
+captured frames have been reviewed. See the
+[native receipt review](2026-09-29_knot_workspace_native_review.md).
+The step 7c scenario-scroll follow-up and the Taproot/Mesquite runner
+unification are recorded below.
 Assessment and initial rulings were made 2026-09-23.
 **Owner:** Knot Editor
 **Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
@@ -1466,6 +1469,26 @@ design frames either fixed or recorded.
   `2026-09-23_knot_design_pass.md` are the available comparison authority.
   Native whole-frame review, including the still-missing 7e two-site PNG,
   remains an environmental receipt blocker rather than a scenario omission.
+
+- **2026-09-29, native receipt closure.** After native app access became
+  available, four scenarios captured correctly, while the last-tab graph
+  reproducibly rendered an entirely black frame. This was a separate product
+  failure, not the earlier zero-frame `Occluded` limitation. Removing the
+  graph paint leaf alone did not cure it. Removing the three nested overflow
+  clips did; the final fix scopes that exception to the singleton Graph tile
+  and leaves all other Workbench content scrollable. Mere and Genet remain at
+  their existing pins; no app-local graph renderer was introduced.
+
+  All five scenarios then passed on the same native-validated product build,
+  with six nonblank 2200 x 1400 frames. The two-site scenario now captures both
+  selected site panels while asserting that both servers remain active. Every
+  frame was reviewed against the design pass's available annotated criteria;
+  the original reference PNGs remain unavailable. The linked native review
+  records the exact binary, receipts, differences and follow-ups. Desktop lib
+  tests pass 169 with 1 ignored, all three scenario-lane tests pass, and strict
+  desktop-library clippy passes. This closes the step 7e receipt and step 9
+  under its explicit fixed-or-recorded visual-difference condition; it is not
+  a claim of pixel-identical design completion or release readiness.
 
 ## Related material
 

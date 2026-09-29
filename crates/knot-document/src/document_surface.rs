@@ -184,6 +184,44 @@ impl KnotDocumentSession {
         }
     }
 
+    /// Reopen local recovery bytes as an unsaved candidate. The serialized
+    /// source address is never used as a write target or file baseline.
+    pub fn recovery_candidate(
+        address: impl Into<String>,
+        source: String,
+        format: crate::DocumentFormat,
+        selection: CaretSelection,
+    ) -> Result<Self, String> {
+        if !matches!(
+            format,
+            crate::DocumentFormat::Knot
+                | crate::DocumentFormat::Djot
+                | crate::DocumentFormat::Scroll
+                | crate::DocumentFormat::Gemtext
+                | crate::DocumentFormat::Micron
+        ) {
+            return Err("recovery format is not editable by Knot".to_owned());
+        }
+        if !source.is_char_boundary(selection.anchor.byte)
+            || !source.is_char_boundary(selection.focus.byte)
+        {
+            return Err("recovery selection is outside the source or not a UTF-8 boundary".into());
+        }
+        let mut session = Self {
+            editor: KnotEditor::scratch_with_format(address, "", format),
+            write_posture: KnotDocumentWritePostureV1::Scratch,
+            last_save_outcome: None,
+            refusal: None,
+            last_save_failure: None,
+        };
+        session.editor.apply(TextCommand::Insert(source));
+        session.editor.apply_layout_selection(selection);
+        if session.editor.selection() != selection {
+            return Err("recovery selection cannot be represented exactly".into());
+        }
+        Ok(session)
+    }
+
     /// Builds an intentionally immutable in-memory document projection.
     pub fn read_only(address: impl Into<String>, source: impl Into<String>) -> Self {
         Self::read_only_with_format(address, source, crate::DocumentFormat::Djot)
@@ -209,6 +247,27 @@ impl KnotDocumentSession {
     /// The local file selected for this session, if it has one.
     pub fn source_path(&self) -> Option<&Path> {
         self.editor.path()
+    }
+    /// Borrow the committed source and selection for a host's debounced local
+    /// recovery writer without cloning the source on every UI dispatch.
+    pub fn recovery_observation(
+        &self,
+    ) -> (
+        &str,
+        crate::DocumentFormat,
+        CaretSelection,
+        bool,
+        KnotDocumentWritePostureV1,
+        &str,
+    ) {
+        (
+            self.editor.source(),
+            self.editor.format(),
+            self.editor.selection(),
+            self.editor.is_dirty(),
+            self.write_posture,
+            self.editor.address(),
+        )
     }
     /// Borrows the input only when this session delegated text-write authority.
     ///
@@ -574,6 +633,58 @@ impl KnotDocumentSession {
     fn refuse_read_only_edit(&mut self) {
         self.refusal = Some(KnotDocumentRefusalV1::ReadOnly);
         self.last_save_failure = None;
+    }
+}
+
+#[cfg(test)]
+mod recovery_candidate_tests {
+    use super::*;
+
+    #[test]
+    fn candidate_keeps_exact_utf8_selection_and_has_no_file_target() {
+        let selection = CaretSelection {
+            anchor: CaretPosition {
+                byte: 3,
+                affinity: CaretAffinity::Upstream,
+            },
+            focus: CaretPosition {
+                byte: 0,
+                affinity: CaretAffinity::Downstream,
+            },
+        };
+        let session = KnotDocumentSession::recovery_candidate(
+            "recovery:item",
+            "aéz".into(),
+            crate::DocumentFormat::Djot,
+            selection,
+        )
+        .unwrap();
+        let snapshot = session.snapshot();
+        assert_eq!(snapshot.text, "aéz");
+        assert_eq!(snapshot.selection, selection);
+        assert!(snapshot.dirty);
+        assert!(session.source_path().is_none());
+        assert_eq!(snapshot.write_posture, KnotDocumentWritePostureV1::Scratch);
+    }
+
+    #[test]
+    fn candidate_rejects_invalid_selection_without_panicking() {
+        let selection = CaretSelection {
+            anchor: CaretPosition {
+                byte: 2,
+                affinity: CaretAffinity::Downstream,
+            },
+            focus: CaretPosition::default(),
+        };
+        assert!(
+            KnotDocumentSession::recovery_candidate(
+                "recovery:item",
+                "aéz".into(),
+                crate::DocumentFormat::Djot,
+                selection,
+            )
+            .is_err()
+        );
     }
 }
 

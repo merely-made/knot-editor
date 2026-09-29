@@ -2182,26 +2182,32 @@ fn block(
                     if inline_has_link(spans) {
                         return Box::new(indexed(
                             el(
-                                tag,
-                                (
-                                    button(
-                                        toggle.marker.clone(),
-                                        move |state: &mut DesktopState, _| {
-                                            state.toggle_micron_fold_for(document, &key)
-                                        },
-                                    )
-                                    .attr("class", "knot-micron-fold-marker")
-                                    .attr(
-                                        "aria-label",
-                                        format!("Toggle {}", inker::inline_text(spans)),
-                                    )
-                                    .attr(
-                                        "aria-expanded",
-                                        if toggle.open { "true" } else { "false" },
+                                "div",
+                                el(
+                                    "div",
+                                    (
+                                        button(
+                                            toggle.marker.clone(),
+                                            move |state: &mut DesktopState, _| {
+                                                state.toggle_micron_fold_for(document, &key)
+                                            },
+                                        )
+                                        .attr("class", "knot-micron-fold-marker")
+                                        .attr(
+                                            "aria-label",
+                                            format!("Toggle {}", inker::inline_text(spans)),
+                                        )
+                                        .attr(
+                                            "aria-expanded",
+                                            if toggle.open { "true" } else { "false" },
+                                        ),
+                                        inline(spans, document),
                                     ),
-                                    inline(spans, document),
-                                ),
-                            ),
+                                )
+                                .attr("class", "knot-micron-heading-controls"),
+                            )
+                            .attr("role", "heading")
+                            .attr("aria-level", level.to_string()),
                             index,
                         ));
                     }
@@ -2709,6 +2715,7 @@ pub const CSS: &str = r#"
 .knot-preview-emphasis { font-style: italic; }
 .knot-scroll-link { text-decoration: underline; }
 .knot-micron-fold { display: block; width: 100%; text-align: left; }
+.knot-micron-heading-controls { display:flex; align-items:baseline; gap:4px; }
 #knot-scroll-folder input { width: 350px; }
 #knot-scroll-port input { width: 70px; }
 @media (max-width:700px) { #knot-scroll-folder input { width:220px; } }

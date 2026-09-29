@@ -6,12 +6,19 @@
 
 //! Knot-owned native files and publication. The server can only see an explicit
 //! immutable snapshot, never the draft filesystem or editor buffer.
+pub mod export;
 mod local;
+#[cfg(feature = "retinue")]
 pub mod micron_submission;
+#[cfg(not(feature = "retinue"))]
+#[path = "micron_submission_stub.rs"]
+pub mod micron_submission;
+#[cfg(feature = "retinue")]
 mod nomadnet;
 mod server;
 pub mod submission;
 pub use local::LocalServer;
+#[cfg(feature = "retinue")]
 pub use nomadnet::NomadNetServerConfig;
 
 use serde::{Deserialize, Serialize};

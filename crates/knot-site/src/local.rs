@@ -1,5 +1,7 @@
 //! Process ownership around the shared wire servers. A private runtime owns
 //! every accepted task, so closing the handle also cancels in-flight clients.
+#[cfg(feature = "retinue")]
+use crate::nomadnet::NomadNetServer;
 use crate::{Publication, SiteFormat, server::ScrollServer};
 use std::{
     net::SocketAddr,
@@ -14,6 +16,7 @@ pub struct LocalServer {
 
 enum Backend {
     Scroll(ScrollServer),
+    #[cfg(feature = "retinue")]
     NomadNet(crate::nomadnet::NomadNetServer),
     Native {
         address: SocketAddr,
@@ -35,7 +38,10 @@ impl LocalServer {
             });
         }
         if format == SiteFormat::Micron {
+            #[cfg(feature = "retinue")]
             return Self::start_nomadnet(publication, port, Default::default());
+            #[cfg(not(feature = "retinue"))]
+            return Err("Micron local serving requires the optional `retinue` feature".into());
         }
         let listener = std::net::TcpListener::bind((std::net::Ipv4Addr::LOCALHOST, port))
             .map_err(|e| e.to_string())?;
@@ -130,6 +136,7 @@ impl LocalServer {
     pub fn address(&self) -> SocketAddr {
         match &self.backend {
             Backend::Scroll(server) => server.address(),
+            #[cfg(feature = "retinue")]
             Backend::NomadNet(server) => server.address,
             Backend::Native { address, .. } => *address,
         }
@@ -138,6 +145,7 @@ impl LocalServer {
     pub fn url(&self) -> String {
         match &self.backend {
             Backend::Scroll(server) => server.url(),
+            #[cfg(feature = "retinue")]
             Backend::NomadNet(server) => format!(
                 "{}:/page/index.mu (ephemeral destination; Reticulum TCP interface {})",
                 server.destination, server.address
@@ -158,6 +166,7 @@ impl LocalServer {
 
     pub fn replace(&self, next: Publication) -> Result<(), String> {
         match &self.backend {
+            #[cfg(feature = "retinue")]
             Backend::NomadNet(server) => server.replace(next),
             Backend::Scroll(server) if next.format == SiteFormat::Scroll => {
                 server.replace(next);
@@ -176,6 +185,7 @@ impl LocalServer {
     }
 
     /// Start a Micron saved snapshot with caller-selected connection limits.
+    #[cfg(feature = "retinue")]
     pub fn start_nomadnet(
         publication: Publication,
         port: u16,
@@ -183,18 +193,31 @@ impl LocalServer {
     ) -> Result<Self, String> {
         Ok(Self {
             certificate_pem: String::new(),
-            backend: Backend::NomadNet(crate::nomadnet::NomadNetServer::start(
-                publication,
-                port,
-                config,
-            )?),
+            backend: Backend::NomadNet(NomadNetServer::start(publication, port, config)?),
         })
     }
 
+    /// The transient address for a running Micron server, when its optional
+    /// Reticulum backend is available.
+    #[cfg(feature = "retinue")]
     pub fn nomadnet_destination(&self) -> Option<retinue::hash::AddressHash> {
         match &self.backend {
             Backend::NomadNet(server) => Some(server.destination),
             _ => None,
+        }
+    }
+
+    /// The transient Micron destination as text, when its optional backend is
+    /// available. This accessor has the same signature in all feature sets.
+    pub fn nomadnet_destination_string(&self) -> Option<String> {
+        #[cfg(feature = "retinue")]
+        {
+            self.nomadnet_destination()
+                .map(|destination| destination.to_string())
+        }
+        #[cfg(not(feature = "retinue"))]
+        {
+            None
         }
     }
 }

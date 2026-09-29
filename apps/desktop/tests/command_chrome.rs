@@ -28,6 +28,10 @@ fn state(commands: WindowCommands, chrome: CommandChrome) -> DesktopState {
 }
 
 fn harness(chrome: CommandChrome, width: f32) -> DesktopHarness {
+    harness_at(chrome, width, 800.0)
+}
+
+fn harness_at(chrome: CommandChrome, width: f32, height: f32) -> DesktopHarness {
     let mut h = Harness::with_hooks(
         Init {
             state: state(WindowCommands::new(), chrome),
@@ -42,14 +46,19 @@ fn harness(chrome: CommandChrome, width: f32) -> DesktopHarness {
     // orphan queue that would make caption tests pass without enacting verbs.
     let commands = h.commands();
     h.update(|current| *current = state(commands, chrome));
-    h.layout_at(width, 800.0);
+    h.layout_at(width, height);
     h.prepare_frame();
-    h.layout_at(width, 800.0);
+    h.layout_at(width, height);
     h
 }
 
 fn button(label: &str) -> Selector {
     Selector::role("button").with_attr("aria-label", label)
+}
+
+fn node(h: &DesktopHarness, selector: &Selector) -> genet_scripted_dom::NodeId {
+    h.with_dom(|dom| taproot::matching(dom, selector).into_iter().next())
+        .expect("matching DOM node")
 }
 
 fn palette_shortcut() -> KeyPress {
@@ -169,6 +178,65 @@ fn palette_query_stays_authoritative_after_tab_and_enter_activates_the_filtered_
             .is_some()
     );
     assert_eq!(h.state().document().snapshot().text, before);
+}
+
+#[test]
+fn palette_arrow_selection_reveals_long_list_without_scrolling_workspace() {
+    let mut h = harness_at(CommandChrome::PlainRow, 640.0, 340.0);
+    h.press_key(&palette_shortcut());
+    let list = node(&h, &Selector::class("command-items"));
+    assert_eq!(h.element_scroll(list).1, 0.0);
+    let viewport_before = h.viewport_scroll();
+    for _ in 0..12 {
+        h.press_key(&KeyPress::named(NamedKey::ArrowDown));
+    }
+    let selected = node(
+        &h,
+        &Selector::class("command-item").with_attr("aria-selected", "true"),
+    );
+    let (_, row_y, _, row_height) = h.painted_rect(selected).expect("option rect");
+    let (_, visible_y, _, visible_height) =
+        h.visible_rect(selected).expect("active option is visible");
+    assert!(
+        h.element_scroll(list).1 > 0.0,
+        "arrow navigation scrolls options"
+    );
+    assert_eq!(
+        h.viewport_scroll(),
+        viewport_before,
+        "workspace stays fixed"
+    );
+    assert_eq!(row_y, visible_y);
+    assert!(
+        visible_height >= row_height - 1.0,
+        "the whole active row is visible"
+    );
+
+    let (list_x, list_y, list_width, list_height) = h.painted_rect(list).expect("list rect");
+    let (dialog_x, dialog_y, dialog_width, dialog_height) = h
+        .painted_rect(node(&h, &Selector::class("knot-command-palette")))
+        .expect("dialog rect");
+    assert!(dialog_x >= 0.0 && dialog_x + dialog_width <= 640.0);
+    assert!(dialog_y >= 0.0 && dialog_y + dialog_height <= 340.0);
+    h.move_to(list_x + list_width / 2.0, list_y + list_height / 2.0);
+    let before_wheel = h.element_scroll(list).1;
+    h.wheel(0.0, 40.0);
+    assert!(
+        h.element_scroll(list).1 > before_wheel,
+        "wheel scrolls palette options"
+    );
+    assert_eq!(
+        h.viewport_scroll(),
+        viewport_before,
+        "wheel does not scroll workspace"
+    );
+    let after_wheel = h.element_scroll(list).1;
+    h.press_key(&KeyPress::named(NamedKey::Tab));
+    assert_eq!(
+        h.element_scroll(list).1,
+        after_wheel,
+        "focus change does not snap the list back"
+    );
 }
 
 #[test]

@@ -20,7 +20,7 @@ use cambium::{
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
-    WindowCommands,
+    ScrollAlign, WindowCommands,
 };
 use genet_scripted_dom::NodeId;
 use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
@@ -333,6 +333,7 @@ pub struct DesktopState {
     pub(crate) command_menu_compact: bool,
     pub(crate) command_query: TextInput,
     pub(crate) command_palette_open: bool,
+    palette_last_revealed: Option<(String, String)>,
     palette_focus_query: bool,
     palette_restore_focus: bool,
     palette_return_focus: Option<NodeId>,
@@ -425,6 +426,7 @@ impl DesktopState {
             command_menu_compact: false,
             command_query: TextInput::default(),
             command_palette_open: false,
+            palette_last_revealed: None,
             palette_focus_query: false,
             palette_restore_focus: false,
             palette_return_focus: None,
@@ -1045,12 +1047,14 @@ impl DesktopState {
             .with_id("knot-command-list");
         self.command_query = TextInput::default();
         self.command_palette_open = true;
+        self.palette_last_revealed = None;
         self.palette_focus_query = true;
         self.palette_restore_focus = false;
     }
 
     fn dismiss_command_palette(&mut self) {
         self.command_palette_open = false;
+        self.palette_last_revealed = None;
         self.palette_focus_query = false;
         self.palette_restore_focus = true;
     }
@@ -4276,6 +4280,7 @@ pub fn after_dispatch(
     }
     crate::scroll_site::scroll_to_micron_jump(ctx);
     sync_command_query(ctx);
+    reveal_palette_selection(ctx);
     focus_command_menu(ctx);
     focus_command_palette(ctx);
     focus_path_field(ctx);
@@ -4376,6 +4381,56 @@ fn sync_command_query(
         let query = query.clone();
         ctx.runner
             .update(|state| state.command_query = TextInput::new(query));
+    }
+}
+
+/// Arrow keys can change the palette's active descendant while focus stays in
+/// its query field. Keep that row inside the list's bounded scrollport, rather
+/// than relying on focus-follow (the option itself never receives focus).
+fn reveal_palette_selection(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if !ctx.runner.state().command_palette_open {
+        return;
+    }
+    fn node_with_id<D: LayoutDom>(dom: &D, node: D::NodeId, id: &str) -> Option<D::NodeId> {
+        if dom.attribute(node, &Namespace::from(""), &LocalName::from("id")) == Some(id) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| node_with_id(dom, child, id))
+    }
+    let active_id = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        node_with_id(&*dom, dom.document(), "knot-command-list")
+            .and_then(|list| {
+                dom.attribute(
+                    list,
+                    &Namespace::from(""),
+                    &LocalName::from("aria-activedescendant"),
+                )
+            })
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+    };
+    let Some(active_id) = active_id else {
+        return;
+    };
+    let marker = (ctx.runner.state().command_palette.query.clone(), active_id);
+    if ctx.runner.state().palette_last_revealed.as_ref() == Some(&marker) {
+        return;
+    }
+    ctx.runner
+        .update(|state| state.palette_last_revealed = Some(marker.clone()));
+    let selected = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        node_with_id(&*dom, dom.document(), "knot-command-list")
+            .and_then(|list| node_with_id(&*dom, list, &marker.1))
+    };
+    if let Some(node) = selected {
+        ctx.scroll_into_view(node, ScrollAlign::Nearest);
     }
 }
 
@@ -4587,11 +4642,11 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-client-titlebar .command-menu-bar { --app-region:no-drag; flex:none; }",
     ".knot-client-command-popovers { position:relative; height:0; width:0; overflow:visible; }",
     ".knot-command-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; z-index:199; background:#0004; }",
-    ".knot-command-palette { position:fixed; top:58px; left:50%; transform:translateX(-50%); z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; overflow:auto; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
+    ".knot-command-palette { position:fixed; top:58px; left:0; right:0; margin:0 auto; z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; box-sizing:border-box; overflow:visible; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
     ".knot-command-query { display:flex; flex-direction:column; gap:4px; }",
     ".knot-command-query input { width:100%; box-sizing:border-box; }",
     ".knot-command-palette .command-surface { display:flex; flex-direction:column; min-height:0; outline:none; }",
-    ".knot-command-palette .command-items { display:flex; flex-direction:column; overflow:auto; }",
+    ".knot-command-palette .command-items { display:flex; flex-direction:column; max-height:56vh; overflow:auto; }",
     ".knot-command-palette .command-item { display:flex; align-items:center; gap:8px; min-height:28px; padding:5px 8px; border-radius:4px; }",
     ".knot-command-palette .command-label { flex:1; }",
     ".knot-command-palette .command-shortcut { opacity:0.7; }",

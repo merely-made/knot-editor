@@ -59,9 +59,9 @@ pub struct DesktopLaunch {
     pub first_path: Option<PathBuf>,
     /// The documents named after it, opened behind it in order.
     pub behind: Vec<KnotDocumentSession>,
-    /// A site folder named after the first path; its index page is among
-    /// `behind`.
-    pub site: Option<PathBuf>,
+    /// Site folders named after the first path; their index pages are among
+    /// `behind`. A leading site folder is attached through `first_path`.
+    pub sites: Vec<PathBuf>,
     /// One line for each path that would not open.
     pub failures: Vec<String>,
 }
@@ -95,12 +95,12 @@ pub fn run_desktop_with_targets(
                 first,
                 first_path,
                 behind,
-                site,
+                sites,
                 failures,
             } = launch;
             let mut state =
                 DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
-            if let Some(folder) = site {
+            for folder in sites {
                 state.attach_site(&folder);
             }
             state

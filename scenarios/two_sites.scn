@@ -1,0 +1,19 @@
+# Headed step-7e receipt. Launch Knot with two clean Scroll site folders named
+# `site-one` and `site-two`, in that order. The first uses the Scroll default
+# and the second automatically uses port 0 because that default is claimed.
+
+log knot two-site lane: launched
+assert snap site_count == 2
+assert snap serving_count == 0
+
+# The later site is the active tab in the shared left stack.
+click role:button Publish locally
+settle 2
+assert snap serving_count == 1
+
+click role:tab site-one
+click role:button Publish locally
+settle 2
+assert snap serving_count == 2
+capture two-sites-serving
+log knot two-site lane: done

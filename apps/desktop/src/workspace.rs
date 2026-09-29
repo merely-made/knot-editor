@@ -303,7 +303,7 @@ impl DesktopState {
     ) -> Self {
         let site_folder = initial_path.as_ref().filter(|path| path.is_dir()).cloned();
         let path = initial_path.map_or_else(TextInput::default, |path| {
-            TextInput::new(path.to_string_lossy())
+            TextInput::new(display_path(&path))
         });
         let mut state = Self {
             docs: DocumentWorkspace::new(),
@@ -338,7 +338,7 @@ impl DesktopState {
         };
         state.open_entry(DocumentEntry::new(session));
         if let Some(page) = site_folder.and_then(|folder| state.attach_site(&folder)) {
-            state.path = TextInput::new(page.to_string_lossy());
+            state.path = TextInput::new(display_path(&page));
         }
         state.sync_catalog();
         state
@@ -350,7 +350,7 @@ impl DesktopState {
         match knot_site::Site::open(folder) {
             Ok(site) => {
                 let page = site.page_path(site.config.format.index_file()).ok();
-                self.scroll.folder = TextInput::new(folder.to_string_lossy());
+                self.scroll.folder = TextInput::new(display_path(folder));
                 self.scroll.format = site.config.format;
                 if let Some(port) = site.config.format.default_port() {
                     self.scroll.port = TextInput::new(port.to_string());
@@ -607,6 +607,8 @@ impl DesktopState {
             .with_field("format", format!("{:?}", snapshot.format))
             .with_field("dirty", snapshot.dirty.to_string())
             .with_field("appearance_open", self.appearance_open.to_string())
+            .with_field("site_count", self.scroll.site_count().to_string())
+            .with_field("serving_count", self.scroll.serving_count().to_string())
             .with_field("message", self.message.clone().unwrap_or_default())
     }
 
@@ -1379,7 +1381,7 @@ impl DesktopState {
         }
         match KnotDocumentSession::open(&path) {
             Ok(session) => {
-                self.path = TextInput::new(path.to_string_lossy().into_owned());
+                self.path = TextInput::new(display_path(&path));
                 self.open_entry(DocumentEntry::new(session));
                 self.after_focus_change();
                 self.message = Some(format!("Opened {}.", display_path(&path)));
@@ -1964,31 +1966,33 @@ fn retention_state(state: &DesktopState) -> crate::status::Retention {
 /// The serving chip's popover: the served site's address with Stop serving,
 /// or why nothing is served with Publish locally (slice 1 step 5d).
 fn serving_detail(state: &DesktopState) -> DesktopView {
-    let served = state
-        .scroll
-        .current_site()
-        .and_then(|entry| entry.server.as_ref().map(|server| (entry, server)));
-    let (line, action): (String, DesktopView) = match served {
-        Some((entry, server)) => (
-            format!(
-                "{} · revision {} · saved snapshot",
-                server.url(),
-                entry.publication_number()
-            ),
-            Box::new(button("Stop serving", |state: &mut DesktopState, _| {
-                if let Some(site) = state.scroll.current_key() {
+    let focused = state
+        .site_page()
+        .and_then(|page| state.scroll.site(page.site).map(|entry| (page.site, entry)));
+    let (line, action): (String, DesktopView) = match focused {
+        Some((site, entry)) if entry.server.is_some() => {
+            let server = entry.server.as_ref().expect("checked above");
+            (
+                format!(
+                    "{} · revision {} · saved snapshot",
+                    server.url(),
+                    entry.publication_number()
+                ),
+                Box::new(button("Stop serving", move |state: &mut DesktopState, _| {
                     state.scroll.stop_serving(site);
-                }
-                state.message = Some("Local serving stopped.".into());
+                    state.message = Some("Local serving stopped.".into());
+                })),
+            )
+        },
+        Some((site, _)) => (
+            "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into(),
+            Box::new(button("Publish locally", move |state: &mut DesktopState, _| {
+                state.publish_site(site)
             })),
         ),
         None => (
-            "Not published. Save writes drafts; Publish locally serves a saved snapshot over loopback when this site format has a local server.".into(),
-            Box::new(button("Publish locally", |state: &mut DesktopState, _| {
-                if let Some(site) = state.scroll.current_key() {
-                    state.publish_site(site)
-                }
-            })),
+            "No site page is focused.".into(),
+            Box::new(el("div", ())),
         ),
     };
     Box::new(
@@ -2228,12 +2232,15 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             chips.push(crate::status::retention_chip(retention_state(state)));
         }
     }
-    let serving = state
-        .scroll
-        .current_site()
-        .is_some_and(|entry| entry.server.is_some());
-    if serving || state.site_page().is_some() {
-        chips.push(crate::status::serving_chip(serving));
+    if let Some(entry) = state
+        .site_page()
+        .and_then(|page| state.scroll.site(page.site))
+    {
+        let label = match entry.server.as_ref() {
+            Some(server) => format!("{} · serving :{}", entry.name(), server.address().port()),
+            None => format!("{} · not serving", entry.name()),
+        };
+        chips.push(crate::status::serving_chip(label));
     }
     let status_bar = cambium::status_bar(
         cambium::StatusBar::new(&message, &chips),
@@ -2443,8 +2450,11 @@ fn field_path(field: &TextInput) -> Result<PathBuf, String> {
 
 /// A path as a person reads it: without the Windows verbatim prefix a
 /// canonical path carries (D5).
-pub(crate) fn display_path(path: &Path) -> String {
+pub fn display_path(path: &Path) -> String {
     let text = path.display().to_string();
+    if let Some(rest) = text.strip_prefix(r"\\?\UNC\") {
+        return format!(r"\\{rest}");
+    }
     match text.strip_prefix(r"\\?\") {
         Some(rest) if rest.get(1..2) == Some(":") => rest.to_owned(),
         _ => text,
@@ -4222,6 +4232,22 @@ mod tests {
         assert!(
             !prefilled.starts_with(r"\\?\"),
             "no verbatim prefix: {prefilled}"
+        );
+    }
+
+    #[test]
+    fn display_paths_strip_drive_and_unc_verbatim_prefixes() {
+        assert_eq!(
+            display_path(Path::new(r"\\?\C:\sites\field-notes")),
+            r"C:\sites\field-notes"
+        );
+        assert_eq!(
+            display_path(Path::new(r"\\?\UNC\server\share\field-notes")),
+            r"\\server\share\field-notes"
+        );
+        assert_eq!(
+            display_path(Path::new(r"\\server\share\field-notes")),
+            r"\\server\share\field-notes"
         );
     }
 

@@ -93,7 +93,7 @@ impl SiteEntry {
         let root = self.site.root();
         root.file_name()
             .map(|name| name.to_string_lossy().into_owned())
-            .unwrap_or_else(|| root.display().to_string())
+            .unwrap_or_else(|| crate::workspace::display_path(root))
     }
 
     /// How many times the site has been published locally.
@@ -117,8 +117,6 @@ impl SiteEntry {
 pub struct ScrollWorkspace {
     sites: BTreeMap<SiteKey, SiteEntry>,
     next_site: u64,
-    /// The open site, one at a time until several sites open at once.
-    current: Option<SiteKey>,
     /// The Site popover: the folder, format, Create and Open.
     pub(crate) popover: PopoverState,
     pub folder: TextInput,
@@ -134,7 +132,6 @@ impl Default for ScrollWorkspace {
         Self {
             sites: BTreeMap::new(),
             next_site: 0,
-            current: None,
             popover: PopoverState::default(),
             folder: TextInput::default(),
             port: TextInput::new("5699"),
@@ -154,26 +151,62 @@ impl ScrollWorkspace {
         self.submission_wake = Some(wake);
     }
 
-    /// The open site.
-    pub(crate) fn current_site(&self) -> Option<&SiteEntry> {
-        self.current.and_then(|key| self.sites.get(&key))
-    }
-
-    pub(crate) fn current_key(&self) -> Option<SiteKey> {
-        self.current
-    }
-
     pub(crate) fn site(&self, key: SiteKey) -> Option<&SiteEntry> {
         self.sites.get(&key)
     }
 
-    /// Hold `site` as the one open site. A site it replaces is dropped, which
-    /// stops its server; the new one publishes on the port field's value.
-    fn replace(&mut self, site: Site) -> SiteKey {
-        self.close_current();
+    /// The most recently opened site, for legacy single-site test fixtures.
+    /// Product behavior must resolve a site from an explicit key or page.
+    #[cfg(test)]
+    pub(crate) fn current_key(&self) -> Option<SiteKey> {
+        self.sites.keys().next_back().copied()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn current_site(&self) -> Option<&SiteEntry> {
+        self.current_key().and_then(|key| self.site(key))
+    }
+
+    pub(crate) fn site_count(&self) -> usize {
+        self.sites.len()
+    }
+
+    pub(crate) fn serving_count(&self) -> usize {
+        self.sites
+            .values()
+            .filter(|entry| entry.server.is_some())
+            .count()
+    }
+
+    fn key_for_root(&self, root: &Path) -> Option<SiteKey> {
+        self.sites
+            .iter()
+            .find(|(_, entry)| entry.site.root() == root)
+            .map(|(key, _)| *key)
+    }
+
+    /// Hold another open site. A repeated canonical folder resolves to its
+    /// existing entry. When the requested port is this format's default and
+    /// another site already claims it, defer to the OS with port 0.
+    fn insert(&mut self, site: Site) -> (SiteKey, bool) {
+        if let Some(key) = self.key_for_root(site.root()) {
+            return (key, false);
+        }
         let key = SiteKey(self.next_site);
         self.next_site += 1;
-        let port = TextInput::new(self.port.text());
+        let requested = self.port.text().parse::<u16>().ok();
+        let default = site.config.format.default_port();
+        let default_claimed = default.is_some_and(|port| {
+            self.sites.values().any(|entry| {
+                entry.server.as_ref().map(|server| server.address().port()) == Some(port)
+                    || entry.port.text().parse::<u16>().ok() == Some(port)
+            })
+        });
+        let port = if requested == default && default_claimed {
+            TextInput::new("0")
+        } else {
+            TextInput::new(self.port.text())
+        };
         self.sites.insert(
             key,
             SiteEntry {
@@ -184,16 +217,7 @@ impl ScrollWorkspace {
                 drafts: BTreeMap::new(),
             },
         );
-        self.current = Some(key);
-        key
-    }
-
-    /// Drop the open site, which stops its server. Its port stays in the
-    /// field for the next site.
-    fn close_current(&mut self) {
-        if let Some(entry) = self.current.take().and_then(|key| self.sites.remove(&key)) {
-            self.port = TextInput::new(entry.port.text());
-        }
+        (key, true)
     }
 
     /// The open site page whose file is `path`, a canonical path.
@@ -205,11 +229,7 @@ impl ScrollWorkspace {
 
     /// Drop `site`, which stops its server.
     fn remove(&mut self, site: SiteKey) {
-        if self.current == Some(site) {
-            self.close_current();
-        } else {
-            self.sites.remove(&site);
-        }
+        self.sites.remove(&site);
     }
 
     /// `site`'s port field, whose value its next publication binds.
@@ -1145,23 +1165,9 @@ impl DesktopState {
         }
     }
 
-    /// Create or open the site in the Site popover's folder. One site is open
-    /// at a time, so an open one closes first, and is kept while it holds
-    /// anything unsaved.
+    /// Create or open the site in the Site popover's folder, alongside every
+    /// site already open in the window.
     fn enter_site(&mut self, create: bool) {
-        if let Some(open) = self.scroll.current
-            && self.site_unsaved(open)
-        {
-            let name = self
-                .scroll
-                .site(open)
-                .map(SiteEntry::name)
-                .unwrap_or_default();
-            self.message = Some(format!(
-                "Save or discard {name}'s unsaved pages and metadata before opening another site."
-            ));
-            return;
-        }
         let root = std::path::PathBuf::from(self.scroll.folder.text());
         let result = if create {
             Site::create_for(&root, self.scroll.format)
@@ -1173,9 +1179,6 @@ impl DesktopState {
             Ok((site, path))
         }) {
             Ok((site, path)) => {
-                if let Some(open) = self.scroll.current {
-                    self.close_site_now(open);
-                }
                 self.scroll.format = site.config.format;
                 self.scroll.popover.close();
                 self.hold_site(site);
@@ -1185,25 +1188,21 @@ impl DesktopState {
         }
     }
 
-    /// Hold `site` as the one open site, dropping any it replaces with its
-    /// metadata tiles, bind the open documents that are its pages, and show
-    /// its tile.
+    /// Hold `site` alongside the other sites, bind open documents that are its
+    /// pages, and show its tile. Opening the same canonical folder activates
+    /// the entry already held rather than duplicating its authority.
     pub(crate) fn hold_site(&mut self, site: Site) -> SiteKey {
-        let previous = self.scroll.current;
-        let key = self.scroll.replace(site);
-        if let Some(previous) = previous {
-            self.close_metadata_tiles(previous);
-            if let Some(tile) = self.docs.site_tile(previous) {
-                self.docs.close(tile);
-            }
-        }
+        let (key, inserted) = self.scroll.insert(site);
         self.bind_site_pages();
         let name = self
             .scroll
             .site(key)
             .map(SiteEntry::name)
             .unwrap_or_default();
-        self.docs.open_site_tile(key, name);
+        self.docs.open_site_tile(key, name.clone());
+        if !inserted {
+            self.message = Some(format!("Site {name} is already open."));
+        }
         key
     }
 
@@ -3415,10 +3414,10 @@ mod tests {
         assert_eq!(state.message.as_deref(), Some("Closed site site."));
     }
 
-    /// Step 7c: one site is open at a time. Opening another is refused while
-    /// the open one holds unsaved work; once saved, the new one replaces it.
+    /// Step 7e: a second site opens alongside an unsaved first site. Each
+    /// keeps its page, tile and default-port choice.
     #[test]
-    fn another_site_replaces_the_open_one_only_once_it_is_saved() {
+    fn another_site_opens_alongside_unsaved_work() {
         let temp = tempfile::tempdir().unwrap();
         let mut state = DesktopState::new(
             KnotDocumentSession::scratch("scratch:replace", ""),
@@ -3427,6 +3426,7 @@ mod tests {
         state.scroll.folder = TextInput::new(temp.path().join("first").to_string_lossy());
         state.enter_site(true);
         let first = state.scroll.current_key().unwrap();
+        let first_page = state.focused_key().unwrap();
         state
             .document_mut()
             .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
@@ -3435,34 +3435,127 @@ mod tests {
             .unwrap();
         state.scroll.folder = TextInput::new(temp.path().join("second").to_string_lossy());
         state.enter_site(true);
-        assert_eq!(
-            state.scroll.current_key(),
-            Some(first),
-            "refused over unsaved work"
-        );
-        assert!(
-            state
-                .message
-                .as_deref()
-                .is_some_and(|message| message.contains("first"))
-        );
-
-        state
-            .document_mut()
-            .apply(KnotDocumentIntentV1::Save)
-            .unwrap();
-        state.enter_site(true);
         let second = state.scroll.current_key().unwrap();
         assert_ne!(second, first);
-        assert!(state.docs.site_tile(first).is_none());
+        assert!(state.docs.site_tile(first).is_some());
         assert!(state.docs.site_tile(second).is_some());
+        assert_eq!(state.scroll.site_count(), 2);
+        assert_eq!(state.docs.len(), 3, "scratch and both index pages stay");
+        assert!(state.entry_for(first_page).document.snapshot().dirty);
+        assert_eq!(state.scroll.site_port(first).unwrap().text(), "5699");
         assert_eq!(
-            state.docs.len(),
-            2,
-            "the first site's page closed; the scratch and the new index stay"
+            state.scroll.site_port(second).unwrap().text(),
+            "0",
+            "the second Scroll site defers its colliding default to the OS"
         );
         assert_eq!(page_name(&state), Some("index.scroll"));
         assert_eq!(state.site_page().unwrap().site, second);
+    }
+
+    #[test]
+    fn two_sites_keep_independent_servers_and_submission_state() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:two-sites", ""),
+            WindowCommands::new(),
+        );
+
+        state.scroll.folder = TextInput::new(temp.path().join("first").to_string_lossy());
+        state.enter_site(true);
+        let first = state.site_page().unwrap().site;
+        let first_doc = state.focused_key().unwrap();
+        state.entry_mut_for(first_doc).site.submission.target =
+            TextInput::new("spartan://first.test/submit");
+
+        state.scroll.folder = TextInput::new(temp.path().join("second").to_string_lossy());
+        state.enter_site(true);
+        let second = state.site_page().unwrap().site;
+        let second_doc = state.focused_key().unwrap();
+        state.entry_mut_for(second_doc).site.submission.target =
+            TextInput::new("spartan://second.test/submit");
+
+        *state.scroll.site_port_mut(first).unwrap() = TextInput::new("0");
+        *state.scroll.site_port_mut(second).unwrap() = TextInput::new("0");
+        state.publish_site(first);
+        state.publish_site(second);
+
+        let first_entry = state.scroll.site(first).unwrap();
+        let second_entry = state.scroll.site(second).unwrap();
+        let first_port = first_entry.server.as_ref().unwrap().address().port();
+        let second_port = second_entry.server.as_ref().unwrap().address().port();
+        assert_ne!(first_port, 0);
+        assert_ne!(second_port, 0);
+        assert_ne!(first_port, second_port);
+        assert_eq!(first_entry.publication_number(), 1);
+        assert_eq!(second_entry.publication_number(), 1);
+        assert_eq!(state.scroll.serving_count(), 2);
+        assert_eq!(
+            state.entry_for(first_doc).site.submission.target.text(),
+            "spartan://first.test/submit"
+        );
+        assert_eq!(
+            state.entry_for(second_doc).site.submission.target.text(),
+            "spartan://second.test/submit"
+        );
+
+        let mut host = site_harness(state);
+        let serving_label = |host: &DesktopHarness| {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let chip = attr_nodes(&dom, dom.document(), "data-status-key", "serving")
+                .into_iter()
+                .next()
+                .expect("the focused page's serving chip");
+            text_content(&dom, chip)
+        };
+        assert_eq!(
+            serving_label(&host),
+            format!("second · serving :{second_port}")
+        );
+        host.update(|state| state.docs.focus(first_doc));
+        host.relayout();
+        assert_eq!(
+            serving_label(&host),
+            format!("first · serving :{first_port}")
+        );
+
+        let (chip_x, chip_y) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let chip = attr_nodes(&dom, dom.document(), "data-status-key", "serving")[0];
+            let (x, y, width, height) = host.visible_rect(chip).unwrap();
+            (x + width / 2.0, y + height / 2.0)
+        };
+        host.click_at(chip_x, chip_y);
+        host.relayout();
+        fn button_named(
+            dom: &genet_scripted_dom::ScriptedDom,
+            node: genet_scripted_dom::NodeId,
+            label: &str,
+        ) -> Option<genet_scripted_dom::NodeId> {
+            if dom
+                .element_name(node)
+                .is_some_and(|name| name.local.as_ref() == "button")
+                && text_content(dom, node) == label
+            {
+                return Some(node);
+            }
+            dom.dom_children(node)
+                .find_map(|child| button_named(dom, child, label))
+        }
+        let (stop_x, stop_y) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let detail = class_nodes(&dom, dom.document(), "knot-status-detail")[0];
+            let stop = button_named(&dom, detail, "Stop serving").unwrap();
+            let (x, y, width, height) = host.visible_rect(stop).unwrap();
+            (x + width / 2.0, y + height / 2.0)
+        };
+        host.click_at(stop_x, stop_y);
+        host.relayout();
+        assert!(host.state().scroll.site(first).unwrap().server.is_none());
+        assert!(host.state().scroll.site(second).unwrap().server.is_some());
+        assert_eq!(host.state().scroll.serving_count(), 1);
     }
 
     /// Step 7c: a site tile's port field takes typing for its own site.
@@ -3883,7 +3976,7 @@ mod tests {
         };
 
         let (label, (x, y)) = chip(&host);
-        assert_eq!(label, "Not serving");
+        assert_eq!(label, "site · not serving");
         host.click_at(x, y);
         host.relayout();
         assert_eq!(
@@ -3893,15 +3986,20 @@ mod tests {
         assert!(detail(&host).contains("Not published."));
 
         press_in_detail(&mut host, "Publish locally");
-        let url = host
+        let site = host.state().site_page().unwrap().site;
+        let server = host
             .state()
             .scroll
-            .current_site()
-            .and_then(|entry| entry.server.as_ref())
-            .expect("serving")
-            .url()
-            .to_string();
-        assert_eq!(chip(&host).0, "Serving");
+            .site(site)
+            .unwrap()
+            .server
+            .as_ref()
+            .unwrap();
+        let url = server.url().to_string();
+        assert_eq!(
+            chip(&host).0,
+            format!("site · serving :{}", server.address().port())
+        );
         let served = detail(&host);
         assert!(
             served.contains(&url) && served.contains("revision 1"),
@@ -3909,7 +4007,7 @@ mod tests {
         );
 
         press_in_detail(&mut host, "Stop serving");
-        assert!(host.state().scroll.current_site().unwrap().server.is_none());
+        assert!(host.state().scroll.site(site).unwrap().server.is_none());
         assert_eq!(
             host.state().message.as_deref(),
             Some("Local serving stopped.")
@@ -3943,9 +4041,12 @@ mod tests {
         let second = temp.path().join("second.djot");
         std::fs::write(&first, "first\n").unwrap();
         std::fs::write(&second, "second\n").unwrap();
-        let folder = temp.path().join("site");
+        let folder = temp.path().join("site-one");
         let site = Site::create_for(&folder, SiteFormat::Scroll).unwrap();
         let index = site.page_path(site.config.format.index_file()).unwrap();
+        let other_folder = temp.path().join("site-two");
+        let other = Site::create_for(&other_folder, SiteFormat::Scroll).unwrap();
+        let other_index = other.page_path(other.config.format.index_file()).unwrap();
         let mut state = DesktopState::with_path(
             KnotDocumentSession::open(&first).unwrap(),
             WindowCommands::new(),
@@ -3953,24 +4054,25 @@ mod tests {
         );
         let front = state.focused_key();
         assert!(state.attach_site(&folder).is_some());
+        assert!(state.attach_site(&other_folder).is_some());
         state.open_behind(
             vec![
                 KnotDocumentSession::open(&second).unwrap(),
                 KnotDocumentSession::open(&index).unwrap(),
+                KnotDocumentSession::open(&other_index).unwrap(),
             ],
             &["missing.djot: not found".to_owned()],
         );
-        assert_eq!(state.docs.len(), 3);
+        assert_eq!(state.docs.len(), 4);
         assert_eq!(state.focused_key(), front);
         assert_eq!(state.path.text(), first.to_string_lossy().as_ref());
-        let site = state
-            .scroll
-            .current_key()
-            .expect("the launch's site opened");
-        assert!(
-            state.docs.site_tile(site).is_some(),
-            "a launch's site opens its tile"
-        );
+        assert_eq!(state.scroll.site_count(), 2);
+        for site in state.scroll.sites.keys() {
+            assert!(
+                state.docs.site_tile(*site).is_some(),
+                "each launch site has a tile"
+            );
+        }
         assert_eq!(
             page_name(&state),
             None,

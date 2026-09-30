@@ -43,6 +43,32 @@ fn scenario_path(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
+fn composition_lane_collects_a_reading_without_changing_source() {
+    let root = tempdir().unwrap();
+    let fixture = scenario_path("fixtures/composition/selection.djot");
+    let before = std::fs::read(&fixture).unwrap();
+    let mut state = DesktopState::with_path(
+        KnotDocumentSession::open(&fixture).unwrap(),
+        WindowCommands::new(),
+        Some(fixture.clone()),
+    );
+    state.set_preferences_path(Some(root.path().join("preferences.json")));
+    let receipt =
+        run_without_native_capture_at_height(state, "composition.scn", &root, 900.0, false);
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+    let retained =
+        knot_composition::CollectionStore::open(root.path().join("composition/collection.json"))
+            .unwrap();
+    assert_eq!(retained.items().len(), 1);
+    assert!(
+        retained.items()[0]
+            .text
+            .contains("Perfect rhyme: Night ↔ light")
+    );
+    assert_eq!(std::fs::read(fixture).unwrap(), before);
+}
+
+#[test]
 fn every_step_9_scenario_uses_the_shared_parseable_lane() {
     for name in STEP_9_SCENARIOS {
         let path = scenario_path(name);

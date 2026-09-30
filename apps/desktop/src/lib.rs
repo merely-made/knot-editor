@@ -7,6 +7,7 @@
 pub mod appearance;
 pub mod changes;
 pub mod collapse;
+pub mod composition;
 pub mod document_folding;
 mod document_links;
 pub mod document_preview;

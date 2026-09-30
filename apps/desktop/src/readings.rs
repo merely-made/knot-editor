@@ -19,6 +19,14 @@ use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
 pub const CSS: &str = concat!(
+    ".knot-composition, .knot-composition section, .knot-composition article, ",
+    ".knot-composition div, .knot-composition label { display:flex; flex-direction:column; gap:6px; min-width:0; }",
+    ".knot-composition { padding-bottom:12px; border-bottom:1px solid currentColor; overflow-wrap:anywhere; }",
+    ".knot-composition h3, .knot-composition h4 { margin:4px 0; }",
+    ".knot-composition article { padding:8px 0; }",
+    ".knot-composition button { white-space:normal; text-align:left; }",
+    ".knot-composition button[aria-pressed=true] { outline:2px solid currentColor; outline-offset:-2px; font-weight:600; }",
+    ".knot-composition .knot-composition-tabs { flex-direction:row; flex-wrap:wrap; }",
     ".knot-readings { min-width:0; box-sizing:border-box; display:flex; flex-direction:column; ",
     "gap:8px; }",
     ".knot-readings-header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }",
@@ -190,6 +198,7 @@ pub(crate) fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -
         el(
             "section",
             (
+                crate::composition::view(state, key),
                 el(
                     "div",
                     (

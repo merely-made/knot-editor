@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::appearance::Appearance;
+use crate::appearance::{Appearance, Measure, SourceFace};
 use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, SiteKey, TileRole};
 use crate::graph::{GraphState, OpenNode};
 use crate::preferences::PreferencesStore;
@@ -354,6 +354,7 @@ pub struct DesktopState {
     pub(crate) capture_limit: usize,
     pub(crate) graph: GraphState,
     appearance_open: bool,
+    font_licenses_open: bool,
     preferences: Option<PreferencesStore>,
     recovery: Option<RecoveryRuntime>,
     recovery_error: Option<String>,
@@ -446,6 +447,7 @@ impl DesktopState {
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
             graph: GraphState::default(),
             appearance_open: false,
+            font_licenses_open: false,
             preferences: None,
             recovery: None,
             recovery_error: None,
@@ -885,6 +887,38 @@ impl DesktopState {
                     .to_string(),
             )
             .with_field("appearance_open", self.appearance_open.to_string())
+            .with_field("font_size", self.appearance.font_size.to_string())
+            .with_field(
+                "source_face",
+                match self.appearance.source_face {
+                    SourceFace::IbmPlexMono => "ibm-plex-mono",
+                    SourceFace::SystemMonospace => "system-monospace",
+                },
+            )
+            .with_field(
+                "measure",
+                match self.appearance.measure {
+                    Measure::Narrow => "narrow",
+                    Measure::Medium => "medium",
+                    Measure::Wide => "wide",
+                    Measure::Full => "full",
+                },
+            )
+            .with_field(
+                "follow_hard_wrap",
+                self.appearance.follow_hard_wrap.to_string(),
+            )
+            .with_field(
+                "source_columns",
+                self.appearance
+                    .source_columns(&snapshot.text)
+                    .map_or_else(|| "full".to_owned(), |column| column.to_string()),
+            )
+            .with_field(
+                "hard_wrap_column",
+                knot_document::hard_wrap_column(&snapshot.text)
+                    .map_or_else(|| "none".to_owned(), |column| column.to_string()),
+            )
             .with_field("palette_open", self.command_palette_open.to_string())
             .with_field("link_form_open", self.link_form.is_some().to_string())
             .with_field("links_open", has_reading(ReadingKind::Links).to_string())
@@ -3030,6 +3064,38 @@ fn recovery_detail(state: &DesktopState) -> DesktopView {
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
+        let hard_wrap_note: DesktopView = if appearance.follow_hard_wrap
+            && let Some(column) = knot_document::hard_wrap_column(&state.document().snapshot().text)
+        {
+            let preview_measure = appearance
+                .measure
+                .columns()
+                .map_or_else(|| "Full".to_owned(), |columns| format!("{columns}ch"));
+            Box::new(span(format!("Source follows detected {column}-column wrap ({}ch with slack); preview uses {preview_measure}.", column.saturating_add(1)))
+                .attr("class", "knot-hard-wrap-note")
+                .attr("role", "status"))
+        } else {
+            Box::new(el("div", ()))
+        };
+        let font_licenses: DesktopView = if state.font_licenses_open {
+            Box::new(
+                el(
+                    "div",
+                    (
+                        el("h3", "IBM Plex Mono"),
+                        el("pre", crate::fonts::IBM_PLEX_MONO_LICENSE),
+                        el("h3", "Source Serif 4"),
+                        el("pre", crate::fonts::SOURCE_SERIF_4_LICENSE),
+                    ),
+                )
+                .attr("class", "knot-font-licenses")
+                .attr("id", "knot-font-licenses")
+                .attr("role", "region")
+                .attr("aria-label", "Bundled font licences"),
+            )
+        } else {
+            Box::new(el("div", ()))
+        };
         // Saves refuse while the file is unreadable; say so where the controls
         // are, and offer the one action that may overwrite it.
         let preferences_note: DesktopView = match state
@@ -3108,14 +3174,74 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     el(
                         "div",
                         (
-                            button("Narrow", |state: &mut DesktopState, _| {
-                                state.update_appearance(|appearance| appearance.wide = false);
+                            button("IBM Plex Mono", |state: &mut DesktopState, _| {
+                                state.update_appearance(|appearance| {
+                                    appearance.source_face = SourceFace::IbmPlexMono
+                                });
                             })
-                            .attr("aria-pressed", (!appearance.wide).to_string()),
-                            button("Wide", |state: &mut DesktopState, _| {
-                                state.update_appearance(|appearance| appearance.wide = true);
+                            .attr(
+                                "aria-pressed",
+                                (appearance.source_face == SourceFace::IbmPlexMono).to_string(),
+                            ),
+                            button("System monospace", |state: &mut DesktopState, _| {
+                                state.update_appearance(|appearance| {
+                                    appearance.source_face = SourceFace::SystemMonospace
+                                });
                             })
-                            .attr("aria-pressed", appearance.wide.to_string()),
+                            .attr(
+                                "aria-pressed",
+                                (appearance.source_face == SourceFace::SystemMonospace).to_string(),
+                            ),
+                            button("Font licences", |state: &mut DesktopState, _| {
+                                state.font_licenses_open = !state.font_licenses_open;
+                            })
+                            .attr("aria-expanded", state.font_licenses_open.to_string())
+                            .attr("aria-controls", "knot-font-licenses"),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row")
+                    .attr("aria-label", "Source face"),
+                    font_licenses,
+                    el(
+                        "div",
+                        Keyed::new(
+                            [
+                                (Measure::Narrow, "Narrow · 60ch"),
+                                (Measure::Medium, "Medium · 72ch"),
+                                (Measure::Wide, "Wide · 90ch"),
+                                (Measure::Full, "Full"),
+                            ]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, (measure, label))| {
+                                (
+                                    index,
+                                    button(label, move |state: &mut DesktopState, _| {
+                                        state.update_appearance(|appearance| {
+                                            appearance.measure = measure
+                                        });
+                                    })
+                                    .attr(
+                                        "aria-pressed",
+                                        (appearance.measure == measure).to_string(),
+                                    ),
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row")
+                    .attr("aria-label", "Writing measure"),
+                    hard_wrap_note,
+                    el(
+                        "div",
+                        (
+                            button("Follow hard wrap", |state: &mut DesktopState, _| {
+                                state.update_appearance(|appearance| {
+                                    appearance.follow_hard_wrap = !appearance.follow_hard_wrap
+                                });
+                            })
+                            .attr("aria-pressed", appearance.follow_hard_wrap.to_string()),
                             button("Compact", |state: &mut DesktopState, _| {
                                 state.update_appearance(|appearance| appearance.relaxed = false);
                             })
@@ -3801,7 +3927,12 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     ));
     let source_wrapper = el("div", document)
         .attr("class", "knot-source-wrapper")
-        .attr("style", state.appearance.writing_style());
+        .attr(
+            "style",
+            state
+                .appearance
+                .writing_style(&state.surface_for(key).snapshot().text),
+        );
     Box::new(
         el(
             "div",
@@ -4693,6 +4824,8 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-command-palette .command-item.selected { outline:2px solid currentColor; outline-offset:-2px; }",
     ".knot-appearance-panel { display:flex; flex-direction:column; gap:8px; padding:10px; border:1px solid; }",
     ".knot-appearance-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }",
+    ".knot-font-licenses { max-height:240px; overflow:auto; }",
+    ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field input { min-width:280px; flex:1; }",
@@ -4759,7 +4892,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-frame .frisket-content[data-tile=\"18446744073709551615\"] { overflow:visible; padding:0; }",
     ".knot-empty-frame { display:block; padding:24px 0; }",
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
-    ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
+    ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; padding:16px; border:1px solid; box-sizing:border-box; }",
     ".knot-document { flex:1; min-width:0; }",
     ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
     ".knot-outline { display:flex; flex-direction:column; min-width:0; }",
@@ -4974,7 +5107,7 @@ mod tests {
                 state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: crate::desktop_sheet(),
-                fonts: Vec::new(),
+                fonts: crate::fonts::bundled_fonts(),
                 images: Vec::new(),
             },
             {
@@ -6080,8 +6213,58 @@ mod tests {
         assert_eq!(after.dirty, before.dirty);
         assert!(host.state().appearance.dark);
         assert!(!host.state().appearance.highlight);
-        assert!(host.state().appearance.wide);
+        assert_eq!(host.state().appearance.measure, Measure::Wide);
         assert!(host.state().appearance.relaxed);
+    }
+
+    #[test]
+    fn typography_choices_preserve_preedit_selection_and_saved_baseline() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("typography.djot");
+        let source = "# First\n\n## Second\n\nCommitted Unicode: 本文.\n";
+        std::fs::write(&path, source).unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 800.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        assert!(host.click_on(&Selector::role("button").containing("Second")));
+        host.update(|state| {
+            state
+                .document_mut()
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .set_preedit("仮入力")
+        });
+        let before = host.state().document().snapshot();
+        let baseline = host.state().document().session().compare_disk().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+        for label in [
+            "System monospace",
+            "Narrow",
+            "Full",
+            "Follow hard wrap",
+            "Larger",
+            "Compact",
+            "IBM Plex Mono",
+            "Medium",
+        ] {
+            assert!(
+                host.click_on(&Selector::role("button").containing(label)),
+                "{label}"
+            );
+            assert_eq!(host.state().document().snapshot(), before, "{label}");
+            assert_eq!(
+                host.state().document().session().input().preedit(),
+                "仮入力",
+                "{label}"
+            );
+            assert_eq!(
+                host.state().document().session().compare_disk().unwrap(),
+                baseline,
+                "{label}"
+            );
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+        }
     }
 
     #[test]
@@ -6554,7 +6737,7 @@ mod tests {
         assert!(appearance.dark);
         assert!(!appearance.highlight);
         assert_eq!(appearance.font_size, 17);
-        assert!(appearance.wide);
+        assert_eq!(appearance.measure, Measure::Wide);
         assert!(!appearance.relaxed);
     }
 

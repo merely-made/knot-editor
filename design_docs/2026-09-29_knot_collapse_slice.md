@@ -1,6 +1,6 @@
 # Collapse: non-destructive workspace presentation
 
-Status: Shared text paint repair passes automated checks; final native qualification in progress.
+Status: Combined integration and shared text paint repair accepted after automated and native qualification.
 Date: 2026-09-29
 Base: Knot `8bc98c7`, following Typography acceptance.
 Deciders: Existing design-pass section 7 rulings; implementation follows them.
@@ -126,14 +126,38 @@ one existing diagnostic timing ignore. Strict desktop/readings Clippy passes
 with warnings denied. The locked native build passes; build and isolated bundle
 SHA-256 agree at
 `5f355e7daac67578c1d98eeef085ed1510c5976fbec290bbaecafe667e035740`.
-The fixture digest remains unchanged. Launching this final candidate was blocked
-by the Mac locking again; no native capture from this repaired binary has been
-accepted yet.
+The fixture digest remains unchanged. Native access was restored and the final
+binary passed all five lanes, producing 26 nonblank captures:
 
-The shared repair and new binary must pass the prepared viewport matrix before
-main promotion. Four lanes enable capture pairing; the normal 1280px lane
-keeps the default unpaired path. Earlier native receipts below apply only to
-their named isolated binary.
+| Logical viewport | Frames | Captures | Physical PNG size |
+| --- | ---: | ---: | --- |
+| 320x700 | 2527 | 10 | 640x1400 |
+| 640x700 | 2458 | 5 | 1280x1400 |
+| 1100x700 | 2426 | 3 | 2200x1400 |
+| 1280x700 | 2426 | 3 | 2560x1400 |
+| 320x175 (1280x700 at 400%) | 2452 | 5 | 2560x1400 |
+
+Four lanes enable capture pairing; the normal 1280px lane keeps the default
+unpaired path. The 320px lane verifies active/background Graph visibility and
+restores the menu threshold to 700px. Fixture identity and clean-document
+assertions pass; the disk digest was rechecked after the matrix.
+All 26 images were visually reviewed using uniquely named copies, and all 26
+paint streams decoded with balanced clip/transform/layer stacks. No new visual
+blocker was found. This is native acceptance, not full WCAG/VoiceOver or browser
+runtime acceptance.
+
+The repaired zoom paint stream still has 207 commands, but selection commands
+78/79 and caret 80 now occur with two active clips and one transform, before
+the drawer paints. `fixed-zoom-paint.txt` records the decoded stream. Visual
+review confirms clean Close Readings and Preview controls; after closing the
+drawer, source selection and caret remain visible within the source viewport.
+
+An interrupted launch had already completed the zoom run; a later retry hit
+existing paint-sidecar files and produced a failed receipt. That directory is
+preserved as `receipts/1280zoom-5f355e-interrupted-relaunch`. A clean final rerun
+returned RESULT ok, and all five PNGs are byte-identical to those already
+reviewed. Baseline and interrupted artifacts are not counted as final receipts.
+Earlier native receipts below apply only to their named isolated binary.
 
 ### Accepted isolated candidate, 2026-09-30
 
@@ -179,7 +203,8 @@ accepted for isolated branch publication, not merged into main. Integrating
 the newer main requires reconciling those changes and verifying the combined
 revision; these receipts must not be attributed to that untested combination.
 
-Known separate issue: focused source selection/caret paint is emitted above
+Historical issue in this isolated candidate (repaired in the combined build
+above): focused source selection/caret paint is emitted above
 DOM overlays and can spill over the drawer or tabbar. This capture observes it;
 the Collapse scrolling repair does not fix it. No full WCAG or VoiceOver
 acceptance is claimed. Status refusal priority is verified in shared tests,

@@ -5,6 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use crate::appearance::{Appearance, Measure, SourceFace};
+use crate::collapse::CollapsePreferences;
 use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, SiteKey, TileRole};
 use crate::graph::{GraphState, OpenNode};
 use crate::preferences::PreferencesStore;
@@ -16,7 +17,7 @@ use cambium::{
     AnyView, CommandEvent, CommandMenuBarState, CommandState, GenetCtx, GenetElement, Keyed,
     Popover, PopoverEvent, PopoverPlacement, PopoverState, Slot, TextInput, WorkspaceModel, button,
     el, lens, map_action, on_click, on_key, popover, span, text_field_typed,
-    workspace_view_with_marks,
+    workspace_view_presented_with_marks,
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
@@ -324,6 +325,12 @@ pub struct DesktopState {
     /// never a save target.
     placeholder: DocumentEntry,
     pub appearance: Appearance,
+    /// Local surface thresholds; never part of a document or sync settings.
+    pub collapse: CollapsePreferences,
+    pub presentation: workbench::WorkbenchPresentation,
+    viewport: (f32, f32),
+    source_system_ch: Option<(u8, f32)>,
+    collapse_reveal: Option<workbench::TileId>,
     pub scroll: crate::scroll_site::ScrollWorkspace,
     /// The Open popover's path field.
     pub path: TextInput,
@@ -419,6 +426,11 @@ impl DesktopState {
             command_chrome: CommandChrome::default(),
             placeholder: DocumentEntry::new(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "")),
             appearance: Appearance::default(),
+            collapse: CollapsePreferences::default(),
+            presentation: workbench::WorkbenchPresentation::default(),
+            viewport: (1100.0, 700.0),
+            source_system_ch: None,
+            collapse_reveal: None,
             scroll: Default::default(),
             path,
             save_as_path: TextInput::default(),
@@ -887,6 +899,27 @@ impl DesktopState {
                     .to_string(),
             )
             .with_field("appearance_open", self.appearance_open.to_string())
+            .with_field("viewport_width", format!("{:.0}", self.viewport.0))
+            .with_field("viewport_height", format!("{:.0}", self.viewport.1))
+            .with_field(
+                "collapsed_stacks",
+                self.presentation
+                    .stacks
+                    .iter()
+                    .filter(|stack| stack.collapsed.is_some())
+                    .count()
+                    .to_string(),
+            )
+            .with_field(
+                "open_drawers",
+                self.presentation
+                    .stacks
+                    .iter()
+                    .filter_map(|stack| stack.collapsed.as_ref())
+                    .filter(|collapsed| collapsed.open && collapsed.drawer.is_some())
+                    .count()
+                    .to_string(),
+            )
             .with_field("font_size", self.appearance.font_size.to_string())
             .with_field(
                 "source_face",
@@ -1418,7 +1451,7 @@ impl DesktopState {
             self.docs.close(tile);
             return;
         }
-        self.docs.open_reading(kind, None, reading_title(kind));
+        self.collapse_reveal = Some(self.docs.open_reading(kind, None, reading_title(kind)));
         match kind {
             ReadingKind::Outline => {
                 self.entry_mut().outline_error = None;
@@ -1440,7 +1473,7 @@ impl DesktopState {
                 self.docs.close(tile);
             },
             None => {
-                self.docs.open_navigator(crate::navigator::TITLE);
+                self.collapse_reveal = Some(self.docs.open_navigator(crate::navigator::TITLE));
             },
         }
     }
@@ -1451,7 +1484,7 @@ impl DesktopState {
                 self.docs.close(tile);
             },
             None => {
-                self.docs.open_graph("Graph");
+                self.collapse_reveal = Some(self.docs.open_graph("Graph"));
             },
         }
     }
@@ -1496,6 +1529,7 @@ impl DesktopState {
             return;
         };
         self.appearance = store.preferences().appearance.known.clone();
+        self.collapse = store.preferences().collapse.clone();
         self.graph.layout = store.preferences().graph_layout.clone();
         let open = self.graph_open_nodes();
         self.graph.relayout(&open);
@@ -1854,6 +1888,50 @@ impl DesktopState {
         self.preferences.as_ref()
     }
 
+    /// Change only local collapse thresholds, retaining unknown preference keys.
+    pub fn set_collapse_preferences(&mut self, mut collapse: CollapsePreferences) {
+        collapse.normalize();
+        self.collapse = collapse;
+        if let Some(store) = self.preferences.as_mut()
+            && let Err(error) = store.save_collapse(&self.collapse)
+        {
+            self.message = Some(format!("Collapse preferences not saved: {error}"));
+        }
+    }
+
+    fn adjust_collapse(&mut self, setting: usize, delta: i32) {
+        let mut collapse = self.collapse.clone();
+        let value = match setting {
+            0 => &mut collapse.reading_min_width,
+            1 => &mut collapse.rail_width,
+            2 => &mut collapse.menu_below,
+            3 => &mut collapse.drawer_below,
+            _ => &mut collapse.status_below,
+        };
+        *value = (i32::from(*value) + delta).clamp(0, i32::from(u16::MAX)) as u16;
+        self.set_collapse_preferences(collapse);
+    }
+
+    fn on_presentation_event(&mut self, event: workbench::PresentationEvent) {
+        let closing = matches!(event, workbench::PresentationEvent::Closed(_));
+        if let workbench::PresentationEvent::Opened(anchor) = event {
+            for stack in &mut self.presentation.stacks {
+                if stack.anchor != anchor
+                    && let Some(collapsed) = &mut stack.collapsed
+                {
+                    collapsed.open = false;
+                }
+            }
+        }
+        self.presentation.apply(event);
+        // The application can restore the actual editor, including its retained
+        // selection, rather than the generic Workbench source container.
+        self.presentation.focus_return_requested = false;
+        if closing {
+            self.entry_mut().focus_source_requested = true;
+        }
+    }
+
     /// Every appearance control goes through here, so each change is saved.
     pub(crate) fn update_appearance(&mut self, change: impl FnOnce(&mut Appearance)) {
         change(&mut self.appearance);
@@ -1873,6 +1951,7 @@ impl DesktopState {
             Ok(()) => format!("Preferences file reset: {}.", store.path().display()),
             Err(error) => format!("Preferences reset failed: {error}"),
         });
+        self.collapse = store.preferences().collapse.clone();
     }
 
     fn set_recovery_days(&mut self, days: u16) {
@@ -3235,6 +3314,43 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     hard_wrap_note,
                     el(
                         "div",
+                        Keyed::new(
+                            [
+                                ("Reading minimum", state.collapse.reading_min_width),
+                                ("Rail width", state.collapse.rail_width),
+                                ("Menu below", state.collapse.menu_below),
+                                ("Drawers below", state.collapse.drawer_below),
+                                ("Status chips below", state.collapse.status_below),
+                            ]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(setting, (label, value))| {
+                                let step = if setting == 1 { 4 } else { 20 };
+                                (
+                                    setting,
+                                    el(
+                                        "div",
+                                        (
+                                            span(format!("{label}: {value}px")),
+                                            button("−", move |state: &mut DesktopState, _| {
+                                                state.adjust_collapse(setting, -step)
+                                            })
+                                            .attr("aria-label", format!("Decrease {label}")),
+                                            button("+", move |state: &mut DesktopState, _| {
+                                                state.adjust_collapse(setting, step)
+                                            })
+                                            .attr("aria-label", format!("Increase {label}")),
+                                        ),
+                                    )
+                                    .attr("class", "knot-appearance-row"),
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                        ),
+                    )
+                    .attr("aria-label", "Narrow workspace thresholds"),
+                    el(
+                        "div",
                         (
                             button("Follow hard wrap", |state: &mut DesktopState, _| {
                                 state.update_appearance(|appearance| {
@@ -3427,7 +3543,8 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         chips.push(crate::status::recovery_chip(0, 0, true));
     }
     let status_bar = cambium::status_bar(
-        cambium::StatusBar::new(&message, &chips),
+        cambium::StatusBar::new(&message, &chips)
+            .with_chip_limit(state.collapse.chip_limit(state.viewport.0)),
         &state.status_bar,
         |state: &mut DesktopState, event| state.status_bar.apply(event),
         |key: &str| match key {
@@ -3474,6 +3591,18 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
         };
     let chrome: DesktopView = if state.command_chrome == CommandChrome::ClientTitlebar {
         client_titlebar(state)
+    } else if state.command_menu_compact {
+        Box::new(
+            el(
+                "nav",
+                (
+                    crate::scroll_site::site_popover(state),
+                    command_menu_bar_view(state),
+                ),
+            )
+            .attr("class", "knot-workspace-toolbar")
+            .attr("aria-label", "Commands"),
+        )
     } else {
         Box::new(
             el(
@@ -3544,16 +3673,17 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
             "main",
             (
                 chrome,
-                if state.command_chrome == CommandChrome::ClientTitlebar {
-                    client_command_popovers(state)
-                } else {
-                    Box::new(el("div", ())) as DesktopView
-                },
-                command_palette_view(state),
-                appearance_panel,
-                crate::link_workflow::form_view(state),
+                (state.command_chrome == CommandChrome::ClientTitlebar
+                    && (state.open_popover.open || state.save_as_popover.open))
+                    .then(|| client_command_popovers(state)),
+                state.command_palette_open.then(|| command_palette_view(state)),
+                span("0").attr("id", "knot-source-ch-probe")
+                    .attr("aria-hidden", "true")
+                    .attr("style", format!("position:fixed;left:0;top:0;display:block;width:1ch;height:1px;visibility:hidden;overflow:hidden;font-family:{};font-size:{}px;", state.appearance.source_face.css_family(), state.appearance.font_size)),
+                state.appearance_open.then_some(appearance_panel),
+                state.link_form.as_ref().map(|_| crate::link_workflow::form_view(state)),
                 document_frame(state),
-                prompt,
+                state.pending.as_ref().map(|_| prompt),
                 status_bar,
             ),
         )
@@ -3992,14 +4122,17 @@ fn document_frame(state: &DesktopState) -> DesktopView {
     Box::new(
         el(
             "div",
-            workspace_view_with_marks(
+            workspace_view_presented_with_marks(
                 &model,
                 &marks,
+                &state.presentation,
                 |state: &mut DesktopState, event| state.on_workspace_event(event),
+                |state: &mut DesktopState, event| state.on_presentation_event(event),
                 tile_fill,
             ),
         )
-        .attr("class", "knot-frame"),
+        .attr("class", "knot-frame")
+        .attr("id", "knot-frame"),
     )
 }
 
@@ -4470,9 +4603,6 @@ pub fn after_dispatch(
         return;
     }
     ctx.runner.update(|state| {
-        if focus_requested {
-            state.entry_mut().focus_source_requested = false;
-        }
         if outline_needs_sync {
             state.sync_outline_snapshot();
         }
@@ -4483,20 +4613,53 @@ pub fn after_dispatch(
     if !focus_requested {
         return;
     }
+    focus_pending_source(ctx);
+}
+
+/// Complete an application focus intent after the destination subtree exists.
+/// Host dispatch normally does this immediately; frame preparation also drains
+/// intents raised by retained runner dispatch (including scenario key input).
+/// Keep the request if its editor has not mounted yet, so a layout cannot lose it.
+fn focus_pending_source(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    if !ctx.runner.state().entry().focus_source_requested {
+        return false;
+    }
     let focused_key = ctx.runner.state().focused_key();
-    let target = {
+    let (target, workspace) = {
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
-        ctx.runner.focusables().into_iter().find(|node| {
+        let target = ctx.runner.focusables().into_iter().find(|node| {
             LayoutDom::element_name(&*dom_ref, *node)
                 .is_some_and(|name| name.local.as_ref() == "textarea")
                 && ancestor_has_class(&*dom_ref, *node, "knot-document-body")
                 && document_key_of(&*dom_ref, *node) == focused_key
-        })
+        });
+        let workspace = target.and_then(|mut node| loop {
+            if dom_ref
+                .attribute(node, &Namespace::from(""), &LocalName::from("class"))
+                .is_some_and(|class| class.split_whitespace().any(|class| class == "knot-workspace"))
+            {
+                return Some(node);
+            }
+            node = dom_ref.parent(node)?;
+        });
+        (target, workspace)
     };
     if let Some(target) = target {
+        ctx.runner
+            .update(|state| state.entry_mut().focus_source_requested = false);
         ctx.runner.set_focus(Some(target));
+        // The source keeps its own caret/selection scroll, but returning to it
+        // must not scroll the fixed application chrome out of the window.
+        // Requests resolve after caret-follow in the host's next layout.
+        if let Some(workspace) = workspace {
+            ctx.scroll_into_view(workspace, ScrollAlign::Start);
+        }
+        return true;
     }
+    false
 }
 
 /// Put focus in the field of a path popover that has just opened.
@@ -4736,21 +4899,8 @@ pub fn after_wake(
 pub fn graph_frame(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
-    let chrome_changed = if ctx.runner.state().command_chrome == CommandChrome::ClientTitlebar {
-        let width = ctx.runner.root();
-        let compact = ctx
-            .painted_rect(width)
-            .is_some_and(|(_, _, width, _)| width < 760.0);
-        if compact != ctx.runner.state().command_menu_compact {
-            ctx.runner
-                .update(|state| state.command_menu_compact = compact);
-            true
-        } else {
-            false
-        }
-    } else {
-        false
-    };
+    let chrome_changed = update_collapse_layout(ctx);
+    let focus_changed = focus_pending_source(ctx);
     fn find<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
         let namespace = Namespace::from("");
         let id = LocalName::from("id");
@@ -4766,11 +4916,11 @@ pub fn graph_frame(
     };
     let Some(node) = node else {
         ctx.leaves.remove(&crate::graph::LEAF_KEY);
-        return chrome_changed;
+        return chrome_changed || focus_changed;
     };
     let Some((_, _, width, height)) = ctx.painted_rect(node) else {
         ctx.leaves.remove(&crate::graph::LEAF_KEY);
-        return chrome_changed;
+        return chrome_changed || focus_changed;
     };
     let size = (
         width.round().max(1.0) as u32,
@@ -4797,7 +4947,134 @@ pub fn graph_frame(
         .paint_leaf(|kind| state.appearance.graph_color(kind))
     };
     ctx.leaves.insert(crate::graph::LEAF_KEY, Box::new(leaf));
-    chrome_changed || current != size
+    chrome_changed || focus_changed || current != size
+}
+
+/// Run after real host layout, including resize and UI zoom. Harness drives
+/// this same hook, so no test-only window-size state can mask a native failure.
+fn update_collapse_layout(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    fn find<D: LayoutDom>(dom: &D, node: D::NodeId, name: &str, value: &str) -> Option<D::NodeId> {
+        if dom.attribute(node, &Namespace::from(""), &LocalName::from(name)) == Some(value) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| find(dom, child, name, value))
+    }
+    let (frame, probe) = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        (
+            find(&*dom, dom.document(), "id", "knot-frame"),
+            find(&*dom, dom.document(), "id", "knot-source-ch-probe"),
+        )
+    };
+    let viewport = ctx.logical_size;
+    let Some(mut frame) = frame.and_then(|node| ctx.painted_rect(node)) else {
+        return false;
+    };
+    frame.2 = frame.2.min(viewport.0).max(1.0);
+    let state = ctx.runner.state();
+    let system_ch = if state.appearance.source_face == SourceFace::SystemMonospace {
+        probe
+            .and_then(|node| ctx.painted_rect(node))
+            .map(|rect| rect.2)
+            .filter(|width| width.is_finite() && *width > 0.0)
+            .map(|width| (state.appearance.font_size, width))
+    } else {
+        None
+    };
+    let measured_ch = system_ch
+        .or(state.source_system_ch)
+        .filter(|(size, _)| *size == state.appearance.font_size)
+        .map(|(_, width)| width);
+    let current = state.docs.focused().and_then(|key| state.docs.tile_of(key));
+    let mut presentation = crate::collapse::presentation(
+        state.docs.workspace().tiled(),
+        &state.collapse,
+        viewport,
+        frame,
+        &state.presentation,
+        current,
+        |tile| state.docs.role(tile).cloned(),
+        |tile| match state.docs.role(tile) {
+            Some(TileRole::Document(key)) => crate::collapse::source_width(
+                &state.appearance,
+                &state.surface_for(*key).snapshot().text,
+                measured_ch,
+            ),
+            _ => 0.0,
+        },
+    );
+    // Anchor each drawer to its own measured rail. Coordinates are translated
+    // from the host viewport into the positioned workspace, then clamped by
+    // overlay_surface; a right reading therefore opens against the right edge.
+    for stack in &mut presentation.stacks {
+        if let Some(drawer) = stack
+            .collapsed
+            .as_mut()
+            .and_then(|collapsed| collapsed.drawer.as_mut())
+        {
+            let node = {
+                let dom = ctx.runner.dom();
+                let dom = dom.borrow();
+                find(
+                    &*dom,
+                    dom.document(),
+                    "data-rail",
+                    &stack.anchor.0.to_string(),
+                )
+            };
+            if let Some(rect) = node.and_then(|node| ctx.painted_rect(node)) {
+                drawer.trigger = (rect.0 - frame.0, rect.1 - frame.1, rect.2, 0.0);
+            }
+        }
+    }
+    if viewport.0 < f32::from(state.collapse.drawer_below)
+        && let Some(reveal) = state.collapse_reveal
+    {
+        fn anchor(
+            tree: &workbench::TileTree,
+            tile: workbench::TileId,
+        ) -> Option<workbench::TileId> {
+            match tree {
+                workbench::TileTree::Stack(stack) => stack
+                    .tabs
+                    .iter()
+                    .any(|t| t.id == tile)
+                    .then(|| stack.tabs.first().map(|t| t.id))
+                    .flatten(),
+                workbench::TileTree::Split { children, .. } => {
+                    children.iter().find_map(|child| anchor(&child.tree, tile))
+                },
+            }
+        }
+        if let Some(anchor) = anchor(state.docs.workspace().tiled(), reveal) {
+            for stack in &mut presentation.stacks {
+                if let Some(collapsed) = &mut stack.collapsed {
+                    collapsed.open = stack.anchor == anchor;
+                }
+            }
+        }
+    }
+    let compact = viewport.0 < f32::from(state.collapse.menu_below);
+    let changed = presentation != state.presentation
+        || compact != state.command_menu_compact
+        || viewport != state.viewport
+        || system_ch.is_some_and(|width| Some(width) != state.source_system_ch);
+    if changed || state.collapse_reveal.is_some() {
+        ctx.runner.update(|state| {
+            state.presentation = presentation;
+            state.viewport = viewport;
+            state.command_menu_compact = compact;
+            state.collapse_reveal = None;
+            if system_ch.is_some() {
+                state.source_system_ch = system_ch;
+            }
+        });
+    }
+    changed
 }
 
 pub const DESKTOP_CSS: &str = concat!(
@@ -4822,18 +5099,18 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-command-palette .command-disabled-reason { opacity:0.7; font-size:12px; }",
     ".knot-command-palette .command-item[aria-disabled=true] { opacity:0.55; }",
     ".knot-command-palette .command-item.selected { outline:2px solid currentColor; outline-offset:-2px; }",
-    ".knot-appearance-panel { display:flex; flex-direction:column; gap:8px; padding:10px; border:1px solid; }",
+    ".knot-appearance-panel { display:flex; flex-direction:column; gap:8px; padding:10px; border:1px solid; max-height:30vh; min-width:0; flex-shrink:0; overflow:auto; box-sizing:border-box; }",
     ".knot-appearance-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }",
     ".knot-font-licenses { max-height:240px; overflow:auto; }",
     ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field input { min-width:280px; flex:1; }",
-    ".knot-path-popover { display:flex; align-items:center; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; }",
+    ".knot-path-popover { display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; box-sizing:border-box; }",
     ".knot-path-popover .knot-path-field { min-width:0; }",
     ".knot-path-popover .knot-path-field input { min-width:0; }",
     ".knot-reading { display:flex; flex-direction:column; gap:8px; padding:8px 12px; min-width:0; }",
-    ".knot-reading-header { display:flex; align-items:center; gap:6px; min-width:0; }",
+    ".knot-reading-header { display:flex; align-items:center; gap:6px; min-width:0; padding-right:1px; box-sizing:border-box; }",
     ".knot-reading-title { font-weight:600; white-space:nowrap; }",
     ".knot-reading-separator { opacity:0.6; }",
     ".knot-reading-document { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }",
@@ -4872,7 +5149,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-link-label { font-weight:600; }",
     ".knot-link-kind { opacity:.8; }",
     ".knot-link-actions { min-width:0; display:flex; flex-wrap:wrap; gap:6px; }",
-    ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:240px; }",
+    ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:0; }",
     ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }",
     // Keep these exemptions inside the Graph tile. Extra overflow clips around
     // the positioned notice and self-clipping graph blank netrender's whole
@@ -4889,6 +5166,9 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-frame .frisket-close { flex:0 0 18px; width:18px; height:auto; margin-left:0; padding:0; font-size:13px; visibility:hidden; }",
     ".knot-frame .frisket-tab.active .frisket-close, .knot-frame .frisket-tab:hover .frisket-close { visibility:visible; }",
     ".knot-frame .frisket-content { flex:1 1 0px; min-height:0; overflow:auto; padding:12px; }",
+    ".knot-frame .frisket-divider { flex:0 0 1px; }",
+    ".knot-frame .frisket-rail { padding:0; border-radius:0; box-sizing:border-box; overflow:hidden; }",
+    ".knot-frame .frisket-panel-close { flex:none; max-width:100%; }",
     ".knot-frame .frisket-content[data-tile=\"18446744073709551615\"] { overflow:visible; padding:0; }",
     ".knot-empty-frame { display:block; padding:24px 0; }",
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
@@ -4911,6 +5191,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
     "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
+    "@media (max-height:320px) { .knot-workspace { gap:4px; padding-top:4px; } .knot-workspace-toolbar { flex:none; } .knot-workspace > .status-bar { padding-top:2px; padding-bottom:2px; min-height:24px; } .knot-frame .frisket-content { padding-top:4px; padding-bottom:4px; } .knot-writing-area { padding-top:4px; padding-bottom:4px; } .knot-appearance-panel { padding:4px; max-height:20vh; } .knot-workspace > [id=knot-link-form], .knot-confirm { max-height:25vh; overflow:auto; min-height:0; flex:none; } }",
 );
 
 #[cfg(test)]
@@ -4922,6 +5203,190 @@ mod tests {
     use std::sync::{Arc, Mutex, mpsc};
     use taproot::Selector;
     use tempfile::tempdir;
+
+    #[test]
+    fn short_zoomed_viewport_keeps_source_status_and_drawer_inside_the_window() {
+        let assert_chrome = |host: &DesktopHarness| {
+            assert_eq!(host.viewport_scroll(), (0.0, 0.0), "workspace must not scroll");
+            for class in ["knot-workspace-toolbar", "status-bar"] {
+                let nodes = host.with_dom(|dom| dom.all_with_class(dom.document(), class));
+                let (x, y, w, h) = host.painted_rect(nodes[0]).unwrap();
+                assert!(
+                    x >= -0.5 && x + w <= 320.5 && y >= -0.5 && y + h <= 175.5,
+                    "{class} outside viewport: ({x},{y},{w},{h})"
+                );
+            }
+        };
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Field notes on the estuary\n\nA source line remains readable with the Appearance disclosure open.",
+        ));
+        host.update(|state| state.toggle_reading(ReadingKind::Preview));
+        host.layout_at(4000.0, 700.0);
+        for _ in 0..4 {
+            host.prepare_frame();
+            host.relayout();
+        }
+        let before = host.state().document().snapshot();
+        let canonical = host.state().docs.workspace().tiled().clone();
+        host.set_ui_zoom(4.0);
+        host.layout_at(1280.0, 700.0);
+        for appearance_open in [false, true, false] {
+            host.update(|state| state.appearance_open = appearance_open);
+            for _ in 0..4 {
+                host.prepare_frame();
+                host.relayout();
+            }
+            let status = host.with_dom(|dom| dom.all_with_class(dom.document(), "status-bar"));
+            let (x, y, w, h) = host.painted_rect(status[0]).unwrap();
+            assert!(
+                x >= -0.5 && x + w <= 320.5 && y >= -0.5 && y + h <= 175.5,
+                "status outside viewport with Appearance={appearance_open}: ({x},{y},{w},{h})"
+            );
+            let source = host.with_dom(|dom| {
+                taproot::matching(
+                    dom,
+                    &Selector::role("textbox").with_attr("aria-label", "Document text"),
+                )
+            });
+            let (_, y, w, h) = host.visible_rect(source[0]).unwrap();
+            assert!(
+                y >= 0.0 && y + h <= 175.5 && w > 100.0 && h >= 24.0,
+                "source unreadable with Appearance={appearance_open}: ({y},{w},{h})"
+            );
+        }
+        let reading = host
+            .state()
+            .presentation
+            .stacks
+            .iter()
+            .find(|stack| {
+                stack.collapsed.as_ref().is_some_and(|collapsed| {
+                    collapsed.label == "Readings" && collapsed.drawer.is_some()
+                })
+            })
+            .expect("collapsed reading drawer")
+            .anchor;
+        assert!(
+            host.click_on(&Selector::role("button").with_attr("data-rail", reading.0.to_string()))
+        );
+        host.after_dispatch();
+        for _ in 0..4 {
+            host.prepare_frame();
+            host.relayout();
+        }
+        let panels =
+            host.with_dom(|dom| dom.all_with_class(dom.document(), "overlay-surface-panel"));
+        assert_eq!(panels.len(), 1);
+        let (x, y, w, h) = host.painted_rect(panels[0]).unwrap();
+        assert!(
+            x >= -0.5 && x + w <= 320.5 && y >= -0.5 && y + h <= 175.5 && h >= 24.0,
+            "drawer outside viewport: ({x},{y},{w},{h})"
+        );
+        assert_eq!(host.state().document().snapshot(), before);
+        assert_eq!(host.state().docs.workspace().tiled(), &canonical);
+        let heading = Selector::role("button")
+            .with_attr("aria-label", "Select source heading: Field notes on the estuary");
+        let scroll_before = host.element_scroll_total();
+        assert!(host.click_on(&heading), "preview heading must be reachable");
+        host.after_dispatch();
+        for _ in 0..4 {
+            host.prepare_frame();
+            host.relayout();
+        }
+        let heading_nodes = host.with_dom(|dom| taproot::matching(dom, &heading));
+        let (x, y, w, h) = host.visible_rect(heading_nodes[0]).expect("visible preview heading");
+        assert!(
+            x >= 0.0 && x + w <= 320.5 && y >= 0.0 && y + h <= 175.5 && h >= 24.0,
+            "preview heading unreadable after scrolling: ({x},{y},{w},{h})"
+        );
+        assert!(host.element_scroll_total() > scroll_before);
+        assert_chrome(&host);
+        assert_eq!(host.state().document().snapshot().text, before.text);
+        assert_eq!(host.state().docs.workspace().tiled(), &canonical);
+        let selected = host.state().document().snapshot();
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("class", "frisket-panel-close")
+        ));
+        host.after_dispatch();
+        for _ in 0..4 {
+            host.prepare_frame();
+            host.relayout();
+        }
+        host.press_key(&KeyPress::named(NamedKey::Escape));
+        for _ in 0..4 {
+            host.prepare_frame();
+            host.relayout();
+        }
+        assert!(host.state().presentation.stacks.iter().all(|stack| {
+            !stack.collapsed.as_ref().is_some_and(|collapsed| collapsed.open)
+        }));
+        assert!(source_is_focused(host.runner()));
+        assert_chrome(&host);
+        let source = host.with_dom(|dom| {
+            taproot::matching(
+                dom,
+                &Selector::role("textbox").with_attr("aria-label", "Document text"),
+            )
+        });
+        let (_, y, w, h) = host.visible_rect(source[0]).unwrap();
+        assert!(y >= 0.0 && y + h <= 175.5 && w > 100.0 && h >= 24.0);
+        assert!(host.element_scroll_total() > 0.0, "nested source scroll is retained");
+        assert_eq!(host.state().document().snapshot(), selected);
+    }
+
+    #[test]
+    fn drawer_escape_from_retained_scenario_dispatch_restores_source_during_frame() {
+        let mut hooks = crate::host_hooks();
+        hooks.after_frame = Box::new(|ctx| {
+            // Mesquite's key verb dispatches to the retained runner after a
+            // frame; unlike physical host input it does not run after_dispatch.
+            ctx.runner
+                .dispatch_key(cambium::KeyEvent::new(cambium::Key::Named(
+                    cambium::NamedKey::Escape,
+                )));
+        });
+        let mut host = Harness::with_hooks(
+            Init {
+                state: DesktopState::new(
+                    KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Source\n\noriginal source"),
+                    WindowCommands::new(),
+                ),
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: crate::fonts::bundled_fonts(),
+                images: Vec::new(),
+            },
+            hooks,
+        );
+        host.update(|state| state.toggle_reading(ReadingKind::Preview));
+        host.layout_at(320.0, 700.0);
+        for _ in 0..4 {
+            host.prepare_frame();
+            host.relayout();
+        }
+        assert_eq!(
+            host.state()
+                .presentation
+                .stacks
+                .iter()
+                .filter_map(|stack| stack.collapsed.as_ref())
+                .filter(|collapsed| collapsed.open && collapsed.drawer.is_some())
+                .count(),
+            1
+        );
+        let before = host.state().document().snapshot();
+        let canonical = host.state().docs.workspace().tiled().clone();
+        host.after_frame();
+        assert!(host.state().entry().focus_source_requested);
+        host.relayout();
+        host.prepare_frame();
+        host.relayout();
+        assert!(source_is_focused(host.runner()));
+        assert!(!host.state().entry().focus_source_requested);
+        assert_eq!(host.state().document().snapshot(), before);
+        assert_eq!(host.state().docs.workspace().tiled(), &canonical);
+    }
 
     #[test]
     fn document_link_menu_keeps_selection_and_cancel_escape_restore_source_focus() {

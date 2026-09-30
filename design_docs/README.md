@@ -5,6 +5,8 @@ to an independently consumable repository.
 
 Current authority:
 
+- [Composition readings](2026-09-30_knot_composition_readings.md): opt-in lexical source registry, Mora sound layers, durable collected material, offline WordNet conversion and the backend-neutral reading seam; implementation and acceptance limits are explicit.
+
 - [Predicates, inference readings, scripted readings](2026-09-15_knot_predicates_inference_scripting_plan.md): predicate identity mapping before the first authored relation persists; esp graduation from the lexical provider to embeddings, related-passage readings and suggestions; a rhai reading lane over typed snapshots. All readings, no new authority.
 
 - [Design pass](2026-09-23_knot_design_pass.md): the rulings on the brief's seven layout questions (title-bar menus over one command list, a status bar of authority chips, readings and the navigator as Workbench tiles, readings typed by kind, site tiles, the type and measure rules, measure-keeping collapse), the three arrangement frames, the stylesheet proposal, confirmed layout defects, and a proposed slice order.

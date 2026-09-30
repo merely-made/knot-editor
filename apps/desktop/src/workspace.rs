@@ -368,6 +368,7 @@ pub struct DesktopState {
     readings_root: Option<PathBuf>,
     pub(crate) readings: Vec<ReadingScript>,
     pub(crate) readings_load_notes: Vec<String>,
+    pub(crate) composition: crate::composition::CompositionState,
     /// The script each Readings tile has chosen, by name, so a refresh that
     /// adds or drops a file cannot silently arm a different reading.
     pub(crate) reading_scripts: HashMap<workbench::TileId, String>,
@@ -465,6 +466,7 @@ impl DesktopState {
             recovery_error: None,
             readings_root: None,
             readings: Vec::new(),
+            composition: crate::composition::CompositionState::default(),
             readings_load_notes: Vec::new(),
             reading_scripts: HashMap::new(),
             window,
@@ -1549,6 +1551,11 @@ impl DesktopState {
     /// file that cannot be read leaves defaults and says why, and a file a
     /// newer Knot wrote loads what this one knows and says that.
     pub fn set_preferences_path(&mut self, path: Option<PathBuf>) {
+        self.composition = crate::composition::CompositionState::configured(
+            path.as_ref()
+                .and_then(|path| path.parent())
+                .map(|root| root.join("composition")),
+        );
         self.preferences = path.map(PreferencesStore::open);
         let Some(store) = &self.preferences else {
             return;
@@ -2062,7 +2069,8 @@ impl DesktopState {
             },
         };
         let source = input.text.clone();
-        match knot_readings::run(&script, &input, ReadingBudget::default()) {
+        use knot_readings::backend::{ReadingBackend, RhaiReadingBackend};
+        match RhaiReadingBackend.run(&script, &input, ReadingBudget::default()) {
             Ok(result) => {
                 entry.reading_result = Some(result);
                 entry.reading_source = Some(source);

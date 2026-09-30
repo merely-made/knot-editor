@@ -11,6 +11,8 @@ description = "Sandboxed rhai reading lane over Knot's typed document snapshots.
 blake3.workspace = true
 inker.workspace = true
 knot-document = { workspace = true, features = ["engine"] }
+mora.workspace = true
+mora-cmudict.workspace = true
 script-rhai.workspace = true
 
 [dev-dependencies]

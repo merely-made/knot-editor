@@ -1,6 +1,6 @@
 # Collapse: non-destructive workspace presentation
 
-Status: Combined integration passes automated checks; native matrix awaits Mac unlock.
+Status: Shared text paint repair passes automated checks; final native qualification in progress.
 Date: 2026-09-29
 Base: Knot `8bc98c7`, following Typography acceptance.
 Deciders: Existing design-pass section 7 rulings; implementation follows them.
@@ -69,10 +69,9 @@ and interaction are shared, while Knot owns the width threshold.
 
 The integration merges Knot main `3dfb70b` into the accepted Collapse branch,
 preserving catalog diagnostics alongside Commands, typography and collapse.
-Mere `98e7667bc5cc57c3a64c14001b626fdb4a843b56` merges both dependency
-lines; Genet remains `69a2383b2ad777b884a72f31f8f8fb7ece275c0b`.
-Shared checks pass seven rail, status and compact-menu tests plus three
-presented-capture pairing tests.
+Mere `c670795851546000aea4b1ef66fd929d458d0a41` preserves both dependency
+lines and repairs shared text paint ordering, using Genet
+`b1eb3af197111ecde34421bbe1bad2e6024ca564`.
 
 The merge review found that a retained Graph tab was being reported as visible
 even when inactive or hidden by Collapse. The capture adapter now follows the
@@ -83,7 +82,7 @@ cover tab activation, closed/open presentation, canonical-tree preservation,
 and accepted-fact suppression. Existing Save diagnostics remain scoped to the
 explicit Save command; other save flows do not acquire a fabricated causal chain.
 
-Verification for the combined source:
+Verification before the shared paint repair:
 
 - Locked workspace suite: 490 passed, zero failed, one existing diagnostic
   timing ignore. This completed before the final capture-adapter correction.
@@ -97,13 +96,44 @@ Verification for the combined source:
 
 Logs, isolated app, scenarios and receipt destinations are under
 `/Users/markik/Code/testing/knot-editor/collapse-integrated-20260930`.
-The first native launch was blocked by the locked Mac. No combined native
-capture has landed yet. The five prepared lanes cover the original viewport
-matrix, plus active/background Graph metadata at 320px. Four lanes enable
-capture pairing; the normal 1280px lane keeps the default unpaired path.
-This combined candidate is ready for branch publication, with main promotion
-held for native acceptance. Earlier native receipts below apply only to their
-named isolated binary.
+The first native launch was blocked by the locked Mac. After native access
+returned, the 320px lane passed at 2527 frames with ten captures, including
+active/background Graph metadata. The 400% zoom lane passed its assertions at
+2452 frames with five captures, but visual review confirmed the existing
+selection/caret overlay defect. These are preserved under
+`receipts/320-before-paint-fix-773959` and
+`receipts/1280zoom-before-paint-fix-773959`.
+
+`MESQUITE_CAPTURE_PAINT=1` saved actual paint streams beside the baseline PNGs.
+The zoomed reading-body capture contains 207 commands: the final DOM clip
+closes at index 203, then selection rectangles 204/205 and caret 206 paint
+with zero active clip, transform or layer scopes. The PNG visibly shows that
+source selection above the drawer's Close and Preview controls. This confirms
+the shared Rootstock emission order, not a Knot drawer-color defect. The
+native and browser hosts share that path. The decoded command summary is
+`baseline-zoom-paint.txt` beside the receipts.
+
+The repair inserts selection then caret after field content, within its CSS
+clip/scroll/transform/layer context and before later overlays, including
+positive-z descendants. This preserves translucent selection over syntax
+backgrounds rather than suppressing selection. Existing IME and caret geometry
+APIs are unchanged. Genet has 38 passing relevant checks, including five new
+slot-order regressions. Mere has 64 passing checks, including six production
+text-paint regressions and a failing control for the previous global append.
+The web-host wasm32 compile check passes; this is not browser runtime acceptance.
+Knot's repaired locked workspace suite passes 492 tests, with zero failures and
+one existing diagnostic timing ignore. Strict desktop/readings Clippy passes
+with warnings denied. The locked native build passes; build and isolated bundle
+SHA-256 agree at
+`5f355e7daac67578c1d98eeef085ed1510c5976fbec290bbaecafe667e035740`.
+The fixture digest remains unchanged. Launching this final candidate was blocked
+by the Mac locking again; no native capture from this repaired binary has been
+accepted yet.
+
+The shared repair and new binary must pass the prepared viewport matrix before
+main promotion. Four lanes enable capture pairing; the normal 1280px lane
+keeps the default unpaired path. Earlier native receipts below apply only to
+their named isolated binary.
 
 ### Accepted isolated candidate, 2026-09-30
 

@@ -18,6 +18,10 @@ use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
+pub(crate) mod diagnostics;
+use apparatus::{Cursor, OperationId, RecordRef};
+use diagnostics::{Diagnostics, Installed, Observation, Phase, ResultKind};
+
 pub(crate) const LEAF_KEY: u64 = 0x6b6e_6f74_6772_6170;
 pub(crate) const REGION_ID: &str = "knot-graph";
 
@@ -40,11 +44,14 @@ struct CatalogRequest {
     catalog: KnotFileCatalogSnapshot,
     max_bytes: usize,
     generation: u64,
+    request: Option<RecordRef>,
 }
 
 struct CatalogCompletion {
     reading: CatalogReading,
     generation: u64,
+    request: Option<RecordRef>,
+    outcome: Option<RecordRef>,
 }
 
 #[cfg(test)]
@@ -102,6 +109,11 @@ pub(crate) struct GraphState {
     configured: bool,
     requested_signature: Option<String>,
     desired_generation: u64,
+    generation_exhausted: bool,
+    installed: Option<Installed>,
+    diagnostics: Option<Diagnostics>,
+    receipt_cursor: std::cell::RefCell<Option<Cursor>>,
+    running: Option<(u64, Option<RecordRef>)>,
     invalidated: bool,
     #[cfg(test)]
     worker_control: Option<WorkerControl>,
@@ -121,6 +133,11 @@ impl Default for GraphState {
             configured: false,
             requested_signature: None,
             desired_generation: 0,
+            generation_exhausted: false,
+            installed: None,
+            diagnostics: Diagnostics::from_env(),
+            receipt_cursor: Default::default(),
+            running: None,
             invalidated: false,
             #[cfg(test)]
             worker_control: None,
@@ -137,17 +154,106 @@ impl GraphState {
         self.invalidated = true;
     }
 
+    #[cfg(test)]
     pub fn start(&mut self, catalog: Option<KnotFileCatalogSnapshot>, max_bytes: usize) {
+        self.start_with_cause(catalog, max_bytes, None);
+    }
+
+    pub(crate) fn save_dispatched(&self) -> Option<RecordRef> {
+        self.record(Observation::new(Phase::SaveDispatched, None, None), None)
+    }
+
+    pub(crate) fn file_write_returned(
+        &self,
+        cause: Option<RecordRef>,
+        success: bool,
+    ) -> Option<RecordRef> {
+        self.record(
+            Observation::new(
+                Phase::FileWriteReturned,
+                None,
+                Some(if success {
+                    ResultKind::Success
+                } else {
+                    ResultKind::WriteFailed
+                }),
+            ),
+            cause,
+        )
+    }
+
+    fn record(&self, payload: Observation, cause: Option<RecordRef>) -> Option<RecordRef> {
+        record(self.diagnostics.as_ref(), payload, cause)
+    }
+
+    fn advance_generation(&mut self, cause: Option<RecordRef>) -> bool {
+        if !self.generation_exhausted
+            && let Some(next) = self.desired_generation.checked_add(1)
+        {
+            self.desired_generation = next;
+            return true;
+        }
+        self.generation_exhausted = true;
+        self.discard_queued(ResultKind::IdentityExhausted);
+        self.reading = None;
+        self.installed = None;
+        self.requested_signature = None;
+        self.notice = Some("The catalog graph request identity is exhausted.".to_owned());
+        self.record(
+            Observation::new(
+                Phase::GenerationExhausted,
+                None,
+                Some(ResultKind::IdentityExhausted),
+            ),
+            cause,
+        );
+        false
+    }
+
+    fn discard_queued(&mut self, reason: ResultKind) {
+        if let Some(request) = self.queued.take() {
+            self.record(
+                Observation::new(
+                    Phase::QueuedSuperseded,
+                    Some(request.generation),
+                    Some(reason),
+                ),
+                request.request,
+            );
+        }
+    }
+
+    pub(crate) fn start_with_cause(
+        &mut self,
+        catalog: Option<KnotFileCatalogSnapshot>,
+        max_bytes: usize,
+        cause: Option<RecordRef>,
+    ) {
         self.configured = catalog.is_some();
         self.notice = None;
         let Some(catalog) = catalog else {
+            if !self.advance_generation(cause.clone()) {
+                return;
+            }
+            self.record(
+                Observation::new(
+                    Phase::InterestInvalidated,
+                    Some(self.desired_generation),
+                    Some(ResultKind::InterestUnavailable),
+                ),
+                cause,
+            );
             self.reading = None;
-            self.queued = None;
+            self.installed = None;
+            self.discard_queued(ResultKind::InterestUnavailable);
             self.requested_signature = None;
-            self.desired_generation = self.desired_generation.wrapping_add(1);
             self.invalidated = false;
             return;
         };
+        if self.generation_exhausted {
+            self.advance_generation(cause);
+            return;
+        }
         #[cfg(not(test))]
         let can_start = self.wake.is_some();
         #[cfg(test)]
@@ -175,14 +281,22 @@ impl GraphState {
         {
             return;
         }
-        self.desired_generation = self.desired_generation.wrapping_add(1);
+        if !self.advance_generation(cause.clone()) {
+            return;
+        }
         self.requested_signature = Some(signature.clone());
+        let observed = self.record(
+            Observation::new(Phase::CatalogRequested, Some(self.desired_generation), None),
+            cause,
+        );
         let request = CatalogRequest {
             catalog,
             max_bytes,
             generation: self.desired_generation,
+            request: observed,
         };
         if self.receiver.is_some() {
+            self.discard_queued(ResultKind::Superseded);
             self.queued = Some(request);
             return;
         }
@@ -193,20 +307,45 @@ impl GraphState {
         let (sender, receiver) = mpsc::channel();
         self.receiver = Some(receiver);
         self.reading = None;
+        self.installed = None;
+        self.running = Some((request.generation, request.request.clone()));
+        let failed_request = request.request.clone();
+        let failed_generation = request.generation;
+        let diagnostics = self.diagnostics.clone();
         let wake = self.wake.clone();
         #[cfg(test)]
         let control = self.worker_control.clone();
         let spawned = std::thread::Builder::new()
             .name("knot-catalog-graph".to_owned())
             .spawn(move || {
+                let started = record(
+                    diagnostics.as_ref(),
+                    Observation::new(Phase::WorkerStarted, Some(request.generation), None),
+                    request.request.clone(),
+                );
                 #[cfg(test)]
                 if let Some(control) = control {
                     control.started();
                 }
                 let reading = read_catalog(request.catalog, request.max_bytes);
+                let mut payload = Observation::new(
+                    Phase::WorkerCompleted,
+                    Some(request.generation),
+                    Some(if reading.errors.is_empty() {
+                        ResultKind::Success
+                    } else {
+                        ResultKind::ReadErrors
+                    }),
+                );
+                payload.nodes = Some(reading.graph.nodes.len());
+                payload.relations = Some(reading.graph.relations.len());
+                payload.read_errors = Some(reading.errors.len());
+                let outcome = record(diagnostics.as_ref(), payload, started);
                 let _ = sender.send(CatalogCompletion {
                     reading,
                     generation: request.generation,
+                    request: request.request,
+                    outcome,
                 });
                 if let Some(wake) = wake {
                     wake.wake();
@@ -214,6 +353,15 @@ impl GraphState {
             });
         if spawned.is_err() {
             self.receiver = None;
+            self.running = None;
+            self.record(
+                Observation::new(
+                    Phase::WorkerSpawnFailed,
+                    Some(failed_generation),
+                    Some(ResultKind::Unconfirmed),
+                ),
+                failed_request,
+            );
             self.notice = Some("The catalog graph worker could not start.".to_owned());
         }
     }
@@ -229,16 +377,71 @@ impl GraphState {
         match receiver.try_recv() {
             Ok(completion) => {
                 self.receiver = None;
+                self.running = None;
                 if let Some(request) = self.queued.take() {
+                    self.record(
+                        Observation::new(
+                            Phase::Discarded,
+                            Some(completion.generation),
+                            Some(ResultKind::Superseded),
+                        ),
+                        completion.outcome,
+                    );
                     self.spawn(request);
-                } else if self.configured && completion.generation == self.desired_generation {
+                } else if self.configured
+                    && !self.generation_exhausted
+                    && completion.generation == self.desired_generation
+                {
+                    let acceptance = self.record(
+                        Observation::new(
+                            Phase::Accepted,
+                            Some(completion.generation),
+                            Some(if completion.reading.errors.is_empty() {
+                                ResultKind::Success
+                            } else {
+                                ResultKind::ReadErrors
+                            }),
+                        ),
+                        completion.outcome.clone(),
+                    );
+                    self.installed = Some(Installed {
+                        generation: completion.generation,
+                        request: completion.request,
+                        outcome: completion.outcome,
+                        acceptance,
+                    });
                     self.reading = Some(completion.reading);
+                } else {
+                    self.record(
+                        Observation::new(
+                            Phase::Discarded,
+                            Some(completion.generation),
+                            Some(if self.generation_exhausted {
+                                ResultKind::IdentityExhausted
+                            } else if !self.configured {
+                                ResultKind::InterestUnavailable
+                            } else {
+                                ResultKind::Superseded
+                            }),
+                        ),
+                        completion.outcome,
+                    );
                 }
                 true
             },
             Err(TryRecvError::Empty) => false,
             Err(TryRecvError::Disconnected) => {
                 self.receiver = None;
+                if let Some((generation, request)) = self.running.take() {
+                    self.record(
+                        Observation::new(
+                            Phase::WorkerDisconnected,
+                            Some(generation),
+                            Some(ResultKind::Unconfirmed),
+                        ),
+                        request,
+                    );
+                }
                 if let Some(request) = self.queued.take() {
                     self.spawn(request);
                 } else {
@@ -249,6 +452,64 @@ impl GraphState {
                 true
             },
         }
+    }
+
+    /// Constant-size owner facts; does not clone the graph, labels or read errors.
+    pub(crate) fn capture_facts(&self) -> Result<diagnostics::CaptureFacts<'_>, String> {
+        Ok(diagnostics::CaptureFacts {
+            configured: self.configured,
+            busy: self.busy(),
+            queued: self.queued.is_some(),
+            desired_generation: self.desired_generation,
+            generation_exhausted: self.generation_exhausted,
+            installed: self.installed.as_ref(),
+            catalog_nodes: self
+                .reading
+                .as_ref()
+                .map_or(0, |reading| reading.graph.nodes.len()),
+            catalog_relations: self
+                .reading
+                .as_ref()
+                .map_or(0, |reading| reading.graph.relations.len()),
+            read_errors: self
+                .reading
+                .as_ref()
+                .map_or(0, |reading| reading.errors.len()),
+            failure_present: self.notice.is_some(),
+            diagnostic_admission: self
+                .diagnostics
+                .as_ref()
+                .map(Diagnostics::stats)
+                .transpose()?,
+        })
+    }
+
+    pub(crate) fn diagnostic_attachment(
+        &self,
+    ) -> Result<Option<apparatus::Batch<serde_json::Value>>, String> {
+        let Some(diagnostics) = &self.diagnostics else {
+            return Ok(None);
+        };
+        let mut cursor = self
+            .receipt_cursor
+            .try_borrow_mut()
+            .map_err(|_| "catalog diagnostic receipt reader unavailable")?;
+        if cursor.is_none() {
+            *cursor = Some(diagnostics.cursor()?);
+        }
+        diagnostics
+            .read(cursor.as_mut().expect("reader initialized"))
+            .map(Some)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn enable_test_diagnostics(&mut self) {
+        self.diagnostics = Some(Diagnostics::new(apparatus::RetentionLimits {
+            max_records: 256,
+            max_bytes: 262_144,
+            max_age: std::time::Duration::from_secs(60),
+        }));
+        self.receipt_cursor = Default::default();
     }
 
     pub fn model(&self, open: &[OpenNode]) -> MereViewModel {
@@ -356,6 +617,24 @@ impl GraphState {
         let model = self.model(open);
         self.view.lay_out(&model, self.size.0, self.size.1);
     }
+}
+
+fn record(
+    diagnostics: Option<&Diagnostics>,
+    payload: Observation,
+    cause: Option<RecordRef>,
+) -> Option<RecordRef> {
+    let operation = if matches!(
+        payload.phase,
+        Phase::InterestInvalidated | Phase::GenerationExhausted
+    ) {
+        None
+    } else {
+        payload
+            .generation
+            .map(|generation| OperationId(format!("catalog:{generation}")))
+    };
+    diagnostics.and_then(|diagnostics| diagnostics.record(payload, operation, cause))
 }
 
 fn read_catalog(catalog: KnotFileCatalogSnapshot, max_bytes: usize) -> CatalogReading {
@@ -561,6 +840,7 @@ mod tests {
             worker_control: Some(control.clone()),
             ..GraphState::default()
         };
+        state.enable_test_diagnostics();
 
         state.start(Some(snapshot.clone()), 64);
         control.wait_for_starts(1);
@@ -593,5 +873,204 @@ mod tests {
         assert!(!state.busy());
         assert!(state.reading.is_some());
         assert_eq!(control.starts(), 2);
+        let batch = state.diagnostic_attachment().unwrap().unwrap();
+        let phase_generations = |phase: &str| {
+            batch
+                .records
+                .iter()
+                .filter(|record| record.payload["phase"] == phase)
+                .map(|record| record.payload["generation"].as_u64().unwrap())
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(phase_generations("catalog_requested"), [1, 2, 3, 4]);
+        assert_eq!(phase_generations("worker_started"), [1, 4]);
+        assert_eq!(phase_generations("queued_superseded"), [2, 3]);
+        assert_eq!(phase_generations("discarded"), [1]);
+        assert_eq!(phase_generations("accepted"), [4]);
+        let installed = state.installed.as_ref().unwrap();
+        assert_eq!(installed.generation, 4);
+        let accepted = batch
+            .records
+            .iter()
+            .find(|record| record.payload["phase"] == "accepted")
+            .unwrap();
+        assert_eq!(
+            installed.acceptance.as_ref(),
+            Some(&accepted.envelope.reference)
+        );
+        assert_eq!(accepted.envelope.metadata.cause, installed.outcome);
+    }
+
+    fn wait_for_drain(state: &mut GraphState) {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        while !state.drain() {
+            assert!(
+                std::time::Instant::now() < deadline,
+                "real catalog worker did not finish"
+            );
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+    }
+
+    #[test]
+    fn worker_execution_is_not_installed_early_and_invalidated_interest_discards_it() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("files");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("private-source.djot"), "private text").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        catalog.bind("private-source.djot").unwrap();
+        let control = WorkerControl::default();
+        let mut state = GraphState {
+            worker_control: Some(control.clone()),
+            ..Default::default()
+        };
+        state.enable_test_diagnostics();
+        state.start(Some(catalog.snapshot()), 1024);
+        control.wait_for_starts(1);
+        assert!(
+            state.capture_facts().unwrap().installed.is_none(),
+            "worker dispatch was installed before its outcome"
+        );
+        control.release();
+        let diagnostics = state.diagnostics.clone().unwrap();
+        let mut cursor = diagnostics.cursor().unwrap();
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(2);
+        loop {
+            if diagnostics
+                .read(&mut cursor)
+                .unwrap()
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "worker_completed")
+            {
+                break;
+            }
+            assert!(std::time::Instant::now() < deadline);
+            std::thread::sleep(std::time::Duration::from_millis(2));
+        }
+        assert!(
+            state.capture_facts().unwrap().installed.is_none(),
+            "worker completion was treated as host acceptance"
+        );
+        state.start(None, 1024);
+        wait_for_drain(&mut state);
+        assert!(
+            state.reading.is_none(),
+            "invalidated worker result was installed"
+        );
+        assert!(state.capture_facts().unwrap().installed.is_none());
+        let batch = state.diagnostic_attachment().unwrap().unwrap();
+        assert!(
+            batch
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "discarded"
+                    && record.payload["result"] == "interest_unavailable")
+        );
+        assert!(
+            !batch
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "accepted")
+        );
+        assert!(!serde_json::to_string(&batch).unwrap().contains("private"));
+    }
+
+    #[test]
+    fn exhausted_generation_never_aliases_a_request_or_installs_the_pending_result() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("files");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(root.join("a.djot"), "# A").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        catalog.bind("a.djot").unwrap();
+        let control = WorkerControl::default();
+        let mut state = GraphState {
+            desired_generation: u64::MAX - 1,
+            worker_control: Some(control.clone()),
+            ..Default::default()
+        };
+        state.enable_test_diagnostics();
+        state.start(Some(catalog.snapshot()), 1024);
+        control.wait_for_starts(1);
+        state.invalidate_catalog();
+        state.start(Some(catalog.snapshot()), 1024);
+        assert!(state.generation_exhausted);
+        assert_eq!(state.desired_generation, u64::MAX);
+        assert!(state.queued.is_none());
+        control.release();
+        wait_for_drain(&mut state);
+        assert!(state.reading.is_none());
+        assert!(state.installed.is_none());
+        assert_eq!(control.starts(), 1);
+        let batch = state.diagnostic_attachment().unwrap().unwrap();
+        assert_eq!(
+            batch
+                .records
+                .iter()
+                .filter(|record| record.payload["phase"] == "catalog_requested")
+                .count(),
+            1
+        );
+        assert!(
+            batch
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "generation_exhausted")
+        );
+        assert!(
+            !batch
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "accepted")
+        );
+    }
+
+    #[test]
+    fn read_errors_are_an_explicit_real_worker_outcome_and_the_projection_is_frozen() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("files");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(
+            root.join("private-source.djot"),
+            "private text beyond the budget",
+        )
+        .unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        catalog.bind("private-source.djot").unwrap();
+        let control = WorkerControl::default();
+        let mut state = GraphState {
+            worker_control: Some(control.clone()),
+            ..Default::default()
+        };
+        state.enable_test_diagnostics();
+        state.start(Some(catalog.snapshot()), 1);
+        control.wait_for_starts(1);
+        control.release();
+        wait_for_drain(&mut state);
+        let frozen = serde_json::to_value(state.capture_facts().unwrap()).unwrap();
+        assert_eq!(frozen["read_errors"], 1);
+        assert_eq!(frozen["catalog_nodes"], 1);
+        assert_eq!(frozen["catalog_relations"], 0);
+        let batch = state.diagnostic_attachment().unwrap().unwrap();
+        assert!(
+            batch
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "worker_completed"
+                    && record.payload["result"] == "read_errors")
+        );
+        assert!(
+            batch
+                .records
+                .iter()
+                .any(|record| record.payload["phase"] == "accepted"
+                    && record.payload["result"] == "read_errors")
+        );
+        assert!(!serde_json::to_string(&frozen).unwrap().contains("private"));
+        state.start(None, 1);
+        assert!(state.capture_facts().unwrap().installed.is_none());
+        assert!(frozen["installed"].is_object());
     }
 }

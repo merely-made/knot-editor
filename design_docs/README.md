@@ -9,6 +9,8 @@ Current authority:
 
 - [Design pass](2026-09-23_knot_design_pass.md): the rulings on the brief's seven layout questions (title-bar menus over one command list, a status bar of authority chips, readings and the navigator as Workbench tiles, readings typed by kind, site tiles, the type and measure rules, measure-keeping collapse), the three arrangement frames, the stylesheet proposal, confirmed layout defects, and a proposed slice order.
 
+- [Workspace slice execution](2026-09-23_knot_workspace_slice1_plan.md): multi-document and native design receipts; September 30 continuation qualifies bounded catalog-worker diagnostics and presentation-paired captures against Mere `7eca52e0` and Genet `7bf0e448`. Worker acceptance and file authority stay in Knot; native and restored failure controls are recorded separately.
+
 - [Design pass brief](2026-09-13_knot_design_pass_brief.md): materials, captured baseline frames, planned directions, and the layout questions a design pass over the standalone desktop has to answer before the multi-document slice adds tabs and a navigator. Answered by the design pass above.
 
 - [Native small-web authoring](2026-09-11_small_web_authoring_plan.md): Gemini, Titan, Spartan and Micron scope, shared protocol ownership, Turnstone composition and persistent-serving proposal.

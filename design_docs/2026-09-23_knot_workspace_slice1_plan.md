@@ -1490,6 +1490,67 @@ design frames either fixed or recorded.
   under its explicit fixed-or-recorded visual-difference condition; it is not
   a claim of pixel-identical design completion or release readiness.
 
+## September 30 diagnostics continuation
+
+The current source pins Mere `7eca52e0` and Genet `7bf0e448` across every
+manifest naming the previous diagnostics revisions. `KNOT_CAPTURE_CORRELATION=1`
+requests an immutable product reading at queue presentation, paired with the
+independently stamped asynchronous pixels. The fixed reading contains numeric
+and boolean document/appearance facts; it excludes source text, file names,
+messages and raw errors. Whole-application operation, cause and semantic
+revision remain unavailable.
+
+The optional `KNOT_DIAGNOSTICS=1` catalog adapter records actual Save dispatch,
+filesystem return, refresh request, worker execution, stale discard and accepted
+catalog outcomes. It preserves Knot's existing worker policy. Queued requests
+replaced before execution are superseded, not cancelled workers. An accepted
+reading with read errors is distinct from successful reading and file
+durability. Catalog generation exhaustion refuses further requests rather than
+wrapping into an earlier identity.
+
+`KNOT_DIAGNOSTIC_RECORDS`, `KNOT_DIAGNOSTIC_BYTES` and
+`KNOT_DIAGNOSTIC_AGE_SECS` configure the bounded observation store (defaults
+256 records, 262144 accounted bytes and 300 seconds; maxima 4096, 4194304
+and 86400). Any zero disables retention with explicit loss. Requested export
+fails on invalid configuration or collector failure. An independent receipt
+cursor does not consume inspection data. Visible graph captures may carry
+supplied catalog request/outcome/acceptance references under `graph_catalog`;
+those facts do not establish causality or semantic revision for the rest of
+the application.
+
+The containing desktop gate passes 218 tests with one existing ignore (199
+library, seven main, four preferences, four readings-panel and four scenario
+tests). The standalone document all-features gate passes 50 with one existing
+ignore. The first focused graph run stopped three new fixtures at the real
+catalog-outside-content-root constraint; correcting fixture placement restores
+all nine graph checks. Real Save success and filesystem failure tests pass.
+Deliberately accepting an invalidated worker result fails with exit 101; source
+hash restoration passes all nine graph tests and the capture-factory control.
+
+Three native worker runs pass with visually reviewed 4400x2800 graph captures
+at scale 2. Actual Save produces the accepted two-node/one-relation reading;
+the six supplied phase references end at acceptance sequence 14, catalog
+generation 3, with presentation sequence 16. Count-one retention reports 13
+evictions and gap `[1,14)` while preserving the supplied acceptance reference.
+The separate one-byte reading-budget run accepts a two-node reading with zero
+relations and two explicit read errors; worker completion and acceptance report
+read errors and the image says both documents could not be read. This is
+successful Save followed by an accepted partial catalog, not whole-job success.
+
+Paired and default light/dark/light compatibility scenarios also pass with
+three visually reviewed captures each and diagnostics disabled. The paired
+digests are `ee1723dfc65cd21b`, `ab04a4774d14b042` and `284e3545a1f45555`;
+their presentation sequences are 16, 20 and 24. Default captures retain their
+existing shape without optional additions. The qualified binary SHA-256 is
+`43651FE5E23E8960BF55AF81CD2FFB51FF73765641DB56168BA7B71F4659EDB0`.
+Strict production Clippy passes without exceptions. Strict all-target Clippy
+reports 12 pre-existing test-site warnings; the qualified all-target run passes
+with the five documented baseline lint allowances and `unused_variables`.
+The original failure and baseline source evidence are retained. Evidence lives under
+`Code/testing/knot-editor/{capture-pairing,catalog-diagnostics}`. These source
+and native receipts do not qualify human accessibility, compositor visibility
+or physical-display acknowledgement.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

@@ -1,0 +1,16 @@
+# Opt in with KNOT_CAPTURE_CORRELATION=1. Fresh APPDATA root.
+# Every image carries facts frozen at its actual presentation boundary.
+settle 5
+assert snap document_count == 1
+click role:button Appearance
+settle 1
+click role:button Light
+settle 1
+capture light
+click role:button Dark
+settle 1
+capture dark
+click role:button Light
+settle 1
+capture light_again
+log Knot presentation pairing complete

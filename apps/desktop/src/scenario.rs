@@ -15,11 +15,17 @@ pub(crate) type DesktopLogic = fn(&DesktopState) -> DesktopView;
 
 pub struct KnotLane {
     sheet: String,
+    capture_run: Option<String>,
 }
 
 impl KnotLane {
     pub fn new(sheet: String) -> Self {
-        Self { sheet }
+        Self {
+            sheet,
+            capture_run: std::env::var_os("KNOT_CAPTURE_CORRELATION")
+                .filter(|value| value == "1")
+                .map(|_| uuid::Uuid::new_v4().to_string()),
+        }
     }
 }
 
@@ -32,6 +38,47 @@ impl mesquite::Product for KnotLane {
     const LOG_PREFIX: &'static str = "knot";
     fn sheet(&self) -> &str {
         &self.sheet
+    }
+
+    fn capture_observer(&self) -> Option<mesquite::CaptureObserver<Self>> {
+        Some(mesquite::CaptureObserver {
+            run: self.capture_run.clone()?,
+            observe: Box::new(|ctx, _frame| {
+                let state = ctx.runner.state();
+                let fields = capture_fields(state);
+                let graph = state.graph_capture_facts()?;
+                let graph_visible = state.docs.graph().is_some();
+                let observed_graph = graph
+                    .installed
+                    .filter(|installed| graph_visible && installed.acceptance.is_some());
+                Ok(mesquite::CaptureProjection {
+                    product: serde_json::json!({
+                        "schema": "knot.desktop-presentation/v1",
+                        "fields": fields,
+                        "graph_catalog": {
+                            "visible": graph_visible,
+                            "facts": graph,
+                            "operation": observed_graph
+                                .map(|installed| format!("catalog:{}", installed.generation)),
+                            "cause": observed_graph
+                                .and_then(|installed| installed.acceptance.as_ref()),
+                        },
+                        "operation": null,
+                        "cause": null,
+                        "semantic_revision": null,
+                    }),
+                    fields,
+                    viewport: None,
+                })
+            }),
+        })
+    }
+
+    fn diagnostic_attachment(
+        &mut self,
+        ctx: &mut mesquite::Ctx<'_, Self>,
+    ) -> Result<Option<mesquite::DiagnosticBatch>, String> {
+        ctx.runner.state().graph_diagnostic_attachment()
     }
 
     fn snapshot(
@@ -49,5 +96,49 @@ impl mesquite::Product for KnotLane {
     fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
         let state = ctx.runner.state();
         Some(capture_pending || state.background_busy())
+    }
+}
+
+/// Fixed categories and numeric/boolean facts only. Unlike the general scenario
+/// snapshot, this never clones document text, paths, labels, messages or errors.
+fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, String> {
+    [
+        ("document_count", state.docs.len().to_string()),
+        ("reading_count", state.docs.readings().count().to_string()),
+        (
+            "source_bytes",
+            state.document().session().input().text().len().to_string(),
+        ),
+        ("theme_dark", state.appearance.dark.to_string()),
+        ("font_size", state.appearance.font_size.to_string()),
+        ("wide", state.appearance.wide.to_string()),
+        ("relaxed", state.appearance.relaxed.to_string()),
+        ("background_busy", state.background_busy().to_string()),
+    ]
+    .into_iter()
+    .map(|(key, value)| (key.to_owned(), value))
+    .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn capture_projection_reads_current_bounded_facts_without_document_material() {
+        let mut state = DesktopState::new(
+            knot_document::KnotDocumentSession::scratch("secret-address", "secret source"),
+            cambium_genet_winit_host::WindowCommands::new(),
+        );
+        state.message = Some("secret error".into());
+        let fields = capture_fields(&state);
+        assert_eq!(fields["source_bytes"], "13");
+        assert_eq!(fields["theme_dark"], "false");
+        assert!(!serde_json::to_string(&fields).unwrap().contains("secret"));
+        state.appearance.dark = true;
+        assert_eq!(capture_fields(&state)["theme_dark"], "true");
+        assert_eq!(
+            fields["theme_dark"], "false",
+            "the earlier reading stays frozen"
+        );
     }
 }

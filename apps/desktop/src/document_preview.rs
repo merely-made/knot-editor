@@ -9,7 +9,16 @@ use std::sync::Arc;
 use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
-pub const CSS: &str = ".knot-document-preview { box-sizing:border-box; padding:16px; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-diagnostics { display:block; font-size:13px; opacity:0.8; } .knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }";
+pub const CSS: &str = concat!(
+    ".knot-preview-frame { box-sizing:border-box; padding:16px; min-width:0; }",
+    ".knot-document-preview { box-sizing:border-box; }",
+    ".knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5,.knot-document-preview h6 { margin:8px 0; }",
+    ".knot-document-preview h1 { font-size:1.6em; }",
+    ".knot-document-preview h2 { font-size:1.25em; }",
+    ".knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5,.knot-document-preview h6 { font-size:1.05em; }",
+    ".knot-document-preview-diagnostics { display:block; font-family:system-ui,sans-serif; font-size:13px; line-height:normal; opacity:0.8; }",
+    ".knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }",
+);
 
 pub(crate) fn inline_presentation_css(presentation: &inker::InlinePresentation) -> String {
     let mut css = String::new();
@@ -345,7 +354,11 @@ pub fn supported(format: knot_document::DocumentFormat) -> bool {
 pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
     let surface = state.surface_for(key);
     if surface.snapshot().format.native_source() {
-        return crate::scroll_site::preview(state, key, tile);
+        return Box::new(
+            el("div", crate::scroll_site::preview(state, key, tile))
+                .attr("class", "knot-reader-body")
+                .attr("style", state.appearance.preview_style()),
+        );
     }
     if !supported(surface.snapshot().format) {
         return Box::new(
@@ -390,11 +403,16 @@ pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> Deskt
         Err(error) => Box::new(el("div", span(format!("Preview unavailable: {error}")))),
     };
     Box::new(
-        el("div", preview)
-            .attr("id", format!("knot-document-preview-{}", tile.0))
-            .attr("class", "knot-document-preview")
-            .attr("role", "complementary")
-            .attr("aria-label", "Document preview"),
+        el(
+            "div",
+            el("div", preview)
+                .attr("id", format!("knot-document-preview-{}", tile.0))
+                .attr("class", "knot-document-preview")
+                .attr("style", state.appearance.preview_style())
+                .attr("role", "complementary")
+                .attr("aria-label", "Document preview"),
+        )
+        .attr("class", "knot-preview-frame"),
     )
 }
 

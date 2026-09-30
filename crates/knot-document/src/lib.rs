@@ -12,6 +12,7 @@
 mod document_surface;
 mod document_view;
 mod editor;
+mod hard_wrap;
 mod writer;
 
 pub use document_surface::{
@@ -31,6 +32,7 @@ pub use document_view::{
     knot_document_view, knot_document_view_with_highlighting, knot_document_view_with_status,
 };
 pub use editor::{EditOutcome, KnotEditor, KnotEditorSaveError};
+pub use hard_wrap::hard_wrap_column;
 #[cfg(feature = "engine")]
 pub use writer::AuthoredFile;
 #[doc(hidden)]

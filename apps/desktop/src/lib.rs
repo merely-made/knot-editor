@@ -9,6 +9,7 @@ pub mod changes;
 pub mod document_folding;
 pub mod document_preview;
 pub mod documents;
+pub mod fonts;
 pub mod graph;
 mod document_links;
 mod link_workflow;
@@ -139,7 +140,7 @@ pub fn run_desktop_with_targets(
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: desktop_sheet(),
-                fonts: Vec::new(),
+                fonts: fonts::bundled_fonts(),
                 images: Vec::new(),
             }
         },

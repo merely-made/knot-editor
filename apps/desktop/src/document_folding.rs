@@ -314,7 +314,12 @@ pub(crate) fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -
                 no_folds,
                 el("div", rows)
                     .attr("class", "knot-folded-source")
-                    .attr("style", state.appearance.writing_style())
+                    .attr(
+                        "style",
+                        state
+                            .appearance
+                            .source_projection_style(&snapshot.source_text),
+                    )
                     .attr("role", "document")
                     .attr("aria-label", "Read-only folded source")
                     .attr("aria-readonly", "true"),

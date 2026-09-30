@@ -251,13 +251,55 @@ mod tests {
             dark: true,
             highlight: false,
             font_size: 19,
-            wide: true,
+            source_face: crate::appearance::SourceFace::SystemMonospace,
+            measure: crate::appearance::Measure::Full,
+            follow_hard_wrap: false,
             relaxed: false,
         }
     }
 
     fn json(path: &Path) -> Value {
         serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap()
+    }
+
+    #[test]
+    fn legacy_width_migrates_without_losing_newer_preferences() {
+        use crate::appearance::{Measure, SourceFace};
+        let root = tempdir().unwrap();
+        let path = root.path().join(PREFERENCES_FILE);
+        for (legacy, explicit, expected) in [
+            (true, None, Measure::Full),
+            (false, None, Measure::Medium),
+            (true, Some("narrow"), Measure::Narrow),
+        ] {
+            let mut appearance = serde_json::json!({
+                "wide": legacy,
+                "later-face": { "name": "Future face", "weight": 450 },
+            });
+            if let Some(measure) = explicit {
+                appearance["measure"] = Value::String(measure.into());
+            }
+            let future = appearance["later-face"].clone();
+            std::fs::write(
+                &path,
+                serde_json::json!({ "appearance": appearance }).to_string(),
+            )
+            .unwrap();
+            let mut store = PreferencesStore::open(path.clone());
+            assert_eq!(store.unreadable(), None);
+            assert_eq!(store.preferences().appearance.known.measure, expected);
+            let mut changed = store.preferences().appearance.known.clone();
+            changed.source_face = SourceFace::SystemMonospace;
+            changed.follow_hard_wrap = false;
+            store.save_appearance(&changed).unwrap();
+            let written = json(&path);
+            assert!(written["appearance"].get("wide").is_none());
+            assert_eq!(written["appearance"]["later-face"], future);
+            assert_eq!(
+                DesktopPreferences::load(&path).unwrap().appearance.known,
+                changed
+            );
+        }
     }
 
     #[test]

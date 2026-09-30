@@ -12,7 +12,7 @@ name = "knot"
 path = "src/main.rs"
 
 [dependencies]
-apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", rev = "7eca52e0eff63e48976b939f3e6e4eba67052520", default-features = false, features = ["serde"] }
+apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mesquite.workspace = true
 knot-site = { path = "../../crates/knot-site" }
@@ -28,12 +28,13 @@ mere-view.workspace = true
 sprigging.workspace = true
 workbench.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
-tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "7eca52e0eff63e48976b939f3e6e4eba67052520" }
+tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
 knot-file-catalog.workspace = true
 knot-readings.workspace = true
 blake3.workspace = true
 percent-encoding.workspace = true
 layout-dom-api.workspace = true
+genet-scripted-dom.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true
@@ -41,7 +42,6 @@ tokio = { version = "1", features = ["rt", "time"] }
 
 [dev-dependencies]
 pollster = "0.4"
-genet-scripted-dom.workspace = true
 tempfile = "3"
 
 [lints]

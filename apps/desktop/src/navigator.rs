@@ -138,14 +138,16 @@ mod tests {
     }
 
     fn host(catalog: Option<KnotFileCatalog>) -> DesktopHarness {
+        let mut state = DesktopState::with_catalog(
+            KnotDocumentSession::scratch("scratch:navigator", ""),
+            WindowCommands::new(),
+            None,
+            catalog,
+        );
+        state.set_command_chrome(crate::workspace::CommandChrome::PlainRow);
         let mut host = Harness::with_hooks(
             Init {
-                state: DesktopState::with_catalog(
-                    KnotDocumentSession::scratch("scratch:navigator", ""),
-                    WindowCommands::new(),
-                    None,
-                    catalog,
-                ),
+                state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: crate::desktop_sheet(),
                 fonts: Vec::new(),

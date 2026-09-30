@@ -4,21 +4,25 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use crate::appearance::Appearance;
+use crate::appearance::{Appearance, Measure, SourceFace};
 use crate::documents::{DocIdentity, DocKey, DocumentWorkspace, ReadingKind, SiteKey, TileRole};
 use crate::graph::{GraphState, OpenNode};
 use crate::preferences::PreferencesStore;
 use crate::recovery::{RecoveryId, RecoveryRecord, RecoveryRetention};
 use crate::recovery_runtime::RecoveryRuntime;
+#[path = "workspace_commands.rs"]
+mod commands;
 use cambium::{
-    AnyView, GenetCtx, GenetElement, Keyed, Popover, PopoverEvent, PopoverPlacement, PopoverState,
-    Slot, TextInput, WorkspaceModel, button, el, lens, on_key, popover, span, text_field_typed,
+    AnyView, CommandEvent, CommandMenuBarState, CommandState, GenetCtx, GenetElement, Keyed,
+    Popover, PopoverEvent, PopoverPlacement, PopoverState, Slot, TextInput, WorkspaceModel, button,
+    el, lens, map_action, on_click, on_key, popover, span, text_field_typed,
     workspace_view_with_marks,
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
-    WindowCommands,
+    ScrollAlign, WindowCommands,
 };
+use genet_scripted_dom::NodeId;
 use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
@@ -156,6 +160,23 @@ const MAX_READING_SOURCE_BYTES: usize = 64 * 1024;
 pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>>;
 pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
 
+/// The platform command chrome, overridable by a headless receipt.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CommandChrome {
+    PlainRow,
+    ClientTitlebar,
+}
+
+impl Default for CommandChrome {
+    fn default() -> Self {
+        if cfg!(target_os = "macos") {
+            Self::PlainRow
+        } else {
+            Self::ClientTitlebar
+        }
+    }
+}
+
 /// The commands that take a path, each from its own popover field.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PathCommand {
@@ -211,7 +232,7 @@ pub struct DocumentEntry {
     /// derived state with no snapshot type of its own, so the text it was bound
     /// to is kept here and handed back to the document when a row is selected.
     reading_source: Option<String>,
-    focus_source_requested: bool,
+    pub(crate) focus_source_requested: bool,
     /// Reader fold state of the Micron preview, reconciled after each dispatch.
     pub(crate) micron_folds: crate::scroll_site::MicronPreviewFolds,
     /// The site page this document is, with its metadata draft, and its Micron
@@ -296,6 +317,9 @@ impl DocumentEntry {
 pub struct DesktopState {
     /// The open documents and the tiles that show them.
     pub docs: DocumentWorkspace<DocumentEntry>,
+    pub(crate) link_form: Option<crate::link_workflow::LinkForm>,
+    pub(crate) link_form_focus_requested: bool,
+    pub command_chrome: CommandChrome,
     /// What readers see while no document is open: an empty read-only source,
     /// never a save target.
     placeholder: DocumentEntry,
@@ -306,6 +330,18 @@ pub struct DesktopState {
     /// The Save As popover's path field, filled from the focused document
     /// when the popover opens.
     pub save_as_path: TextInput,
+    pub(crate) command_palette: CommandState,
+    pub(crate) command_menu_bar: CommandMenuBarState,
+    pub(crate) command_menu_compact: bool,
+    pub(crate) command_query: TextInput,
+    pub(crate) command_palette_open: bool,
+    palette_last_revealed: Option<(String, String)>,
+    palette_focus_query: bool,
+    palette_restore_focus: bool,
+    palette_return_focus: Option<NodeId>,
+    menu_return_focus: Option<NodeId>,
+    menu_restore_focus: bool,
+    last_content_focus: Option<NodeId>,
     /// Which status chip's popover is open.
     pub(crate) status_bar: cambium::StatusBarState,
     pub(crate) open_popover: PopoverState,
@@ -318,6 +354,7 @@ pub struct DesktopState {
     pub(crate) capture_limit: usize,
     pub(crate) graph: GraphState,
     appearance_open: bool,
+    font_licenses_open: bool,
     preferences: Option<PreferencesStore>,
     recovery: Option<RecoveryRuntime>,
     recovery_error: Option<String>,
@@ -377,11 +414,30 @@ impl DesktopState {
         });
         let mut state = Self {
             docs: DocumentWorkspace::new(),
+            link_form: None,
+            link_form_focus_requested: false,
+            command_chrome: CommandChrome::default(),
             placeholder: DocumentEntry::new(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "")),
             appearance: Appearance::default(),
             scroll: Default::default(),
             path,
             save_as_path: TextInput::default(),
+            command_palette: CommandState::default()
+                .with_label("Commands")
+                .with_id("knot-command-list"),
+            command_menu_bar: CommandMenuBarState::default()
+                .with_label("Knot commands")
+                .with_id("knot-command-menu-bar"),
+            command_menu_compact: false,
+            command_query: TextInput::default(),
+            command_palette_open: false,
+            palette_last_revealed: None,
+            palette_focus_query: false,
+            palette_restore_focus: false,
+            palette_return_focus: None,
+            menu_return_focus: None,
+            menu_restore_focus: false,
+            last_content_focus: None,
             status_bar: cambium::StatusBarState::default(),
             open_popover: PopoverState::default(),
             save_as_popover: PopoverState::default(),
@@ -391,6 +447,7 @@ impl DesktopState {
             capture_limit: DEFAULT_CAPTURE_MAX_BYTES,
             graph: GraphState::default(),
             appearance_open: false,
+            font_licenses_open: false,
             preferences: None,
             recovery: None,
             recovery_error: None,
@@ -486,6 +543,11 @@ impl DesktopState {
     #[cfg(test)]
     pub(crate) fn set_window(&mut self, window: WindowCommands) {
         self.window = window;
+    }
+
+    /// Force a platform command layout in a headless acceptance test.
+    pub fn set_command_chrome(&mut self, chrome: CommandChrome) {
+        self.command_chrome = chrome;
     }
 
     /// A document's entry by key, or the placeholder's once it has closed: a
@@ -842,6 +904,54 @@ impl DesktopState {
                     .to_string(),
             )
             .with_field("appearance_open", self.appearance_open.to_string())
+            .with_field("font_size", self.appearance.font_size.to_string())
+            .with_field(
+                "source_face",
+                match self.appearance.source_face {
+                    SourceFace::IbmPlexMono => "ibm-plex-mono",
+                    SourceFace::SystemMonospace => "system-monospace",
+                },
+            )
+            .with_field(
+                "measure",
+                match self.appearance.measure {
+                    Measure::Narrow => "narrow",
+                    Measure::Medium => "medium",
+                    Measure::Wide => "wide",
+                    Measure::Full => "full",
+                },
+            )
+            .with_field(
+                "follow_hard_wrap",
+                self.appearance.follow_hard_wrap.to_string(),
+            )
+            .with_field(
+                "source_columns",
+                self.appearance
+                    .source_columns(&snapshot.text)
+                    .map_or_else(|| "full".to_owned(), |column| column.to_string()),
+            )
+            .with_field(
+                "hard_wrap_column",
+                knot_document::hard_wrap_column(&snapshot.text)
+                    .map_or_else(|| "none".to_owned(), |column| column.to_string()),
+            )
+            .with_field("palette_open", self.command_palette_open.to_string())
+            .with_field("link_form_open", self.link_form.is_some().to_string())
+            .with_field("links_open", has_reading(ReadingKind::Links).to_string())
+            .with_field(
+                "link_count",
+                crate::document_links::parsed_links(self.document().session())
+                    .map_or(0, |links| links.len())
+                    .to_string(),
+            )
+            .with_field("menu_open", self.command_menu_bar.open.to_string())
+            .with_field(
+                "command_count",
+                commands::palette_items(&commands::groups(self))
+                    .len()
+                    .to_string(),
+            )
             .with_field("document_count", self.docs.len().to_string())
             .with_field("reading_count", self.docs.readings().count().to_string())
             .with_field(
@@ -994,7 +1104,80 @@ impl DesktopState {
         }
     }
 
+    fn open_command_palette(&mut self) {
+        self.command_palette = CommandState::default()
+            .with_label("Commands")
+            .with_id("knot-command-list");
+        self.command_query = TextInput::default();
+        self.command_palette_open = true;
+        self.palette_last_revealed = None;
+        self.palette_focus_query = true;
+        self.palette_restore_focus = false;
+    }
+
+    fn dismiss_command_palette(&mut self) {
+        self.command_palette_open = false;
+        self.palette_last_revealed = None;
+        self.palette_focus_query = false;
+        self.palette_restore_focus = true;
+    }
+
+    fn move_palette_selection(&mut self, forward: bool) {
+        let query = self.command_query.text().to_lowercase();
+        let choices = commands::palette_items(&commands::groups(self));
+        let enabled: Vec<usize> = choices
+            .iter()
+            .filter(|item| item.label.to_lowercase().contains(&query))
+            .enumerate()
+            .filter_map(|(position, item)| (!item.disabled).then_some(position))
+            .collect();
+        let Some(first) = enabled.first().copied() else {
+            return;
+        };
+        let current = enabled
+            .iter()
+            .position(|position| *position == self.command_palette.selected);
+        self.command_palette.selected = match (current, forward) {
+            (Some(index), true) => enabled[(index + 1) % enabled.len()],
+            (Some(0), false) => *enabled.last().unwrap(),
+            (Some(index), false) => enabled[index - 1],
+            (None, _) => first,
+        };
+    }
+
+    fn activate_palette_selection(&mut self) {
+        let query = self.command_query.text().to_lowercase();
+        let filtered: Vec<_> = commands::palette_items(&commands::groups(self))
+            .into_iter()
+            .filter(|item| item.label.to_lowercase().contains(&query))
+            .collect();
+        let id = filtered
+            .iter()
+            .enumerate()
+            .find(|(position, item)| *position >= self.command_palette.selected && !item.disabled)
+            .or_else(|| filtered.iter().enumerate().find(|(_, item)| !item.disabled))
+            .map(|(_, item)| item.id.clone());
+        if let Some(id) = id {
+            self.dismiss_command_palette();
+            self.activate_command(&id);
+        }
+    }
+
     pub(crate) fn path_popover_event(&mut self, command: PathCommand, event: PopoverEvent) {
+        let currently_open = match command {
+            PathCommand::Open => self.open_popover.open,
+            PathCommand::SaveAs => self.save_as_popover.open,
+        };
+        if event == PopoverEvent::Toggle && !currently_open {
+            let id = match command {
+                PathCommand::Open => commands::OPEN,
+                PathCommand::SaveAs => commands::SAVE_AS,
+            };
+            if let Some(reason) = commands::disabled_reason(self, id) {
+                self.message = Some(reason);
+                return;
+            }
+        }
         let state = match command {
             PathCommand::Open => &mut self.open_popover,
             PathCommand::SaveAs => &mut self.save_as_popover,
@@ -1002,7 +1185,14 @@ impl DesktopState {
         if event == PopoverEvent::Toggle && !state.open {
             self.show_path_popover(command);
         } else {
+            let closing = state.open;
             state.apply(event);
+            if closing && self.command_chrome == CommandChrome::ClientTitlebar {
+                state.return_focus = false;
+                if self.focused_key().is_some() {
+                    self.entry_mut().focus_source_requested = true;
+                }
+            }
         }
     }
 
@@ -1013,11 +1203,23 @@ impl DesktopState {
             PathCommand::Open => {
                 if self.open_document() {
                     self.open_popover.close();
+                    if self.command_chrome == CommandChrome::ClientTitlebar {
+                        self.open_popover.return_focus = false;
+                        if self.focused_key().is_some() {
+                            self.entry_mut().focus_source_requested = true;
+                        }
+                    }
                 }
             },
             PathCommand::SaveAs => {
                 if self.save_as() {
                     self.save_as_popover.close();
+                    if self.command_chrome == CommandChrome::ClientTitlebar {
+                        self.save_as_popover.return_focus = false;
+                        if self.focused_key().is_some() {
+                            self.entry_mut().focus_source_requested = true;
+                        }
+                    }
                 }
             },
         }
@@ -1249,7 +1451,10 @@ impl DesktopState {
             },
             ReadingKind::Readings => self.refresh_readings(),
             ReadingKind::Folded => self.sync_fold_snapshots(),
-            ReadingKind::Preview | ReadingKind::Changes | ReadingKind::Submit => {},
+            ReadingKind::Preview
+            | ReadingKind::Changes
+            | ReadingKind::Links
+            | ReadingKind::Submit => {},
         }
     }
 
@@ -1293,7 +1498,7 @@ impl DesktopState {
     }
 
     /// Make `key` the focused document, as activating its tab does.
-    fn focus_document(&mut self, key: DocKey) {
+    pub(crate) fn focus_document(&mut self, key: DocKey) {
         if self.docs.focused() != Some(key) {
             self.docs.focus(key);
             self.after_focus_change();
@@ -2890,6 +3095,38 @@ fn recovery_detail(state: &DesktopState) -> DesktopView {
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
+        let hard_wrap_note: DesktopView = if appearance.follow_hard_wrap
+            && let Some(column) = knot_document::hard_wrap_column(&state.document().snapshot().text)
+        {
+            let preview_measure = appearance
+                .measure
+                .columns()
+                .map_or_else(|| "Full".to_owned(), |columns| format!("{columns}ch"));
+            Box::new(span(format!("Source follows detected {column}-column wrap ({}ch with slack); preview uses {preview_measure}.", column.saturating_add(1)))
+                .attr("class", "knot-hard-wrap-note")
+                .attr("role", "status"))
+        } else {
+            Box::new(el("div", ()))
+        };
+        let font_licenses: DesktopView = if state.font_licenses_open {
+            Box::new(
+                el(
+                    "div",
+                    (
+                        el("h3", "IBM Plex Mono"),
+                        el("pre", crate::fonts::IBM_PLEX_MONO_LICENSE),
+                        el("h3", "Source Serif 4"),
+                        el("pre", crate::fonts::SOURCE_SERIF_4_LICENSE),
+                    ),
+                )
+                .attr("class", "knot-font-licenses")
+                .attr("id", "knot-font-licenses")
+                .attr("role", "region")
+                .attr("aria-label", "Bundled font licences"),
+            )
+        } else {
+            Box::new(el("div", ()))
+        };
         // Saves refuse while the file is unreadable; say so where the controls
         // are, and offer the one action that may overwrite it.
         let preferences_note: DesktopView = match state
@@ -2968,14 +3205,74 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     el(
                         "div",
                         (
-                            button("Narrow", |state: &mut DesktopState, _| {
-                                state.update_appearance(|appearance| appearance.wide = false);
+                            button("IBM Plex Mono", |state: &mut DesktopState, _| {
+                                state.update_appearance(|appearance| {
+                                    appearance.source_face = SourceFace::IbmPlexMono
+                                });
                             })
-                            .attr("aria-pressed", (!appearance.wide).to_string()),
-                            button("Wide", |state: &mut DesktopState, _| {
-                                state.update_appearance(|appearance| appearance.wide = true);
+                            .attr(
+                                "aria-pressed",
+                                (appearance.source_face == SourceFace::IbmPlexMono).to_string(),
+                            ),
+                            button("System monospace", |state: &mut DesktopState, _| {
+                                state.update_appearance(|appearance| {
+                                    appearance.source_face = SourceFace::SystemMonospace
+                                });
                             })
-                            .attr("aria-pressed", appearance.wide.to_string()),
+                            .attr(
+                                "aria-pressed",
+                                (appearance.source_face == SourceFace::SystemMonospace).to_string(),
+                            ),
+                            button("Font licences", |state: &mut DesktopState, _| {
+                                state.font_licenses_open = !state.font_licenses_open;
+                            })
+                            .attr("aria-expanded", state.font_licenses_open.to_string())
+                            .attr("aria-controls", "knot-font-licenses"),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row")
+                    .attr("aria-label", "Source face"),
+                    font_licenses,
+                    el(
+                        "div",
+                        Keyed::new(
+                            [
+                                (Measure::Narrow, "Narrow · 60ch"),
+                                (Measure::Medium, "Medium · 72ch"),
+                                (Measure::Wide, "Wide · 90ch"),
+                                (Measure::Full, "Full"),
+                            ]
+                            .into_iter()
+                            .enumerate()
+                            .map(|(index, (measure, label))| {
+                                (
+                                    index,
+                                    button(label, move |state: &mut DesktopState, _| {
+                                        state.update_appearance(|appearance| {
+                                            appearance.measure = measure
+                                        });
+                                    })
+                                    .attr(
+                                        "aria-pressed",
+                                        (appearance.measure == measure).to_string(),
+                                    ),
+                                )
+                            })
+                            .collect::<Vec<_>>(),
+                        ),
+                    )
+                    .attr("class", "knot-appearance-row")
+                    .attr("aria-label", "Writing measure"),
+                    hard_wrap_note,
+                    el(
+                        "div",
+                        (
+                            button("Follow hard wrap", |state: &mut DesktopState, _| {
+                                state.update_appearance(|appearance| {
+                                    appearance.follow_hard_wrap = !appearance.follow_hard_wrap
+                                });
+                            })
+                            .attr("aria-pressed", appearance.follow_hard_wrap.to_string()),
                             button("Compact", |state: &mut DesktopState, _| {
                                 state.update_appearance(|appearance| appearance.relaxed = false);
                             })
@@ -3184,55 +3481,108 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     );
     let document_preview_button: DesktopView =
         if crate::document_preview::supported(state.document().snapshot().format) {
-            reading_toggle(state, ReadingKind::Preview, "Show Preview", "Hide Preview")
+            reading_toggle(
+                state,
+                ReadingKind::Preview,
+                commands::PREVIEW,
+                "Show Preview",
+                "Hide Preview",
+            )
         } else {
             Box::new(el("div", ()))
         };
     let document_folding_button: DesktopView =
         if crate::document_folding::supported(state.document().snapshot().format) {
-            reading_toggle(state, ReadingKind::Folded, "Show folds", "Hide folds")
+            reading_toggle(
+                state,
+                ReadingKind::Folded,
+                commands::FOLDS,
+                "Show folds",
+                "Hide folds",
+            )
         } else {
             Box::new(el("div", ()))
         };
+    let chrome: DesktopView = if state.command_chrome == CommandChrome::ClientTitlebar {
+        client_titlebar(state)
+    } else {
+        Box::new(
+            el(
+                "nav",
+                (
+                    el(
+                        "div",
+                        (
+                            crate::scroll_site::site_popover(state),
+                            button("Commands", |state: &mut DesktopState, _| {
+                                state.activate_command(commands::PALETTE)
+                            })
+                            .attr("id", "knot-command-palette-trigger"),
+                        ),
+                    )
+                    .attr("class", "knot-command-entry"),
+                    command_button(state, commands::NEW, "New"),
+                    path_popover(state, PathCommand::Open, false),
+                    command_button(state, commands::SAVE, "Save"),
+                    path_popover(state, PathCommand::SaveAs, false),
+                    command_button(state, commands::RELOAD, "Reload"),
+                    command_button(state, commands::COMPARE, "Compare"),
+                    reading_toggle(
+                        state,
+                        ReadingKind::Changes,
+                        commands::CHANGES,
+                        "Show changes",
+                        "Hide changes",
+                    ),
+                    document_preview_button,
+                    document_folding_button,
+                    button("Appearance", |state: &mut DesktopState, _| {
+                        state.activate_command(commands::APPEARANCE);
+                    })
+                    .attr("aria-expanded", state.appearance_open.to_string())
+                    .attr("aria-controls", "knot-appearance-panel"),
+                    reading_toggle(
+                        state,
+                        ReadingKind::Outline,
+                        commands::OUTLINE,
+                        "Show Outline",
+                        "Hide Outline",
+                    ),
+                    reading_toggle(
+                        state,
+                        ReadingKind::Readings,
+                        commands::READINGS,
+                        "Readings",
+                        "Hide Readings",
+                    ),
+                    navigator_toggle(state),
+                    graph_toggle(state),
+                    reading_toggle(
+                        state,
+                        ReadingKind::Submit,
+                        commands::SUBMIT,
+                        "Upload / submit",
+                        "Hide upload / submit",
+                    ),
+                ),
+            )
+            .attr("class", "knot-workspace-toolbar")
+            .attr("aria-label", "Commands"),
+        )
+    };
     Box::new(
         el(
             "main",
             (
-                el(
-                    "nav",
-                    (
-                        crate::scroll_site::site_popover(state),
-                        button("New", |state: &mut DesktopState, _| state.new_document()),
-                        path_popover(state, PathCommand::Open),
-                        button("Save", |state: &mut DesktopState, _| state.save()),
-                        path_popover(state, PathCommand::SaveAs),
-                        button("Reload", |state: &mut DesktopState, _| state.reload()),
-                        button("Compare", |state: &mut DesktopState, _| {
-                            state.compare_disk();
-                        }),
-                        reading_toggle(state, ReadingKind::Changes, "Show changes", "Hide changes"),
-                        document_preview_button,
-                        document_folding_button,
-                        button("Appearance", |state: &mut DesktopState, _| {
-                            state.toggle_appearance();
-                        })
-                        .attr("aria-expanded", state.appearance_open.to_string())
-                        .attr("aria-controls", "knot-appearance-panel"),
-                        reading_toggle(state, ReadingKind::Outline, "Show Outline", "Hide Outline"),
-                        reading_toggle(state, ReadingKind::Readings, "Readings", "Hide Readings"),
-                        navigator_toggle(state),
-                        graph_toggle(state),
-                        reading_toggle(
-                            state,
-                            ReadingKind::Submit,
-                            "Upload / submit",
-                            "Hide upload / submit",
-                        ),
-                    ),
-                )
-                .attr("class", "knot-workspace-toolbar")
-                .attr("aria-label", "Commands"),
+                chrome,
+                if state.command_chrome == CommandChrome::ClientTitlebar {
+                    client_command_popovers(state)
+                } else {
+                    Box::new(el("div", ())) as DesktopView
+                },
+                command_palette_view(state),
                 appearance_panel,
+                crate::link_workflow::form_view(state),
                 document_frame(state),
                 prompt,
                 status_bar,
@@ -3253,20 +3603,41 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
     )
 }
 
+/// A toolbar control projected from the catalog's current availability.
+fn command_button(state: &DesktopState, id: &'static str, label: &'static str) -> DesktopView {
+    let reason = commands::disabled_reason(state, id);
+    let mut control = button(label, move |state: &mut DesktopState, _| {
+        state.activate_command(id)
+    })
+    .attr("data-command-id", id)
+    .attr("aria-disabled", reason.is_some().to_string());
+    if let Some(reason) = reason {
+        control = control.attr("aria-description", reason);
+    }
+    Box::new(control)
+}
+
 /// A command-row button that shows or hides the reading of `kind` following
 /// the focused document, naming that tile's region while it is open.
 fn reading_toggle(
     state: &DesktopState,
     kind: ReadingKind,
+    command: &'static str,
     show: &'static str,
     hide: &'static str,
 ) -> DesktopView {
     let following = state.docs.following_reading(kind);
-    let toggle = button(
+    let reason = commands::disabled_reason(state, command);
+    let mut toggle = button(
         if following.is_some() { hide } else { show },
-        move |state: &mut DesktopState, _| state.toggle_reading(kind),
+        move |state: &mut DesktopState, _| state.activate_command(command),
     )
-    .attr("aria-expanded", following.is_some().to_string());
+    .attr("aria-expanded", following.is_some().to_string())
+    .attr("data-command-id", command)
+    .attr("aria-disabled", reason.is_some().to_string());
+    if let Some(reason) = reason {
+        toggle = toggle.attr("aria-description", reason);
+    }
     match following {
         Some(tile) => Box::new(toggle.attr("aria-controls", reading_region_id(tile))),
         None => Box::new(toggle),
@@ -3283,7 +3654,7 @@ fn navigator_toggle(state: &DesktopState) -> DesktopView {
         } else {
             crate::navigator::TITLE
         },
-        |state: &mut DesktopState, _| state.toggle_navigator(),
+        |state: &mut DesktopState, _| state.activate_command(commands::NAVIGATOR),
     )
     .attr("aria-expanded", open.is_some().to_string());
     match open {
@@ -3300,7 +3671,7 @@ fn graph_toggle(state: &DesktopState) -> DesktopView {
         } else {
             "Graph"
         },
-        |state: &mut DesktopState, _| state.toggle_graph(),
+        |state: &mut DesktopState, _| state.activate_command(commands::GRAPH),
     )
     .attr("aria-expanded", open.is_some().to_string());
     match open {
@@ -3316,7 +3687,7 @@ fn reading_region_id(tile: workbench::TileId) -> String {
 
 /// A command that takes a path: its button opens a popover holding a
 /// single-line path field and the command's own button; Enter runs it too.
-fn path_popover(state: &DesktopState, command: PathCommand) -> DesktopView {
+fn path_popover(state: &DesktopState, command: PathCommand, hidden_trigger: bool) -> DesktopView {
     let (label, shown, field_id, trigger_id, confirm_id) = match command {
         PathCommand::Open => (
             "Open",
@@ -3337,10 +3708,27 @@ fn path_popover(state: &DesktopState, command: PathCommand) -> DesktopView {
         PathCommand::Open => |state| &mut state.path,
         PathCommand::SaveAs => |state| &mut state.save_as_path,
     };
+    let mut model = Popover::new(label, shown)
+        .with_placement(PopoverPlacement::BelowStart)
+        .with_trigger_attr("id", trigger_id);
+    if hidden_trigger {
+        model = model
+            .with_trigger_attr("style", "display:none")
+            .with_trigger_attr("aria-hidden", "true")
+            .with_trigger_attr("tabindex", "-1");
+    } else if let Some(reason) = commands::disabled_reason(
+        state,
+        match command {
+            PathCommand::Open => commands::OPEN,
+            PathCommand::SaveAs => commands::SAVE_AS,
+        },
+    ) {
+        model = model
+            .with_trigger_attr("aria-disabled", "true")
+            .with_trigger_attr("aria-description", reason);
+    }
     popover(
-        Popover::new(label, shown)
-            .with_placement(PopoverPlacement::BelowStart)
-            .with_trigger_attr("id", trigger_id),
+        model,
         move |state: &mut DesktopState, event| state.path_popover_event(command, event),
         || {
             let body = el(
@@ -3372,6 +3760,165 @@ fn path_popover(state: &DesktopState, command: PathCommand) -> DesktopView {
                 .focusable(false),
             ) as DesktopView)
         },
+    )
+}
+
+fn command_palette_view(state: &DesktopState) -> DesktopView {
+    if !state.command_palette_open {
+        return Box::new(el("div", ()));
+    }
+    let items = commands::palette_items(&commands::groups(state));
+    let shown = items.clone();
+    let list: DesktopView = Box::new(map_action(
+        lens(
+            move |palette: &mut CommandState| cambium::command_palette(palette, &items),
+            |state: &mut DesktopState| &mut state.command_palette,
+        ),
+        move |state: &mut DesktopState, event: CommandEvent| match event {
+            CommandEvent::Activate(path) => {
+                let id = shown
+                    .get(path.first().copied().unwrap_or(usize::MAX))
+                    .map(|item| item.id.clone());
+                state.dismiss_command_palette();
+                if let Some(id) = id {
+                    state.activate_command(&id);
+                }
+            },
+            CommandEvent::Dismiss => state.dismiss_command_palette(),
+        },
+    ));
+    let dialog = el(
+        "div",
+        (
+            el(
+                "label",
+                (
+                    span("Search commands"),
+                    lens(
+                        |input: &mut TextInput| text_field_typed(input),
+                        |state: &mut DesktopState| &mut state.command_query,
+                    ),
+                ),
+            )
+            .attr("id", "knot-command-query")
+            .attr("class", "knot-command-query"),
+            list,
+        ),
+    )
+    .attr("id", "knot-command-palette")
+    .attr("class", "knot-command-palette")
+    .attr("role", "dialog")
+    .attr("aria-modal", "true")
+    .attr("aria-label", "Commands");
+    Box::new(el(
+        "div",
+        (
+            on_click(
+                el("div", ())
+                    .attr("class", "knot-command-backdrop")
+                    .attr("aria-hidden", "true"),
+                |state: &mut DesktopState, _| state.dismiss_command_palette(),
+            ),
+            dialog,
+        ),
+    ))
+}
+
+fn command_menu_bar_view(state: &DesktopState) -> DesktopView {
+    let groups = commands::groups(state);
+    let shown = groups.clone();
+    let compact = state.command_menu_compact;
+    Box::new(map_action(
+        lens(
+            move |menu: &mut CommandMenuBarState| cambium::command_menu_bar(menu, &groups, compact),
+            |state: &mut DesktopState| &mut state.command_menu_bar,
+        ),
+        move |state: &mut DesktopState, event: CommandEvent| {
+            state.menu_restore_focus = true;
+            if let CommandEvent::Activate(path) = event
+                && let Some(id) = commands::id_at_path(&shown, &path)
+            {
+                state.activate_command(&id);
+            }
+        },
+    ))
+}
+
+fn client_titlebar(state: &DesktopState) -> DesktopView {
+    let title = state.document().snapshot().display_label;
+    Box::new(
+        el(
+            "header",
+            (
+                command_menu_bar_view(state),
+                span(title)
+                    .attr("class", "knot-client-titlebar-title")
+                    .attr("aria-label", "Document title"),
+                command_button(state, commands::SAVE, "Save"),
+                if state.command_menu_compact {
+                    Box::new(el("div", ())) as DesktopView
+                } else {
+                    reading_toggle(
+                        state,
+                        ReadingKind::Outline,
+                        commands::OUTLINE,
+                        "Outline",
+                        "Hide Outline",
+                    )
+                },
+                if !state.command_menu_compact
+                    && crate::document_preview::supported(state.document().snapshot().format)
+                {
+                    reading_toggle(
+                        state,
+                        ReadingKind::Preview,
+                        commands::PREVIEW,
+                        "Preview",
+                        "Hide Preview",
+                    )
+                } else {
+                    Box::new(el("div", ())) as DesktopView
+                },
+                if state.command_menu_compact {
+                    Box::new(el("div", ())) as DesktopView
+                } else {
+                    reading_toggle(
+                        state,
+                        ReadingKind::Readings,
+                        commands::READINGS,
+                        "Readings",
+                        "Hide Readings",
+                    )
+                },
+                button("−", |state: &mut DesktopState, _| state.window.minimize())
+                    .attr("aria-label", "Minimize window")
+                    .attr("class", "knot-client-caption"),
+                button("□", |state: &mut DesktopState, _| {
+                    state.window.toggle_maximize()
+                })
+                .attr("aria-label", "Maximize window")
+                .attr("class", "knot-client-caption"),
+                button("×", |state: &mut DesktopState, _| state.window.close())
+                    .attr("aria-label", "Close window")
+                    .attr("class", "knot-client-caption"),
+            ),
+        )
+        .attr("class", "knot-client-titlebar")
+        .attr("aria-label", "Knot title bar"),
+    )
+}
+
+fn client_command_popovers(state: &DesktopState) -> DesktopView {
+    Box::new(
+        el(
+            "div",
+            (
+                path_popover(state, PathCommand::Open, true),
+                path_popover(state, PathCommand::SaveAs, true),
+                crate::scroll_site::site_popover_with_hidden_trigger(state, true),
+            ),
+        )
+        .attr("class", "knot-client-command-popovers"),
     )
 }
 
@@ -3411,7 +3958,12 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     ));
     let source_wrapper = el("div", document)
         .attr("class", "knot-source-wrapper")
-        .attr("style", state.appearance.writing_style());
+        .attr(
+            "style",
+            state
+                .appearance
+                .writing_style(&state.surface_for(key).snapshot().text),
+        );
     Box::new(
         el(
             "div",
@@ -3512,6 +4064,7 @@ pub(crate) fn reading_title(kind: ReadingKind) -> &'static str {
         ReadingKind::Folded => "Folded source",
         ReadingKind::Readings => "Readings",
         ReadingKind::Changes => "Changes",
+        ReadingKind::Links => "Links",
         ReadingKind::Submit => "Upload / submit",
     }
 }
@@ -3554,6 +4107,7 @@ fn reading_tile(
         ReadingKind::Readings => crate::readings::view(state, key, tile),
         ReadingKind::Folded => crate::document_folding::view(state, key, tile),
         ReadingKind::Changes => crate::changes::view(state, key, tile),
+        ReadingKind::Links => crate::link_workflow::reading_view(state, key),
         ReadingKind::Submit => crate::scroll_site::submit_view(state, key),
     };
     Box::new(
@@ -3782,19 +4336,106 @@ pub(crate) fn source_is_focused(runner: &DesktopRunner) -> bool {
 }
 
 pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
-    if !press.modifiers.is_command_chord() {
-        return false;
+    if runner.state().link_form.is_some()
+        && matches!(
+            press.key,
+            Key::Named(cambium_genet_winit_host::NamedKey::Escape)
+        )
+    {
+        runner.update(crate::link_workflow::dismiss);
+        return true;
     }
-    let Key::Character(key) = &press.key else {
+    if runner.state().command_palette_open {
+        let query_focused = runner.focus().is_some_and(|focused| {
+            let dom = runner.dom();
+            ancestor_has_id(&*dom.borrow(), focused, "knot-command-query")
+        });
+        match press.key {
+            Key::Named(cambium_genet_winit_host::NamedKey::Escape) => {
+                runner.update(DesktopState::dismiss_command_palette);
+                return true;
+            },
+            Key::Named(cambium_genet_winit_host::NamedKey::Tab) => {
+                let target_id = if query_focused {
+                    "knot-command-list"
+                } else {
+                    "knot-command-query"
+                };
+                if let Some(target) = runner.focusables().into_iter().find(|node| {
+                    let dom = runner.dom();
+                    ancestor_has_id(&*dom.borrow(), *node, target_id)
+                }) {
+                    runner.set_focus(Some(target));
+                }
+                return true;
+            },
+            Key::Named(cambium_genet_winit_host::NamedKey::ArrowDown) if query_focused => {
+                runner.update(|state| state.move_palette_selection(true));
+                return true;
+            },
+            Key::Named(cambium_genet_winit_host::NamedKey::ArrowUp) if query_focused => {
+                runner.update(|state| state.move_palette_selection(false));
+                return true;
+            },
+            Key::Named(cambium_genet_winit_host::NamedKey::Enter) if query_focused => {
+                runner.update(DesktopState::activate_palette_selection);
+                return true;
+            },
+            _ => {},
+        }
+        if !query_focused
+            && ((matches!(press.key, Key::Character(_)) && !press.modifiers.is_command_chord())
+                || matches!(
+                    press.key,
+                    Key::Named(cambium_genet_winit_host::NamedKey::Backspace)
+                )
+                || (commands::shortcut_id(press).is_none() && press.modifiers.is_command_chord()))
+        {
+            if let Some(query) = runner.focusables().into_iter().find(|node| {
+                let dom = runner.dom();
+                ancestor_has_id(&*dom.borrow(), *node, "knot-command-query")
+            }) {
+                runner.set_focus(Some(query));
+            }
+            return false;
+        }
+    }
+    if runner.state().command_chrome == CommandChrome::ClientTitlebar
+        && !runner.state().command_palette_open
+        && matches!(
+            press.key,
+            Key::Named(cambium_genet_winit_host::NamedKey::F10)
+                | Key::Named(cambium_genet_winit_host::NamedKey::Alt)
+        )
+        && let Some(event) = press.to_runner_key()
+    {
+        let previous = runner.focus();
+        let mut entered = false;
+        runner.update(|state| {
+            entered = state.command_menu_bar.handle_entry_key(&event);
+            if entered && state.menu_return_focus.is_none() {
+                state.menu_return_focus = previous.or(state.last_content_focus);
+            }
+        });
+        if entered {
+            return true;
+        }
+    }
+    let Some(id) = commands::shortcut_id(press) else {
         return false;
     };
-    let key = key.to_ascii_lowercase();
-    match (key.as_str(), press.modifiers.shift) {
-        ("n", false) => runner.update(DesktopState::new_document),
-        ("o", false) => runner.update(|state| state.show_path_popover(PathCommand::Open)),
-        ("s", true) => runner.update(|state| state.show_path_popover(PathCommand::SaveAs)),
-        ("s", false) => runner.update(DesktopState::save),
-        _ => return false,
+    if id == commands::PALETTE && !runner.state().command_palette_open {
+        let previous = runner.focus();
+        runner.update(|state| {
+            state.palette_return_focus = previous;
+            state.activate_command(id);
+        });
+    } else if id == commands::PALETTE {
+        runner.update(DesktopState::dismiss_command_palette);
+    } else if !runner.state().command_palette_open {
+        runner.update(|state| state.activate_command(id));
+    } else {
+        return false;
     }
     true
 }
@@ -3827,7 +4468,23 @@ pub fn after_dispatch(
         ctx.runner.update(DesktopState::prune_tile_state);
     }
     crate::scroll_site::scroll_to_micron_jump(ctx);
+    sync_command_query(ctx);
+    reveal_palette_selection(ctx);
+    focus_command_menu(ctx);
+    focus_command_palette(ctx);
     focus_path_field(ctx);
+    if ctx.runner.state().link_form_focus_requested {
+        ctx.runner
+            .update(|state| state.link_form_focus_requested = false);
+        let target = ctx.runner.focusables().into_iter().find(|node| {
+            let dom = ctx.runner.dom();
+            ancestor_has_id(&*dom.borrow(), *node, "knot-link-form")
+        });
+        if let Some(target) = target {
+            ctx.runner.set_focus(Some(target));
+        }
+    }
+    track_content_focus(ctx);
     let state = ctx.runner.state();
     let focus_requested = state.entry().focus_source_requested;
     let outline_needs_sync = state
@@ -3899,6 +4556,176 @@ fn focus_path_field(
     }
 }
 
+fn sync_command_query(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if !ctx.runner.state().command_palette_open {
+        return;
+    }
+    let query_focused = ctx.runner.focus().is_some_and(|focused| {
+        let dom = ctx.runner.dom();
+        ancestor_has_id(&*dom.borrow(), focused, "knot-command-query")
+    });
+    let text = ctx.runner.state().command_query.text();
+    let query = &ctx.runner.state().command_palette.query;
+    if text == query {
+        return;
+    }
+    if query_focused {
+        let text = text.to_owned();
+        ctx.runner.update(|state| {
+            state.command_palette.query = text;
+            state.command_palette.selected = 0;
+        });
+    } else {
+        let query = query.clone();
+        ctx.runner
+            .update(|state| state.command_query = TextInput::new(query));
+    }
+}
+
+/// Arrow keys can change the palette's active descendant while focus stays in
+/// its query field. Keep that row inside the list's bounded scrollport, rather
+/// than relying on focus-follow (the option itself never receives focus).
+fn reveal_palette_selection(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if !ctx.runner.state().command_palette_open {
+        return;
+    }
+    fn node_with_id<D: LayoutDom>(dom: &D, node: D::NodeId, id: &str) -> Option<D::NodeId> {
+        if dom.attribute(node, &Namespace::from(""), &LocalName::from("id")) == Some(id) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| node_with_id(dom, child, id))
+    }
+    let active_id = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        node_with_id(&*dom, dom.document(), "knot-command-list")
+            .and_then(|list| {
+                dom.attribute(
+                    list,
+                    &Namespace::from(""),
+                    &LocalName::from("aria-activedescendant"),
+                )
+            })
+            .filter(|id| !id.is_empty())
+            .map(str::to_owned)
+    };
+    let Some(active_id) = active_id else {
+        return;
+    };
+    let marker = (ctx.runner.state().command_palette.query.clone(), active_id);
+    if ctx.runner.state().palette_last_revealed.as_ref() == Some(&marker) {
+        return;
+    }
+    ctx.runner
+        .update(|state| state.palette_last_revealed = Some(marker.clone()));
+    let selected = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        node_with_id(&*dom, dom.document(), "knot-command-list")
+            .and_then(|list| node_with_id(&*dom, list, &marker.1))
+    };
+    if let Some(node) = selected {
+        ctx.scroll_into_view(node, ScrollAlign::Nearest);
+    }
+}
+
+fn focus_command_palette(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if ctx.runner.state().palette_focus_query {
+        let previous = ctx.runner.focus();
+        ctx.runner.update(|state| {
+            state.palette_focus_query = false;
+            if state.palette_return_focus.is_none() {
+                state.palette_return_focus = previous;
+            }
+        });
+        let target = ctx.runner.focusables().into_iter().find(|node| {
+            let dom = ctx.runner.dom();
+            let dom = dom.borrow();
+            LayoutDom::element_name(&*dom, *node).is_some_and(|name| name.local.as_ref() == "input")
+                && ancestor_has_id(&*dom, *node, "knot-command-query")
+        });
+        if let Some(target) = target {
+            ctx.runner.set_focus(Some(target));
+        }
+    } else if ctx.runner.state().palette_restore_focus {
+        let previous = ctx.runner.state().palette_return_focus;
+        ctx.runner.update(|state| {
+            state.palette_restore_focus = false;
+            state.palette_return_focus = None;
+        });
+        let focusables = ctx.runner.focusables();
+        let target = previous
+            .filter(|node| focusables.contains(node))
+            .or_else(|| {
+                focusables.iter().copied().find(|node| {
+                    let dom = ctx.runner.dom();
+                    ancestor_has_id(&*dom.borrow(), *node, "knot-command-palette-trigger")
+                })
+            });
+        if let Some(target) = target {
+            ctx.runner.set_focus(Some(target));
+        }
+    }
+}
+
+fn focus_command_menu(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if ctx.runner.state().command_menu_bar.open && ctx.runner.state().menu_return_focus.is_none() {
+        let previous = ctx.runner.state().last_content_focus;
+        ctx.runner
+            .update(|state| state.menu_return_focus = previous);
+    }
+    if !ctx.runner.state().menu_restore_focus {
+        return;
+    }
+    let previous = ctx.runner.state().menu_return_focus;
+    ctx.runner.update(|state| {
+        state.menu_restore_focus = false;
+        state.menu_return_focus = None;
+    });
+    let focusables = ctx.runner.focusables();
+    let target = previous
+        .filter(|node| focusables.contains(node))
+        .or_else(|| {
+            focusables.into_iter().find(|node| {
+                let dom = ctx.runner.dom();
+                let dom = dom.borrow();
+                LayoutDom::element_name(&*dom, *node)
+                    .is_some_and(|name| name.local.as_ref() == "textarea")
+                    && document_key_of(&*dom, *node) == ctx.runner.state().focused_key()
+            })
+        });
+    if let Some(target) = target {
+        ctx.runner.set_focus(Some(target));
+    }
+}
+
+fn track_content_focus(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    let Some(focused) = ctx.runner.focus() else {
+        return;
+    };
+    let within_commands = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        ancestor_has_id(&*dom, focused, "knot-command-menu-bar")
+            || ancestor_has_id(&*dom, focused, "knot-command-palette")
+    };
+    if !within_commands && ctx.runner.state().last_content_focus != Some(focused) {
+        ctx.runner
+            .update(|state| state.last_content_focus = Some(focused));
+    }
+}
+
 /// Drain worker completions after a host wake and rebuild the retained view.
 pub fn after_wake(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
@@ -3940,6 +4767,21 @@ pub fn after_wake(
 pub fn graph_frame(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
+    let chrome_changed = if ctx.runner.state().command_chrome == CommandChrome::ClientTitlebar {
+        let width = ctx.runner.root();
+        let compact = ctx
+            .painted_rect(width)
+            .is_some_and(|(_, _, width, _)| width < 760.0);
+        if compact != ctx.runner.state().command_menu_compact {
+            ctx.runner
+                .update(|state| state.command_menu_compact = compact);
+            true
+        } else {
+            false
+        }
+    } else {
+        false
+    };
     fn find<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
         let namespace = Namespace::from("");
         let id = LocalName::from("id");
@@ -3955,11 +4797,11 @@ pub fn graph_frame(
     };
     let Some(node) = node else {
         ctx.leaves.remove(&crate::graph::LEAF_KEY);
-        return false;
+        return chrome_changed;
     };
     let Some((_, _, width, height)) = ctx.painted_rect(node) else {
         ctx.leaves.remove(&crate::graph::LEAF_KEY);
-        return false;
+        return chrome_changed;
     };
     let size = (
         width.round().max(1.0) as u32,
@@ -3986,14 +4828,35 @@ pub fn graph_frame(
         .paint_leaf(|kind| state.appearance.graph_color(kind))
     };
     ctx.leaves.insert(crate::graph::LEAF_KEY, Box::new(leaf));
-    current != size
+    chrome_changed || current != size
 }
 
 pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px 20px 0; height:100vh; box-sizing:border-box; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
+    ".knot-command-entry { display:flex; align-items:center; gap:8px; }",
+    ".knot-client-titlebar { --app-region:drag; display:flex; align-items:center; gap:8px; min-height:36px; margin:-20px -20px 0; padding:0 8px; border-bottom:1px solid; box-sizing:border-box; }",
+    ".knot-client-titlebar-title { --app-region:drag; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; }",
+    ".knot-client-titlebar button { --app-region:no-drag; flex:none; }",
+    ".knot-client-titlebar .knot-client-caption { width:30px; min-width:30px; padding:4px; box-sizing:border-box; }",
+    ".knot-client-titlebar .command-menu-bar { --app-region:no-drag; flex:none; }",
+    ".knot-client-command-popovers { position:relative; height:0; width:0; overflow:visible; }",
+    ".knot-command-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; z-index:199; background:#0004; }",
+    ".knot-command-palette { position:fixed; top:58px; left:0; right:0; margin:0 auto; z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; box-sizing:border-box; overflow:visible; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
+    ".knot-command-query { display:flex; flex-direction:column; gap:4px; }",
+    ".knot-command-query input { width:100%; box-sizing:border-box; }",
+    ".knot-command-palette .command-surface { display:flex; flex-direction:column; min-height:0; outline:none; }",
+    ".knot-command-palette .command-items { display:flex; flex-direction:column; max-height:56vh; overflow:auto; }",
+    ".knot-command-palette .command-item { display:flex; align-items:center; gap:8px; min-height:28px; padding:5px 8px; border-radius:4px; }",
+    ".knot-command-palette .command-label { flex:1; }",
+    ".knot-command-palette .command-shortcut { opacity:0.7; }",
+    ".knot-command-palette .command-disabled-reason { opacity:0.7; font-size:12px; }",
+    ".knot-command-palette .command-item[aria-disabled=true] { opacity:0.55; }",
+    ".knot-command-palette .command-item.selected { outline:2px solid currentColor; outline-offset:-2px; }",
     ".knot-appearance-panel { display:flex; flex-direction:column; gap:8px; padding:10px; border:1px solid; }",
     ".knot-appearance-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }",
+    ".knot-font-licenses { max-height:240px; overflow:auto; }",
+    ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field input { min-width:280px; flex:1; }",
@@ -4031,6 +4894,15 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-confirm { display:flex; align-items:center; gap:8px; padding:12px; border:1px solid; }",
     ".knot-confirm [id=knot-confirm-message] { margin-right:auto; }",
     ".knot-confirm-list { display:flex; flex-direction:column; gap:2px; }",
+    "[id=knot-link-form] { flex:none; min-width:0; display:flex; flex-direction:column; align-items:stretch; max-height:240px; overflow:auto; }",
+    "[id=knot-link-form] > div { display:flex; flex-wrap:wrap; gap:6px; }",
+    "[id=knot-link-form] button { min-width:0; overflow-wrap:anywhere; }",
+    ".knot-link-row { min-width:0; max-width:100%; display:flex; flex-direction:column; gap:6px; padding:6px 0; }",
+    ".knot-link-description { min-width:0; max-width:100%; display:flex; flex-direction:column; gap:2px; }",
+    ".knot-link-description span { display:block; min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere; }",
+    ".knot-link-label { font-weight:600; }",
+    ".knot-link-kind { opacity:.8; }",
+    ".knot-link-actions { min-width:0; display:flex; flex-wrap:wrap; gap:6px; }",
     ".knot-frame { position:relative; min-width:0; flex:1 1 0px; min-height:240px; }",
     ".knot-graph { width:100%; height:100%; min-width:0; min-height:0; }",
     // Keep these exemptions inside the Graph tile. Extra overflow clips around
@@ -4051,7 +4923,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-frame .frisket-content[data-tile=\"18446744073709551615\"] { overflow:visible; padding:0; }",
     ".knot-empty-frame { display:block; padding:24px 0; }",
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
-    ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; }",
+    ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; padding:16px; border:1px solid; box-sizing:border-box; }",
     ".knot-document { flex:1; min-width:0; }",
     ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
     ".knot-outline { display:flex; flex-direction:column; min-width:0; }",
@@ -4082,6 +4954,175 @@ mod tests {
     use taproot::Selector;
     use tempfile::tempdir;
 
+    #[test]
+    fn document_link_menu_keeps_selection_and_cancel_escape_restore_source_focus() {
+        let temp = tempdir().unwrap();
+        let source_path = temp.path().join("source.djot");
+        let target_path = temp.path().join("target.djot");
+        std::fs::write(&source_path, "α 日本語 tail\n").unwrap();
+        std::fs::write(&target_path, "# Target\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&source_path).unwrap());
+        let source = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.set_command_chrome(CommandChrome::ClientTitlebar);
+            state.open_path(target_path.clone());
+            state.focus_document(source);
+        });
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
+        host.update(|state| {
+            let snapshot = state.document().snapshot();
+            state
+                .document_mut()
+                .session_mut()
+                .select_source_span(
+                    &snapshot.source.address,
+                    &snapshot.text,
+                    "α ".len(),
+                    "α 日本語".len(),
+                )
+                .unwrap();
+        });
+        let selection = host.state().document().snapshot().selection;
+        for cancel in [true, false] {
+            host.press_key(&KeyPress::named(NamedKey::F10));
+            assert!(
+                host.click_on(&Selector::role("menuitem").with_attr("data-key", "group.document"))
+            );
+            assert!(host.click_on(
+                &Selector::role("menuitem").with_attr("data-key", commands::LINK_DOCUMENT)
+            ));
+            assert!(host.state().link_form.is_some());
+            assert!(focus_inside(&host, "knot-link-form"));
+            if cancel {
+                assert!(
+                    host.click_on(&Selector::role("button").with_attr("id", "knot-link-cancel"))
+                );
+            } else {
+                host.press_key(&KeyPress::named(NamedKey::Escape));
+            }
+            assert!(host.state().link_form.is_none());
+            assert!(source_is_focused(host.runner()));
+            assert_eq!(host.state().document().snapshot().selection, selection);
+        }
+        host.update(crate::link_workflow::begin);
+        host.after_dispatch();
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").with_attr("data-link-target", "0")));
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-link-insert")));
+        assert_eq!(
+            host.state().document().snapshot().text,
+            "α [日本語](./target.djot) tail\n"
+        );
+        assert!(source_is_focused(host.runner()));
+    }
+
+    #[test]
+    fn links_reading_derives_dirty_open_document_backlinks_and_selects_the_owner() {
+        let temp = tempdir().unwrap();
+        let source_path = temp.path().join("source.djot");
+        let target_path = temp.path().join("target.djot");
+        std::fs::write(&source_path, "[日本語](./target.djot)\n").unwrap();
+        std::fs::write(&target_path, "# Target\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&source_path).unwrap());
+        let source = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "dirty ".into(),
+                )))
+                .unwrap();
+            state.open_path(target_path.clone());
+            state.toggle_reading(ReadingKind::Links);
+        });
+        host.layout_at(1100.0, 700.0);
+        let target = host.state().focused_key().unwrap();
+        assert_ne!(source, target);
+        let content = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let reading = class_node(&dom, dom.document(), "knot-readings").unwrap();
+            text_content(&dom, reading)
+        };
+        assert!(content.contains("currently open saved documents only"));
+        assert!(content.contains("source.djot · unsaved buffer · 日本語"));
+        assert!(host.click_on(
+            &Selector::role("button").containing("source.djot · unsaved buffer · 日本語")
+        ));
+        assert_eq!(host.state().focused_key(), Some(source));
+        assert!(source_is_focused(host.runner()));
+        let snapshot = host.state().document().snapshot();
+        let span = crate::document_links::parsed_links(host.state().document().session()).unwrap()
+            [0]
+        .span
+        .unwrap();
+        assert_eq!(
+            (
+                snapshot.selection.anchor.byte,
+                snapshot.selection.focus.byte
+            ),
+            span
+        );
+    }
+
+    #[test]
+    fn links_reading_wraps_descriptions_above_actions_and_preserves_exact_accessible_target() {
+        let temp = tempdir().unwrap();
+        let source_path = temp.path().join("source.djot");
+        let target_path = temp
+            .path()
+            .join(format!("{}.djot", "Target 日本語 notes ".repeat(3)));
+        std::fs::write(&target_path, "# Target\n").unwrap();
+        let relationship = &crate::document_links::RELATIONSHIPS[0];
+        let markup = crate::document_links::markup(
+            &source_path,
+            &target_path,
+            "Selected source",
+            "Target",
+            Some(relationship.slug),
+        )
+        .unwrap();
+        let exact_target = crate::document_links::relative_url(&source_path, &target_path).unwrap();
+        std::fs::write(&source_path, &markup).unwrap();
+        let mut host = harness(KnotDocumentSession::open(&source_path).unwrap());
+        host.update(|state| state.toggle_reading(ReadingKind::Links));
+        host.layout_at(900.0, 640.0);
+        let (description, actions, reading) = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let description = class_node(&dom, dom.document(), "knot-link-description").unwrap();
+            let actions = class_node(&dom, dom.document(), "knot-link-actions").unwrap();
+            let reading = class_node(&dom, dom.document(), "knot-reading").unwrap();
+            let visible = text_content(&dom, description);
+            assert!(visible.contains("Target 日本語 notes"));
+            assert!(visible.contains("cites · local document"));
+            assert!(!visible.contains("%E6"));
+            assert!(!visible.contains(relationship.iri));
+            let accessible = LayoutDom::attribute(
+                &*dom,
+                description,
+                &Namespace::from(""),
+                &LocalName::from("aria-label"),
+            )
+            .unwrap();
+            assert!(accessible.contains(&exact_target));
+            assert!(accessible.contains(relationship.iri));
+            (description, actions, reading)
+        };
+        let (x, y, width, height) = host.painted_rect(description).unwrap();
+        let (action_x, action_y, action_width, _) = host.painted_rect(actions).unwrap();
+        let (reading_x, _, reading_width, _) = host.painted_rect(reading).unwrap();
+        assert!(
+            action_y >= y + height - 1.0,
+            "Actions are below the wrapped description"
+        );
+        assert!(x >= reading_x && x + width <= reading_x + reading_width + 1.0);
+        assert!(
+            action_x >= reading_x && action_x + action_width <= reading_x + reading_width + 1.0
+        );
+    }
+
     fn harness(
         session: KnotDocumentSession,
     ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
@@ -4092,12 +5133,15 @@ mod tests {
         session: KnotDocumentSession,
         catalog: Option<KnotFileCatalog>,
     ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
+        let mut state = DesktopState::with_catalog(session, WindowCommands::new(), None, catalog);
+        // These legacy toolbar fixtures exercise the supported plain command row.
+        state.set_command_chrome(CommandChrome::PlainRow);
         let mut host = Harness::with_hooks(
             Init {
-                state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
+                state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: crate::desktop_sheet(),
-                fonts: Vec::new(),
+                fonts: crate::fonts::bundled_fonts(),
                 images: Vec::new(),
             },
             {
@@ -4322,6 +5366,7 @@ mod tests {
         catalog.bind("private-destination.djot").unwrap();
         let mut host =
             harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
+        host.update(|state| state.set_command_chrome(CommandChrome::ClientTitlebar));
         drain_wake(&mut host);
         host.update(|state| {
             state.graph.enable_test_diagnostics();
@@ -4394,6 +5439,7 @@ mod tests {
         let catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
         let mut host =
             harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
+        host.update(|state| state.set_command_chrome(CommandChrome::ClientTitlebar));
         drain_wake(&mut host);
         host.update(|state| {
             state.graph.enable_test_diagnostics();
@@ -5319,8 +6365,58 @@ mod tests {
         assert_eq!(after.dirty, before.dirty);
         assert!(host.state().appearance.dark);
         assert!(!host.state().appearance.highlight);
-        assert!(host.state().appearance.wide);
+        assert_eq!(host.state().appearance.measure, Measure::Wide);
         assert!(host.state().appearance.relaxed);
+    }
+
+    #[test]
+    fn typography_choices_preserve_preedit_selection_and_saved_baseline() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("typography.djot");
+        let source = "# First\n\n## Second\n\nCommitted Unicode: 本文.\n";
+        std::fs::write(&path, source).unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        host.layout_at(1100.0, 800.0);
+        assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
+        assert!(host.click_on(&Selector::role("button").containing("Second")));
+        host.update(|state| {
+            state
+                .document_mut()
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .set_preedit("仮入力")
+        });
+        let before = host.state().document().snapshot();
+        let baseline = host.state().document().session().compare_disk().unwrap();
+        assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+        for label in [
+            "System monospace",
+            "Narrow",
+            "Full",
+            "Follow hard wrap",
+            "Larger",
+            "Compact",
+            "IBM Plex Mono",
+            "Medium",
+        ] {
+            assert!(
+                host.click_on(&Selector::role("button").containing(label)),
+                "{label}"
+            );
+            assert_eq!(host.state().document().snapshot(), before, "{label}");
+            assert_eq!(
+                host.state().document().session().input().preedit(),
+                "仮入力",
+                "{label}"
+            );
+            assert_eq!(
+                host.state().document().session().compare_disk().unwrap(),
+                baseline,
+                "{label}"
+            );
+            assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+        }
     }
 
     #[test]
@@ -5793,7 +6889,7 @@ mod tests {
         assert!(appearance.dark);
         assert!(!appearance.highlight);
         assert_eq!(appearance.font_size, 17);
-        assert!(appearance.wide);
+        assert_eq!(appearance.measure, Measure::Wide);
         assert!(!appearance.relaxed);
     }
 
@@ -6585,6 +7681,49 @@ mod tests {
     }
 
     #[test]
+    fn menu_edit_and_escape_restore_source_focus() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        host.update(|state| state.set_command_chrome(CommandChrome::ClientTitlebar));
+        host.layout_at(1000.0, 640.0);
+        assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
+        host.key_injected("draft");
+        assert!(source_is_focused(host.runner()));
+
+        host.press_key(&KeyPress::named(NamedKey::F10));
+        assert!(host.click_on(&Selector::role("menuitem").with_attr("data-key", "group.edit")));
+        assert!(host.click_on(&Selector::role("menuitem").with_attr("data-key", commands::UNDO)));
+        assert!(source_is_focused(host.runner()));
+        assert_eq!(host.state().document().snapshot().text, "");
+        host.key_injected("after");
+        assert_eq!(host.state().document().snapshot().text, "after");
+
+        host.press_key(&KeyPress::named(NamedKey::F10));
+        host.press_key(&KeyPress::named(NamedKey::Escape));
+        assert!(source_is_focused(host.runner()));
+        host.key_injected(" escape");
+        assert_eq!(host.state().document().snapshot().text, "after escape");
+    }
+
+    #[test]
+    fn client_menu_save_as_opens_focused_path_and_escape_returns_to_source() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, ""));
+        host.update(|state| state.set_command_chrome(CommandChrome::ClientTitlebar));
+        host.layout_at(1000.0, 640.0);
+        assert!(host.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
+        host.key_injected("draft");
+        assert!(host.click_on(&Selector::role("menuitem").with_attr("data-key", "group.file")));
+        assert!(
+            host.click_on(&Selector::role("menuitem").with_attr("data-key", commands::SAVE_AS))
+        );
+        assert!(host.state().save_as_popover.open);
+        assert!(focus_inside(&host, "knot-save-as-field"));
+        host.press_key(&KeyPress::named(NamedKey::Escape));
+        assert!(!host.state().save_as_popover.open);
+        assert!(source_is_focused(host.runner()));
+        assert_eq!(host.state().document().snapshot().text, "draft");
+    }
+
+    #[test]
     fn failed_save_keeps_native_close_prompt_open() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("changed.djot");
@@ -6847,7 +7986,16 @@ mod tests {
         let path = temp.path().join("read-only.djot");
         let mut host = harness(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "read only"));
         host.layout_at(900.0, 640.0);
-        assert!(save_as_through(&mut host, &path));
+        assert!(commands::disabled_reason(host.state(), commands::SAVE_AS).is_some());
+        assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-save-as")));
+        assert!(!host.state().save_as_popover.open);
+        host.update(|state| {
+            state.save_as_path = TextInput::new(path.to_string_lossy());
+            assert!(
+                !state.save_as(),
+                "the lower-level write guard still refuses"
+            );
+        });
         assert!(!path.exists());
         assert_eq!(
             host.state().document().snapshot().write_posture,

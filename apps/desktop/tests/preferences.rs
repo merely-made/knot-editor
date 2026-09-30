@@ -8,7 +8,7 @@
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};
 use genet_scripted_dom::{NodeId, ScriptedDom};
 use knot_desktop::{
-    appearance::{Appearance, appearance_css},
+    appearance::{Appearance, Measure, appearance_css},
     host_hooks,
     preferences::{DesktopPreferences, PREFERENCES_FILE, PREFERENCES_VERSION},
     workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view},
@@ -51,6 +51,7 @@ fn launch(preferences: &Path) -> DesktopHarness {
         WindowCommands::new(),
         None,
     );
+    state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
     state.set_preferences_path(Some(preferences.to_path_buf()));
     let mut harness = Harness::with_hooks(
         Init {
@@ -137,9 +138,9 @@ fn a_malformed_preferences_file_uses_defaults_says_why_and_is_not_overwritten() 
             .known
             .dark
     );
-    click(&mut harness, "Wide");
+    click(&mut harness, "Wide · 90ch");
     let saved = DesktopPreferences::load(&path).unwrap().appearance.known;
-    assert!(saved.dark && saved.wide);
+    assert!(saved.dark && saved.measure == Measure::Wide);
 }
 
 #[test]
@@ -172,12 +173,12 @@ fn a_preferences_file_from_a_newer_knot_loads_says_so_and_keeps_saving() {
 
     click(&mut harness, "Appearance");
     assert_eq!(class_text(&harness, "knot-preferences-error"), None);
-    click(&mut harness, "Wide");
+    click(&mut harness, "Wide · 90ch");
     let written: serde_json::Value =
         serde_json::from_str(&std::fs::read_to_string(&path).unwrap()).unwrap();
     assert_eq!(written["version"], newer);
     assert_eq!(written["later-knot"], later);
-    assert_eq!(written["appearance"]["wide"], true);
+    assert_eq!(written["appearance"]["measure"], "wide");
     assert_eq!(written["appearance"]["dark"], true);
     assert!(
         !harness
@@ -208,7 +209,14 @@ fn an_appearance_change_persists_across_a_relaunch() {
 
     let mut first = launch(&path);
     click(&mut first, "Appearance");
-    for label in ["Dark", "Highlight", "Larger", "Larger", "Wide", "Compact"] {
+    for label in [
+        "Dark",
+        "Highlight",
+        "Larger",
+        "Larger",
+        "Wide · 90ch",
+        "Compact",
+    ] {
         click(&mut first, label);
     }
     let chosen = first.state().appearance.clone();

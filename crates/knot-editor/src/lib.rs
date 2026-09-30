@@ -42,6 +42,7 @@ mod writer;
 
 pub use authority::{KnotAuthoritySource, KnotSpaceAuthoritySnapshot};
 pub use retain_host::KnotResidentRetainPort;
+pub use endpoint::{CompositionGrant, KnotCompositionPort, KnotResidentCompositionPort};
 pub use clip_evidence::{
     BlobClipEvidenceStore, FileClipEvidenceStore, KnotClipEvidenceRef, KnotClipEvidenceStore,
     KnotContentRetentionPort, clip_evidence_references,

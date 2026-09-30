@@ -89,6 +89,7 @@ pub fn run_desktop_with_targets(
     readings_root: Option<PathBuf>,
     preferences_path: Option<PathBuf>,
     targets: Vec<Arc<dyn KnotRetainPort>>,
+    composition_targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>,
     titan_submission_error: Option<String>,
 ) -> Result<(), String> {
     let mut hooks = host_hooks();
@@ -142,6 +143,7 @@ pub fn run_desktop_with_targets(
             state.set_preferences_path(preferences_path.clone());
             state.set_recovery_path(recovery_path, wake.clone());
             state.set_retention_targets(targets, wake.clone());
+            state.set_composition_targets(composition_targets, wake.clone());
             state.open_behind(behind, &failures);
             Init {
                 state,

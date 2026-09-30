@@ -6493,6 +6493,7 @@ name = "knot-composition"
 version = "0.0.1"
 dependencies = [
  "blake3",
+ "knot-capture",
  "quick-xml 0.39.4",
  "reference-data",
  "serde",
@@ -6570,6 +6571,7 @@ dependencies = [
  "insigne",
  "jotdown",
  "knot-capture",
+ "knot-composition",
  "knot-document",
  "knot-file-catalog",
  "mere-fetch",

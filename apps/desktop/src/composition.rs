@@ -10,10 +10,16 @@ use crate::{
     workspace::{DesktopState, DesktopView},
 };
 use cambium::{Keyed, TextInput, button, el, lens, span, text_field_typed};
+use cambium_genet_winit_host::HostWake;
+use knot_composition::retention::{CompositionRetainPort, RetainedCompositionItem};
 use knot_composition::{CollectionItem, CollectionStore, DocumentAnchor, ItemKind, PackSource};
 use knot_readings::sound::{self, SoundLayers, SoundReading};
 use reference_data::{LexicalEntry, LookupQuery, ReferenceId, SourceKey, SourceRegistry};
-use std::{collections::BTreeMap, path::PathBuf};
+use std::{
+    collections::BTreeMap,
+    path::PathBuf,
+    sync::{Arc, mpsc},
+};
 
 #[derive(Clone)]
 pub(crate) struct SelectionSnapshot {
@@ -85,7 +91,15 @@ pub struct CompositionState {
     pub(crate) import_path: TextInput,
     pub(crate) import_digest: TextInput,
     pub(crate) notice: Option<String>,
-    pub(crate) store: Option<CollectionStore>,
+    retained: Vec<RetainedCompositionItem>,
+    targets: Vec<Arc<dyn CompositionRetainPort>>,
+    selected_target: Option<usize>,
+    wake: Option<HostWake>,
+    generation: u64,
+    receiver: Option<mpsc::Receiver<CollectionUpdate>>,
+    retry_items: Vec<CollectionItem>,
+    retry_target: Option<knot_capture::KnotRetainTargetV1>,
+    legacy_path: Option<PathBuf>,
     pub(crate) selection: Option<SelectionSnapshot>,
     pub(crate) cmudict_enabled: bool,
     pub(crate) choices: BTreeMap<usize, usize>,
@@ -100,10 +114,16 @@ pub struct CompositionState {
     pending_root: Option<PathBuf>,
 }
 
+struct CollectionUpdate {
+    generation: u64,
+    result: Result<Vec<RetainedCompositionItem>, String>,
+}
+
 impl CompositionState {
     /// Merely configuring preferences must not create any files.
     pub fn configured(root: Option<PathBuf>) -> Self {
         Self {
+            legacy_path: root.as_ref().map(|path| path.join("collection.json")),
             pending_root: root,
             ..Self::default()
         }
@@ -113,7 +133,6 @@ impl CompositionState {
         if let Some(root) = self.pending_root.take() {
             let opened = Self::open(Some(root));
             self.registry = opened.registry;
-            self.store = opened.store;
             if opened.notice.is_some() {
                 self.notice = opened.notice;
             }
@@ -123,18 +142,164 @@ impl CompositionState {
     pub fn open(root: Option<PathBuf>) -> Self {
         let mut state = Self::default();
         if let Some(root) = root {
+            state.legacy_path = Some(root.join("collection.json"));
             match SourceRegistry::open(root.join("references")) {
                 Ok(registry) => state.registry = Some(registry),
                 Err(error) => {
                     state.notice = Some(format!("Reference registry unavailable: {error}"))
                 },
             }
-            match CollectionStore::open(root.join("collection.json")) {
-                Ok(store) => state.store = Some(store),
-                Err(error) => state.notice = Some(format!("Collection unavailable: {error}")),
-            }
         }
         state
+    }
+
+    pub(crate) fn set_targets(
+        &mut self,
+        targets: Vec<Arc<dyn CompositionRetainPort>>,
+        wake: HostWake,
+    ) {
+        self.generation = self.generation.wrapping_add(1);
+        self.targets = targets;
+        self.selected_target = None;
+        self.retained.clear();
+        self.wake = Some(wake);
+        self.notice = Some(if self.receiver.is_some() {
+            "Destinations changed during retention. The previous destination may contain the item; choose it and refresh before retrying.".into()
+        } else {
+            "Choose a persona and space in Collection before retaining material.".into()
+        });
+    }
+
+    pub(crate) fn busy(&self) -> bool {
+        self.receiver.is_some()
+    }
+
+    fn request(&mut self, items: Vec<CollectionItem>, legacy: bool) {
+        if self.busy() {
+            self.notice = Some("A collection request is already in progress.".into());
+            return;
+        }
+        // The projection is only visible after this authority check succeeds;
+        // a locked or revoked destination must not leave old rows confirmed.
+        self.retained.clear();
+        let Some(port) = self
+            .selected_target
+            .and_then(|index| self.targets.get(index))
+            .cloned()
+        else {
+            self.notice = Some("No collection destination selected. Choose a writable Knot mere persona and space in Collection; no plaintext fallback is written.".into());
+            return;
+        };
+        let target = port.target().clone();
+        if (!items.is_empty() || legacy)
+            && !self.retry_items.is_empty()
+            && (self.retry_target.as_ref() != Some(&target)
+                || legacy
+                || items.iter().map(|item| &item.id).collect::<Vec<_>>()
+                    != self
+                        .retry_items
+                        .iter()
+                        .map(|item| &item.id)
+                        .collect::<Vec<_>>())
+        {
+            self.notice = Some("A previous collection request is still unconfirmed. Select its original destination and refresh or retry that same request before collecting new material.".into());
+            return;
+        }
+        let generation = self.generation;
+        let wake = self.wake.clone();
+        let path = self.legacy_path.clone();
+        if !items.is_empty() {
+            self.retry_items = items.clone();
+            self.retry_target = Some(target.clone());
+        }
+        let (sender, receiver) = mpsc::channel();
+        self.receiver = Some(receiver);
+        self.notice = Some("Checking the selected Knot mere…".into());
+        let spawned = std::thread::Builder::new().name("knot-composition-retain".into()).spawn(move || {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let items = if legacy {
+                    let path = path.ok_or("No legacy collection path is configured.")?;
+                    if !path.is_file() { return Err("No legacy collection file exists.".to_owned()); }
+                    CollectionStore::open(path).map_err(|error| error.to_string())?.items().to_vec()
+                } else { items };
+                for item in items {
+                    let id = item.id.clone();
+                    let receipt = port.retain(&target, item).map_err(|error| error.to_string())?;
+                    if receipt.target != target || receipt.item_id != id {
+                        return Err("Retention receipt did not match the requested item and destination.".into());
+                    }
+                }
+                let retained = port.list(&target).map_err(|error| error.to_string())?;
+                if retained.iter().any(|entry| entry.receipt.target != target || entry.receipt.item_id != entry.item.id) {
+                    return Err("Collection returned mismatched authority receipts.".into());
+                }
+                Ok(retained)
+            })).unwrap_or_else(|_| Err("Collection worker stopped; retention outcome is uncertain.".into()));
+            drop(port);
+            let _ = sender.send(CollectionUpdate { generation, result });
+            if let Some(wake) = wake { wake.wake(); }
+        });
+        if spawned.is_err() {
+            self.receiver = None;
+            self.notice = Some("Collection worker could not start; nothing was submitted.".into());
+        }
+    }
+
+    pub(crate) fn drain(&mut self) {
+        let Some(receiver) = self.receiver.as_ref() else {
+            return;
+        };
+        match receiver.try_recv() {
+            Ok(update) => {
+                self.receiver = None;
+                if update.generation != self.generation {
+                    return;
+                }
+                match update.result {
+                    Ok(retained) => {
+                        self.retained = retained;
+                        if self.retry_target.is_some()
+                            && self
+                                .selected_target
+                                .and_then(|index| self.targets.get(index))
+                                .map(|port| port.target())
+                                == self.retry_target.as_ref()
+                        {
+                            let writer = self
+                                .retry_target
+                                .as_ref()
+                                .expect("matching retry target")
+                                .writer;
+                            self.retry_items.retain(|item| {
+                                !self
+                                    .retained
+                                    .iter()
+                                    .any(|entry| entry.author == writer && entry.item == *item)
+                            });
+                            if self.retry_items.is_empty() {
+                                self.retry_target = None;
+                            }
+                        }
+                        self.notice = Some(format!(
+                            "Confirmed {} retained items in the selected Knot mere. Legacy source files are never changed.",
+                            self.retained.len()
+                        ));
+                    },
+                    Err(error) => {
+                        self.retained.clear();
+                        self.notice = Some(format!(
+                            "Collection could not be confirmed: {error}. Refresh or retry the same request; no plaintext fallback was written."
+                        ))
+                    },
+                }
+            },
+            Err(mpsc::TryRecvError::Empty) => {},
+            Err(mpsc::TryRecvError::Disconnected) => {
+                self.receiver = None;
+                self.retained.clear();
+                self.notice = Some("Collection worker disconnected; outcome is uncertain. Refresh the destination before retrying.".into());
+            },
+        }
     }
 }
 
@@ -533,14 +698,7 @@ fn lexical_view(state: &DesktopState, key: DocKey) -> DesktopView {
 }
 
 fn collect(state: &mut DesktopState, item: CollectionItem) {
-    state.composition.ensure_open();
-    state.composition.notice = Some(match state.composition.store.as_mut() {
-        Some(store) => match store.collect(item) {
-            Ok(()) => "Saved to the local composition collection.".into(),
-            Err(error) => format!("Collection save reported: {error}"),
-        },
-        None => "No writable composition collection is configured.".into(),
-    });
+    state.composition.request(vec![item], false);
 }
 
 fn collect_selection(state: &mut DesktopState, key: DocKey) {
@@ -839,15 +997,16 @@ fn sound_note(reading: &SoundReading, layers: &SoundLayers) -> String {
 }
 
 fn collection_view(state: &DesktopState) -> DesktopView {
-    let items: Vec<(String, DesktopView)> = state.composition.store.as_ref()
-        .map(|store| store.items().iter().map(|item| {
+    let items: Vec<(String, DesktopView)> = state.composition.retained.iter().map(|retained| {
+            let item = &retained.item;
             let anchor = item.document_source.clone();
-            (item.id.to_string(), Box::new(el("div", (
+            (format!("{}:{}", crate::workspace::hex32(&retained.author), item.id), Box::new(el("div", (
                 span(item.label.clone()),
                 item.document_source.as_ref().map(|source| span(format!("Quotation: {}", source.exact_quote))),
                 el("pre", item.text.clone()).attr("class", "knot-readings-note"),
                 span(format!("{} · {:?} · {}", item.collection, item.kind, item.author_notes)),
                 span(item.pack_sources.iter().map(|source| format!("{} {} / {}", source.pack_id, source.pack_version, source.entry_ref)).collect::<Vec<_>>().join("; ")),
+                span(format!("Retained operation {} · author {}", crate::workspace::hex32(&retained.receipt.operation), crate::workspace::hex32(&retained.author))),
                 button("Return to source", move |state: &mut DesktopState, _| {
                     let Some(anchor) = anchor.as_ref() else { return; };
                     // Scratch addresses are not durable identities and can name
@@ -872,11 +1031,54 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                     state.composition.notice = result.err();
                 }).attr("aria-disabled", item.document_source.is_none().to_string()),
             ))) as DesktopView)
-        }).collect()).unwrap_or_default();
+        }).collect();
+    let targets: Vec<(usize, DesktopView)> = state
+        .composition
+        .targets
+        .iter()
+        .enumerate()
+        .map(|(index, port)| {
+            let target = port.target();
+            let label = format!(
+                "Retain in {} · persona {} · space {} · writer {}",
+                target.persona.label,
+                target.persona.stable_id,
+                crate::workspace::hex32(&target.space_id),
+                crate::workspace::hex32(&target.writer)
+            );
+            (
+                index,
+                Box::new(
+                    button(label, move |state: &mut DesktopState, _| {
+                        if state.composition.busy() {
+                            return;
+                        }
+                        state.composition.generation = state.composition.generation.wrapping_add(1);
+                        state.composition.selected_target = Some(index);
+                        state.composition.retained.clear();
+                        state.composition.request(Vec::new(), false);
+                    })
+                    .attr(
+                        "aria-pressed",
+                        (state.composition.selected_target == Some(index)).to_string(),
+                    )
+                    .attr("aria-disabled", state.composition.busy().to_string()),
+                ) as DesktopView,
+            )
+        })
+        .collect();
     Box::new(el(
         "section",
         (
-            span("Composition collection — retained locally as plaintext, not synced"),
+            span("Composition collection — retained in the explicitly selected Knot mere"),
+            state.composition.targets.is_empty().then(|| span("Unavailable: the host has supplied no writable Knot mere. No persona, space, or plaintext collection is created automatically.")),
+            Keyed::new(targets),
+            button("Refresh retained collection", |state: &mut DesktopState, _| state.composition.request(Vec::new(), false)),
+            button("Retry same collection request", |state: &mut DesktopState, _| {
+                if !state.composition.retry_items.is_empty() { state.composition.request(state.composition.retry_items.clone(), false); }
+            }).attr("aria-disabled", state.composition.retry_items.is_empty().to_string()),
+            button("Import legacy collection into selected mere", |state: &mut DesktopState, _| state.composition.request(Vec::new(), true)),
+            span("Legacy import is explicit, preserves item IDs for safe retries, and never modifies or deletes collection.json."),
             Keyed::new(items),
         ),
     ))
@@ -891,7 +1093,7 @@ pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
                 index,
                 Box::new(
                     button(label, move |state: &mut DesktopState, _| {
-                        if index >= 2 {
+                        if index == 3 {
                             state.composition.ensure_open();
                         }
                         state.composition.section = index
@@ -933,6 +1135,82 @@ mod tests {
     };
     use reference_data::{LicenseInfo, ReferenceFeature, SourceManifest};
     use taproot::Selector;
+
+    struct FakePort {
+        items: std::sync::Mutex<Vec<RetainedCompositionItem>>,
+        revoked: std::sync::atomic::AtomicBool,
+        target: knot_capture::KnotRetainTargetV1,
+    }
+
+    impl CompositionRetainPort for FakePort {
+        fn target(&self) -> &knot_capture::KnotRetainTargetV1 {
+            &self.target
+        }
+        fn retain(
+            &self,
+            expected: &knot_capture::KnotRetainTargetV1,
+            item: CollectionItem,
+        ) -> Result<knot_composition::retention::CompositionReceipt, knot_capture::KnotRetainError>
+        {
+            assert_eq!(expected, &self.target);
+            let mut items = self.items.lock().unwrap();
+            if let Some(existing) = items.iter().find(|entry| entry.item.id == item.id) {
+                return Ok(existing.receipt.clone());
+            }
+            let receipt = knot_composition::retention::CompositionReceipt {
+                target: self.target.clone(),
+                item_id: item.id.clone(),
+                operation: [4; 32],
+                already_retained: false,
+            };
+            items.push(RetainedCompositionItem {
+                item,
+                receipt: receipt.clone(),
+                author: self.target.writer,
+            });
+            Ok(receipt)
+        }
+        fn list(
+            &self,
+            expected: &knot_capture::KnotRetainTargetV1,
+        ) -> Result<Vec<RetainedCompositionItem>, knot_capture::KnotRetainError> {
+            assert_eq!(expected, &self.target);
+            if self.revoked.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err(knot_capture::KnotRetainError("authority revoked".into()));
+            }
+            Ok(self.items.lock().unwrap().clone())
+        }
+    }
+
+    fn attach_fake(state: &mut DesktopState) -> Arc<FakePort> {
+        let port = Arc::new(FakePort {
+            items: Default::default(),
+            revoked: Default::default(),
+            target: knot_capture::KnotRetainTargetV1 {
+                persona: knot_capture::KnotPersonaDisplayV1 {
+                    stable_id: "test-persona".into(),
+                    label: "Test persona".into(),
+                },
+                space_id: [1; 32],
+                writer: [2; 32],
+                encryption: knot_capture::KnotRetainEncryptionV1::PersonalVaultV1,
+            },
+        });
+        state.composition.targets = vec![port.clone()];
+        state.composition.selected_target = Some(0); // Explicit test fixture admission, not production default.
+        port
+    }
+
+    fn settle_collection(state: &mut DesktopState) {
+        for _ in 0..1000 {
+            state.composition.drain();
+            if !state.composition.busy() {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        panic!("collection worker did not finish");
+    }
 
     fn state(text: &str) -> DesktopState {
         DesktopState::new(
@@ -1121,9 +1399,13 @@ mod tests {
         assert_eq!(state.composition.focused_sense.as_deref(), Some("river"));
 
         let mut host = harness(state);
+        host.update(|state| {
+            attach_fake(state);
+        });
         assert!(host.click_on(&Selector::role("button").containing("Collect sense")));
         host.after_dispatch();
-        let item = &host.state().composition.store.as_ref().unwrap().items()[0];
+        host.update(settle_collection);
+        let item = &host.state().composition.retained[0].item;
         assert_eq!(item.text, "Shore of a stream.");
         assert_eq!(item.pack_sources[0].pack_id, "fixture");
         assert_eq!(item.pack_sources[0].pack_version, "1");
@@ -1146,15 +1428,7 @@ mod tests {
         assert!(rendered_text(&host).contains("Sound reading is stale"));
         assert!(host.click_on(&Selector::role("button").containing("Collect sound reading")));
         host.after_dispatch();
-        assert!(
-            host.state()
-                .composition
-                .store
-                .as_ref()
-                .unwrap()
-                .items()
-                .is_empty()
-        );
+        assert!(host.state().composition.retained.is_empty());
         assert!(
             host.state()
                 .composition
@@ -1189,15 +1463,7 @@ mod tests {
         let mut host = harness(state);
         assert!(host.click_on(&Selector::role("button").containing("Collect sound reading")));
         host.after_dispatch();
-        assert!(
-            host.state()
-                .composition
-                .store
-                .as_ref()
-                .unwrap()
-                .items()
-                .is_empty()
-        );
+        assert!(host.state().composition.retained.is_empty());
         assert!(
             host.state()
                 .composition
@@ -1258,9 +1524,11 @@ mod tests {
         let root = tempfile::tempdir().unwrap();
         let mut state = state("cat bat");
         state.composition = CompositionState::open(Some(root.path().into()));
+        attach_fake(&mut state);
         select(&mut state, 0, 3);
         let key = state.focused_key().unwrap();
         collect_selection(&mut state, key);
+        settle_collection(&mut state);
         let before = state.document().snapshot();
         state.composition.section = 2;
         let mut host = harness(state);
@@ -1318,21 +1586,26 @@ mod tests {
     }
 
     #[test]
-    fn selected_material_is_durable_without_mutating_source() {
+    fn selected_material_reloads_from_port_without_mutating_source() {
         let root = tempfile::tempdir().unwrap();
         let mut state = state("a café by the river");
         state.composition = CompositionState::open(Some(root.path().into()));
+        let port = attach_fake(&mut state);
         select(&mut state, 2, 7);
         let before = state.document().snapshot();
         let key = state.focused_key().unwrap();
         collect_selection(&mut state, key);
+        settle_collection(&mut state);
         assert_eq!(state.document().snapshot().text, before.text);
         assert_eq!(state.document().snapshot().selection, before.selection);
-        drop(state);
-        let store = CollectionStore::open(root.path().join("collection.json")).unwrap();
-        assert_eq!(store.items()[0].text, "café");
+        state.composition.retained.clear();
+        state.composition.request(Vec::new(), false);
+        settle_collection(&mut state);
+        let retained = port.items.lock().unwrap();
+        assert_eq!(retained[0].item.text, "café");
         assert!(
-            store.items()[0]
+            retained[0]
+                .item
                 .document_source
                 .as_ref()
                 .unwrap()
@@ -1388,7 +1661,7 @@ mod tests {
         std::fs::write(root.path().join("collection.json"), b"broken").unwrap();
         let mut state = state("cat");
         state.composition = CompositionState::open(Some(root.path().into()));
-        assert!(state.composition.store.is_none());
+        assert!(state.composition.retained.is_empty());
         select(&mut state, 0, 3);
         let key = state.focused_key().unwrap();
         collect_selection(&mut state, key);
@@ -1415,9 +1688,191 @@ mod tests {
         assert!(note.contains("Perfect rhyme: night ↔ light"));
         assert!(!note.contains("SoundReading {"));
         collect_selection(&mut state, key);
-        assert!(path.join("collection.json").is_file());
+        assert!(!path.join("collection.json").exists());
         assert!(state.composition.cmudict_enabled);
         assert!(state.composition.sound.is_some());
-        assert_eq!(state.composition.store.as_ref().unwrap().items().len(), 1);
+        assert!(state.composition.retained.is_empty());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("No collection destination selected")
+        );
+    }
+
+    #[test]
+    fn supplied_authority_still_requires_explicit_destination_selection() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        state.composition.selected_target = None;
+        select(&mut state, 0, 3);
+        let key = state.focused_key().unwrap();
+        collect_selection(&mut state, key);
+        assert!(!state.composition.busy());
+        assert!(port.items.lock().unwrap().is_empty());
+    }
+
+    #[test]
+    fn legacy_import_is_explicit_read_only_and_idempotent() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("collection.json");
+        let mut legacy = CollectionStore::open(&path).unwrap();
+        legacy
+            .collect(CollectionItem::new(
+                ItemKind::Note,
+                "Legacy",
+                "kept quotation",
+            ))
+            .unwrap();
+        drop(legacy);
+        let before = std::fs::read(&path).unwrap();
+        let mut state = state("cat");
+        state.composition = CompositionState::configured(Some(root.path().into()));
+        let port = attach_fake(&mut state);
+        assert!(port.items.lock().unwrap().is_empty());
+        state.composition.request(Vec::new(), true);
+        settle_collection(&mut state);
+        assert_eq!(state.composition.retained.len(), 1);
+        state.composition.request(Vec::new(), true);
+        settle_collection(&mut state);
+        assert_eq!(state.composition.retained.len(), 1);
+        assert_eq!(port.items.lock().unwrap().len(), 1);
+        assert_eq!(std::fs::read(path).unwrap(), before);
+    }
+
+    #[test]
+    fn malformed_legacy_import_does_not_write_to_authority_or_reset_source() {
+        let root = tempfile::tempdir().unwrap();
+        let path = root.path().join("collection.json");
+        std::fs::write(&path, b"broken").unwrap();
+        let mut state = state("cat");
+        state.composition = CompositionState::configured(Some(root.path().into()));
+        let port = attach_fake(&mut state);
+        state.composition.request(Vec::new(), true);
+        settle_collection(&mut state);
+        assert!(port.items.lock().unwrap().is_empty());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("could not be confirmed")
+        );
+        assert_eq!(std::fs::read(path).unwrap(), b"broken");
+    }
+
+    #[test]
+    fn stale_worker_generation_cannot_replace_current_collection_or_notice() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Old destination", "old");
+        let receipt = port.retain(port.target(), item.clone()).unwrap();
+        let (sender, receiver) = mpsc::channel();
+        state.composition.receiver = Some(receiver);
+        state.composition.generation = 2;
+        state.composition.notice = Some("New destination".into());
+        sender
+            .send(CollectionUpdate {
+                generation: 1,
+                result: Ok(vec![RetainedCompositionItem {
+                    item,
+                    receipt,
+                    author: port.target.writer,
+                }]),
+            })
+            .unwrap();
+        state.composition.drain();
+        assert!(state.composition.retained.is_empty());
+        assert_eq!(state.composition.notice.as_deref(), Some("New destination"));
+    }
+
+    #[test]
+    fn refresh_preserves_unconfirmed_request_identity_until_same_id_is_confirmed() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Pending", "quotation");
+        state.composition.retry_items = vec![item.clone()];
+        state.composition.retry_target = Some(port.target.clone());
+        state.composition.request(Vec::new(), false);
+        settle_collection(&mut state);
+        assert_eq!(state.composition.retry_items[0].id, item.id);
+        state.composition.request(
+            vec![CollectionItem::new(ItemKind::Note, "New", "new")],
+            false,
+        );
+        assert!(!state.composition.busy());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("still unconfirmed")
+        );
+        state.composition.request(vec![item.clone()], false);
+        settle_collection(&mut state);
+        assert!(state.composition.retry_items.is_empty());
+        assert_eq!(state.composition.retained[0].item.id, item.id);
+        assert_eq!(port.items.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn same_id_from_another_writer_or_payload_does_not_confirm_pending_request() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Pending", "original");
+        let receipt = port.retain(port.target(), item.clone()).unwrap();
+        state.composition.retry_items = vec![item.clone()];
+        state.composition.retry_target = Some(port.target.clone());
+        for (author, text) in [([9; 32], "original"), (port.target.writer, "different")] {
+            let mut returned = item.clone();
+            returned.text = text.into();
+            let (sender, receiver) = mpsc::channel();
+            state.composition.receiver = Some(receiver);
+            sender
+                .send(CollectionUpdate {
+                    generation: state.composition.generation,
+                    result: Ok(vec![RetainedCompositionItem {
+                        item: returned,
+                        receipt: receipt.clone(),
+                        author,
+                    }]),
+                })
+                .unwrap();
+            state.composition.drain();
+            assert_eq!(state.composition.retry_items, vec![item.clone()]);
+        }
+    }
+
+    #[test]
+    fn revoked_refresh_hides_cached_items_and_preserves_unconfirmed_retry() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Retained", "private quotation");
+        state.composition.request(vec![item], false);
+        settle_collection(&mut state);
+        assert_eq!(state.composition.retained.len(), 1);
+        let pending = CollectionItem::new(ItemKind::Note, "Unconfirmed", "pending");
+        state.composition.retry_items = vec![pending.clone()];
+        state.composition.retry_target = Some(port.target.clone());
+        port.revoked
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        state.composition.request(Vec::new(), false);
+        assert!(state.composition.retained.is_empty());
+        settle_collection(&mut state);
+        assert!(state.composition.retained.is_empty());
+        assert_eq!(state.composition.retry_items, vec![pending]);
+        assert_eq!(state.composition.retry_target, Some(port.target.clone()));
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("authority revoked")
+        );
     }
 }

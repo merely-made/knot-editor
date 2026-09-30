@@ -45,6 +45,18 @@ use crate::{
 };
 
 const LOG_ID: u64 = 0;
+fn composition_item(json: &str) -> Result<knot_composition::CollectionItem, KnotSyncError> {
+    if json.len() > knot_composition::MAX_STORE_BYTES {
+        return Err(KnotSyncError::Payload(
+            "composition item exceeds byte limit".into(),
+        ));
+    }
+    let item: knot_composition::CollectionItem =
+        serde_json::from_str(json).map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+    item.validate()
+        .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+    Ok(item)
+}
 const SYNC_AAD: &[u8] = b"mere.knot.sync-operation.v1";
 const KNOT_CAUSAL_LIMITS: CausalLimits = CausalLimits {
     max_parents: 64,
@@ -159,6 +171,11 @@ pub enum KnotSyncEvent {
         lowers_to: Option<String>,
         supersedes: Option<[u8; 32]>,
         replaced_by: Option<KnotPredicateReplacementV1>,
+    },
+    /// Immutable composition material. JSON is versioned and validated before
+    /// signing and on read; String participates in the event's zeroization.
+    RetainCompositionV1 {
+        item_json: String,
     },
 }
 
@@ -1022,6 +1039,7 @@ where
                 },
                 // None of these produce a document version.
                 KnotSyncEvent::CaptureFileRevision(_)
+                | KnotSyncEvent::RetainCompositionV1 { .. }
                 | KnotSyncEvent::AssertRelation { .. }
                 | KnotSyncEvent::RetractRelation { .. }
                 | KnotSyncEvent::DefinePredicate { .. } => {
@@ -1263,6 +1281,111 @@ where
         Ok((*operation.hash.as_bytes(), false))
     }
 
+    /// Strict, bounded composition projection, independent of publishable documents.
+    pub(crate) async fn composition_with_cipher(
+        &self,
+        cipher: KnotSyncCipher<'_>,
+        max_items: usize,
+        max_bytes: usize,
+    ) -> Result<Vec<(knot_composition::CollectionItem, [u8; 32], [u8; 32])>, KnotSyncError> {
+        self.require_cipher(cipher)?;
+        let records = self.load_operations().await?;
+        let entries = causal_entries(&records);
+        let projection = causal_projection(&entries)?;
+        if !projection.pending.is_empty() {
+            return Err(KnotSyncError::Payload(
+                "composition retention requires complete causal history".into(),
+            ));
+        }
+        let mut items = BTreeMap::new();
+        let mut total = 0usize;
+        for index in projection.order {
+            let operation = &records[index].operation;
+            let event = Zeroizing::new(decode_event(cipher, operation)?);
+            if let KnotSyncEvent::RetainCompositionV1 { item_json } = &*event {
+                let item = composition_item(item_json)?;
+                total = total.saturating_add(item_json.len());
+                if total > max_bytes {
+                    return Err(KnotSyncError::Payload(
+                        "composition projection exceeds byte limit".into(),
+                    ));
+                }
+                let writer = *operation.header.verifying_key.as_bytes();
+                let key = (writer, item.id.clone());
+                if let Some((previous, previous_operation, _)) = items.get_mut(&key) {
+                    if previous != &item {
+                        return Err(KnotSyncError::Payload(
+                            "conflicting immutable composition item".into(),
+                        ));
+                    }
+                    if *operation.hash.as_bytes() < *previous_operation {
+                        *previous_operation = *operation.hash.as_bytes();
+                    }
+                    continue;
+                }
+                items.insert(key, (item, *operation.hash.as_bytes(), writer));
+                if items.len() > max_items {
+                    return Err(KnotSyncError::Payload(
+                        "composition projection exceeds item limit".into(),
+                    ));
+                }
+            }
+        }
+        Ok(items.into_values().collect())
+    }
+
+    pub(crate) async fn retain_composition_with_cipher(
+        &self,
+        signing_seed: [u8; 32],
+        cipher: KnotSyncCipher<'_>,
+        item: &knot_composition::CollectionItem,
+        max_items: usize,
+        max_bytes: usize,
+    ) -> Result<([u8; 32], bool), KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
+        self.require_cipher(cipher)?;
+        let writer = *SigningKey::from_bytes(&signing_seed)
+            .verifying_key()
+            .as_bytes();
+        self.require_admitted_writer(writer)?;
+        let existing = self
+            .composition_with_cipher(cipher, max_items, max_bytes)
+            .await?;
+        for (candidate, operation, author) in &existing {
+            if *author == writer && candidate.id == item.id {
+                return if candidate == item {
+                    Ok((*operation, true))
+                } else {
+                    Err(KnotSyncError::Payload(
+                        "composition item id already retained with different content".into(),
+                    ))
+                };
+            }
+        }
+        if existing.len() >= max_items {
+            return Err(KnotSyncError::Payload(
+                "composition item limit reached".into(),
+            ));
+        }
+        let item_json = serde_json::to_string(item)
+            .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+        composition_item(&item_json)?;
+        let existing_bytes: usize = existing
+            .iter()
+            .map(|(item, _, _)| serde_json::to_vec(item).map_or(max_bytes, |bytes| bytes.len()))
+            .sum();
+        if existing_bytes.saturating_add(item_json.len()) > max_bytes {
+            return Err(KnotSyncError::Payload(
+                "composition byte limit reached".into(),
+            ));
+        }
+        let event = Zeroizing::new(KnotSyncEvent::RetainCompositionV1 { item_json });
+        let operation = self
+            .author_under_gate(signing_seed, cipher, &event, KnotAssertedTime::Now)
+            .await?;
+        Ok((*operation.hash.as_bytes(), false))
+    }
+
     /// Compatibility view for existing callers. New consumers should use
     /// [`Self::projection`] so unrelated documents remain available beside an
     /// explicit conflict.
@@ -1476,6 +1599,7 @@ where
                 if matches!(
                     decode_event(KnotSyncCipher::CommonsData(keys), &records[index].operation)?,
                     KnotSyncEvent::CaptureFileRevision(_)
+                        | KnotSyncEvent::RetainCompositionV1 { .. }
                         | KnotSyncEvent::AssertRelation { .. }
                         | KnotSyncEvent::RetractRelation { .. }
                         // A definition is replay material: an assertion's
@@ -2018,7 +2142,9 @@ fn fold_relations(
                     },
                 }
             },
-            KnotSyncEvent::Delete { .. } | KnotSyncEvent::Resolve { document: None, .. } => {},
+            KnotSyncEvent::Delete { .. }
+            | KnotSyncEvent::Resolve { document: None, .. }
+            | KnotSyncEvent::RetainCompositionV1 { .. } => {},
         }
     }
     Ok(fold)
@@ -2273,6 +2399,9 @@ fn validate_local_relation_event(
     scope: [u8; 32],
 ) -> Result<(), KnotSyncError> {
     match event {
+        KnotSyncEvent::RetainCompositionV1 { item_json } => {
+            composition_item(item_json)?;
+        },
         KnotSyncEvent::CaptureFileRevision(revision) => {
             revision
                 .validate()
@@ -3462,7 +3591,9 @@ mod tests {
         // membership fact, not a quietly shortened document list.
         assert!(matches!(
             b.communal_projection(&bob_keys).await,
-            Err(KnotSyncError::GroupCrypto(GroupCryptoError::UnknownEpoch(_)))
+            Err(KnotSyncError::GroupCrypto(GroupCryptoError::UnknownEpoch(
+                _
+            )))
         ));
         assert_eq!(a.communal_documents(&alice_keys).await.unwrap().len(), 2);
     }

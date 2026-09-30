@@ -50,5 +50,7 @@ tempfile = "3"
 workspace = true
 
 [features]
+default = ["mere-retention"]
+mere-retention = ["dep:knot-editor", "dep:personae"]
 resident-retention-tests = ["dep:knot-editor", "dep:personae"]
 retinue = ["knot-site/retinue"]

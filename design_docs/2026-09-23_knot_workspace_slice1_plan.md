@@ -1490,6 +1490,110 @@ design frames either fixed or recorded.
   under its explicit fixed-or-recorded visual-difference condition; it is not
   a claim of pixel-identical design completion or release readiness.
 
+## September 30 diagnostics continuation: original cohort
+
+This original cohort pins Mere `7eca52e0` and Genet `7bf0e448` across every
+manifest naming the previous diagnostics revisions. `KNOT_CAPTURE_CORRELATION=1`
+requests an immutable product reading at queue presentation, paired with the
+independently stamped asynchronous pixels. The fixed reading contains numeric
+and boolean document/appearance facts; it excludes source text, file names,
+messages and raw errors. Whole-application operation, cause and semantic
+revision remain unavailable.
+
+The optional `KNOT_DIAGNOSTICS=1` catalog adapter records actual Save dispatch,
+filesystem return, refresh request, worker execution, stale discard and accepted
+catalog outcomes. It preserves Knot's existing worker policy. Queued requests
+replaced before execution are superseded, not cancelled workers. An accepted
+reading with read errors is distinct from successful reading and file
+durability. Catalog generation exhaustion refuses further requests rather than
+wrapping into an earlier identity.
+
+`KNOT_DIAGNOSTIC_RECORDS`, `KNOT_DIAGNOSTIC_BYTES` and
+`KNOT_DIAGNOSTIC_AGE_SECS` configure the bounded observation store (defaults
+256 records, 262144 accounted bytes and 300 seconds; maxima 4096, 4194304
+and 86400). Any zero disables retention with explicit loss. Requested export
+fails on invalid configuration or collector failure. An independent receipt
+cursor does not consume inspection data. Visible graph captures may carry
+supplied catalog request/outcome/acceptance references under `graph_catalog`;
+those facts do not establish causality or semantic revision for the rest of
+the application.
+
+The containing desktop gate passes 218 tests with one existing ignore (199
+library, seven main, four preferences, four readings-panel and four scenario
+tests). The standalone document all-features gate passes 50 with one existing
+ignore. The first focused graph run stopped three new fixtures at the real
+catalog-outside-content-root constraint; correcting fixture placement restores
+all nine graph checks. Real Save success and filesystem failure tests pass.
+Deliberately accepting an invalidated worker result fails with exit 101; source
+hash restoration passes all nine graph tests and the capture-factory control.
+
+Three native worker runs pass with visually reviewed 4400x2800 graph captures
+at scale 2. Actual Save produces the accepted two-node/one-relation reading;
+the six supplied phase references end at acceptance sequence 14, catalog
+generation 3, with presentation sequence 16. Count-one retention reports 13
+evictions and gap `[1,14)` while preserving the supplied acceptance reference.
+The separate one-byte reading-budget run accepts a two-node reading with zero
+relations and two explicit read errors; worker completion and acceptance report
+read errors and the image says both documents could not be read. This is
+successful Save followed by an accepted partial catalog, not whole-job success.
+
+Paired and default light/dark/light compatibility scenarios also pass with
+three visually reviewed captures each and diagnostics disabled. The paired
+digests are `ee1723dfc65cd21b`, `ab04a4774d14b042` and `284e3545a1f45555`;
+their presentation sequences are 16, 20 and 24. Default captures retain their
+existing shape without optional additions. The qualified binary SHA-256 is
+`43651FE5E23E8960BF55AF81CD2FFB51FF73765641DB56168BA7B71F4659EDB0`.
+Strict production Clippy passes without exceptions. Strict all-target Clippy
+reports 12 pre-existing test-site warnings; the qualified all-target run passes
+with the five documented baseline lint allowances and `unused_variables`.
+The original failure and baseline source evidence are retained. Evidence lives under
+`Code/testing/knot-editor/{capture-pairing,catalog-diagnostics}`. These source
+and native receipts do not qualify human accessibility, compositor visibility
+or physical-display acknowledgement.
+
+## September 30 combined Commands, typography and diagnostics qualification
+
+The merged source preserves the incoming Commands, document links and
+typography work, with Mere `bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3`
+and Genet `69a2383b2ad777b884a72f31f8f8fb7ece275c0b` across root,
+desktop and standalone-document manifests and locks. Capture product schema
+`knot.desktop-presentation/v2` now reports the actual fixed measure enum
+(`narrow`, `medium`, `wide`, `full`), replacing the retired wide boolean.
+It preserves the redaction and authority limits above.
+
+Windows desktop all-target tests pass 260 with one existing ignore; the
+standalone document all-features gate passes 63 with one existing ignore.
+Legacy toolbar fixtures explicitly select the supported PlainRow layout.
+Production still defaults to ClientTitlebar on Windows/Linux, and separate
+Commands, link and actual Save tests exercise it. Production Clippy passes
+without exceptions. All-target Clippy passes with the same six baseline
+allowances after its 12 test-only warnings were verified against the merged
+index. The original failed runs remain in the evidence. Deliberately bypassing
+the stale-result acceptance guard fails with exit 101; exact byte restoration
+and the seven graph-module tests pass before the final build.
+
+Five native runs using actual client menus pass and close their owned
+processes. All nine new images were visually reviewed. The three 4400x2800
+worker images at presented frame 18 show accepted Save (two nodes, one
+relation), count-one retention (13 evictions and gap `[1,14)`), and an accepted
+partial reading (two nodes, zero relations, two read errors). The accepted
+Save's six actual stages end at sequence 14, catalog generation 3, with
+14 retained records and no loss. Its PNG digest is `146052a06c775be0`.
+
+Paired and default theme runs each capture three 2200x1400 images with
+diagnostics disabled. Paired frames 17/21/25 freeze light/dark/light and
+medium measure; digests are `4980dd84cc255771`, `b80c627efd470851` and
+`e6d27eeda5959289`. Default has neither pairing nor diagnostic metadata.
+The qualified binary SHA-256 is
+`AD82B61F4880C41EF46887BABF430C4878C15E44005E57C0BEBD72FE40A368C0`.
+
+Exact commands, failure controls, source hashes and new receipts are under
+`Code/testing/knot-editor/catalog-diagnostics/combined` and
+`Code/testing/knot-editor/capture-pairing/combined`. The original nine images
+above are preserved separately. These gates qualify worker outcomes and
+render submission/readback pairing; human AT, whole-UI causal authority,
+semantic revision and physical-display acknowledgement remain open.
+
 ## Related material
 
 - [Design pass](2026-09-23_knot_design_pass.md) and its frames

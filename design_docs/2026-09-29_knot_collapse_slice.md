@@ -1,6 +1,6 @@
 # Collapse: non-destructive workspace presentation
 
-Status: Verified isolated Collapse candidate; main integration pending.
+Status: Combined integration passes automated checks; native matrix awaits Mac unlock.
 Date: 2026-09-29
 Base: Knot `8bc98c7`, following Typography acceptance.
 Deciders: Existing design-pass section 7 rulings; implementation follows them.
@@ -65,7 +65,47 @@ and interaction are shared, while Knot owns the width threshold.
 
 ## Receipt
 
-### Current candidate, 2026-09-30
+### Combined main integration, 2026-09-30
+
+The integration merges Knot main `3dfb70b` into the accepted Collapse branch,
+preserving catalog diagnostics alongside Commands, typography and collapse.
+Mere `98e7667bc5cc57c3a64c14001b626fdb4a843b56` merges both dependency
+lines; Genet remains `69a2383b2ad777b884a72f31f8f8fb7ece275c0b`.
+Shared checks pass seven rail, status and compact-menu tests plus three
+presented-capture pairing tests.
+
+The merge review found that a retained Graph tab was being reported as visible
+even when inactive or hidden by Collapse. The capture adapter now follows the
+active tile and controlled rail/drawer state. Hidden Graph captures keep the
+catalog owner's facts but omit the presentation operation/cause. The bounded
+capture fields and scenario snapshot expose `graph_visible`. Two new tests
+cover tab activation, closed/open presentation, canonical-tree preservation,
+and accepted-fact suppression. Existing Save diagnostics remain scoped to the
+explicit Save command; other save flows do not acquire a fabricated causal chain.
+
+Verification for the combined source:
+
+- Locked workspace suite: 490 passed, zero failed, one existing diagnostic
+  timing ignore. This completed before the final capture-adapter correction.
+- After that correction, all three capture-adapter unit tests passed, including
+  both new regressions; production desktop/readings library and binary Clippy
+  passed with warnings denied, and the final locked binary build passed.
+- `git diff --check` passed. Build and bundle SHA-256 agree:
+  `773959b032b8c063b7266578cc6e4d28534e8bd18a3dbfe824849d526c35b982`.
+- Fixture SHA-256 remains
+  `3d2a2bbd8fb43be0bcfa6086af5abd6f1f0b2f40f4ff05bc4fb8e9c2b4d331be`.
+
+Logs, isolated app, scenarios and receipt destinations are under
+`/Users/markik/Code/testing/knot-editor/collapse-integrated-20260930`.
+The first native launch was blocked by the locked Mac. No combined native
+capture has landed yet. The five prepared lanes cover the original viewport
+matrix, plus active/background Graph metadata at 320px. Four lanes enable
+capture pairing; the normal 1280px lane keeps the default unpaired path.
+This combined candidate is ready for branch publication, with main promotion
+held for native acceptance. Earlier native receipts below apply only to their
+named isolated binary.
+
+### Accepted isolated candidate, 2026-09-30
 
 Final frozen binary SHA-256:
 `9feb2c3fdf5a03844ee833bafd03daa8b0c4039cb5ae83b02a2bc4e3a0fa1cbf`.

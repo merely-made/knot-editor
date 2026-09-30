@@ -3209,7 +3209,8 @@ mod tests {
     }
 
     /// A harness over the full desktop sheet whose window commands reach it.
-    fn site_harness(state: DesktopState) -> DesktopHarness {
+    fn site_harness(mut state: DesktopState) -> DesktopHarness {
+        state.set_command_chrome(crate::workspace::CommandChrome::PlainRow);
         let mut host = Harness::with_hooks(
             Init {
                 state,
@@ -4908,6 +4909,7 @@ mod tests {
             KnotDocumentSession::open(&path).unwrap(),
             WindowCommands::new(),
         );
+        state.set_command_chrome(crate::workspace::CommandChrome::PlainRow);
         show_preview(&mut state);
         let mut host = Harness::with_hooks(
             Init {

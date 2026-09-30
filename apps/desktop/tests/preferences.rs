@@ -51,6 +51,7 @@ fn launch(preferences: &Path) -> DesktopHarness {
         WindowCommands::new(),
         None,
     );
+    state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
     state.set_preferences_path(Some(preferences.to_path_buf()));
     let mut harness = Harness::with_hooks(
         Init {

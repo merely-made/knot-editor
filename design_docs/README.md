@@ -9,6 +9,14 @@ Current authority:
 
 - [Design pass](2026-09-23_knot_design_pass.md): the rulings on the brief's seven layout questions (title-bar menus over one command list, a status bar of authority chips, readings and the navigator as Workbench tiles, readings typed by kind, site tiles, the type and measure rules, measure-keeping collapse), the three arrangement frames, the stylesheet proposal, confirmed layout defects, and a proposed slice order.
 
+- [Commands slice](2026-09-29_knot_commands_slice.md): the unified command catalog, configurable native/client chrome, menu and palette routes, and qualified platform-specific evidence.
+
+- [Document links slice](2026-09-29_knot_document_links_slice.md): source-authored links, bounded backlinks and product-owned source navigation.
+
+- [Typography slice](2026-09-29_knot_typography_slice.md): bundled writer/reader fonts and font-backed measure; its existing platform receipt remains distinct from the combined diagnostics qualification.
+
+- [Workspace slice execution](2026-09-23_knot_workspace_slice1_plan.md): multi-document and native design receipts; September 30 combined Commands, typography and diagnostics qualification uses Mere `bd5912fb` and Genet `69a2383b`, with 260 desktop and 63 document tests, nine reviewed native images and restored stale-result control. Worker acceptance and file authority stay in Knot; original and combined cohorts are recorded separately.
+
 - [Design pass brief](2026-09-13_knot_design_pass_brief.md): materials, captured baseline frames, planned directions, and the layout questions a design pass over the standalone desktop has to answer before the multi-document slice adds tabs and a navigator. Answered by the design pass above.
 
 - [Native small-web authoring](2026-09-11_small_web_authoring_plan.md): Gemini, Titan, Spartan and Micron scope, shared protocol ownership, Turnstone composition and persistent-serving proposal.

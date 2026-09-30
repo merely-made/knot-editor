@@ -675,10 +675,27 @@ impl DesktopState {
     }
 
     fn refresh_graph(&mut self) {
+        self.refresh_graph_with_cause(None);
+    }
+
+    fn refresh_graph_with_cause(&mut self, cause: Option<apparatus::RecordRef>) {
         let catalog = self.catalog.as_ref().map(KnotFileCatalog::snapshot);
-        self.graph.start(catalog, self.capture_limit);
+        self.graph
+            .start_with_cause(catalog, self.capture_limit, cause);
         let open = self.graph_open_nodes();
         self.graph.relayout(&open);
+    }
+
+    pub(crate) fn graph_capture_facts(
+        &self,
+    ) -> Result<crate::graph::diagnostics::CaptureFacts<'_>, String> {
+        self.graph.capture_facts()
+    }
+
+    pub(crate) fn graph_diagnostic_attachment(
+        &self,
+    ) -> Result<Option<apparatus::Batch<serde_json::Value>>, String> {
+        self.graph.diagnostic_attachment()
     }
 
     fn carry_graph_request(&mut self, request: mere_view::MereViewRequest) {
@@ -1296,10 +1313,18 @@ impl DesktopState {
     }
 
     fn after_successful_document_write(&mut self, key: DocKey) {
+        self.after_successful_document_write_with_cause(key, None);
+    }
+
+    fn after_successful_document_write_with_cause(
+        &mut self,
+        key: DocKey,
+        cause: Option<apparatus::RecordRef>,
+    ) {
         self.clear_recovery_for(key);
         self.sync_catalog_for(key);
         self.graph.invalidate_catalog();
-        self.refresh_graph();
+        self.refresh_graph_with_cause(cause);
     }
 
     fn retry_catalog_binding(&mut self) {
@@ -2401,16 +2426,22 @@ impl DesktopState {
     }
 
     fn save(&mut self) {
+        let dispatched = self.graph.save_dispatched();
         let Some(key) = self.focused_key() else {
+            self.graph.file_write_returned(dispatched, false);
             self.message = Some("No document is open.".to_owned());
             return;
         };
         match self.document_mut().apply(KnotDocumentIntentV1::Save) {
             Ok(_) => {
-                self.after_successful_document_write(key);
+                let returned = self.graph.file_write_returned(dispatched, true);
+                self.after_successful_document_write_with_cause(key, returned);
                 self.message = Some("Saved.".to_owned());
             },
-            Err(error) => self.message = Some(intent_error_label("Save", error)),
+            Err(error) => {
+                self.graph.file_write_returned(dispatched, false);
+                self.message = Some(intent_error_label("Save", error));
+            },
         }
     }
 
@@ -5567,9 +5598,12 @@ mod tests {
         session: KnotDocumentSession,
         catalog: Option<KnotFileCatalog>,
     ) -> Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
+        let mut state = DesktopState::with_catalog(session, WindowCommands::new(), None, catalog);
+        // These legacy toolbar fixtures exercise the supported plain command row.
+        state.set_command_chrome(CommandChrome::PlainRow);
         let mut host = Harness::with_hooks(
             Init {
-                state: DesktopState::with_catalog(session, WindowCommands::new(), None, catalog),
+                state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: crate::desktop_sheet(),
                 fonts: crate::fonts::bundled_fonts(),
@@ -5782,6 +5816,124 @@ mod tests {
         assert_eq!(host.state().docs.len(), 2);
         assert_eq!(host.state().entry().catalog_id.as_deref(), Some(b.as_str()));
         assert_ne!(a, b);
+    }
+
+    #[test]
+    fn actual_save_flows_through_catalog_worker_acceptance_and_redacted_owner_facts() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("files");
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("private-source.djot");
+        std::fs::write(&path, "# Private title\n").unwrap();
+        std::fs::write(root.join("private-destination.djot"), "# B\n").unwrap();
+        let mut catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        catalog.bind(&path).unwrap();
+        catalog.bind("private-destination.djot").unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
+        host.update(|state| state.set_command_chrome(CommandChrome::ClientTitlebar));
+        drain_wake(&mut host);
+        host.update(|state| {
+            state.graph.enable_test_diagnostics();
+            state
+                .document_mut()
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("[B](private-destination.djot)\n");
+        });
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Save")));
+        host.after_dispatch();
+        drain_wake(&mut host);
+        assert!(!host.state().document().snapshot().dirty);
+        assert!(
+            std::fs::read_to_string(&path)
+                .unwrap()
+                .contains("private-destination.djot")
+        );
+        let facts = host.state().graph_capture_facts().unwrap();
+        let installed = facts.installed.unwrap();
+        assert_eq!(facts.catalog_relations, 1);
+        assert_eq!(facts.read_errors, 0);
+        let batch = host.state().graph_diagnostic_attachment().unwrap().unwrap();
+        let phases = [
+            "save_dispatched",
+            "file_write_returned",
+            "catalog_requested",
+            "worker_started",
+            "worker_completed",
+            "accepted",
+        ];
+        let records = phases.map(|phase| {
+            batch
+                .records
+                .iter()
+                .find(|record| record.payload["phase"] == phase)
+                .unwrap()
+        });
+        for pair in records.windows(2) {
+            assert_eq!(
+                pair[1].envelope.metadata.cause.as_ref(),
+                Some(&pair[0].envelope.reference)
+            );
+        }
+        assert_eq!(
+            installed.request.as_ref(),
+            Some(&records[2].envelope.reference)
+        );
+        assert_eq!(
+            installed.outcome.as_ref(),
+            Some(&records[4].envelope.reference)
+        );
+        assert_eq!(
+            installed.acceptance.as_ref(),
+            Some(&records[5].envelope.reference)
+        );
+        assert!(!serde_json::to_string(&facts).unwrap().contains("private"));
+        assert!(!serde_json::to_string(&batch).unwrap().contains("private"));
+    }
+
+    #[test]
+    fn failed_actual_save_records_refusal_without_dispatching_a_catalog_worker() {
+        let temp = tempdir().unwrap();
+        let root = temp.path().join("files");
+        std::fs::create_dir(&root).unwrap();
+        let path = root.join("private-source.djot");
+        std::fs::write(&path, "# A\n").unwrap();
+        let catalog = KnotFileCatalog::open(&root, temp.path().join("catalog.redb")).unwrap();
+        let mut host =
+            harness_with_catalog(KnotDocumentSession::open(&path).unwrap(), Some(catalog));
+        host.update(|state| state.set_command_chrome(CommandChrome::ClientTitlebar));
+        drain_wake(&mut host);
+        host.update(|state| {
+            state.graph.enable_test_diagnostics();
+            state
+                .document_mut()
+                .session_mut()
+                .input_mut()
+                .unwrap()
+                .insert_str("changed");
+        });
+        // A real filesystem refusal, after the document was opened successfully.
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        host.layout_at(1100.0, 700.0);
+        assert!(host.click_on(&Selector::role("button").containing("Save")));
+        host.after_dispatch();
+        assert!(path.is_dir());
+        assert!(host.state().document().snapshot().dirty);
+        assert!(!host.state().graph.busy());
+        let batch = host.state().graph_diagnostic_attachment().unwrap().unwrap();
+        assert_eq!(batch.records.len(), 2);
+        assert_eq!(batch.records[0].payload["phase"], "save_dispatched");
+        assert_eq!(batch.records[1].payload["phase"], "file_write_returned");
+        assert_eq!(batch.records[1].payload["result"], "write_failed");
+        assert_eq!(
+            batch.records[1].envelope.metadata.cause.as_ref(),
+            Some(&batch.records[0].envelope.reference)
+        );
+        assert!(!serde_json::to_string(&batch).unwrap().contains("private"));
     }
 
     #[cfg(unix)]

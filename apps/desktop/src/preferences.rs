@@ -20,6 +20,7 @@
 //! refuse until the writer resets it, so a typo is never replaced by defaults.
 
 use crate::appearance::Appearance;
+use crate::collapse::CollapsePreferences;
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::io::Write;
@@ -34,6 +35,7 @@ pub struct DesktopPreferences {
     /// Kept as loaded, so a file a newer Knot wrote is not relabelled older.
     pub version: u32,
     pub appearance: StoredAppearance,
+    pub collapse: CollapsePreferences,
     /// Cartography strategy used by the shared mere view.
     pub graph_layout: String,
     /// Maximum age of private local recovery copies in this standalone app.
@@ -62,6 +64,7 @@ impl Default for DesktopPreferences {
         Self {
             version: PREFERENCES_VERSION,
             appearance: StoredAppearance::default(),
+            collapse: CollapsePreferences::default(),
             graph_layout: mere_view::DEFAULT_LAYOUT.to_owned(),
             recovery_days: 30,
             embedding: None,
@@ -84,6 +87,7 @@ impl DesktopPreferences {
             serde_json::from_str(&text).map_err(|error| format!("{}: {error}", path.display()))?;
         let appearance = &mut preferences.appearance.known;
         preferences.recovery_days = preferences.recovery_days.clamp(1, 90);
+        preferences.collapse.normalize();
         appearance.font_size = appearance
             .font_size
             .clamp(Appearance::MIN_FONT_SIZE, Appearance::MAX_FONT_SIZE);
@@ -199,6 +203,30 @@ impl PreferencesStore {
         }
         let mut next = self.saved.clone();
         next.graph_layout = layout.to_owned();
+        next.save(&self.path)?;
+        self.saved = next;
+        Ok(true)
+    }
+
+    pub fn save_collapse(&mut self, collapse: &CollapsePreferences) -> Result<bool, String> {
+        let mut collapse = collapse.clone();
+        for (key, value) in &self.saved.collapse.other {
+            collapse
+                .other
+                .entry(key.clone())
+                .or_insert_with(|| value.clone());
+        }
+        collapse.normalize();
+        if self.saved.collapse == collapse {
+            return Ok(false);
+        }
+        if let Some(why) = &self.unreadable {
+            return Err(format!(
+                "the preferences file could not be read ({why}); reset it in Appearance to save again"
+            ));
+        }
+        let mut next = self.saved.clone();
+        next.collapse = collapse;
         next.save(&self.path)?;
         self.saved = next;
         Ok(true)
@@ -342,6 +370,38 @@ mod tests {
             "grid.default"
         );
         assert_eq!(store.save_graph_layout("grid.default"), Ok(false));
+    }
+
+    #[test]
+    fn collapse_defaults_migrate_and_threshold_changes_keep_unknown_fields() {
+        let root = tempdir().unwrap();
+        let path = root.path().join(PREFERENCES_FILE);
+        std::fs::write(&path, r#"{"version":3,"later":{"flag":true},"collapse":{"reading-min-width":310,"later-rule":{"priority":2}}}"#).unwrap();
+        let mut store = PreferencesStore::open(path.clone());
+        assert_eq!(store.preferences().collapse.menu_below, 700);
+        let mut collapse = store.preferences().collapse.clone();
+        collapse.menu_below = 760;
+        collapse.drawer_below = 480;
+        assert_eq!(store.save_collapse(&collapse), Ok(true));
+        assert_eq!(store.save_collapse(&collapse), Ok(false));
+        store.save_appearance(&changed()).unwrap();
+        let written = json(&path);
+        assert_eq!(written["version"], 3);
+        assert_eq!(written["later"]["flag"], true);
+        assert_eq!(written["collapse"]["later-rule"]["priority"], 2);
+        let reopened = DesktopPreferences::load(&path).unwrap();
+        assert_eq!(reopened.collapse, collapse);
+        let known_only = CollapsePreferences {
+            menu_below: 800,
+            ..CollapsePreferences::default()
+        };
+        store.save_collapse(&known_only).unwrap();
+        assert_eq!(json(&path)["collapse"]["later-rule"]["priority"], 2);
+        std::fs::write(&path, "{}").unwrap();
+        assert_eq!(
+            DesktopPreferences::load(&path).unwrap().collapse,
+            CollapsePreferences::default()
+        );
     }
 
     #[test]

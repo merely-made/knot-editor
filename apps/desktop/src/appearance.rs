@@ -234,7 +234,7 @@ pub fn appearance_css() -> String {
             "{scope} {{ background:{};color:{}; }} \
              {scope} button,{scope} input {{ background:{};color:{};border-color:{}; }} \
              {scope} button:hover {{ background:{}; }} \
-             {scope} .knot-writing-area,{scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail {{ background:{};color:{};border-color:{}; }} \
+             {scope} .knot-writing-area,{scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail,{scope} .status-overflow-content {{ background:{};color:{};border-color:{}; }} \
              {scope} .status-bar {{ border-color:{}; }} \
              {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error,{scope} .status-chip[data-severity=warning] {{ color:{}; }} \
              {scope} .status-chip[data-severity=refused] {{ color:{};border-color:{}; }} \
@@ -243,7 +243,7 @@ pub fn appearance_css() -> String {
              {scope} .frisket-divider {{ background:{}; }} \
              {scope} .frisket-tab {{ background:transparent;color:{}; }} \
              {scope} .frisket-tab.active {{ background:{};color:{};border-color:{}; }} \
-             {scope} .frisket-content {{ background:{};color:{}; }} \
+             {scope} .frisket-content,{scope} .frisket-open-panel {{ background:{};color:{}; }} \
              {scope} .frisket-close {{ color:{}; }} \
              {scope} .tab-mark {{ color:{}; }}",
             rgb(p.bg), rgb(p.text), rgb(p.surface_2), rgb(p.text), rgb(p.text_dim),

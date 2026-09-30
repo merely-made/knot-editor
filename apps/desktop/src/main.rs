@@ -24,6 +24,12 @@ struct LaunchOptions {
     documents: Vec<PathBuf>,
     catalog: Option<CatalogOptions>,
     capture_max_bytes: usize,
+    mere: Option<MereOptions>,
+}
+#[derive(Debug, PartialEq, Eq)]
+struct MereOptions {
+    root: PathBuf,
+    persona: uuid::Uuid,
 }
 fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOptions, String> {
     let mut args = args.into_iter();
@@ -33,9 +39,30 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
     let mut catalog_path = None;
     let mut capture_max_bytes = None;
     let mut positional_only = false;
+    let mut mere_root = None;
+    let mut mere_persona = None;
     while let Some(arg) = args.next() {
         if !positional_only && arg == "--" {
             positional_only = true;
+        } else if !positional_only && (arg == "--mere-root" || arg == "--mere-persona") {
+            let value = args
+                .next()
+                .ok_or("--mere-root and --mere-persona require values")?;
+            if value.is_empty() || value.to_string_lossy().starts_with("--") {
+                return Err("--mere-root and --mere-persona require explicit values".into());
+            }
+            if arg == "--mere-root" {
+                if mere_root.replace(PathBuf::from(value)).is_some() {
+                    return Err("duplicate --mere-root".into());
+                }
+            } else {
+                let persona =
+                    uuid::Uuid::parse_str(value.to_str().ok_or("persona UUID must be UTF-8")?)
+                        .map_err(|_| "--mere-persona requires a UUID")?;
+                if mere_persona.replace(persona).is_some() {
+                    return Err("duplicate --mere-persona".into());
+                }
+            }
         } else if !positional_only && arg == "--capture-max-bytes" {
             if capture_max_bytes.is_some() {
                 return Err("--capture-max-bytes was supplied more than once".into());
@@ -95,10 +122,16 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
     if capture_max_bytes.is_some() && catalog.is_none() {
         return Err("--capture-max-bytes requires --catalog-root and --catalog".into());
     }
+    let mere = match (mere_root, mere_persona) {
+        (None, None) => None,
+        (Some(root), Some(persona)) => Some(MereOptions { root, persona }),
+        _ => return Err("--mere-root and --mere-persona must be supplied together".into()),
+    };
     Ok(LaunchOptions {
         documents,
         catalog,
         capture_max_bytes: capture_max_bytes.unwrap_or(DEFAULT_CAPTURE_MAX_BYTES),
+        mere,
     })
 }
 /// Open the named documents in order, the first in front. Every site folder
@@ -157,6 +190,10 @@ fn main() {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
+    let composition_targets = attach_mere(options.mere).unwrap_or_else(|error| {
+        eprintln!("knot: mere attachment refused: {error}");
+        std::process::exit(1)
+    });
     let settings_root = std::env::var_os("APPDATA")
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
@@ -184,15 +221,96 @@ fn main() {
         Some(settings_root.join("readings")),
         Some(settings_root.join(knot_desktop::preferences::PREFERENCES_FILE)),
         vec![],
+        composition_targets,
         titan_submission_error,
     ) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);
     }
 }
+
+type CompositionTargets =
+    Vec<std::sync::Arc<dyn knot_composition::retention::CompositionRetainPort>>;
+
+#[cfg(feature = "mere-retention")]
+fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, String> {
+    let Some(options) = options else {
+        return Ok(vec![]);
+    };
+    let persona = personae::PersonaId::from_uuid(options.persona);
+    let authority =
+        knot_editor::StartupUnlockedPersonalVault::open_existing(&options.root, persona)?;
+    let resident = authority.into_resident_source()?;
+    let port = resident
+        .composition_retention(knot_editor::CompositionGrant::new(
+            2 * 1024 * 1024,
+            knot_composition::MAX_ITEMS,
+        ))
+        .map_err(|error| error.to_string())?;
+    let bound = knot_editor::KnotResidentCompositionPort::new(
+        knot_capture::KnotPersonaDisplayV1 {
+            stable_id: format!("persona:{}", options.persona),
+            label: format!("Knot mere · {}", options.persona),
+        },
+        port,
+    )
+    .map_err(|error| error.to_string())?;
+    Ok(vec![std::sync::Arc::new(bound)])
+}
+
+#[cfg(not(feature = "mere-retention"))]
+fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, String> {
+    if options.is_some() {
+        Err("this build lacks mere-retention; rebuild with --features mere-retention".into())
+    } else {
+        Ok(vec![])
+    }
+}
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn mere_attachment_requires_explicit_paired_options() {
+        let id = "00000000-0000-0000-0000-000000000042";
+        assert!(select_document(["knot", "--mere-root", "data"].map(OsString::from)).is_err());
+        assert!(select_document(["knot", "--mere-persona", id].map(OsString::from)).is_err());
+        assert!(
+            select_document(
+                ["knot", "--mere-root", "data", "--mere-persona", "invalid"].map(OsString::from)
+            )
+            .is_err()
+        );
+        assert!(
+            select_document(
+                [
+                    "knot",
+                    "--mere-root",
+                    "data",
+                    "--mere-root",
+                    "other",
+                    "--mere-persona",
+                    id
+                ]
+                .map(OsString::from)
+            )
+            .is_err()
+        );
+        let parsed = select_document(
+            [
+                "knot",
+                "--mere-root",
+                "data",
+                "--mere-persona",
+                id,
+                "essay.djot",
+            ]
+            .map(OsString::from),
+        )
+        .unwrap();
+        assert_eq!(parsed.mere.unwrap().root, PathBuf::from("data"));
+        assert_eq!(parsed.documents, [PathBuf::from("essay.djot")]);
+        assert!(attach_mere(None).unwrap().is_empty());
+    }
     use cambium_genet_winit_host::Init;
     use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};
     use knot_desktop::host_hooks;
@@ -211,6 +329,7 @@ mod tests {
                 documents: Vec::new(),
                 catalog: None,
                 capture_max_bytes: DEFAULT_CAPTURE_MAX_BYTES,
+                mere: None,
             }
         );
         assert_eq!(

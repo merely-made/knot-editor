@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 pub mod wordnet_import;
+pub mod retention;
 
 pub const STORE_VERSION: u32 = 1;
 pub const MAX_STORE_BYTES: usize = 16 * 1024 * 1024;
@@ -252,7 +253,7 @@ impl CollectionItem {
         self
     }
 
-    fn validate(&self) -> Result<(), CollectionError> {
+    pub fn validate(&self) -> Result<(), CollectionError> {
         bounded_nonempty("item id", &self.id, MAX_ID_BYTES)?;
         bounded_nonempty("collection", &self.collection, MAX_ID_BYTES)?;
         bounded_nonempty("label", &self.label, MAX_LABEL_BYTES)?;

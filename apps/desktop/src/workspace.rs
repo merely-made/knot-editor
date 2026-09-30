@@ -44,7 +44,7 @@ use workbench::{TileEvent, WorkspaceEvent};
 
 const SCRATCH_ADDRESS: &str = "scratch:untitled";
 
-fn hex32(bytes: &[u8; 32]) -> String {
+pub(crate) fn hex32(bytes: &[u8; 32]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
@@ -623,6 +623,7 @@ impl DesktopState {
             || self.submissions_busy()
             || self.retention_receiver.is_some()
             || self.retention_busy.is_some()
+            || self.composition.busy()
     }
 
     /// Take every finished send's outcome into the document it was sent from.
@@ -659,6 +660,10 @@ impl DesktopState {
         self.retention_wake = Some(wake);
         self.retention_selected = None;
         self.retention_error = None;
+    }
+
+    pub fn set_composition_targets(&mut self, targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>, wake: HostWake) {
+        self.composition.set_targets(targets, wake);
     }
 
     pub(crate) fn graph_open_nodes(&self) -> Vec<OpenNode> {
@@ -4594,6 +4599,9 @@ pub fn after_dispatch(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
     ctx.runner.update(DesktopState::sync_recovery);
+    if ctx.runner.state().composition.busy() {
+        ctx.runner.update(|state| state.composition.drain());
+    }
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());
     }
@@ -4924,6 +4932,9 @@ pub fn after_wake(
                 state.graph.relayout(&open);
             }
         });
+    }
+    if ctx.runner.state().composition.busy() {
+        ctx.runner.update(|state| state.composition.drain());
     }
     if ctx.runner.state().retention_receiver.is_some() {
         ctx.runner.update(|state| state.drain_retention());

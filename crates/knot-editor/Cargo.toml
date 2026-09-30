@@ -25,6 +25,7 @@ embed-bert-wgpu = ["embed-bert", "esp/bert-wgpu"]
 
 [dependencies]
 knot-capture.workspace = true
+knot-composition.workspace = true
 base64.workspace = true
 blake3.workspace = true
 chartulary.workspace = true

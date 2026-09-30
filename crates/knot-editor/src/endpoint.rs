@@ -8,6 +8,9 @@
 
 #[path = "capture_retention.rs"]
 mod capture_retention;
+#[path = "composition_retention.rs"]
+mod composition_retention;
+pub use composition_retention::{CompositionGrant, KnotCompositionPort, KnotResidentCompositionPort};
 pub use capture_retention::{
     KnotCaptureDestination, KnotCaptureError, KnotCaptureGrant, KnotCaptureReceipt,
     KnotFileCapturePort, KnotPreparedFileCaptureV1,

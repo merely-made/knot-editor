@@ -18,11 +18,18 @@ the document presentation and desktop host.
 - `crates/knot-file-catalog`: durable file identities without the editor's
   preview, publishing, or replication dependencies.
 - `crates/knot-capture`: lightweight host-issued retention targets and receipts.
+- `crates/knot-composition`: selected-material schema, host-issued collection
+  capability, legacy import and offline WordNet conversion. Desktop collection
+  records live in Knot's signed, sealed mere, not a separate plaintext store.
 - `crates/knot-editor`: file, vault, evidence, sync, publishing, and
   Graphshell-facing authority.
 - `apps/desktop`: the standalone native host for `knot-document`.
 
 ## Build
+
+Collection retention requires explicitly attaching an existing personal mere
+and choosing its destination in the Collection panel. Ordinary file-only launch
+does not create or select an identity. See [attachment and legacy import](design_docs/2026-09-30_composition_mere_retention.md).
 
 The workspace uses Rust 1.97.1 and pins its Mere and Genet source identities.
 

@@ -44,6 +44,60 @@ pub struct StartupUnlockedPersonalVault {
 }
 
 impl StartupUnlockedPersonalVault {
+    /// Attach an explicitly named existing personal mere without creating an
+    /// identity/store, migrating documents, or starting network replication.
+    /// Personae's configured startup-unlock policy still applies. Another
+    /// resident owning the operation store is an error, never a second owner.
+    pub fn open_existing(data_root: impl AsRef<Path>, persona: PersonaId) -> Result<Self, String> {
+        let data_root = data_root.as_ref();
+        let vault_root = persona_vault_root(data_root, persona);
+        let store_path = vault_root.join(KNOT_SYNC_FILE);
+        if !store_path.is_file() {
+            return Err("the selected persona has no existing Knot mere operation store".into());
+        }
+        let mut device = wallet_store::load_local_device_identity(data_root)
+            .map_err(|error| format!("could not unlock existing device identity: {error}"))?
+            .ok_or("no existing device identity; configure Personae before attaching a mere")?;
+        let device_root = *SigningKey::from_bytes(&device.device_seed)
+            .verifying_key()
+            .as_bytes();
+        device.device_seed.zeroize();
+        let keys = unlock_personal_keys(data_root, persona, device_root)?;
+        let settings = crate::KnotSettings::load(&crate::knot_settings_path(data_root, persona))
+            .map_err(|error| error.to_string())?;
+        let admitted = settings
+            .sync
+            .map(|sync| sync.paired_writer_keys())
+            .transpose()
+            .map_err(|error| error.to_string())?
+            .unwrap_or_default();
+        let writer = *SigningKey::from_bytes(&keys.signing_seed)
+            .verifying_key()
+            .as_bytes();
+        let mut writers = vec![writer, keys.legacy_writer];
+        writers.extend(admitted);
+        writers.sort_unstable();
+        writers.dedup();
+        let space_id = blake3::derive_key(SPACE_ID_CONTEXT, persona.as_uuid().as_bytes());
+        let store = KnotSyncFileStore::open(&store_path, space_id, writers).map_err(|error| {
+            format!("could not attach Knot mere; another resident may own it: {error}")
+        })?;
+        let vault = KnotVault::open(&vault_root, *keys.vault_key)?;
+        let projection = pollster::block_on(store.projection(&vault))
+            .map_err(|error| format!("could not inspect existing Knot history: {error}"))?;
+        if vault
+            .documents()
+            .any(|document| !projection.documents.contains(document))
+        {
+            return Err("existing vault material differs from recorded history; reconcile it through its owner before attaching composition retention".into());
+        }
+        Ok(Self {
+            vault,
+            store,
+            signing_seed: keys.signing_seed,
+        })
+    }
+
     /// Recover the current private epoch through the configured startup-unlock
     /// policy and open this persona's sealed vault plus signed operation store.
     ///
@@ -249,6 +303,37 @@ pub fn persona_vault_root(data_root: &Path, persona: PersonaId) -> PathBuf {
         .join(pandect::PERSONAS_DIR)
         .join(persona.as_uuid().to_string())
         .join(KNOT_VAULT_DIR)
+}
+
+#[cfg(test)]
+mod existing_attachment_tests {
+    use super::*;
+
+    #[test]
+    fn missing_mere_refuses_before_creating_root_or_identity() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path().join("absent");
+        assert!(StartupUnlockedPersonalVault::open_existing(&root, PersonaId::new()).is_err());
+        assert!(!root.exists());
+    }
+
+    #[test]
+    fn missing_device_identity_does_not_bootstrap_one() {
+        let temp = tempfile::tempdir().unwrap();
+        let persona = PersonaId::new();
+        let store = persona_vault_root(temp.path(), persona).join(KNOT_SYNC_FILE);
+        fs::create_dir_all(store.parent().unwrap()).unwrap();
+        fs::write(&store, b"not opened without device authority").unwrap();
+        let error = StartupUnlockedPersonalVault::open_existing(temp.path(), persona)
+            .err()
+            .unwrap();
+        assert!(error.contains("no existing device identity"), "{error}");
+        assert!(!wallet_store::local_device_identity_path(temp.path()).exists());
+        assert_eq!(
+            fs::read(store).unwrap(),
+            b"not opened without device authority"
+        );
+    }
 }
 
 #[cfg(all(test, windows))]

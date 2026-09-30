@@ -43,7 +43,7 @@ fn scenario_path(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn composition_lane_collects_a_reading_without_changing_source() {
+fn composition_lane_refuses_retention_without_authority_and_preserves_source() {
     let root = tempdir().unwrap();
     let fixture = scenario_path("fixtures/composition/selection.djot");
     let before = std::fs::read(&fixture).unwrap();
@@ -56,15 +56,7 @@ fn composition_lane_collects_a_reading_without_changing_source() {
     let receipt =
         run_without_native_capture_at_height(state, "composition.scn", &root, 900.0, false);
     assert!(receipt.starts_with("RESULT ok"), "{receipt}");
-    let retained =
-        knot_composition::CollectionStore::open(root.path().join("composition/collection.json"))
-            .unwrap();
-    assert_eq!(retained.items().len(), 1);
-    assert!(
-        retained.items()[0]
-            .text
-            .contains("Perfect rhyme: Night ↔ light")
-    );
+    assert!(!root.path().join("composition/collection.json").exists());
     assert_eq!(std::fs::read(fixture).unwrap(), before);
 }
 

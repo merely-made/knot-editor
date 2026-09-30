@@ -21,12 +21,11 @@ assert text 2 tokens
 assert text Perfect rhyme
 capture composition-v3-sound-result
 click role:button Collect sound reading
-assert text Saved to the local composition collection.
+assert text No collection destination selected
 click role:button Collection
 settle 4
-assert text Sound reading
+assert text Unavailable: the host has supplied no writable Knot mere
 capture composition-v3-collection
-click role:button Return to source
 assert snap dirty == false
 click role:button Sources
 settle 4

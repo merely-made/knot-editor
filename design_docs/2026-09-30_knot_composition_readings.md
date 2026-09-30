@@ -1,5 +1,10 @@
 # Composition readings: lexical connections, sound, and collected material
 
+**Retention correction:** [Knot's own mere](2026-09-30_composition_mere_retention.md)
+is now the collection authority. The plaintext-store description and native
+receipts below record the first prototype, not the corrected storage route.
+The sidecar is retained only as an explicit legacy import source.
+
 Status: first implementation slice, with model/integration checks and a scoped
 native sound-and-collection capture. This is not a complete third-party plugin
 system or acceptance of every reference workflow and viewport.
@@ -137,8 +142,8 @@ policy is part of this local, explicit first slice.
 
 Shared Mere is pinned to `9310518be5423862c1038f7d7a7578d5089d3c51`; Genet remains
 `b1eb3af197111ecde34421bbe1bad2e6024ca564`. No relative shared-crate path override
-remains in the committed manifest. The shared branch must be published before
-a fresh external checkout can resolve that new Git revision.
+remains in the committed manifest. That shared revision is now published and
+merged into Mere's main branch.
 
 - Shared registry owner reported 24 tests, all-target strict Clippy and a wasm32
   compile check passing on its committed source.

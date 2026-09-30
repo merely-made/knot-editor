@@ -9,7 +9,10 @@ pub mod changes;
 pub mod document_folding;
 pub mod document_preview;
 pub mod documents;
+pub mod fonts;
 pub mod graph;
+mod document_links;
+mod link_workflow;
 pub mod navigator;
 pub mod preferences;
 pub mod readings;
@@ -21,9 +24,10 @@ pub mod status;
 pub mod workspace;
 
 use cambium::{
-    FOLD_ROWS_CSS, FRISKET_CSS, GRAPH_CANVAS_SWATCH_CSS, POPOVER_CSS, STATUS_BAR_CSS, WORKSPACE_CSS,
+    COMMAND_MENU_BAR_CSS, FOLD_ROWS_CSS, FRISKET_CSS, GRAPH_CANVAS_SWATCH_CSS, POPOVER_CSS,
+    STATUS_BAR_CSS, WORKSPACE_CSS,
 };
-use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
+use cambium_genet_winit_host::{HostHooks, HostOptions, Init, WindowFrame, inert_hooks, run};
 use knot_capture::KnotRetainPort;
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use knot_file_catalog::KnotFileCatalog;
@@ -46,7 +50,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
 /// rules dress it.
 pub fn desktop_sheet() -> String {
     format!(
-        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{GRAPH_CANVAS_SWATCH_CSS}{}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
+        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{COMMAND_MENU_BAR_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{GRAPH_CANVAS_SWATCH_CSS}{}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
         mere_view::MERE_VIEW_CSS,
         appearance::appearance_css(),
         document_folding::CSS,
@@ -97,6 +101,12 @@ pub fn run_desktop_with_targets(
     run(
         HostOptions {
             title: "Knot".into(),
+            window_frame: if cfg!(target_os = "macos") {
+                WindowFrame::Host
+            } else {
+                WindowFrame::App
+            },
+            maximize_control_label: "Maximize window".into(),
             initial_logical_size: (1100.0, 700.0),
             ..HostOptions::default()
         },
@@ -130,7 +140,7 @@ pub fn run_desktop_with_targets(
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
                 sheet: desktop_sheet(),
-                fonts: Vec::new(),
+                fonts: fonts::bundled_fonts(),
                 images: Vec::new(),
             }
         },

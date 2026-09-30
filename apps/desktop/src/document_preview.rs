@@ -9,7 +9,16 @@ use std::sync::Arc;
 use crate::documents::DocKey;
 use crate::workspace::{DesktopState, DesktopView};
 
-pub const CSS: &str = ".knot-document-preview { box-sizing:border-box; padding:16px; } .knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5 { margin:8px 0; } .knot-document-preview-diagnostics { display:block; font-size:13px; opacity:0.8; } .knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }";
+pub const CSS: &str = concat!(
+    ".knot-preview-frame { box-sizing:border-box; padding:16px; min-width:0; }",
+    ".knot-document-preview { box-sizing:border-box; }",
+    ".knot-document-preview h1,.knot-document-preview h2,.knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5,.knot-document-preview h6 { margin:8px 0; }",
+    ".knot-document-preview h1 { font-size:1.6em; }",
+    ".knot-document-preview h2 { font-size:1.25em; }",
+    ".knot-document-preview h3,.knot-document-preview h4,.knot-document-preview h5,.knot-document-preview h6 { font-size:1.05em; }",
+    ".knot-document-preview-diagnostics { display:block; font-family:system-ui,sans-serif; font-size:13px; line-height:normal; opacity:0.8; }",
+    ".knot-workspace .knot-document-preview-heading { display:block; width:100%; text-align:left; font:inherit; font-weight:inherit; padding:0; border:none; border-radius:0; background:transparent; color:inherit; cursor:pointer; }",
+);
 
 pub(crate) fn inline_presentation_css(presentation: &inker::InlinePresentation) -> String {
     let mut css = String::new();
@@ -37,7 +46,14 @@ pub(crate) fn block_presentation_css(presentation: &inker::BlockPresentation) ->
     )
 }
 
-fn inline(items: &[InlineSpan]) -> DesktopView {
+#[derive(Clone)]
+struct LinkSource {
+    document: DocKey,
+    address: Arc<str>,
+    text: Arc<str>,
+}
+
+fn inline(items: &[InlineSpan], source: Option<&LinkSource>) -> DesktopView {
     let children = items
         .iter()
         .enumerate()
@@ -47,18 +63,30 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     presentation,
                     spans,
                 } => Box::new(
-                    el("span", inline(spans)).attr("style", inline_presentation_css(presentation)),
+                    el("span", inline(spans, source))
+                        .attr("style", inline_presentation_css(presentation)),
                 ),
                 InlineSpan::Text(text) => Box::new(span(text.clone())),
                 InlineSpan::Code(text) => Box::new(el("code", text.clone())),
-                InlineSpan::Emphasis(items) => Box::new(el("em", inline(items))),
-                InlineSpan::Strong(items) => Box::new(el("strong", inline(items))),
+                InlineSpan::Emphasis(items) => Box::new(el("em", inline(items, source))),
+                InlineSpan::Strong(items) => Box::new(el("strong", inline(items, source))),
                 InlineSpan::Link { url, spans, .. } => {
                     let destination = url.clone();
                     let accessible_destination = destination.clone();
+                    let origin = source.cloned();
                     Box::new(
-                        button_with(inline(spans), move |state: &mut DesktopState, _| {
-                            state.message = Some(format!("Preview link: {destination}"));
+                        button_with(inline(spans, source), move |state: &mut DesktopState, _| {
+                            if let Some(origin) = &origin {
+                                crate::link_workflow::follow_link(
+                                    state,
+                                    origin.document,
+                                    &origin.address,
+                                    &origin.text,
+                                    &destination,
+                                );
+                            } else {
+                                state.message = Some(format!("Preview link: {destination}"));
+                            }
                         })
                         .attr(
                             "aria-label",
@@ -84,7 +112,7 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
                     )
                 },
                 // An in-page link is its label here; this preview has no anchors.
-                InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans))),
+                InlineSpan::InPage { spans, .. } => Box::new(el("span", inline(spans, source))),
                 InlineSpan::LineBreak => Box::new(el("br", ())),
                 InlineSpan::SoftBreak => Box::new(span(" ")),
             };
@@ -94,14 +122,18 @@ fn inline(items: &[InlineSpan]) -> DesktopView {
     Box::new(el("span", Keyed::new(children)))
 }
 
-fn table_row(cells: &[Vec<InlineSpan>], cell_element: &'static str) -> DesktopView {
+fn table_row(
+    cells: &[Vec<InlineSpan>],
+    cell_element: &'static str,
+    source: Option<&LinkSource>,
+) -> DesktopView {
     Box::new(el(
         "tr",
         Keyed::new(
             cells
                 .iter()
                 .enumerate()
-                .map(|(index, cell)| (index, el(cell_element, inline(cell))))
+                .map(|(index, cell)| (index, el(cell_element, inline(cell, source))))
                 .collect::<Vec<_>>(),
         ),
     ))
@@ -124,6 +156,11 @@ fn blocks(
     document: Option<DocKey>,
     next_heading: &mut usize,
 ) -> DesktopView {
+    let link_source = document.map(|document| LinkSource {
+        document,
+        address: Arc::clone(address),
+        text: Arc::clone(source_text),
+    });
     let children = items
         .iter()
         .enumerate()
@@ -179,7 +216,9 @@ fn blocks(
                         .attr("aria-label", format!("Select source heading: {label}")),
                     ))
                 },
-                Block::Paragraph { spans } => Box::new(el("p", inline(spans))),
+                Block::Paragraph { spans } => {
+                    Box::new(el("p", inline(spans, link_source.as_ref())))
+                },
                 Block::CodeBlock { text, .. } | Block::Preformatted { text } => {
                     Box::new(el("pre", text.clone()))
                 },
@@ -269,12 +308,12 @@ fn blocks(
                     let head: DesktopView = if header.is_empty() {
                         Box::new(el("thead", ()))
                     } else {
-                        Box::new(el("thead", table_row(header, "th")))
+                        Box::new(el("thead", table_row(header, "th", link_source.as_ref())))
                     };
                     let body = rows
                         .iter()
                         .enumerate()
-                        .map(|(row, cells)| (row, table_row(cells, "td")))
+                        .map(|(row, cells)| (row, table_row(cells, "td", link_source.as_ref())))
                         .collect::<Vec<_>>();
                     Box::new(el("table", (head, el("tbody", Keyed::new(body)))))
                 },
@@ -315,7 +354,11 @@ pub fn supported(format: knot_document::DocumentFormat) -> bool {
 pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> DesktopView {
     let surface = state.surface_for(key);
     if surface.snapshot().format.native_source() {
-        return crate::scroll_site::preview(state, key, tile);
+        return Box::new(
+            el("div", crate::scroll_site::preview(state, key, tile))
+                .attr("class", "knot-reader-body")
+                .attr("style", state.appearance.preview_style()),
+        );
     }
     if !supported(surface.snapshot().format) {
         return Box::new(
@@ -360,11 +403,16 @@ pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> Deskt
         Err(error) => Box::new(el("div", span(format!("Preview unavailable: {error}")))),
     };
     Box::new(
-        el("div", preview)
-            .attr("id", format!("knot-document-preview-{}", tile.0))
-            .attr("class", "knot-document-preview")
-            .attr("role", "complementary")
-            .attr("aria-label", "Document preview"),
+        el(
+            "div",
+            el("div", preview)
+                .attr("id", format!("knot-document-preview-{}", tile.0))
+                .attr("class", "knot-document-preview")
+                .attr("style", state.appearance.preview_style())
+                .attr("role", "complementary")
+                .attr("aria-label", "Document preview"),
+        )
+        .attr("class", "knot-preview-frame"),
     )
 }
 
@@ -375,6 +423,55 @@ mod tests {
     use inker::{Engine, EngineInput};
     use knot_document::KnotDocumentSession;
     use layout_dom_api::LayoutDom;
+    use taproot::Selector;
+
+    fn pinned_preview(state: &DesktopState) -> DesktopView {
+        view(state, DocKey(1), workbench::TileId(900))
+    }
+
+    #[test]
+    fn pinned_preview_resolves_links_from_its_source_and_activates_existing_target() {
+        let temp = tempfile::tempdir().unwrap();
+        let folder = temp.path().join("notes");
+        std::fs::create_dir(&folder).unwrap();
+        let source = folder.join("essay.djot");
+        let target = temp.path().join("reference.djot");
+        let other = temp.path().join("other.djot");
+        std::fs::write(&source, "[Reference](../reference.djot)\n").unwrap();
+        std::fs::write(&target, "# Reference\n").unwrap();
+        std::fs::write(&other, "# Other\n").unwrap();
+        let mut state = DesktopState::new(
+            KnotDocumentSession::open(&source).unwrap(),
+            WindowCommands::new(),
+        );
+        state.open_behind(
+            vec![
+                KnotDocumentSession::open_read_only(&target).unwrap(),
+                KnotDocumentSession::open(&other).unwrap(),
+            ],
+            &[],
+        );
+        state.docs.focus(DocKey(3));
+        let mut host = Harness::new(
+            crate::desktop_sheet(),
+            state,
+            pinned_preview as fn(&DesktopState) -> DesktopView,
+        );
+        host.layout_at(900.0, 600.0);
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("aria-label", "Preview link: ../reference.djot")
+        ));
+        assert_eq!(host.state().focused_key(), Some(DocKey(2)));
+        assert_eq!(host.state().docs.len(), 3);
+        assert_eq!(
+            host.state().document().snapshot().write_posture,
+            knot_document::KnotDocumentWritePostureV1::ReadOnly
+        );
+        assert_eq!(
+            std::fs::read_to_string(&source).unwrap(),
+            "[Reference](../reference.djot)\n"
+        );
+    }
 
     fn in_page_note(_: &DesktopState) -> DesktopView {
         let document = nematic::MicronEngine::new()

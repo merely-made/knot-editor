@@ -57,12 +57,13 @@ fn run_without_native_capture(state: DesktopState, name: &str, temp: &tempfile::
 }
 
 fn run_without_native_capture_at_height(
-    state: DesktopState,
+    mut state: DesktopState,
     name: &str,
     temp: &tempfile::TempDir,
     height: f32,
     check_toolbar: bool,
 ) -> String {
+    state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
     let source = std::fs::read_to_string(scenario_path(name)).unwrap();
     let source = source
         .lines()
@@ -134,13 +135,8 @@ fn revealing_a_clipped_focused_textbox_keeps_the_command_toolbar_stationary() {
         WindowCommands::new(),
         Some(fixture),
     );
-    let receipt = run_without_native_capture_at_height(
-        state,
-        "focused_writing.scn",
-        &root,
-        420.0,
-        true,
-    );
+    let receipt =
+        run_without_native_capture_at_height(state, "focused_writing.scn", &root, 420.0, true);
     assert!(receipt.starts_with("RESULT ok"), "{receipt}");
 }
 
@@ -221,11 +217,12 @@ fn the_lane_drives_the_desktop_by_role_and_label() {
     .unwrap();
     let mut hooks = host_hooks();
     hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
-    let state = DesktopState::with_path(
+    let mut state = DesktopState::with_path(
         KnotDocumentSession::open(&document).unwrap(),
         WindowCommands::new(),
         Some(document.clone()),
     );
+    state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
     let mut h = Harness::with_hooks(
         Init {
             state,

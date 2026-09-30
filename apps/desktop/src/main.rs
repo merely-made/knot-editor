@@ -379,7 +379,7 @@ mod tests {
                 knot_desktop::document_preview::CSS,
                 knot_desktop::readings::CSS
             ),
-            fonts: Vec::new(),
+            fonts: knot_desktop::fonts::bundled_fonts(),
             images: Vec::new(),
         };
         let mut harness = Harness::with_hooks(init, host_hooks());

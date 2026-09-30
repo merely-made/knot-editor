@@ -53,7 +53,7 @@ impl mesquite::Product for KnotLane {
                     .filter(|installed| graph_visible && installed.acceptance.is_some());
                 Ok(mesquite::CaptureProjection {
                     product: serde_json::json!({
-                        "schema": "knot.desktop-presentation/v1",
+                        "schema": "knot.desktop-presentation/v2",
                         "fields": fields,
                         "graph_catalog": {
                             "visible": graph_visible,
@@ -111,7 +111,16 @@ fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, St
         ),
         ("theme_dark", state.appearance.dark.to_string()),
         ("font_size", state.appearance.font_size.to_string()),
-        ("wide", state.appearance.wide.to_string()),
+        (
+            "measure",
+            match state.appearance.measure {
+                crate::appearance::Measure::Narrow => "narrow",
+                crate::appearance::Measure::Medium => "medium",
+                crate::appearance::Measure::Wide => "wide",
+                crate::appearance::Measure::Full => "full",
+            }
+            .to_owned(),
+        ),
         ("relaxed", state.appearance.relaxed.to_string()),
         ("background_busy", state.background_busy().to_string()),
     ]
@@ -133,9 +142,14 @@ mod tests {
         let fields = capture_fields(&state);
         assert_eq!(fields["source_bytes"], "13");
         assert_eq!(fields["theme_dark"], "false");
+        assert_eq!(fields["measure"], "medium");
+        assert!(!fields.contains_key("wide"));
         assert!(!serde_json::to_string(&fields).unwrap().contains("secret"));
         state.appearance.dark = true;
+        state.appearance.measure = crate::appearance::Measure::Full;
         assert_eq!(capture_fields(&state)["theme_dark"], "true");
+        assert_eq!(capture_fields(&state)["measure"], "full");
+        assert_eq!(fields["measure"], "medium");
         assert_eq!(
             fields["theme_dark"], "false",
             "the earlier reading stays frozen"

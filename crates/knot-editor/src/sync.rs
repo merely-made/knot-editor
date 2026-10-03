@@ -11,10 +11,9 @@ use std::path::Path;
 use std::sync::{Arc, RwLock};
 
 use muniment::{Backend, MemoryBackend, RedbBackend, StoreError, WriteOp};
-use p2panda_core::cbor::{decode_cbor, encode_cbor};
+use p2panda_core::cbor::{decode_cbor_strict, encode_cbor};
 use p2panda_core::{Body, Hash, Header, Operation, SigningKey, Topic, VerifyingKey};
 use p2panda_net::{Endpoint, Gossip};
-use p2panda_store::logs::LogStore;
 use p2panda_store::topics::TopicStore;
 use proofs::Digest;
 use serde::{Deserialize, Serialize};
@@ -279,12 +278,14 @@ impl OperationPolicy<KnotSyncExt> for KnotSyncPolicy {
             )
         })?;
         if self.encryption == KnotEncryptionProfile::CommonsDataV1 {
-            decode_cbor::<GroupCiphertext, _>(body.to_bytes().as_slice()).map_err(|error| {
-                Reject::new(
-                    "invalid-knot-group-ciphertext",
-                    format!("Commons Knot body is not a data-envelope: {error}"),
-                )
-            })?;
+            decode_cbor_strict::<GroupCiphertext, _>(body.to_bytes().as_slice()).map_err(
+                |error| {
+                    Reject::new(
+                        "invalid-knot-group-ciphertext",
+                        format!("Commons Knot body is not a data-envelope: {error}"),
+                    )
+                },
+            )?;
         }
         validate_causal_metadata(
             operation,
@@ -1758,7 +1759,7 @@ fn communal_operation_epoch(
         .body
         .as_ref()
         .ok_or_else(|| KnotSyncError::Payload("operation body is absent".into()))?;
-    let envelope: GroupCiphertext = decode_cbor(body.to_bytes().as_slice())
+    let envelope: GroupCiphertext = decode_cbor_strict(body.to_bytes().as_slice())
         .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
     Ok(envelope.epoch)
 }
@@ -1806,7 +1807,7 @@ fn decode_event(
             .unseal_sync_payload(&aad, &body.to_bytes())
             .map_err(KnotSyncError::Payload)?,
         KnotSyncCipher::CommonsData(keys) => {
-            let envelope: GroupCiphertext = decode_cbor(body.to_bytes().as_slice())
+            let envelope: GroupCiphertext = decode_cbor_strict(body.to_bytes().as_slice())
                 .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
             keys.open(&envelope)?
         },

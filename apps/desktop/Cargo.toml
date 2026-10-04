@@ -12,7 +12,7 @@ name = "knot"
 path = "src/main.rs"
 
 [dependencies]
-apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3", default-features = false, features = ["serde"] }
+apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mesquite.workspace = true
 knot-site = { path = "../../crates/knot-site" }
@@ -28,9 +28,11 @@ mere-view.workspace = true
 sprigging.workspace = true
 workbench.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
-tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
+tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
 knot-file-catalog.workspace = true
 knot-readings.workspace = true
+knot-composition.workspace = true
+reference-data.workspace = true
 blake3.workspace = true
 percent-encoding.workspace = true
 layout-dom-api.workspace = true
@@ -48,5 +50,7 @@ tempfile = "3"
 workspace = true
 
 [features]
+default = ["mere-retention"]
+mere-retention = ["dep:knot-editor", "dep:personae"]
 resident-retention-tests = ["dep:knot-editor", "dep:personae"]
 retinue = ["knot-site/retinue"]

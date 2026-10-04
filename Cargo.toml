@@ -6,6 +6,7 @@ members = [
     "crates/knot-file-catalog",
     "crates/knot-editor",
     "crates/knot-readings",
+    "crates/knot-composition",
 ]
 exclude = ["crates/knot-document", "crates/knot-site"]
 default-members = [
@@ -24,6 +25,8 @@ knot-capture = { version = "0.0.1", path = "crates/knot-capture" }
 knot-document = { version = "0.0.1", path = "crates/knot-document" }
 knot-file-catalog = { version = "0.0.1", path = "crates/knot-file-catalog" }
 knot-readings = { version = "0.0.1", path = "crates/knot-readings" }
+knot-composition = { version = "0.0.1", path = "crates/knot-composition" }
+reference-data = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
 
 # Mere contracts and services. Embedded Knot types need one Cargo source
 # identity with the Turnstone consumer line; Knot moved to 9ad5990b on
@@ -46,52 +49,53 @@ knot-readings = { version = "0.0.1", path = "crates/knot-readings" }
 # repinned.
 # The presentation follow-up pinned Mere ac1a5e5d on the 8fce5365 base for
 # empty Graph session sizing and visible-textbox scenario focus. The shared
-# combined diagnostics/Commands/font integration pins Mere bd5912fb and Genet
-# 69a2383b, retaining
-# those fixes alongside the computed-semantic selector and text-boundary work.
+# combined diagnostics/Commands/font/Collapse integration used Mere c6707958
+# and Genet b1eb3af1. Composition adds reference-data at Mere 9310518b without
+# changing those UI crates or the Genet pin, retaining the computed-semantic
+# selector and text-boundary fixes.
 # Mesquite owns execution and receipts; Taproot owns semantic selection and
 # click delivery hooks; Apparatus owns bounded diagnostic observations.
-chartulary = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-chirograph = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-eidetic = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3", default-features = false }
-esp = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-fetch = { package = "mere-fetch", version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-gemot = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-graphshell = { git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-graphshell-endpoint = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-mora-cmudict = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-muniment = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-notochord = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-pandect = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-insigne = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3", features = ["verify"] }
-personae = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-proofs = { package = "mere-proofs", version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-sceno = { version = "0.0.4", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-scenotime = { version = "0.0.4", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-script-rhai = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-servitor = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-stickleback = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-transport = { package = "mere-transport", version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
+chartulary = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+chirograph = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+eidetic = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51", default-features = false }
+esp = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+fetch = { package = "mere-fetch", version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+gemot = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+graphshell = { git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+graphshell-endpoint = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+mora-cmudict = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+muniment = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+notochord = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+pandect = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+insigne = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51", features = ["verify"] }
+personae = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+proofs = { package = "mere-proofs", version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+sceno = { version = "0.0.4", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+scenotime = { version = "0.0.4", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+script-rhai = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+servitor = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+stickleback = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+transport = { package = "mere-transport", version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
 
 # Presentation stack. The platform boundary move put Cambium, Illume, Inker,
 # Nematic and the Knot editor host in Mere; the raw engine contracts stay in
 # Genet. Keep every source on the same immutable revision per repository as the
 # Mere and Turnstone consumers.
-cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-mere-view = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-mesquite = { git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-cambium-genet-winit-host = { git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-sprigging = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-workbench = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-fleece = { version = "0.5.0", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
-genet-host-api = { git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
-genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
-illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-inker = { git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3" }
-knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3", default-features = false }
-layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
-nematic = { git = "https://github.com/merely-made/mere.git", rev = "bd5912fbbb8f468defc3bbeee7eac5a4f7d2b2f3", default-features = false }
-taproot = { version = "0.1.0", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+mere-view = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+mesquite = { git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+cambium-genet-winit-host = { git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+sprigging = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+workbench = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+fleece = { version = "0.5.0", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
+genet-host-api = { git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+inker = { git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51" }
+knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51", default-features = false }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
+nematic = { git = "https://github.com/merely-made/mere.git", rev = "9310518be5423862c1038f7d7a7578d5089d3c51", default-features = false }
+taproot = { version = "0.1.0", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
 
 # Shared registry dependencies.
 base64 = "0.22"
@@ -116,9 +120,9 @@ gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "8
 # Root patches are not inherited from Genet or Mere. These keep the standalone
 # workspace on the same type families as both upstream repositories.
 vello = { git = "https://github.com/mark-ik/vello.git", tag = "vello-0.10.0" }
-layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
-genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
-taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
+taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "b1eb3af197111ecde34421bbe1bad2e6024ca564" }
 # No parley/fontique patch rows: as of genet 5ae30cad the forks are published as
 # `genet-parley` and `genet-fontique`, so nothing in genet answers to the name
 # `parley` and a row keyed on it would match no package and fail resolution.

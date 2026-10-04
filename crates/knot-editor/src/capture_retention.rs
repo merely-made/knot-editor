@@ -218,7 +218,7 @@ impl KnotPreparedFileCaptureV1 {
     }
 }
 
-fn destination_for_state(
+pub(super) fn destination_for_state(
     state: &super::VaultSource,
 ) -> Result<KnotCaptureDestination, KnotCaptureError> {
     if state.vault.is_locked() {

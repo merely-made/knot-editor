@@ -18,8 +18,10 @@
 //! makes it stale and rerunning rederives it.
 
 mod bindings;
+pub mod backend;
 mod input;
 pub mod links;
+pub mod sound;
 mod scripts;
 
 pub use bindings::READING_SURFACE;

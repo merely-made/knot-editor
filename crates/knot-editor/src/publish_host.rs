@@ -683,7 +683,10 @@ mod tests {
         let publication = fixture.publication;
         let certificate = grant(publication);
         let server_future = fixture.host.accept_and_serve(&server);
-        let client_future = async move {
+        // Keep the client endpoint alive until both sides have completed. A
+        // successful reader can otherwise drop it while the holder is still
+        // flushing its response, making this real-transport test race shutdown.
+        let client_future = async {
             let outer = client
                 .connect(holder_peer, publish_alpn())
                 .await

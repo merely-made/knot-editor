@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE LexicalResource SYSTEM "https://globalwordnet.github.io/schemas/WN-LMF-1.4.dtd">
+<!-- Synthetic original fixture with the real WN-LMF structure, no bundled OEWN data. -->
+<LexicalResource xmlns:dc="https://globalwordnet.github.io/schemas/dc/">
+  <Lexicon id="oewn" label="Fixture WordNet" language="en" version="2025" license="https://creativecommons.org/licenses/by/4.0/" citation="Original test fixture" url="https://example.org/wordnet">
+    <LexicalEntry id="oewn-tide-n">
+      <Lemma writtenForm="tide" partOfSpeech="n"><Pronunciation variety="GB">taɪd</Pronunciation></Lemma>
+      <Form writtenForm="tides"/>
+      <Sense id="oewn-tide-water" synset="oewn-water-motion">
+        <SenseRelation relType="antonym" target="oewn-ebb-water"/>
+        <SenseRelation relType="similar" target="oewn-ebb-water"/>
+        <Example>A tide &amp; a current.</Example>
+      </Sense>
+      <Sense id="oewn-tide-trend" synset="oewn-trend"/>
+    </LexicalEntry>
+    <LexicalEntry id="oewn-current-n"><Lemma writtenForm="current" partOfSpeech="n"/><Sense id="oewn-current-water" synset="oewn-water-motion"/></LexicalEntry>
+    <LexicalEntry id="oewn-ebb-n"><Lemma writtenForm="ebb" partOfSpeech="n"/><Sense id="oewn-ebb-water" synset="oewn-ebb-motion"/></LexicalEntry>
+    <LexicalEntry id="oewn-motion-n"><Lemma writtenForm="motion" partOfSpeech="n"/><Sense id="oewn-motion-sense" synset="oewn-motion"/></LexicalEntry>
+    <LexicalEntry id="oewn-change-n"><Lemma writtenForm="change" partOfSpeech="n"/><Sense id="oewn-change-sense" synset="oewn-change"/></LexicalEntry>
+    <LexicalEntry id="oewn-cafe-n"><Lemma writtenForm="café" partOfSpeech="n"/><Sense id="oewn-cafe-sense" synset="oewn-cafe"/></LexicalEntry>
+    <Synset id="oewn-water-motion" ili="i1" partOfSpeech="n"><Definition>Water&apos;s periodic movement.</Definition><Example><![CDATA[The tide moved <gently>.]]></Example><SynsetRelation relType="hypernym" target="oewn-motion"/><SynsetRelation relType="instance_hypernym" target="oewn-change"/></Synset>
+    <Synset id="oewn-trend" ili="i2"><Definition>A tendency in events.</Definition></Synset>
+    <Synset id="oewn-ebb-motion" ili="i3"><Definition>A receding flow.</Definition><SynsetRelation relType="hypernym" target="oewn-motion"/></Synset>
+    <Synset id="oewn-motion" ili="i4"><Definition>A change of position.</Definition><SynsetRelation relType="hypernym" target="oewn-change"/></Synset>
+    <Synset id="oewn-change" ili="i5"><Definition>A difference over time.</Definition></Synset>
+    <Synset id="oewn-cafe" ili="i6"><Definition>A café serving drinks.</Definition></Synset>
+  </Lexicon>
+</LexicalResource>

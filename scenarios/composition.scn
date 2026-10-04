@@ -1,0 +1,34 @@
+settle 120
+assert snap document == selection.djot
+assert snap dirty == false
+click role:button Show Preview
+settle 4
+click role:button @aria-label=Select source heading: Night light
+click role:button Hide Preview
+click role:button Readings
+settle 4
+assert text Connected lexical reading
+capture composition-v3-lexical-empty
+click role:button Sound
+settle 4
+assert text Enable bundled CMUdict
+capture composition-v3-sound-opt-in
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+settle 4
+assert text 2 tokens
+assert text Perfect rhyme
+capture composition-v3-sound-result
+click role:button Collect sound reading
+assert text No collection destination selected
+click role:button Collection
+settle 4
+assert text Unavailable: the host has supplied no writable Knot mere
+capture composition-v3-collection
+assert snap dirty == false
+click role:button Sources
+settle 4
+assert text Optional reference: Open English WordNet
+capture composition-v3-sources
+assert snap dirty == false

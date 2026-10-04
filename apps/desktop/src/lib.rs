@@ -6,12 +6,14 @@
 //! before launch. This entrypoint never opens a vault or creates an identity.
 pub mod appearance;
 pub mod changes;
+pub mod collapse;
+pub mod composition;
 pub mod document_folding;
+mod document_links;
 pub mod document_preview;
 pub mod documents;
 pub mod fonts;
 pub mod graph;
-mod document_links;
 mod link_workflow;
 pub mod navigator;
 pub mod preferences;
@@ -87,10 +89,13 @@ pub fn run_desktop_with_targets(
     readings_root: Option<PathBuf>,
     preferences_path: Option<PathBuf>,
     targets: Vec<Arc<dyn KnotRetainPort>>,
+    composition_targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>,
     titan_submission_error: Option<String>,
 ) -> Result<(), String> {
     let mut hooks = host_hooks();
-    if let Some(config) = LaneConfig::from_env("KNOT") {
+    let lane_config = LaneConfig::from_env("KNOT");
+    let receipt = lane_config.is_some();
+    if let Some(config) = lane_config {
         let mut lane = mesquite::Lane::from_config(
             config,
             scenario::KnotLane::new(desktop_sheet()),
@@ -108,6 +113,9 @@ pub fn run_desktop_with_targets(
             },
             maximize_control_label: "Maximize window".into(),
             initial_logical_size: (1100.0, 700.0),
+            // Explicit acceptance sizes use the host's normal window-size
+            // seam. Without a scenario, ordinary startup is unchanged.
+            size_env: receipt.then(|| ("KNOT_TEST_WIDTH".into(), "KNOT_TEST_HEIGHT".into())),
             ..HostOptions::default()
         },
         move |_, commands, wake| {
@@ -135,6 +143,7 @@ pub fn run_desktop_with_targets(
             state.set_preferences_path(preferences_path.clone());
             state.set_recovery_path(recovery_path, wake.clone());
             state.set_retention_targets(targets, wake.clone());
+            state.set_composition_targets(composition_targets, wake.clone());
             state.open_behind(behind, &failures);
             Init {
                 state,

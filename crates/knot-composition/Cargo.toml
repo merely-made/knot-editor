@@ -1,0 +1,21 @@
+[package]
+name = "knot-composition"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Local durable collections of copied composition material and explicit provenance."
+
+[dependencies]
+knot-capture.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+blake3.workspace = true
+uuid.workspace = true
+tempfile = "3"
+reference-data.workspace = true
+quick-xml = "0.39"
+
+[lints]
+workspace = true

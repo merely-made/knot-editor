@@ -688,6 +688,7 @@ mod tests {
             reachable,
             bootstrap: false,
             connected,
+            on_overlay: true,
         }
     }
 

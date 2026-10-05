@@ -41,7 +41,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             "# Night light\n\nNight light by the river.\n",
         )?;
     } else if mode == "--reopen-test-fixture" {
-        if !marker.is_file() || !root.join("sync.redb").is_file() || !root.join("vault").is_dir() {
+        if !marker.is_file()
+            || !root.join("sync.redb").is_file()
+            || !root.join("essay.djot").is_file()
+        {
             return Err("reopen requires a previously initialized marked test fixture".into());
         }
     } else {

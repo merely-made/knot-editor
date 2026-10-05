@@ -145,6 +145,20 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
         pollster::block_on(store.tail_receipt()).unwrap().operations,
         vec![operation]
     );
+    assert!(host.click_on(&Selector::role("button").containing("Archive collection item")));
+    wait_for_confirmation(&mut host, 1);
+    assert!(!panel_text(&host).contains("Restore collection item"));
+    assert!(host.click_on(&Selector::role("button").containing("Include archived items")));
+    host.after_dispatch();
+    host.relayout();
+    assert!(panel_text(&host).contains("Restore collection item"));
+    assert!(host.click_on(&Selector::role("button").containing("Restore collection item")));
+    wait_for_confirmation(&mut host, 1);
+    assert!(!read_port.list(&target).unwrap()[0].organization.archived);
+    assert!(host.click_on(&Selector::role("button").containing("Archive collection item")));
+    wait_for_confirmation(&mut host, 1);
+    let archived_revision = read_port.list(&target).unwrap()[0].organization_revision;
+    assert_ne!(archived_revision, operation);
     assert_eq!(std::fs::read_to_string(&document_path).unwrap(), source);
     assert!(
         !root
@@ -183,6 +197,8 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     assert_eq!(after.len(), 1);
     assert_eq!(after[0].item, items[0].item);
     assert_eq!(after[0].receipt.operation, operation);
+    assert!(after[0].organization.archived);
+    assert_eq!(after[0].organization_revision, archived_revision);
 }
 
 #[test]

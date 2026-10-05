@@ -9,9 +9,11 @@ use crate::{
     documents::DocKey,
     workspace::{DesktopState, DesktopView},
 };
-use cambium::{Keyed, TextInput, button, el, lens, span, text_field_typed};
+use cambium::{Keyed, TextInput, button, el, lens, span, text_field_typed, textarea_typed};
 use cambium_genet_winit_host::HostWake;
-use knot_composition::retention::{CompositionRetainPort, RetainedCompositionItem};
+use knot_composition::retention::{
+    CompositionRetainPort, OrganizeComposition, RetainedCompositionItem,
+};
 use knot_composition::{CollectionItem, CollectionStore, DocumentAnchor, ItemKind, PackSource};
 use knot_readings::sound::{self, SoundLayers, SoundReading};
 use reference_data::{LexicalEntry, LookupQuery, ReferenceId, SourceKey, SourceRegistry};
@@ -95,6 +97,14 @@ pub struct CompositionState {
     pub(crate) import_digest: TextInput,
     pub(crate) notice: Option<String>,
     retained: Vec<RetainedCompositionItem>,
+    collection_search: TextInput,
+    show_archived: bool,
+    organization_edit: Option<(knot_capture::KnotRetainTargetV1, OrganizeComposition)>,
+    organization_label: TextInput,
+    organization_collection: TextInput,
+    organization_notes: TextInput,
+    organization_tags: TextInput,
+    organization_order: TextInput,
     targets: Vec<Arc<dyn CompositionRetainPort>>,
     selected_target: Option<usize>,
     wake: Option<HostWake>,
@@ -165,6 +175,7 @@ impl CompositionState {
         self.targets = targets;
         self.selected_target = None;
         self.retained.clear();
+        self.organization_edit = None;
         self.wake = Some(wake);
         self.notice = Some(if self.receiver.is_some() {
             "Destinations changed during retention. The previous destination may contain the item; choose it and refresh before retrying.".into()
@@ -178,6 +189,19 @@ impl CompositionState {
     }
 
     fn request(&mut self, items: Vec<CollectionItem>, legacy: bool) {
+        self.request_operation(items, legacy, None);
+    }
+
+    fn request_organization(&mut self, change: OrganizeComposition) {
+        self.request_operation(Vec::new(), false, Some(change));
+    }
+
+    fn request_operation(
+        &mut self,
+        items: Vec<CollectionItem>,
+        legacy: bool,
+        change: Option<OrganizeComposition>,
+    ) {
         if self.busy() {
             self.notice = Some("A collection request is already in progress.".into());
             return;
@@ -232,6 +256,13 @@ impl CompositionState {
                         return Err("Retention receipt did not match the requested item and destination.".into());
                     }
                 }
+                if let Some(change) = change {
+                    let id = change.item_id.clone();
+                    let receipt = port.organize(&target, change).map_err(|error| error.to_string())?;
+                    if receipt.target != target || receipt.item_id != id {
+                        return Err("Organization receipt did not match the requested item and destination.".into());
+                    }
+                }
                 let retained = port.list(&target).map_err(|error| error.to_string())?;
                 if retained.iter().any(|entry| entry.receipt.target != target || entry.receipt.item_id != entry.item.id) {
                     return Err("Collection returned mismatched authority receipts.".into());
@@ -261,6 +292,23 @@ impl CompositionState {
                 match update.result {
                     Ok(retained) => {
                         self.retained = retained;
+                        self.retained.sort_by(|a, b| {
+                            (
+                                &a.organization.collection,
+                                a.organization.order,
+                                &a.organization.label,
+                                a.author,
+                                &a.item.id,
+                            )
+                                .cmp(&(
+                                    &b.organization.collection,
+                                    b.organization.order,
+                                    &b.organization.label,
+                                    b.author,
+                                    &b.item.id,
+                                ))
+                        });
+                        self.organization_edit = None;
                         if self.retry_target.is_some()
                             && self
                                 .selected_target
@@ -290,6 +338,7 @@ impl CompositionState {
                     },
                     Err(error) => {
                         self.retained.clear();
+                        self.organization_edit = None;
                         self.notice = Some(format!(
                             "Collection could not be confirmed: {error}. Refresh or retry the same request; no plaintext fallback was written."
                         ))
@@ -300,6 +349,7 @@ impl CompositionState {
             Err(mpsc::TryRecvError::Disconnected) => {
                 self.receiver = None;
                 self.retained.clear();
+                self.organization_edit = None;
                 self.notice = Some("Collection worker disconnected; outcome is uncertain. Refresh the destination before retrying.".into());
             },
         }
@@ -1003,29 +1053,171 @@ fn sound_note(reading: &SoundReading, layers: &SoundLayers) -> String {
     lines.join("\n")
 }
 
+fn start_organization_edit(state: &mut DesktopState, change: OrganizeComposition) {
+    if state.composition.busy() {
+        return;
+    }
+    let Some(target) = state
+        .composition
+        .selected_target
+        .and_then(|i| state.composition.targets.get(i))
+        .map(|p| p.target().clone())
+    else {
+        return;
+    };
+    let organization = &change.organization;
+    state.composition.organization_label = TextInput::new(&organization.label);
+    state.composition.organization_collection = TextInput::new(&organization.collection);
+    state.composition.organization_notes = TextInput::new(&organization.author_notes);
+    state.composition.organization_tags = TextInput::new(organization.tags.join(", "));
+    state.composition.organization_order = TextInput::new(organization.order.to_string());
+    state.composition.organization_edit = Some((target, change));
+}
+
+fn save_organization_edit(state: &mut DesktopState) {
+    if state.composition.busy() {
+        return;
+    }
+    let Some((target, mut change)) = state.composition.organization_edit.clone() else {
+        return;
+    };
+    if state
+        .composition
+        .selected_target
+        .and_then(|i| state.composition.targets.get(i))
+        .map(|p| p.target())
+        != Some(&target)
+    {
+        state.composition.notice =
+            Some("Collection destination changed; reopen the item before editing.".into());
+        return;
+    }
+    let Ok(order) = state
+        .composition
+        .organization_order
+        .text()
+        .trim()
+        .parse::<i64>()
+    else {
+        state.composition.notice = Some("Order must be a signed whole number.".into());
+        return;
+    };
+    change.organization.label = state.composition.organization_label.text().to_owned();
+    change.organization.collection = state.composition.organization_collection.text().to_owned();
+    change.organization.author_notes = state.composition.organization_notes.text().to_owned();
+    // Preserve legacy tags containing commas when this field was not edited.
+    if state.composition.organization_tags.text() != change.organization.tags.join(", ") {
+        change.organization.tags = state
+            .composition
+            .organization_tags
+            .text()
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+            .collect();
+    }
+    change.organization.order = order;
+    if let Err(error) = change.organization.validate() {
+        state.composition.notice = Some(error.to_string());
+        return;
+    }
+    state.composition.request_organization(change);
+}
+
+fn collection_matches(entry: &RetainedCompositionItem, search: &str, show_archived: bool) -> bool {
+    if entry.organization.archived && !show_archived {
+        return false;
+    }
+    let search = search.trim().to_lowercase();
+    search.is_empty()
+        || [
+            &entry.organization.label,
+            &entry.organization.collection,
+            &entry.organization.author_notes,
+            &entry.item.text,
+        ]
+        .into_iter()
+        .chain(entry.organization.tags.iter())
+        .any(|text| text.to_lowercase().contains(&search))
+}
+
 fn collection_view(state: &DesktopState) -> DesktopView {
     let items: Vec<(String, DesktopView)> = state
         .composition
         .retained
         .iter()
+        .filter(|entry| {
+            collection_matches(
+                entry,
+                state.composition.collection_search.text(),
+                state.composition.show_archived,
+            )
+        })
         .map(|retained| {
             let item = &retained.item;
             let anchor = item.document_source.clone();
             let saved_recipe = item.projection_recipe.clone();
+            let change = OrganizeComposition {
+                author: retained.author,
+                item_id: item.id.clone(),
+                expected_revision: retained.organization_revision,
+                organization: retained.organization.clone(),
+            };
+            let edit = change.clone();
             (
                 format!("{}:{}", crate::workspace::hex32(&retained.author), item.id),
                 Box::new(el(
                     "div",
                     (
-                        span(item.label.clone()),
+                        span(retained.organization.label.clone()),
                         item.document_source
                             .as_ref()
                             .map(|source| span(format!("Quotation: {}", source.exact_quote))),
                         el("pre", item.text.clone()).attr("class", "knot-readings-note"),
                         span(format!(
                             "{} · {:?} · {}",
-                            item.collection, item.kind, item.author_notes
+                            retained.organization.collection,
+                            item.kind,
+                            retained.organization.author_notes
                         )),
+                        span(format!(
+                            "Tags: {} · order {}{}",
+                            retained.organization.tags.join(", "),
+                            retained.organization.order,
+                            if retained.organization.archived {
+                                " · archived"
+                            } else {
+                                ""
+                            }
+                        )),
+                        span(format!(
+                            "Organization revision {}",
+                            crate::workspace::hex32(&retained.organization_revision)
+                        )),
+                        button(
+                            "Edit collection details",
+                            move |state: &mut DesktopState, _| {
+                                start_organization_edit(state, edit.clone())
+                            },
+                        )
+                        .attr("aria-disabled", state.composition.busy().to_string()),
+                        button(
+                            if retained.organization.archived {
+                                "Restore collection item"
+                            } else {
+                                "Archive collection item"
+                            },
+                            move |state: &mut DesktopState, _| {
+                                if state.composition.busy() {
+                                    return;
+                                }
+                                let mut change = change.clone();
+                                change.organization.archived = !change.organization.archived;
+                                state.composition.request_organization(change);
+                            },
+                        )
+                        .attr("aria-disabled", state.composition.busy().to_string()),
                         span(
                             item.pack_sources
                                 .iter()
@@ -1086,6 +1278,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                         }
                         state.composition.generation = state.composition.generation.wrapping_add(1);
                         state.composition.selected_target = Some(index);
+                        state.composition.organization_edit = None;
                         state.composition.retained.clear();
                         state.composition.request(Vec::new(), false);
                     })
@@ -1110,6 +1303,20 @@ fn collection_view(state: &DesktopState) -> DesktopView {
             }).attr("aria-disabled", state.composition.retry_items.is_empty().to_string()),
             button("Import legacy collection into selected mere", |state: &mut DesktopState, _| state.composition.request(Vec::new(), true)),
             span("Legacy import is explicit, preserves item IDs for safe retries, and never modifies or deletes collection.json."),
+            el("label", (span("Search collection"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.collection_search))),
+            button("Include archived items", |state: &mut DesktopState, _| state.composition.show_archived = !state.composition.show_archived)
+                .attr("aria-pressed", state.composition.show_archived.to_string()),
+            span("Archive hides an item from the ordinary view; it does not erase its retained history. Commas separate tags."),
+            state.composition.organization_edit.as_ref().filter(|_| !state.composition.busy()).map(|_| el("section", (
+                el("h4", "Edit collection details"),
+                el("label", (span("Label"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_label))),
+                el("label", (span("Collection"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_collection))),
+                el("label", (span("Author notes"), lens(|input: &mut TextInput| textarea_typed(input), |state: &mut DesktopState| &mut state.composition.organization_notes))),
+                el("label", (span("Tags, separated by commas"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_tags))),
+                el("label", (span("Order"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_order))),
+                button("Save collection details", |state: &mut DesktopState, _| save_organization_edit(state)).attr("aria-disabled", state.composition.busy().to_string()),
+                button("Cancel collection edit", |state: &mut DesktopState, _| state.composition.organization_edit = None),
+            ))),
             Keyed::new(items),
         ),
     ))
@@ -1234,11 +1441,11 @@ mod tests {
                 operation: [4; 32],
                 already_retained: false,
             };
-            items.push(RetainedCompositionItem {
+            items.push(RetainedCompositionItem::from_retention(
                 item,
-                receipt: receipt.clone(),
-                author: self.target.writer,
-            });
+                self.target.writer,
+                receipt.clone(),
+            ));
             Ok(receipt)
         }
         fn list(
@@ -1250,6 +1457,33 @@ mod tests {
                 return Err(knot_capture::KnotRetainError("authority revoked".into()));
             }
             Ok(self.items.lock().unwrap().clone())
+        }
+        fn organize(
+            &self,
+            expected: &knot_capture::KnotRetainTargetV1,
+            change: OrganizeComposition,
+        ) -> Result<knot_composition::retention::CompositionReceipt, knot_capture::KnotRetainError>
+        {
+            assert_eq!(expected, &self.target);
+            if self.revoked.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err(knot_capture::KnotRetainError("authority revoked".into()));
+            }
+            let mut items = self.items.lock().unwrap();
+            let entry = items
+                .iter_mut()
+                .find(|entry| entry.author == change.author && entry.item.id == change.item_id)
+                .ok_or_else(|| knot_capture::KnotRetainError("missing item".into()))?;
+            if entry.organization_revision != change.expected_revision {
+                return Err(knot_capture::KnotRetainError("stale organization".into()));
+            }
+            entry.organization = change.organization;
+            entry.organization_revision[0] = entry.organization_revision[0].wrapping_add(1);
+            Ok(knot_composition::retention::CompositionReceipt {
+                target: self.target.clone(),
+                item_id: change.item_id,
+                operation: entry.organization_revision,
+                already_retained: false,
+            })
         }
     }
 
@@ -1281,6 +1515,100 @@ mod tests {
             std::thread::sleep(std::time::Duration::from_millis(1));
         }
         panic!("collection worker did not finish");
+    }
+
+    #[test]
+    fn organization_worker_preserves_original_and_filters_archived_and_search() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Cat", "original source");
+        let receipt = port.retain(port.target(), item.clone()).unwrap();
+        state.composition.request(Vec::new(), false);
+        settle_collection(&mut state);
+        let entry = state.composition.retained[0].clone();
+        start_organization_edit(
+            &mut state,
+            OrganizeComposition {
+                author: entry.author,
+                item_id: item.id.clone(),
+                expected_revision: entry.organization_revision,
+                organization: entry.organization,
+            },
+        );
+        state.composition.organization_label = TextInput::new("Night study");
+        state.composition.organization_collection = TextInput::new("Poetry");
+        state.composition.organization_tags = TextInput::new("prosody, rhyme");
+        state.composition.organization_order = TextInput::new("-2");
+        save_organization_edit(&mut state);
+        settle_collection(&mut state);
+        let entry = state.composition.retained[0].clone();
+        assert_eq!(entry.item, item);
+        assert_eq!(entry.receipt, receipt);
+        assert_eq!(entry.organization.label, "Night study");
+        assert_eq!(entry.organization.collection, "Poetry");
+        assert_eq!(entry.organization.order, -2);
+        assert!(collection_matches(&entry, "PROSODY", false));
+        assert!(collection_matches(&entry, "original source", false));
+        assert!(!collection_matches(&entry, "unrelated", false));
+        let mut change = OrganizeComposition {
+            author: entry.author,
+            item_id: item.id,
+            expected_revision: entry.organization_revision,
+            organization: entry.organization,
+        };
+        change.organization.archived = true;
+        state.composition.request_organization(change);
+        settle_collection(&mut state);
+        assert!(!collection_matches(
+            &state.composition.retained[0],
+            "",
+            false
+        ));
+        assert!(collection_matches(&state.composition.retained[0], "", true));
+    }
+
+    #[test]
+    fn organization_editor_refuses_changed_destination_and_invalid_order_before_submission() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Cat", "source");
+        port.retain(port.target(), item.clone()).unwrap();
+        let entry = port.list(port.target()).unwrap().remove(0);
+        start_organization_edit(
+            &mut state,
+            OrganizeComposition {
+                author: entry.author,
+                item_id: item.id,
+                expected_revision: entry.organization_revision,
+                organization: entry.organization,
+            },
+        );
+        state.composition.organization_order = TextInput::new("not a number");
+        save_organization_edit(&mut state);
+        assert!(!state.composition.busy());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("whole number")
+        );
+        state.composition.selected_target = None;
+        save_organization_edit(&mut state);
+        assert!(!state.composition.busy());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("destination changed")
+        );
+        assert_eq!(
+            port.list(port.target()).unwrap()[0].organization_revision,
+            entry.organization_revision
+        );
     }
 
     fn state(text: &str) -> DesktopState {
@@ -1848,11 +2176,11 @@ mod tests {
         sender
             .send(CollectionUpdate {
                 generation: 1,
-                result: Ok(vec![RetainedCompositionItem {
+                result: Ok(vec![RetainedCompositionItem::from_retention(
                     item,
+                    port.target.writer,
                     receipt,
-                    author: port.target.writer,
-                }]),
+                )]),
             })
             .unwrap();
         state.composition.drain();
@@ -1906,11 +2234,11 @@ mod tests {
             sender
                 .send(CollectionUpdate {
                     generation: state.composition.generation,
-                    result: Ok(vec![RetainedCompositionItem {
-                        item: returned,
-                        receipt: receipt.clone(),
+                    result: Ok(vec![RetainedCompositionItem::from_retention(
+                        returned,
                         author,
-                    }]),
+                        receipt.clone(),
+                    )]),
                 })
                 .unwrap();
             state.composition.drain();

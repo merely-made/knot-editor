@@ -12,6 +12,9 @@ assert text Night light passage
 click role:button Edit collection details
 settle 4
 capture collection-organization-editor
+click .knot-collection-editor-end
+settle 4
+capture collection-organization-editor-actions
 click role:button Save collection details
 wait
 settle 4

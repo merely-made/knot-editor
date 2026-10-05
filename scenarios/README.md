@@ -59,3 +59,13 @@ matching source text on the global surface. Research asserts both the reading
 result row count and exact labels emitted by `references.rhai`. Open-reading
 snapshot flags count pinned and following tiles alike, and `wait` includes
 graph, publication, retention, and pending capture work.
+
+`relationship_recipe_compact.scn` launches
+`scenarios/fixtures/composition/selection.djot` with isolated settings. It uses
+the compact View menu, binds actual opt-in sound results, edits spacing, selects
+the second spatial occurrence, explains the rhyme, checks the original-source
+action, and refuses stale rebind and retention without authority. Paragraph
+clicks deliberately reveal non-interactive explanation/anchor/notice text for
+capture; they do not invoke a mutation. The headless regression runs at 420×900
+and at 1280×900 with 400% UI zoom. Native receipts still require foreground
+capture review at both settings; matching hidden text is not visual acceptance.

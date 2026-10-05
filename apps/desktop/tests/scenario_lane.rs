@@ -98,10 +98,51 @@ fn run_without_native_capture(state: DesktopState, name: &str, temp: &tempfile::
 }
 
 fn run_without_native_capture_at_height(
-    mut state: DesktopState,
+    state: DesktopState,
     name: &str,
     temp: &tempfile::TempDir,
     height: f32,
+    check_toolbar: bool,
+) -> String {
+    run_without_native_capture_at_size(state, name, temp, 1100.0, height, 1.0, check_toolbar)
+}
+
+#[test]
+fn compact_relationship_recipe_selects_the_offscreen_occurrence() {
+    for (width, zoom) in [(420.0, 1.0), (1280.0, 4.0)] {
+        let root = tempdir().unwrap();
+        let fixture = scenario_path("fixtures/composition/selection.djot");
+        let before = std::fs::read(&fixture).unwrap();
+        let mut state = DesktopState::with_path(
+            KnotDocumentSession::open(&fixture).unwrap(),
+            WindowCommands::new(),
+            Some(fixture.clone()),
+        );
+        state.set_preferences_path(Some(root.path().join("preferences.json")));
+        let receipt = run_without_native_capture_at_size(
+            state,
+            "relationship_recipe_compact.scn",
+            &root,
+            width,
+            900.0,
+            zoom,
+            false,
+        );
+        assert!(
+            receipt.starts_with("RESULT ok"),
+            "width {width}, zoom {zoom}: {receipt}"
+        );
+        assert_eq!(std::fs::read(&fixture).unwrap(), before);
+    }
+}
+
+fn run_without_native_capture_at_size(
+    mut state: DesktopState,
+    name: &str,
+    temp: &tempfile::TempDir,
+    width: f32,
+    height: f32,
+    zoom: f32,
     check_toolbar: bool,
 ) -> String {
     state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
@@ -132,17 +173,26 @@ fn run_without_native_capture_at_height(
             state,
             logic: desktop_view as Logic,
             sheet: desktop_sheet(),
-            fonts: Vec::new(),
+            fonts: if name == "relationship_recipe_compact.scn" {
+                knot_desktop::fonts::bundled_fonts()
+            } else {
+                Vec::new()
+            },
             images: Vec::new(),
         },
         hooks,
     );
+    h.set_ui_zoom(zoom);
     let wake = h.wake();
     h.update(|state| state.set_retention_targets(Vec::new(), wake));
     let toolbar = taproot::Selector::class("knot-workspace-toolbar");
     let mut toolbar_before = None;
     for _ in 0..1_000 {
-        h.layout_at(1100.0, height);
+        h.layout_at(width, height);
+        if name == "relationship_recipe_compact.scn" {
+            h.prepare_frame();
+            h.relayout();
+        }
         if check_toolbar && toolbar_before.is_none() {
             toolbar_before = h.resolve(&toolbar);
         }

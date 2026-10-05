@@ -371,7 +371,7 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
             )
             .attr("style", "overflow:auto;max-width:100%;max-height:450px;"),
             el("div", Keyed::new(relations)),
-            explanation.map(span),
+            explanation.map(|text| span(text).attr("class", "knot-recipe-explanation")),
             selected_anchor.map(|anchor| {
                 span(format!(
                     "Selected occurrence: {} · {} · bytes {}–{}",
@@ -380,6 +380,7 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                     anchor.byte_span.start,
                     anchor.byte_span.end
                 ))
+                .attr("class", "knot-recipe-source-anchor")
             }),
             button(
                 "Open selected original source",

@@ -1,0 +1,49 @@
+settle 120
+assert snap document == selection.djot
+assert snap dirty == false
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=view.preview
+settle 4
+click role:button @aria-label=Select source heading: Night light
+click .frisket-panel-close
+key Escape
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=view.readings
+settle 4
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+settle 4
+assert text 2 tokens
+click role:button Use sound relationship recipe
+settle 4
+click role:button Increase recipe spacing
+assert text spacing 24
+click role:button light · token-8-13
+settle 4
+assert text Selected occurrence: light
+capture relationship-recipe-compact-second-occurrence
+click role:button Explain Perfect rhyme
+settle 4
+assert text Derived by Mora
+assert text Selected occurrence: Night
+click .knot-recipe-explanation
+settle 4
+capture relationship-recipe-compact-explained
+click .knot-recipe-source-anchor
+settle 4
+capture relationship-recipe-compact-source-anchor
+click role:button Open selected original source
+settle 4
+assert snap dirty == false
+click role:button Rebind recipe to current sound reading
+assert text Sound selection changed
+click role:button Retain relationship recipe
+assert text No collection destination selected
+click .knot-composition-notice
+settle 4
+capture relationship-recipe-compact-authority-refused
+assert snap dirty == false

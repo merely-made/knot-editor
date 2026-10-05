@@ -1190,7 +1190,7 @@ pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
             .attr("aria-label", "Collect selected passage"),
         el("div", Keyed::new(tabs)).attr("class", "knot-composition-tabs"),
         content,
-        state.composition.notice.as_ref().map(|notice| span(notice.clone())),
+        state.composition.notice.as_ref().map(|notice| span(notice.clone()).attr("class", "knot-composition-notice")),
     )).attr("class", "knot-composition"))
 }
 

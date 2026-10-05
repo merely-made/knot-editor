@@ -56,11 +56,14 @@ reference-data = { version = "0.0.1", git = "https://github.com/merely-made/mere
 # repin moved every Mere row to 031b3dcc and Genet to its bd3e8861.
 # On 2026-10-05 shared relationship recipes uniformly advance Mere to
 # c79bb8c2; Genet remains on bd3e8861. No local source overrides are needed.
-# Later on 2026-10-05 every Mere row moves to 07db35e2, Mere's Burn/CubeCL
-# pre.4 promotion (merged at cec0b3a4), under Isometry wing ruling 557
-# ("Promote, then handoffs"), Knot's repin first. esp now pins Burn
-# =0.22.0-pre.4; Genet stays on bd3e8861. The root patch table gains
-# cubecl-runtime from the same Mere revision, mirroring ruling 375.
+# Then e4cf739 coherently adopts Mere 5011e2f9 in the workspace, app and
+# standalone document declarations, for the shared horizontal reveal; Genet
+# remains bd3e8861.
+# Later on 2026-10-05 every Mere row moves to 07db35e2, which descends from
+# 5011e2f9: Mere's Burn/CubeCL pre.4 promotion (merged at cec0b3a4), under
+# Isometry wing ruling 557 ("Promote, then handoffs"), Knot's repin first.
+# esp now pins Burn =0.22.0-pre.4; Genet stays on bd3e8861. The root patch
+# table gains cubecl-runtime from the same Mere revision, mirroring ruling 375.
 # Mesquite owns execution and receipts; Taproot owns semantic selection and
 # click delivery hooks; Apparatus owns bounded diagnostic observations.
 chartulary = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }

@@ -69,8 +69,68 @@ the legacy file; backup/removal remains the user's decision.
 The corrected path requires unlocked, admitted authority. That is more involved
 than an always-writable sidecar, but avoids splitting retained material from
 Knot's existing encryption and history. Immutable collection items are supported;
-mutable organization, retraction and additional domain records such as saved
-sessions are follow-ups, not disguised publishable prose documents.
+organization is a separate authored projection, described below. Retraction and
+additional domain records such as saved sessions remain follow-ups, not
+disguised publishable prose documents.
+
+## Collection organization
+
+The first organization slice adds label, collection, author notes, tags, order
+and reversible archive state. `OrganizeCompositionV1` appends a signed, encrypted
+operation; it does not replace `RetainCompositionV1`. Original text, source
+anchors, analysis, recipe and historical author/receipt stay immutable.
+
+An edit identifies the original writer and item ID, its expected organization
+revision and the exact selected destination. The resident checks current
+authority and grant bounds under its mutation gate. Stale edits refuse and ask
+for refresh; concurrent forks refuse projection pending explicit reconciliation,
+not an arbitrary last-writer-wins overwrite. A currently admitted writer can
+organize material retained by another admitted device in the same space. History
+is bounded, including metadata operations. New event variants require updated
+participating readers; no mixed-version upgrade negotiation is added here.
+
+Readings → Collection offers search, deterministic ordering by collection/order/
+label/identity, editing and archive/restore. Archive hides rows from the ordinary
+view without removing their history; Include archived items makes restore
+available. Search covers original text and current organization. Search and
+archive visibility are transient presentation choices, not new plaintext stores.
+Tags are comma-separated in the editor; there is no destructive purge action.
+
+Acceptance covers encrypted metadata reopen, immutable original receipts,
+stale/destination/bounds refusal, worker dispatch and archive/restore. The
+`collection_acceptance` example supplies marked disposable synthetic authority
+using public test keys. It must never initialize a personal wallet. The paired
+`collection_organization.scn` and `collection_organization_reopen.scn` exercise
+native organization and fresh-process restore. Native qualification is pending
+until captures from committed source have been reviewed; automated real-store
+reopen is not personal-wallet onboarding acceptance.
+
+## Follow-on contextual workspace
+
+Accepted direction (2026-10-05), not implemented by the organization slice:
+an independently toggleable generated background situates foregrounded text or
+material among related concepts and configurable categories. Lenses/planes
+separate authored facts, source-derived readings, inferred suggestions and
+curation; a visual or physics grouping must not silently author collection
+membership or source claims. Foreground readability, keyboard access, static/
+reduced-motion presentation and bounded/off-path compute remain requirements.
+
+Mere's projection and dynamics grammars provide reusable recipes over one
+disclosed domain binding. Arrangements are positions; dynamics are motion;
+seeded/anchored/pinned roles control how positions behave. Graphshell's saved
+scene facets and owner-authored graph events are precedents, not permission to
+move Knot's domain into Graphshell's store. Current published reference:
+Mere `289c9a98d6b0f17a441f184839035784fadb865e`, README design vocabulary,
+`ports/graphshell/src/product.rs` and `personal_sync.rs`, and the dynamics grammar
+plan. The plan's earlier headline status is not evidence that all later tracks
+or the portable dynamics-spec save/reopen track are complete.
+
+Cross-platform acceptance must distinguish the portable retained contract from
+host rendering, accessibility and compute backends. CPU/static fallbacks and
+explicit opt-in provider/model/resource choices are required design targets;
+Burn/embedding integration and contextual background generation are not claimed
+as landed. The next bounded slices remain approachable owner/persona attachment
+and selectable source-analysis overlays, then contextual scene/dynamics reuse.
 
 ## Qualification
 

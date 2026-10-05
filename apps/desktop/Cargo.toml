@@ -11,6 +11,10 @@ publish = false
 name = "knot"
 path = "src/main.rs"
 
+[[example]]
+name = "collection_acceptance"
+required-features = ["mere-retention"]
+
 [dependencies]
 scenomise.workspace = true
 scenograph.workspace = true

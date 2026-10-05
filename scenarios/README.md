@@ -69,3 +69,13 @@ clicks deliberately reveal non-interactive explanation/anchor/notice text for
 capture; they do not invoke a mutation. The headless regression runs at 420×900
 and at 1280×900 with 400% UI zoom. Native receipts still require foreground
 capture review at both settings; matching hidden text is not visual acceptance.
+
+`collection_organization.scn` and `collection_organization_reopen.scn` run with
+the `collection_acceptance` desktop example, not ordinary personal-wallet
+startup. Initialize with `--initialize-test-fixture /absolute/empty/test/root`,
+then use `--reopen-test-fixture` on that same marked disposable root in a new
+process. The instrument uses public test keys and must never hold personal data.
+The scenarios exercise the visible details editor, archive/restore, encrypted
+fresh-process reopen and original-source navigation. Worker/store tests cover
+edited metadata, stale revision and authority refusal; the scenario's unchanged
+details save alone does not prove typing into every field.

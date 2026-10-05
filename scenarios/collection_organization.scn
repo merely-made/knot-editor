@@ -1,0 +1,35 @@
+# Requires collection_acceptance --initialize-test-fixture on an empty root.
+settle 120
+assert snap dirty == false
+click role:button Readings
+settle 4
+click role:button Collection
+click role:button Synthetic acceptance mere
+wait
+settle 4
+assert text Confirmed 1 retained items
+assert text Night light passage
+click role:button Edit collection details
+settle 4
+capture collection-organization-editor
+click role:button Save collection details
+wait
+settle 4
+assert text Confirmed 1 retained items
+click role:button Archive collection item
+wait
+settle 4
+click role:button Include archived items
+settle 4
+assert text archived
+click role:button Restore collection item
+wait
+settle 4
+assert text Night light passage
+capture collection-organization-restored
+click role:button Archive collection item
+wait
+settle 4
+click .knot-composition-notice
+capture collection-organization-archived
+assert snap dirty == false

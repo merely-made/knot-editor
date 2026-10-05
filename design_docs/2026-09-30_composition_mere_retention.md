@@ -142,7 +142,51 @@ prefix `relationship-recipe-v1-`, receipt `scenario.done`. The first background
 launch was occluded and failed capture; the successful retry used a longer
 startup settle and raised the window. This is not successful personal-wallet
 retention acceptance; that authority was not attached. Narrow/high-zoom recipe
-visual acceptance and other platforms remain unrun.
+visual acceptance was subsequently qualified below; other platforms remain unrun.
+
+Responsive recipe continuation (2026-10-05): implementation
+`e4cf739c958b87331b966bb3ba5e4498dead3d14` coherently adopts Mere
+`5011e2f90e988775410fe4b4213e9895fe64538e` in the workspace, app and standalone
+document declarations; Genet remains `bd3e8861`. The lockfile changes 57 Mere
+source identities, without introducing a second engine version. The shared
+horizontal-reveal fix brings the selected spatial occurrence fully into view.
+No solver, recipe interpretation, source action or retention authority is copied
+or changed. Stable classes on the existing explanation, source anchor and notice
+paragraphs permit capture targeting without making those paragraphs interactive.
+
+The new `relationship_recipe_compact.scn` uses the native compact View menu,
+selects the second spatial sound occurrence, preserves spacing 24, explains the
+perfect rhyme and its method/limits, returns to the exact original source, and
+refuses stale rebind and unavailable retention authority without dirtying source.
+Its headless regression uses bundled fonts and the real responsive frame hook
+at 420×900 and 1280×900 / 400% UI zoom. Initial test-helper chrome/font/frame-hook
+mismatches and an unsupported bare-tag scenario selector were corrected; those
+failures are not attributed to product behavior.
+
+Committed-source native runs pass four captures at each setting (997 and 1007
+frames respectively). All eight were visually reviewed: the selected `light`
+card is revealed rather than clipped horizontally; explanation and source-anchor
+captures disclose Mora, opt-in CMUdict, first-pronunciation choice and the intended
+performance limitation; the retention refusal is visible. Long content remains
+vertically scrollable at 400% rather than being compressed into the short viewport.
+Source/status and drawer chrome remain bounded. Pre-adoption captures are preserved:
+their text assertions passed but the selected card was clipped and high-zoom
+explanation/refusal text was outside the captured checkpoint.
+
+Evidence: `/Users/markik/Code/testing/knot-editor/recipe-responsive-20261005/receipt.json`,
+with final captures under `final-narrow/captures` and `final-zoom400/captures`.
+The ad-hoc signed test wrapper uses isolated APPDATA settings and no Mere target.
+External scenario copies only extend initial settle 120→900 for native launch.
+This is responsive UI qualification, not successful native personal-wallet
+retention, fresh-process collection restoration, release signing, or other-platform
+acceptance. Existing encrypted real-store automated coverage remains separate.
+
+Final updated-pin gates: desktop 306 passed, 0 failed, 1 existing ignore;
+composition/readings 61 passed, 0 failed, 1 existing ignore; locked desktop build
+and locked metadata pass. The full desktop gate includes the compact regression
+and both real-store desktop-worker encrypted-retention checks. No broad strict
+Clippy or standalone excluded document-crate test claim is made. Binary SHA-256:
+`b64c3cf1225812ec6d3d665d146cd97f25762d67023c7f43017331af0da41aea`.
 
 Native binary SHA-256:
 `63c2e1b84e0af76fdac189627e1027439a1bd5a7d7221e1bb4a1504db341a393`.

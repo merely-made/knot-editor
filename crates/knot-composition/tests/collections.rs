@@ -16,6 +16,21 @@ fn word(text: &str) -> CollectionItem {
 }
 
 #[test]
+fn old_collection_records_do_not_require_a_recipe_payload() {
+    let original = word("estuary");
+    let json = serde_json::to_string(&original).unwrap();
+    assert!(!json.contains("projection_recipe"));
+    let decoded: CollectionItem = serde_json::from_str(&json).unwrap();
+    assert_eq!(decoded, original);
+    decoded.validate().unwrap();
+    assert!(
+        CollectionItem::new(ItemKind::ProjectionRecipe, "recipe", "readable summary")
+            .validate()
+            .is_err()
+    );
+}
+
+#[test]
 fn absent_open_is_read_only_and_collect_creates_a_reopenable_store() {
     let root = tempfile::tempdir().unwrap();
     let path = root.path().join("personal/collections.json");

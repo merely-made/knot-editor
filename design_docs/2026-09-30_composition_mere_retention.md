@@ -74,6 +74,86 @@ sessions are follow-ups, not disguised publishable prose documents.
 
 ## Qualification
 
+### Shared relationship recipe continuation (2026-10-05)
+
+Status: implemented and qualified for the bounded slice below. Knot and
+Woodshed consume one Scenograph relationship recipe and the shared Scenomise compiler. Knot's
+first adapter uses actual Mora sound relationships over exact selected-source
+occurrences. Shared definitions, edit validation, arrangement and relationship
+routing belong in Mere; source interpretation and navigation remain in Knot.
+
+The retention extension is a typed projection-recipe collection item. It keeps
+the authored snapshot, disclosed analysis and exact source anchors so an
+immutable version can reopen without rerunning analysis or reacquiring its
+source. Existing signed/encrypted collection authority and bounds apply. Recipe
+edits are explicitly retained as new versions; they never overwrite history.
+Return to source checks the document hash and occurrence span. A saved recipe
+confers neither source access nor script execution permission.
+
+Acceptance requires actual sound-edge disclosure, duplicate source occurrences,
+shared edit/compile/refusal behavior, typed encrypted save/reopen, and bounded
+UI controls. Native qualification will identify the exact paths captured. See
+the cross-domain continuation in
+`mere/design_docs/mere_docs/implementation_strategy/2026-08-15_projection_grammar_adoption_plan.md`
+for the common contract and Woodshed lane. Woodshed's current adoption is a
+wire-compatible retained session plus a standalone compiler instrument; visible
+host editing remains follow-on work. No domain facts or owner actions move into
+the shared authoring crate.
+
+The new recipe kind is backward-readable by updated readers when absent from
+older records; older binaries cannot deserialize new recipe records. Upgrade
+participating readers before retaining recipes in a mixed-version space.
+
+Shared dependency: Mere `c79bb8c203b52817991e0d7ba1c4ce3c3a2aac34`, uniformly
+pinned across Knot; Genet remains `bd3e8861b2932d62b73c9936ac3a317f1df3ffdb`.
+The analysis revision incorporates the captured selection, pronunciation choice,
+actual relationships, method/provider and layer flags, independently of the
+whole-document hash used for exact navigation. Authored edits have their own
+content-derived recipe revision. Relationship recipes support spaced grids;
+ordinal source order is not an invented scatter distance.
+
+Qualification (2026-10-05): desktop check/build passed; focused composition UI
+tests pass 25/25, the recipe scenario passes 1/1, and the actual cross-domain
+adapter rebind test passes 1/1. Composition passes 31 tests
+with its existing external-dataset test ignored; editor retention passes six
+tests, including separately retained encrypted recipe versions and reopen.
+Readings passes 30 tests. Editor/capture/file-catalog suites pass 203 tests.
+Both real desktop-worker collection tests pass, including edited recipe
+retention and resident/UI reopen. Its first failure was a harness redraw timing
+gap: confirmation reached the DOM before the new button received painted bounds.
+Delivering the normal next redraw fixes it at the unchanged 1100×800 viewport;
+no input bypass or geometry workaround is used. Final `TMPDIR=/tmp cargo test
+--locked -p knot-desktop` passes 305 tests, with zero failures and one existing
+ignored test. All four Collapse tests pass. Logs for this run:
+`/tmp/knot-recipe-desktop-publish.log`, `/tmp/knot-recipe-core-all.log`,
+`/tmp/knot-recipe-composition-tests.log`, `/tmp/knot-recipe-readings-tests.log`,
+and `/tmp/knot-woodshed-recipe-rebind.log`. New/touched recipe Rust files pass
+focused rustfmt and whitespace checks; workspace-wide formatting still reports
+pre-existing differences in unrelated files. No broad strict-Clippy claim is
+made for the app workspace.
+
+Native `KnotRecipeTest.app` at 1280×1100 passed the recipe scenario with four
+captures, all reviewed: actual Night/light sound occurrences, grid spacing
+16→24, the explained perfect rhyme with provider/first-pronunciation disclosure,
+exact original-source action, explicit stale-rebind refusal, and unavailable
+retention-authority refusal. Capture directory:
+`/Users/markik/Code/testing/knot-editor/relationship-recipe-20261005/receipts`;
+prefix `relationship-recipe-v1-`, receipt `scenario.done`. The first background
+launch was occluded and failed capture; the successful retry used a longer
+startup settle and raised the window. This is not successful personal-wallet
+retention acceptance; that authority was not attached. Narrow/high-zoom recipe
+visual acceptance and other platforms remain unrun.
+
+Native binary SHA-256:
+`63c2e1b84e0af76fdac189627e1027439a1bd5a7d7221e1bb4a1504db341a393`.
+The test binary includes the recipe implementation on the published shared pin;
+subsequent changes before publication are test/receipt documentation only.
+Woodshed's generated disclosure fixture is copied byte-for-byte from its
+published `c92e7c96779ef316f5d8244a59de7cbc84f42a0b` export into
+`apps/desktop/tests/fixtures/woodshed_relationships.json` for the actual
+Mora-to-musical shared-recipe rebind test. It is copied evidence, not a live
+connection or a grant to modify a Working Set.
+
 The earlier five native captures qualified the sidecar prototype, not this
 corrected route. The corrected route has separate evidence:
 

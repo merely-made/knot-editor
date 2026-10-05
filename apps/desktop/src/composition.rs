@@ -1314,6 +1314,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                 el("label", (span("Author notes"), lens(|input: &mut TextInput| textarea_typed(input), |state: &mut DesktopState| &mut state.composition.organization_notes))),
                 el("label", (span("Tags, separated by commas"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_tags))),
                 el("label", (span("Order"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_order))),
+                span("Saving changes organization only; original material and provenance remain retained.").attr("class", "knot-collection-editor-end"),
                 button("Save collection details", |state: &mut DesktopState, _| save_organization_edit(state)).attr("aria-disabled", state.composition.busy().to_string()),
                 button("Cancel collection edit", |state: &mut DesktopState, _| state.composition.organization_edit = None),
             ))),

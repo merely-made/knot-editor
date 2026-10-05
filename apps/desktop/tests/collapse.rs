@@ -8,7 +8,7 @@ use knot_desktop::{
     desktop_sheet,
     fonts::bundled_fonts,
     host_hooks,
-    workspace::{DesktopState, DesktopView, desktop_view},
+    workspace::{CommandChrome, DesktopState, DesktopView, desktop_view},
 };
 use knot_document::KnotDocumentSession;
 use layout_dom_api::LayoutDom;
@@ -26,9 +26,13 @@ fn settle(host: &mut Host, width: f32, height: f32) {
 }
 
 fn launch(session: KnotDocumentSession) -> Host {
+    let mut state = DesktopState::with_path(session, WindowCommands::new(), None);
+    // These receipts activate the plain toolbar's reading buttons. Select
+    // that supported chrome explicitly instead of inheriting the OS default.
+    state.set_command_chrome(CommandChrome::PlainRow);
     let mut host = Harness::with_hooks(
         Init {
-            state: DesktopState::with_path(session, WindowCommands::new(), None),
+            state,
             logic: desktop_view as fn(&DesktopState) -> DesktopView,
             sheet: desktop_sheet(),
             fonts: bundled_fonts(),

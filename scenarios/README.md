@@ -79,3 +79,5 @@ The scenarios exercise the visible details editor, archive/restore, encrypted
 fresh-process reopen and original-source navigation. Worker/store tests cover
 edited metadata, stale revision and authority refusal; the scenario's unchanged
 details save alone does not prove typing into every field.
+The `_compact` and `_compact_reopen` variants use the compact View menu at 420px;
+the wide scenarios' direct Readings toolbar button is not a compact selector.

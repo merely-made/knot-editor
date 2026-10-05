@@ -21,6 +21,8 @@ use std::{
     sync::{Arc, mpsc},
 };
 
+mod recipe;
+
 #[derive(Clone)]
 pub(crate) struct SelectionSnapshot {
     key: DocKey,
@@ -87,6 +89,7 @@ impl SelectionSnapshot {
 
 #[derive(Default)]
 pub struct CompositionState {
+    recipe: recipe::RecipeState,
     pub(crate) query: TextInput,
     pub(crate) import_path: TextInput,
     pub(crate) import_digest: TextInput,
@@ -863,6 +866,10 @@ fn sound_view(state: &DesktopState, key: DocKey) -> DesktopView {
         "section",
         (
             el("h4", "Sound-pattern reading"),
+            button(
+                "Use sound relationship recipe",
+                move |state: &mut DesktopState, _| recipe::from_sound(state, key, false),
+            ),
             span(
                 "CMUdict · bundled English pronunciation data · Carnegie Mellon University · opt-in each launch",
             ),
@@ -997,41 +1004,65 @@ fn sound_note(reading: &SoundReading, layers: &SoundLayers) -> String {
 }
 
 fn collection_view(state: &DesktopState) -> DesktopView {
-    let items: Vec<(String, DesktopView)> = state.composition.retained.iter().map(|retained| {
+    let items: Vec<(String, DesktopView)> = state
+        .composition
+        .retained
+        .iter()
+        .map(|retained| {
             let item = &retained.item;
             let anchor = item.document_source.clone();
-            (format!("{}:{}", crate::workspace::hex32(&retained.author), item.id), Box::new(el("div", (
-                span(item.label.clone()),
-                item.document_source.as_ref().map(|source| span(format!("Quotation: {}", source.exact_quote))),
-                el("pre", item.text.clone()).attr("class", "knot-readings-note"),
-                span(format!("{} · {:?} · {}", item.collection, item.kind, item.author_notes)),
-                span(item.pack_sources.iter().map(|source| format!("{} {} / {}", source.pack_id, source.pack_version, source.entry_ref)).collect::<Vec<_>>().join("; ")),
-                span(format!("Retained operation {} · author {}", crate::workspace::hex32(&retained.receipt.operation), crate::workspace::hex32(&retained.author))),
-                button("Return to source", move |state: &mut DesktopState, _| {
-                    let Some(anchor) = anchor.as_ref() else { return; };
-                    // Scratch addresses are not durable identities and can name
-                    // multiple open documents, even with identical bytes.
-                    if anchor.document_address.starts_with("scratch:") {
-                        state.composition.notice = Some("Scratch quotations have no durable source identity. The retained quotation remains available; save the source before collecting a navigable anchor.".into()); return;
-                    }
-                    let target = state.docs.docs().find_map(|(key, entry)| {
-                        let snapshot = entry.document.snapshot();
-                        (snapshot.source.address == anchor.document_address).then_some((key, snapshot.text))
-                    });
-                    let Some((key, text)) = target else {
-                        state.composition.notice = Some("Open the original document to return to this quotation.".into()); return;
-                    };
-                    if let Err(error) = anchor.validate_source(&text) {
-                        state.composition.notice = Some(format!("Original source changed; retained quotation is safe: {error}")); return;
-                    }
-                    state.focus_document(key);
-                    let result = state.document_mut().session_mut().select_source_span(&anchor.document_address, &text,
-                        anchor.byte_span.start as usize, anchor.byte_span.end as usize);
-                    if result.is_ok() { state.entry_mut().focus_source_requested = true; }
-                    state.composition.notice = result.err();
-                }).attr("aria-disabled", item.document_source.is_none().to_string()),
-            ))) as DesktopView)
-        }).collect();
+            let saved_recipe = item.projection_recipe.clone();
+            (
+                format!("{}:{}", crate::workspace::hex32(&retained.author), item.id),
+                Box::new(el(
+                    "div",
+                    (
+                        span(item.label.clone()),
+                        item.document_source
+                            .as_ref()
+                            .map(|source| span(format!("Quotation: {}", source.exact_quote))),
+                        el("pre", item.text.clone()).attr("class", "knot-readings-note"),
+                        span(format!(
+                            "{} · {:?} · {}",
+                            item.collection, item.kind, item.author_notes
+                        )),
+                        span(
+                            item.pack_sources
+                                .iter()
+                                .map(|source| {
+                                    format!(
+                                        "{} {} / {}",
+                                        source.pack_id, source.pack_version, source.entry_ref
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join("; "),
+                        ),
+                        span(format!(
+                            "Retained operation {} · author {}",
+                            crate::workspace::hex32(&retained.receipt.operation),
+                            crate::workspace::hex32(&retained.author)
+                        )),
+                        saved_recipe.map(|saved| {
+                            button(
+                                "Open retained relationship recipe",
+                                move |state: &mut DesktopState, _| {
+                                    recipe::reopen(state, saved.clone())
+                                },
+                            )
+                        }),
+                        button("Return to source", move |state: &mut DesktopState, _| {
+                            let Some(anchor) = anchor.as_ref() else {
+                                return;
+                            };
+                            return_to_source(state, anchor);
+                        })
+                        .attr("aria-disabled", item.document_source.is_none().to_string()),
+                    ),
+                )) as DesktopView,
+            )
+        })
+        .collect();
     let targets: Vec<(usize, DesktopView)> = state
         .composition
         .targets
@@ -1084,8 +1115,47 @@ fn collection_view(state: &DesktopState) -> DesktopView {
     ))
 }
 
+fn return_to_source(state: &mut DesktopState, anchor: &DocumentAnchor) {
+    // Scratch addresses can name multiple occurrences or documents and are
+    // not an owner-issued durable source identity.
+    if anchor.document_address.starts_with("scratch:") {
+        state.composition.notice = Some("Scratch quotations have no durable source identity. The retained quotation remains available; save the source before collecting a navigable anchor.".into());
+        return;
+    }
+    let targets: Vec<_> = state
+        .docs
+        .docs()
+        .filter_map(|(key, entry)| {
+            let snapshot = entry.document.snapshot();
+            (snapshot.source.address == anchor.document_address).then_some((key, snapshot.text))
+        })
+        .collect();
+    let [(key, text)] = targets.as_slice() else {
+        state.composition.notice =
+            Some("Open exactly one original document to return to this quotation.".into());
+        return;
+    };
+    if let Err(error) = anchor.validate_source(text) {
+        state.composition.notice = Some(format!(
+            "Original source changed; retained quotation is safe: {error}"
+        ));
+        return;
+    }
+    state.focus_document(*key);
+    let result = state.document_mut().session_mut().select_source_span(
+        &anchor.document_address,
+        text,
+        anchor.byte_span.start as usize,
+        anchor.byte_span.end as usize,
+    );
+    if result.is_ok() {
+        state.entry_mut().focus_source_requested = true;
+    }
+    state.composition.notice = result.err();
+}
+
 pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
-    let tabs: Vec<(usize, DesktopView)> = ["Lexical", "Sound", "Collection", "Sources"]
+    let tabs: Vec<(usize, DesktopView)> = ["Lexical", "Sound", "Collection", "Sources", "Recipes"]
         .into_iter()
         .enumerate()
         .map(|(index, label)| {
@@ -1110,7 +1180,8 @@ pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
         0 => lexical_view(state, key),
         1 => sound_view(state, key),
         2 => collection_view(state),
-        _ => registry_view(state),
+        3 => registry_view(state),
+        _ => recipe::view(state, key),
     };
     Box::new(el("section", (
         el("h3", "Composition"),
@@ -1874,5 +1945,95 @@ mod tests {
                 .unwrap()
                 .contains("authority revoked")
         );
+    }
+
+    #[test]
+    fn recipe_editor_uses_shared_edits_retains_typed_material_and_reopens_selection() {
+        let mut state = state("night night light");
+        attach_fake(&mut state);
+        select(&mut state, 0, 17);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        assert!(
+            state.composition.recipe.material.is_some(),
+            "{:?}",
+            state.composition.notice
+        );
+        let mut host = harness(state);
+        assert!(host.click_on(&Selector::role("button").containing("Increase recipe spacing")));
+        host.after_dispatch();
+        assert!(rendered_text(&host).contains("spacing 24"));
+        assert!(host.click_on(&Selector::role("button").containing("night · token-6-11")));
+        host.after_dispatch();
+        assert!(rendered_text(&host).contains("bytes 6–11"));
+        assert!(host.click_on(&Selector::role("button").containing("Retain relationship recipe")));
+        host.after_dispatch();
+        host.update(settle_collection);
+        let saved = host.state().composition.retained[0]
+            .item
+            .projection_recipe
+            .clone()
+            .unwrap();
+        assert_eq!(
+            saved.snapshot.selected_occurrence.as_deref(),
+            Some("token-6-11")
+        );
+        assert_eq!(saved.snapshot.recipe.definition.arrangement.spacing, 24);
+        host.update(|state| {
+            state.composition.recipe.material = None;
+            state.composition.section = 2;
+        });
+        assert!(
+            host.click_on(
+                &Selector::role("button").containing("Open retained relationship recipe")
+            )
+        );
+        host.after_dispatch();
+        assert_eq!(
+            host.state().composition.recipe.material.as_ref().unwrap(),
+            &saved
+        );
+        assert!(rendered_text(&host).contains("bytes 6–11"));
+    }
+
+    #[test]
+    fn explicit_recipe_rebind_preserves_arrangement_and_refuses_stale_reading() {
+        let mut state = state("night light cat bat");
+        select(&mut state, 0, 11);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        let original = state.composition.recipe.material.clone().unwrap();
+        select(&mut state, 12, 19);
+        recipe::from_sound(&mut state, key, true);
+        assert_eq!(
+            state.composition.recipe.material.as_ref().unwrap(),
+            &original
+        );
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("selection changed")
+        );
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, true);
+        let rebound = state.composition.recipe.material.as_ref().unwrap();
+        assert_ne!(
+            rebound.dataset.dataset.source.resource,
+            original.dataset.dataset.source.resource
+        );
+        assert_eq!(
+            rebound.snapshot.recipe.definition.arrangement,
+            original.snapshot.recipe.definition.arrangement
+        );
+        assert_eq!(rebound.anchors[0].source.exact_quote, "cat");
     }
 }

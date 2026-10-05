@@ -92,6 +92,8 @@ uuid.workspace = true
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
+scenomise.workspace = true
+scenograph.workspace = true
 gemot.workspace = true
 graphshell.workspace = true
 graphshell-endpoint = { workspace = true, features = ["local"] }

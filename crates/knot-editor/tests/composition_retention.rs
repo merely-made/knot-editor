@@ -5,6 +5,9 @@ use knot_editor::{
 };
 use personae::{IdentityProvider, InMemoryProvider};
 
+#[path = "../../knot-composition/tests/support/recipe.rs"]
+mod recipe_support;
+
 fn persona() -> KnotPersonaDisplayV1 {
     KnotPersonaDisplayV1 {
         stable_id: "persona:test".into(),
@@ -26,6 +29,83 @@ fn identity() -> ([u8; 32], [u8; 32]) {
         identity.master_keypair().to_seed(),
         identity.master_public_key().to_bytes(),
     )
+}
+
+#[test]
+fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
+    let root = tempfile::tempdir().unwrap();
+    let database = root.path().join("sync.redb");
+    let vault_path = root.path().join("vault");
+    let (seed, writer) = identity();
+    let first = CollectionItem::new(
+        ItemKind::ProjectionRecipe,
+        "Private recipe 346782",
+        "Human-readable summary",
+    )
+    .with_projection_recipe(recipe_support::recipe_material());
+    let mut material = first.projection_recipe.clone().unwrap();
+    material.snapshot.recipe.definition.arrangement.spacing += 8;
+    material
+        .snapshot
+        .recipe
+        .definition
+        .provenance
+        .source_revision = Some("recipe:revision:2".into());
+    let second = CollectionItem::new(
+        ItemKind::ProjectionRecipe,
+        "Edited recipe",
+        "Edited spacing",
+    )
+    .with_projection_recipe(material);
+    let receipts = {
+        let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
+        let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+        let port = adapter(&resident);
+        let a = port.retain(port.target(), first.clone()).unwrap();
+        let b = port.retain(port.target(), second.clone()).unwrap();
+        assert_ne!(a.operation, b.operation);
+        assert_eq!(
+            port.retain(port.target(), first.clone()).unwrap().operation,
+            a.operation
+        );
+        let read_vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
+        assert!(
+            pollster::block_on(store.projection(&read_vault))
+                .unwrap()
+                .documents
+                .is_empty()
+        );
+        (a, b)
+    };
+    let bytes = std::fs::read(&database).unwrap();
+    assert!(
+        !bytes
+            .windows(first.label.len())
+            .any(|window| window == first.label.as_bytes())
+    );
+    let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
+    let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store, seed).unwrap();
+    let port = adapter(&resident);
+    let items = port.list(port.target()).unwrap();
+    assert_eq!(items.len(), 2);
+    for (expected, receipt) in [(&first, receipts.0), (&second, receipts.1)] {
+        let retained = items
+            .iter()
+            .find(|retained| retained.item.id == expected.id)
+            .unwrap();
+        assert_eq!(&retained.item, expected);
+        assert_eq!(retained.receipt.operation, receipt.operation);
+        retained
+            .item
+            .projection_recipe
+            .as_ref()
+            .unwrap()
+            .validate()
+            .unwrap();
+    }
+    assert!(!root.path().join("collection.json").exists());
 }
 #[test]
 fn encrypted_reopen_retry_and_no_publishing_exposure() {

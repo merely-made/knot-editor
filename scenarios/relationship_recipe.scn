@@ -1,0 +1,38 @@
+settle 120
+assert snap document == selection.djot
+assert snap dirty == false
+click role:button Show Preview
+settle 4
+click role:button @aria-label=Select source heading: Night light
+click role:button Hide Preview
+click role:button Readings
+settle 4
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+settle 4
+assert text 2 tokens
+click role:button Use sound relationship recipe
+settle 4
+assert text Shared Scenograph recipe
+assert text spacing 16
+capture relationship-recipe-v1-bound
+click role:button Increase recipe spacing
+settle 4
+assert text spacing 24
+capture relationship-recipe-v1-spacing
+click role:button Explain Perfect rhyme
+settle 4
+assert text Derived by Mora
+assert text Selected occurrence: Night
+capture relationship-recipe-v1-explained
+click role:button Open selected original source
+settle 4
+assert snap dirty == false
+click role:button Rebind recipe to current sound reading
+assert text Sound selection changed
+click role:button Retain relationship recipe
+assert text No collection destination selected
+capture relationship-recipe-v1-authority-refused
+assert snap dirty == false

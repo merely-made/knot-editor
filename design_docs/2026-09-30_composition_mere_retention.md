@@ -190,6 +190,73 @@ Clippy or standalone excluded document-crate test claim is made. Binary SHA-256:
 
 Native binary SHA-256:
 `63c2e1b84e0af76fdac189627e1027439a1bd5a7d7221e1bb4a1504db341a393`.
+
+### Stack seams P1: Knot measures its recipe card (2026-10-05)
+
+Mere's stack seams P1 (`dd2cb6fd`, on main from `19e6dc9f`) made relationship
+compilation a method of a `ProjectionCompiler` built from host-supplied
+`ItemSizes`. Its plan's ruling S20 has the host supply "the representation's
+measured size"; the compiler "writes in no size of its own". Before P1 Knot
+never had a card of its own: it drew each card at the 164×68 footprint
+scenomise wrote in, inside a fixed 184×84 cell. Every Mere row, the ruling 585
+`cubecl-runtime` row included, moves from `07db35e2` to `19e6dc9f`.
+
+Mark's rulings are recorded in Mere's burn plan 13.46 (`102aa548`):
+
+- Who adapts Knot. Mark: **"My Knot lane adapts Knot"**.
+- Knot's card size under P1. Mark: **"Measured from Knot's font"**. The desktop
+  measures each recipe's widest occurrence label in its own font, plus button
+  padding, and gives the compiler that size.
+- How to measure. Mark: **"Read the previous layout (Recommended)"**. The drawn
+  string is probed at weight 600 and read through `painted_rect` in the frame
+  hook. The result is stored by label set, and the probes are removed once
+  measured.
+- The first frame after labels change. Mark: **"Hide the scene one frame
+  (Recommended)"**.
+- The card's shape. Mark: **"One line, no width cap (Recommended)"**. The widest
+  label sets every card's width.
+- Validation's nominal size. Mark: **"Named 164×68 constant (Recommended)"**. The
+  constant is validation-only and lives in knot-composition, shared by the
+  desktop's four action gates and the tests. Only the view's draw call takes
+  the measured compiler.
+
+As built:
+
+- `knot-composition` names `VALIDATION_CARD` (164×68) and `validation_compiler()`.
+  Retention validation, the build, rebind, reopen and spacing gates and the
+  tests use it. Accept, refuse and every issue are the same at any card size
+  (`tests/recipes.rs`); retained material holds no geometry.
+- The recipe view draws only once its label set is measured. Until then the
+  scene holds one probe per drawn label: a role-less, `aria-hidden` span whose
+  label sits in an attribute and is shown only through `::after { content:
+  attr(...) }`, at the pressed weight 600 on one line. It has no DOM text or
+  role, so a scenario's `resolve` and `assert text` cannot match it.
+- The desktop frame hook reads the probes' rects from the previous layout. The
+  card is the widest probe rounded up, plus 1 px and the declared 22 px of
+  padding and border, by the probe's line plus 14 px. The hook stores it with
+  its label set, which removes the probes, and keeps frames coming while a
+  probe still has no layout.
+- Only a finite, positive probe rect counts as a measurement. A probe with no
+  rect, or a zero or NaN one, keeps the scene hidden and is measured again on
+  the next frame; the compiler is never handed such a size. This matches stack
+  seams ruling S32 ("Typed compile issue"), which will refuse a card that is
+  not finite and positive (`a_probe_that_measures_nothing_keeps_the_scene_hidden`).
+  The 164×68 validation constant passes that check.
+- A new label set (a new recipe or a rebind) is hidden for exactly one frame
+  and measured once. Selection, spacing, zoom and theme changes neither hide
+  the scene nor re-measure (`composition.rs`,
+  `recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame`).
+- Controls (`recipe.rs`, `a_measured_card_holds_its_label_on_one_line_and_a_narrower_one_wraps`):
+  each test label stays on one line at its measured card and wraps a pixel
+  under the rounded probe width. The drawn button equals the compiled
+  footprint.
+
+P1 changes the spacing whatever the card: grid pitch is now the card plus the
+gap, not a fixed 184×84 cell. The headless runners pump the frame hook for both
+recipe scenarios and the real-store recipe test, as the native loop does.
+Native recipe receipts are held until the seiche-speed lane's headed round is
+done; they are rerun then at both window settings and compared with the
+164×68 frames.
 The test binary includes the recipe implementation on the published shared pin;
 subsequent changes before publication are test/receipt documentation only.
 Woodshed's generated disclosure fixture is copied byte-for-byte from its

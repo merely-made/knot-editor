@@ -56,6 +56,29 @@ fn composition_item(json: &str) -> Result<knot_composition::CollectionItem, Knot
         .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
     Ok(item)
 }
+fn composition_organization(
+    json: &str,
+) -> Result<knot_composition::retention::CollectionOrganization, KnotSyncError> {
+    if json.len() > knot_composition::MAX_STORE_BYTES {
+        return Err(KnotSyncError::Payload(
+            "organization exceeds byte limit".into(),
+        ));
+    }
+    let organization: knot_composition::retention::CollectionOrganization =
+        serde_json::from_str(json).map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+    organization
+        .validate()
+        .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+    Ok(organization)
+}
+
+type OrganizedComposition = (
+    knot_composition::CollectionItem,
+    [u8; 32],
+    [u8; 32],
+    knot_composition::retention::CollectionOrganization,
+    [u8; 32],
+);
 const SYNC_AAD: &[u8] = b"mere.knot.sync-operation.v1";
 const KNOT_CAUSAL_LIMITS: CausalLimits = CausalLimits {
     max_parents: 64,
@@ -175,6 +198,13 @@ pub enum KnotSyncEvent {
     /// signing and on read; String participates in the event's zeroization.
     RetainCompositionV1 {
         item_json: String,
+    },
+    /// Append-only organization; existing event discriminants stay unchanged.
+    OrganizeCompositionV1 {
+        original_author: [u8; 32],
+        item_id: String,
+        previous: [u8; 32],
+        organization_json: String,
     },
 }
 
@@ -1041,6 +1071,7 @@ where
                 // None of these produce a document version.
                 KnotSyncEvent::CaptureFileRevision(_)
                 | KnotSyncEvent::RetainCompositionV1 { .. }
+                | KnotSyncEvent::OrganizeCompositionV1 { .. }
                 | KnotSyncEvent::AssertRelation { .. }
                 | KnotSyncEvent::RetractRelation { .. }
                 | KnotSyncEvent::DefinePredicate { .. } => {
@@ -1335,6 +1366,127 @@ where
         Ok(items.into_values().collect())
     }
 
+    pub(crate) async fn organized_composition_with_cipher(
+        &self,
+        cipher: KnotSyncCipher<'_>,
+        max_items: usize,
+        max_bytes: usize,
+    ) -> Result<(Vec<OrganizedComposition>, usize), KnotSyncError> {
+        let original = self
+            .composition_with_cipher(cipher, max_items, max_bytes)
+            .await?;
+        let mut items: BTreeMap<_, _> = original
+            .into_iter()
+            .map(|(item, operation, author)| {
+                let organization =
+                    knot_composition::retention::CollectionOrganization::from_item(&item);
+                (
+                    (author, item.id.clone()),
+                    (item, operation, author, organization, operation),
+                )
+            })
+            .collect();
+        let records = self.load_operations().await?;
+        let entries = causal_entries(&records);
+        let projection = causal_projection(&entries)?;
+        let causal = CausalIndex::new(&entries);
+        if !projection.pending.is_empty() {
+            return Err(KnotSyncError::Payload(
+                "collection organization requires complete causal history".into(),
+            ));
+        }
+        let mut total = 0usize;
+        for index in projection.order {
+            let operation = &records[index].operation;
+            let event = Zeroizing::new(decode_event(cipher, operation)?);
+            match &*event {
+                KnotSyncEvent::RetainCompositionV1 { item_json } => {
+                    total = total.saturating_add(item_json.len())
+                },
+                KnotSyncEvent::OrganizeCompositionV1 {
+                    original_author,
+                    item_id,
+                    previous,
+                    organization_json,
+                } => {
+                    total = total.saturating_add(organization_json.len());
+                    let Some(entry) = items.get_mut(&(*original_author, item_id.clone())) else {
+                        return Err(KnotSyncError::Payload(
+                            "organization refers to an unavailable retained item".into(),
+                        ));
+                    };
+                    if entry.4 != *previous
+                        || !causal.happens_before(*previous, *operation.hash.as_bytes())
+                    {
+                        return Err(KnotSyncError::Payload("conflicting or noncausal collection organization; explicit reconciliation required".into()));
+                    }
+                    entry.3 = composition_organization(organization_json)?;
+                    entry.4 = *operation.hash.as_bytes();
+                },
+                _ => {},
+            }
+            if total > max_bytes {
+                return Err(KnotSyncError::Payload(
+                    "composition history exceeds byte limit".into(),
+                ));
+            }
+        }
+        Ok((items.into_values().collect(), total))
+    }
+
+    pub(crate) async fn organize_composition_with_cipher(
+        &self,
+        signing_seed: [u8; 32],
+        cipher: KnotSyncCipher<'_>,
+        change: &knot_composition::retention::OrganizeComposition,
+        max_items: usize,
+        max_bytes: usize,
+    ) -> Result<([u8; 32], bool), KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
+        self.require_cipher(cipher)?;
+        self.require_admitted_writer(
+            *SigningKey::from_bytes(&signing_seed)
+                .verifying_key()
+                .as_bytes(),
+        )?;
+        change
+            .organization
+            .validate()
+            .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+        let (items, total) = self
+            .organized_composition_with_cipher(cipher, max_items, max_bytes)
+            .await?;
+        let current = items
+            .iter()
+            .find(|entry| entry.2 == change.author && entry.0.id == change.item_id)
+            .ok_or_else(|| KnotSyncError::Payload("retained item is unavailable".into()))?;
+        if current.4 != change.expected_revision {
+            return Err(KnotSyncError::Payload(
+                "collection organization changed; refresh before editing".into(),
+            ));
+        }
+        if current.3 == change.organization {
+            return Ok((current.4, true));
+        }
+        let organization_json = serde_json::to_string(&change.organization)
+            .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+        if total.saturating_add(organization_json.len()) > max_bytes {
+            return Err(KnotSyncError::Payload(
+                "composition history byte limit reached".into(),
+            ));
+        }
+        let event = Zeroizing::new(KnotSyncEvent::OrganizeCompositionV1 {
+            original_author: change.author,
+            item_id: change.item_id.clone(),
+            previous: change.expected_revision,
+            organization_json,
+        });
+        let operation = self
+            .author_under_gate(signing_seed, cipher, &event, KnotAssertedTime::Now)
+            .await?;
+        Ok((*operation.hash.as_bytes(), false))
+    }
+
     pub(crate) async fn retain_composition_with_cipher(
         &self,
         signing_seed: [u8; 32],
@@ -1349,6 +1501,10 @@ where
             .verifying_key()
             .as_bytes();
         self.require_admitted_writer(writer)?;
+        // Organization history is bounded too, even when retaining new material.
+        let (_, history_bytes) = self
+            .organized_composition_with_cipher(cipher, max_items, max_bytes)
+            .await?;
         let existing = self
             .composition_with_cipher(cipher, max_items, max_bytes)
             .await?;
@@ -1371,11 +1527,7 @@ where
         let item_json = serde_json::to_string(item)
             .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
         composition_item(&item_json)?;
-        let existing_bytes: usize = existing
-            .iter()
-            .map(|(item, _, _)| serde_json::to_vec(item).map_or(max_bytes, |bytes| bytes.len()))
-            .sum();
-        if existing_bytes.saturating_add(item_json.len()) > max_bytes {
+        if history_bytes.saturating_add(item_json.len()) > max_bytes {
             return Err(KnotSyncError::Payload(
                 "composition byte limit reached".into(),
             ));
@@ -1601,6 +1753,7 @@ where
                     decode_event(KnotSyncCipher::CommonsData(keys), &records[index].operation)?,
                     KnotSyncEvent::CaptureFileRevision(_)
                         | KnotSyncEvent::RetainCompositionV1 { .. }
+                        | KnotSyncEvent::OrganizeCompositionV1 { .. }
                         | KnotSyncEvent::AssertRelation { .. }
                         | KnotSyncEvent::RetractRelation { .. }
                         // A definition is replay material: an assertion's
@@ -2145,7 +2298,8 @@ fn fold_relations(
             },
             KnotSyncEvent::Delete { .. }
             | KnotSyncEvent::Resolve { document: None, .. }
-            | KnotSyncEvent::RetainCompositionV1 { .. } => {},
+            | KnotSyncEvent::RetainCompositionV1 { .. }
+            | KnotSyncEvent::OrganizeCompositionV1 { .. } => {},
         }
     }
     Ok(fold)
@@ -2402,6 +2556,54 @@ fn validate_local_relation_event(
     match event {
         KnotSyncEvent::RetainCompositionV1 { item_json } => {
             composition_item(item_json)?;
+        },
+        KnotSyncEvent::OrganizeCompositionV1 {
+            item_id,
+            organization_json,
+            previous,
+            original_author,
+        } => {
+            if item_id.is_empty() || item_id.len() > 256 {
+                return Err(KnotSyncError::Payload(
+                    "invalid organization item identity".into(),
+                ));
+            }
+            composition_organization(organization_json)?;
+            if !parents
+                .iter()
+                .any(|parent| parent == previous || causal.happens_before(*previous, *parent))
+            {
+                return Err(KnotSyncError::Payload(
+                    "organization revision is not in the causal past".into(),
+                ));
+            }
+            let predecessor = order
+                .iter()
+                .find_map(|index| {
+                    let operation = &records[*index].operation;
+                    (operation.hash.as_bytes() == previous).then_some(operation)
+                })
+                .ok_or_else(|| {
+                    KnotSyncError::Payload("organization predecessor is unavailable".into())
+                })?;
+            let event = Zeroizing::new(decode_event(cipher, predecessor)?);
+            let same_item = match &*event {
+                KnotSyncEvent::RetainCompositionV1 { item_json } => {
+                    predecessor.header.verifying_key.as_bytes() == original_author
+                        && composition_item(item_json)?.id == *item_id
+                },
+                KnotSyncEvent::OrganizeCompositionV1 {
+                    original_author: author,
+                    item_id: id,
+                    ..
+                } => author == original_author && id == item_id,
+                _ => false,
+            };
+            if !same_item {
+                return Err(KnotSyncError::Payload(
+                    "organization predecessor belongs to another item".into(),
+                ));
+            }
         },
         KnotSyncEvent::CaptureFileRevision(revision) => {
             revision

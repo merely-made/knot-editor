@@ -69,8 +69,111 @@ the legacy file; backup/removal remains the user's decision.
 The corrected path requires unlocked, admitted authority. That is more involved
 than an always-writable sidecar, but avoids splitting retained material from
 Knot's existing encryption and history. Immutable collection items are supported;
-mutable organization, retraction and additional domain records such as saved
-sessions are follow-ups, not disguised publishable prose documents.
+organization is a separate authored projection, described below. Retraction and
+additional domain records such as saved sessions remain follow-ups, not
+disguised publishable prose documents.
+
+## Collection organization
+
+The first organization slice adds label, collection, author notes, tags, order
+and reversible archive state. `OrganizeCompositionV1` appends a signed, encrypted
+operation; it does not replace `RetainCompositionV1`. Original text, source
+anchors, analysis, recipe and historical author/receipt stay immutable.
+
+An edit identifies the original writer and item ID, its expected organization
+revision and the exact selected destination. The resident checks current
+authority and grant bounds under its mutation gate. Stale edits refuse and ask
+for refresh; concurrent forks refuse projection pending explicit reconciliation,
+not an arbitrary last-writer-wins overwrite. A currently admitted writer can
+organize material retained by another admitted device in the same space. History
+is bounded, including metadata operations. New event variants require updated
+participating readers; no mixed-version upgrade negotiation is added here.
+There is no organization-fork resolution UI yet; the strict projection refuses
+such a history instead of presenting a falsely confirmed collection.
+
+Readings → Collection offers search, deterministic ordering by collection/order/
+label/identity, editing and archive/restore. Archive hides rows from the ordinary
+view without removing their history; Include archived items makes restore
+available. Search covers original text and current organization. Search and
+archive visibility are transient presentation choices, not new plaintext stores.
+Tags are comma-separated in the editor; there is no destructive purge action.
+
+Acceptance covers encrypted metadata reopen, immutable original receipts,
+stale/destination/bounds refusal, worker dispatch and archive/restore. The
+`collection_acceptance` example supplies marked disposable synthetic authority
+using public test keys. It must never initialize a personal wallet. The paired
+`collection_organization.scn` and `collection_organization_reopen.scn` exercise
+native organization and fresh-process restore. The compact variants use the
+actual View menu at 420 logical px. Qualification below separates native
+controls from automated edited-metadata checks and personal-wallet onboarding.
+
+### Organization qualification (2026-10-05)
+
+Committed runtime: `21ce01576d0ba4cbac081a5b6a4098399c76b38a`, Mere
+`07db35e2f154df9a14a8cfdc165cc72ddae61f13`, Genet
+`bd3e8861b2932d62b73c9936ac3a317f1df3ffdb`. Default-feature workspace/all-target
+tests passed: **574 passed, 0 failed, 2 existing ignored**, across 42 test
+executables. This includes eight real-store retention/organization tests, two
+real desktop-worker store tests, and the seven scenario-lane tests. The ordinary
+desktop binary and synthetic-authority native instrument built successfully.
+
+Final macOS native 420×900 run: four reviewed captures (editor, editor actions,
+restored item, archived item); a separate fresh process reopens archived state,
+restores it and selects the original quotation, with one reviewed capture.
+Both final receipts are `RESULT ok`. The empty notes field's missing visual
+height was found by capture review and fixed; Save/Cancel are visible when the
+editor's end is revealed. The source/status chrome remains stationary while
+the Readings drawer scrolls. The drawer intentionally overlays the narrow
+source; its partial source visibility is not a full-width reading claim.
+
+Local evidence root:
+`/Users/markik/Code/testing/knot-editor/collection-organization-20261005.TGUMZ3/`.
+Tests: `workspace-final-tests.log`. Final native artifacts:
+`narrow/final-captures/` and `narrow/qualified-reopen-captures/`;
+logs `narrow/final-launch.log` and `narrow/qualified-reopen-launch.log`.
+Native instrument SHA-256:
+`b215e9fafaa872b07ef9a5aa82725d1dc48f41c9c9c8a1b0c6b4c1cee4e38eb5`.
+The launcher increases only the initial settle to 900 frames for foregrounding.
+Earlier diagnostic runs remain evidence of an overstrict fixture guard, a
+wide-only selector at compact width, and reused paint-output collisions; they
+are not substituted for the passing final captures. Reopen needs the marked
+test store/source, not a fabricated publishable-document vault directory.
+
+Limits: native runs use public disposable test keys, never a personal wallet.
+Native saving uses unchanged details; edited values and encrypted metadata
+reopen are covered by worker/store tests, not a claim that every native field
+was typed. No screen-reader, Windows/Linux/browser, organization 400%-zoom or
+release-package/signing acceptance is added. The upstream `54bb8cd` merge reports
+a separate Windows 400%-zoom root-scroll/unpainted-bottom issue; this slice
+does not fix or requalify it. GUI persona attachment and source overlays remain
+the next bounded slices, not completed by these receipts.
+
+## Follow-on contextual workspace
+
+Accepted direction (2026-10-05), not implemented by the organization slice:
+an independently toggleable generated background situates foregrounded text or
+material among related concepts and configurable categories. Lenses/planes
+separate authored facts, source-derived readings, inferred suggestions and
+curation; a visual or physics grouping must not silently author collection
+membership or source claims. Foreground readability, keyboard access, static/
+reduced-motion presentation and bounded/off-path compute remain requirements.
+
+Mere's projection and dynamics grammars provide reusable recipes over one
+disclosed domain binding. Arrangements are positions; dynamics are motion;
+seeded/anchored/pinned roles control how positions behave. Graphshell's saved
+scene facets and owner-authored graph events are precedents, not permission to
+move Knot's domain into Graphshell's store. Current published reference:
+Mere `289c9a98d6b0f17a441f184839035784fadb865e`, README design vocabulary,
+`ports/graphshell/src/product.rs` and `personal_sync.rs`, and the dynamics grammar
+plan. The plan's earlier headline status is not evidence that all later tracks
+or the portable dynamics-spec save/reopen track are complete.
+
+Cross-platform acceptance must distinguish the portable retained contract from
+host rendering, accessibility and compute backends. CPU/static fallbacks and
+explicit opt-in provider/model/resource choices are required design targets;
+Connecting Burn/embedding providers to this contextual background is not claimed
+as landed. The next bounded slices remain approachable owner/persona attachment
+and selectable source-analysis overlays, then contextual scene/dynamics reuse.
 
 ## Qualification
 

@@ -287,3 +287,11 @@ the same users.
   protocol 1.1 gained the revision bell and the stdio/host recovery path.
   Focused library suites pass 39 Graphshell, 9 protocol, 5 stdio, and 36 Knot
   tests; the separate real-process Knot bell/resume test also passes.
+- **2026-10-06, Mere's copy archived.** Mere archived its copy of this plan
+  in its S14 pass (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-07-25_knot_port_plan.md`), and Mere's ruling
+  S67 makes this copy the owner of the question that pass raised: is "one
+  immutable revision" the rule for Knot's consumers (one shared knot-editor
+  revision across Turnstone, Mere and djinn's `knot-site`), or does each
+  consumer pin its own? On 2026-10-06 Mere's root manifest and djinn's
+  `knot-site` share `ef89a186` (Mere `2e0a17d2`); Turnstone's pin was not
+  checked. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").

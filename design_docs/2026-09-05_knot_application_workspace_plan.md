@@ -862,6 +862,16 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-10-06 received from Mere's S14 archive pass (Mere rulings S60 and
+  S69): Mere archived its Knot shared surface and port contribution plan
+  (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-24_knot_shared_surface_and_port_contribution_plan.md`). F0,
+  broader Knot surfaces, continues here through the product cuts, as
+  knot-editor's copy of that plan already says. From Mere's archived
+  configuration ownership and settings projection plan: Knot's settings write
+  should move to pandect's `write_bytes_with_backup` (its 2026-08-26 follow-up
+  under C3); `crates/knot-editor/src/settings.rs` still removes the old file,
+  then renames. No Knot plan named it; it is noted here beside the settings
+  boundaries. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
 - 2026-09-23 design pass: the layout rulings, frames and stylesheet proposal
   are in [the design pass](2026-09-23_knot_design_pass.md), and its slice
   order, ruled the same day, now orders the "Scoped next sequence" above.

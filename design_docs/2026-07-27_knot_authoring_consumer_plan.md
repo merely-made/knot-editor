@@ -418,6 +418,13 @@ separately need retained selection and clip production. Until those producers
 land, whole-document clipping with `selector: None` remains the explicit
 fallback where available.
 
+**Received 2026-10-06 (Mere's S14 archive pass, ruling S67):** Mere archived
+its copy of this plan (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-07-27_knot_authoring_consumer_plan.md`), and
+this copy owns what remains: an optional headed Turnstone receipt of selected
+clips from the Livery and scripted producers once those seams land, and the
+"one immutable revision" pin question recorded in the
+[Knot port plan](2026-07-25_knot_port_plan.md)'s progress log. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+
 ## Stop rules
 
 - No direct Turnstone filesystem or vault write.

@@ -48,6 +48,19 @@ pub(super) struct MeasuredCard {
     pub(super) card: Size2,
 }
 
+/// Frames a probe may go without a usable rect before the hook stops asking
+/// for more (Mere burn plan 13.46, "Stop after a few frames").
+pub(super) const MEASURE_ATTEMPTS: u32 = 3;
+
+/// Consecutive frames whose probes gave no usable rect, for one label set in
+/// one window size. At [`MEASURE_ATTEMPTS`] the hook has given up on them.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct FailedMeasure {
+    pub(super) labels: Vec<String>,
+    pub(super) surface: (f32, f32),
+    pub(super) frames: u32,
+}
+
 #[derive(Default)]
 pub(super) struct RecipeState {
     pub(super) material: Option<ProjectionRecipeMaterial>,
@@ -55,6 +68,8 @@ pub(super) struct RecipeState {
     pub(super) measured: Option<MeasuredCard>,
     /// How many measurements this session took.
     pub(super) measurements: u32,
+    /// The current run of failed measurements, if any.
+    pub(super) failed: Option<FailedMeasure>,
 }
 
 /// A card for the widest probe: its rounded-up label, the rounding margin and
@@ -96,7 +111,9 @@ fn probe(label: &str) -> DesktopView {
 
 /// The frame hook's half of measurement. Reads the probes the previous layout
 /// placed, stores the card for their label set, and so removes them. Returns
-/// whether probes are still waiting for a layout.
+/// whether probes are still waiting for a layout: after [`MEASURE_ATTEMPTS`]
+/// frames without a usable rect it stops, leaving the scene hidden until the
+/// label set or the window size changes.
 pub(crate) fn measure_cards(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
@@ -123,9 +140,27 @@ pub(crate) fn measure_cards(
     if found.is_empty() {
         return false;
     }
+    let labels: Vec<String> = found.iter().map(|(_, label)| label.clone()).collect();
+    // The window's own size, not the zoomed layout size: a zoom is no resize.
+    let surface = (
+        ctx.logical_size.0 * ctx.ui_zoom,
+        ctx.logical_size.1 * ctx.ui_zoom,
+    );
+    let earlier = ctx
+        .runner
+        .state()
+        .composition
+        .recipe
+        .failed
+        .as_ref()
+        .filter(|failed| failed.labels == labels && failed.surface == surface)
+        .map_or(0, |failed| failed.frames);
+    if earlier >= MEASURE_ATTEMPTS {
+        return false;
+    }
     // Only a finite, positive rect is a measurement. Anything else keeps the
-    // scene hidden and measures again on the next frame, so the compiler is
-    // never handed a size from a missing or degenerate probe.
+    // scene hidden and counts as a failed frame, so the compiler is never
+    // handed a size from a missing or degenerate probe.
     let mut widest = (0.0f32, 0.0f32);
     for (node, _) in &found {
         let usable = |width: f32, height: f32| {
@@ -135,17 +170,31 @@ pub(crate) fn measure_cards(
             .painted_rect(*node)
             .filter(|&(_, _, width, height)| usable(width, height))
         else {
-            return true;
+            let frames = earlier + 1;
+            if frames == MEASURE_ATTEMPTS {
+                eprintln!(
+                    "knot: recipe cards not measured after {frames} frames; the scene stays hidden until its labels or the window size change"
+                );
+            }
+            ctx.runner.update(|state| {
+                state.composition.recipe.failed = Some(FailedMeasure {
+                    labels,
+                    surface,
+                    frames,
+                });
+            });
+            return frames < MEASURE_ATTEMPTS;
         };
         widest = (widest.0.max(width), widest.1.max(height));
     }
     let measured = MeasuredCard {
-        labels: found.into_iter().map(|(_, label)| label).collect(),
+        labels,
         card: card_for(widest.0, widest.1),
     };
     ctx.runner.update(|state| {
         state.composition.recipe.measured = Some(measured);
         state.composition.recipe.measurements += 1;
+        state.composition.recipe.failed = None;
     });
     false
 }

@@ -62,14 +62,15 @@ reference-data = { version = "0.0.1", git = "https://github.com/merely-made/mere
 # Later on 2026-10-05 every Mere row moves to 07db35e2, which descends from
 # 5011e2f9: Mere's Burn/CubeCL pre.4 promotion (merged at cec0b3a4), under
 # Isometry wing ruling 557 ("Promote, then handoffs"), Knot's repin first.
-# esp now pins Burn =0.22.0-pre.4; Genet stays on bd3e8861. The root patch
-# table gains cubecl-runtime from the same Mere revision, mirroring ruling 375.
+# On 2026-10-06 ESP and the runtime patch move to stable Burn 0.22 at
+# 5fecd707. Other Mere rows retain this scene API baseline; Genet stays on
+# bd3e8861. The root runtime patch follows ESP, mirroring ruling 375.
 # Mesquite owns execution and receipts; Taproot owns semantic selection and
 # click delivery hooks; Apparatus owns bounded diagnostic observations.
 chartulary = { version = "0.2.1", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
 chirograph = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
 eidetic = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13", default-features = false }
-esp = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
+esp = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "5fecd707c6bc9022f952c6d7b99d59f0f568d8e8" }
 fetch = { package = "mere-fetch", version = "0.0.1", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
 gemot = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
 graphshell = { git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
@@ -138,8 +139,8 @@ genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made
 taffy = { package = "genet-taffy", version = "=0.14.0", git = "https://github.com/merely-made/genet.git", rev = "bd3e8861b2932d62b73c9936ac3a317f1df3ffdb" }
 # Mere's ruling 375 runtime patch, from Mere's own tree: CubeCL persistence off
 # by default, so no Turso or SQLite enters Burn's graph. This row moves with
-# the Mere rows at every repin.
-cubecl-runtime = { git = "https://github.com/merely-made/mere.git", rev = "07db35e2f154df9a14a8cfdc165cc72ddae61f13" }
+# ESP's Mere revision at every inference repin.
+cubecl-runtime = { git = "https://github.com/merely-made/mere.git", rev = "5fecd707c6bc9022f952c6d7b99d59f0f568d8e8" }
 # No parley/fontique patch rows: as of genet 5ae30cad the forks are published as
 # `genet-parley` and `genet-fontique`, so nothing in genet answers to the name
 # `parley` and a row keyed on it would match no package and fail resolution.

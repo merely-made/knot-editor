@@ -4,6 +4,22 @@ use crate::{CollectionError, CollectionItem, DocumentAnchor};
 use knot_capture::{KnotRetainError, KnotRetainTargetV1};
 use serde::{Deserialize, Serialize};
 
+/// The card validation compiles with. Never drawn: a recipe's accept or refuse
+/// does not depend on its card size, and the desktop draws with the card it
+/// measures from its own font (Mere burn plan 13.46, "Named 164x68 constant").
+pub const VALIDATION_CARD: sceno::Size2 = sceno::Size2 { w: 164.0, h: 68.0 };
+
+/// The compiler that decides whether a recipe is valid, without drawing it.
+pub fn validation_compiler() -> &'static scenomise::projection::ProjectionCompiler {
+    static COMPILER: std::sync::OnceLock<scenomise::projection::ProjectionCompiler> =
+        std::sync::OnceLock::new();
+    COMPILER.get_or_init(|| {
+        scenomise::projection::ProjectionCompiler::new(scenomise::projection::ItemSizes {
+            card: VALIDATION_CARD,
+        })
+    })
+}
+
 /// A copied, inspectable projection recipe and its disclosed analysis input.
 /// No runtime witness, execution handle, or source-acquisition authority is saved.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -36,7 +52,8 @@ impl ProjectionRecipeMaterial {
                 "projection recipe material exceeds one MiB".into(),
             ));
         }
-        scenomise::projection::compile_relationship_snapshot(&self.snapshot, &self.dataset)
+        validation_compiler()
+            .compile_relationship_snapshot(&self.snapshot, &self.dataset)
             .map_err(|issues| {
                 CollectionError::Invalid(format!("invalid projection recipe: {issues:?}"))
             })?;

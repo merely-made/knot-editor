@@ -26,6 +26,8 @@ pub const CSS: &str = concat!(
     ".knot-composition article { padding:8px 0; }",
     ".knot-composition button { white-space:normal; text-align:left; }",
     ".knot-composition button[aria-pressed=true] { outline:2px solid currentColor; outline-offset:-2px; font-weight:600; }",
+    ".knot-composition .knot-recipe-measure { position:absolute; left:0; top:0; visibility:hidden; white-space:nowrap; font-weight:600; }",
+    ".knot-composition .knot-recipe-measure::after { content:attr(data-knot-recipe-measure); }",
     ".knot-composition .knot-composition-tabs { flex-direction:row; flex-wrap:wrap; }",
     ".knot-readings { min-width:0; box-sizing:border-box; display:flex; flex-direction:column; ",
     "gap:8px; }",

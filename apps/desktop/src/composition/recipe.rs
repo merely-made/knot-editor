@@ -561,7 +561,9 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                     "style",
                     format!(
                         "position:relative;height:{}px;width:{}px;",
-                        projection.scene.bounds.size.h.max(90.0),
+                        // Exactly the cards' height (Mere burn plan 13.46, "Fit
+                        // the scene's bounds"); a compiled recipe has two or more.
+                        projection.scene.bounds.size.h,
                         projection.scene.bounds.size.w.max(180.0)
                     ),
                 ),

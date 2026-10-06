@@ -1468,6 +1468,21 @@ mod tests {
                 "the card footprint is the drawn button"
             );
         }
+        // The scene is exactly as tall as its laid-out cards: no empty band.
+        let scene = host.with_dom(|dom| dom.parent(cards[0]).unwrap());
+        let (_, scene_top, _, scene_height) = host.painted_rect(scene).unwrap();
+        let card_bottom = cards
+            .iter()
+            .map(|node| {
+                let (_, top, _, height) = host.painted_rect(*node).unwrap();
+                top + height
+            })
+            .fold(0.0f32, f32::max);
+        assert_eq!(
+            scene_height,
+            card_bottom - scene_top,
+            "the scene fits its cards"
+        );
 
         // Selection, spacing, zoom and theme keep the cards and the measurement.
         let unchanged = |host: &mut RecipeHost, what: &str| {
@@ -1519,6 +1534,22 @@ mod tests {
         frame(&mut host);
         assert_eq!(measurements(&host), 2);
         unchanged_after(&mut host, 2);
+    }
+
+    #[test]
+    fn a_recipe_below_its_minimum_shows_its_refusal_and_no_scene() {
+        // A relationship recipe needs two occurrences (Scenograph refuses a
+        // lower minimum), so the compiler refuses anything smaller and no
+        // empty scene can be drawn.
+        let mut state = recipe_state("night night light", 0, 17);
+        if let Some(material) = state.composition.recipe.material.as_mut() {
+            material.dataset.dataset.occurrences.truncate(1);
+        }
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!((cards.len(), probes.len()), (0, 0));
+        assert!(rendered_text(&host).contains("Recipe cannot be realized"));
     }
 
     #[test]

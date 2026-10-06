@@ -311,3 +311,19 @@ frames. A new label set or a resize starts a fresh count.
 `a_probe_that_measures_nothing_keeps_the_scene_hidden` checks the cap, the
 stop, the hidden scene with nothing stored, a resize, a zoom and a new label
 set. With the cap removed, the same test fails.
+
+Headed receipts at `306a808` and three rulings, Mere burn plan 13.46 (`37f7e39b`):
+
+- Push Knot now? Mark: **"Fix the empty band first"**.
+- The empty band. The scene kept a 90 px minimum height, so 31 px cards left
+  about 59 px of empty panel above "Explain…". Mark: **"Fit the scene's bounds
+  (Recommended)"**. The minimum is gone: the scene is exactly as tall as its
+  laid-out cards. No recipe can draw an empty scene, because Scenograph refuses
+  a recipe needing fewer than two occurrences and the compiler refuses a
+  dataset below that, which the panel shows as "Recipe cannot be realized"
+  (`a_recipe_below_its_minimum_shows_its_refusal_and_no_scene`). The 180 px
+  minimum width stays: it is not ruled, and two cards are already wider.
+- The selected first card stays partly scrolled off after Explain. This
+  predates the change; the shared horizontal reveal does not re-run on a
+  selection change. Mark: **"Report to the reveal's owner (Recommended)"**.
+  Knot changes nothing.

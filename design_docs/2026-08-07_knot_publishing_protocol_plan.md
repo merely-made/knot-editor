@@ -533,6 +533,13 @@ revision series. If an external format needs linear numbers, its adapter owns
 that projection and its loss statement; native Knot never lies that its
 concurrent facts are a single ordered chain.
 
+**Received 2026-10-06 (Mere's S14 archive pass, ruling S61):** Mere archived
+its copy of this plan (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-07_knot_publishing_protocol_plan.md`) and
+ruled this copy canonical. Phase B, the specification and the `knot-protocol`
+crate, is owned here, with a question Mere's pass raised: does the
+[Mark read adapter](2026-08-08_knot_mark_read_adapter.md) count as Phase B's
+entry? Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+
 ## 10. Stop rules
 
 - Do not make a document public because it was opened, synced, rendered, or

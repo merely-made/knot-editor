@@ -447,6 +447,12 @@ configurability rule.
 Done when a Knot query returns hits neither engine ranked first alone, and the
 weights demonstrably move the ranking.
 
+**Received 2026-10-06 (Mere's S14 archive pass, ruling S67):** Mere archived
+its copy of this plan (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-02_knot_in_graphshell_plan.md`) with K0
+to K3 complete. S0 and S1 above, and the "one immutable revision" pin question
+recorded in the [Knot port plan](2026-07-25_knot_port_plan.md), are owned by
+this copy. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+
 ### Not part of this
 
 Replacing `LexicalEmbeddingProvider` with a real embedding provider. Sibylla

@@ -4944,9 +4944,18 @@ pub fn after_wake(
     }
 }
 
+/// The desktop's frame hook: measure any recipe cards waiting on the previous
+/// layout, then the graph tile.
+pub fn graph_frame(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    let measuring = crate::composition::measure_recipe_cards(ctx);
+    graph_tile_frame(ctx) || measuring
+}
+
 /// Measure the graph's actual tile and register the shared component's paint
 /// leaf from the same model and layout used by its native targets.
-pub fn graph_frame(
+fn graph_tile_frame(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
     let chrome_changed = update_collapse_layout(ctx);

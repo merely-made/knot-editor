@@ -262,6 +262,9 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
             panel_text(host)
         );
         host.after_dispatch();
+        // One native frame: the frame hook measures any new recipe cards.
+        host.prepare_frame();
+        host.relayout();
     };
     let (saved, operation) = {
         let resident = open_resident();

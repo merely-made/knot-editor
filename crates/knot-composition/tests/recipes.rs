@@ -38,3 +38,69 @@ fn typed_recipe_roundtrips_and_rejects_invalid_associations_and_anchors() {
         "x".repeat(knot_composition::MAX_TEXT_BYTES);
     assert!(oversized.validate().is_err());
 }
+
+/// Validation compiles with a nominal card (Mere burn plan 13.46): a recipe's
+/// accept or refuse, and every issue, must not depend on the card size.
+#[test]
+fn validation_outcome_does_not_depend_on_card_size() {
+    use knot_composition::retention::{ProjectionRecipeMaterial, VALIDATION_CARD};
+    use sceno::Size2;
+    use scenomise::projection::{
+        ItemSizes, ProjectionCompiler, RelationshipCompileLimits, SCATTER_ARRANGEMENT_ID,
+    };
+    let outcome = |card: Size2, material: &ProjectionRecipeMaterial, limits| {
+        ProjectionCompiler::new(ItemSizes { card })
+            .compile_relationship_snapshot_with_limits(
+                &material.snapshot,
+                &material.dataset,
+                limits,
+            )
+            .map(|compiled| {
+                (
+                    compiled.projection.scene.items.len(),
+                    compiled.relationships.len(),
+                )
+            })
+            .map_err(|issues| {
+                issues
+                    .into_iter()
+                    .map(|issue| (issue.field, issue.message))
+                    .collect::<Vec<_>>()
+            })
+    };
+    let valid = support::recipe_material();
+    let mut scatter = valid.clone();
+    scatter.snapshot.recipe.definition.arrangement.kind = SCATTER_ARRANGEMENT_ID.into();
+    let mut dangling = valid.clone();
+    dangling.dataset.relationships[0].to_occurrence = "not-disclosed".into();
+    let mut no_facets = valid.clone();
+    no_facets.dataset.facets.clear();
+    let default = RelationshipCompileLimits::default();
+    let tight = RelationshipCompileLimits {
+        max_occurrences: 1,
+        ..RelationshipCompileLimits::default()
+    };
+    let cases = [
+        (&valid, &default),
+        (&scatter, &default),
+        (&dangling, &default),
+        (&no_facets, &default),
+        (&valid, &tight),
+    ];
+    for (index, (material, limits)) in cases.into_iter().enumerate() {
+        let reference = outcome(VALIDATION_CARD, material, limits);
+        assert_eq!(reference.is_ok(), index == 0, "case {index}: {reference:?}");
+        for card in [
+            Size2::new(1.0, 1.0),
+            Size2::new(125.0, 31.0),
+            Size2::new(343.0, 31.0),
+            Size2::new(1.0e6, 1.0e6),
+        ] {
+            assert_eq!(
+                outcome(card, material, limits),
+                reference,
+                "case {index} at {card:?}"
+            );
+        }
+    }
+}

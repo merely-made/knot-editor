@@ -25,6 +25,8 @@ use std::{
 
 mod recipe;
 
+pub(crate) use recipe::measure_cards as measure_recipe_cards;
+
 #[derive(Clone)]
 pub(crate) struct SelectionSnapshot {
     key: DocKey,
@@ -1644,6 +1646,338 @@ mod tests {
         host
     }
 
+    type RecipeHost = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
+
+    fn workspace_composition(state: &DesktopState) -> DesktopView {
+        Box::new(
+            el("div", view(state, state.focused_key().unwrap()))
+                .attr("class", state.appearance.root_class()),
+        )
+    }
+
+    /// The panel under the real desktop sheet and fonts, with the frame hook
+    /// that measures recipe cards.
+    fn recipe_harness(state: DesktopState) -> RecipeHost {
+        let mut hooks = cambium_genet_winit_host::inert_hooks();
+        hooks.frame = Box::new(super::measure_recipe_cards);
+        let mut host = Harness::with_hooks(
+            cambium_genet_winit_host::Init {
+                state,
+                logic: workspace_composition as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: crate::fonts::bundled_fonts(),
+                images: Vec::new(),
+            },
+            hooks,
+        );
+        host.layout_at(1100.0, 800.0);
+        host
+    }
+
+    /// One native frame: the frame hook, then the layout it feeds.
+    fn frame(host: &mut RecipeHost) {
+        host.prepare_frame();
+        host.relayout();
+    }
+
+    /// The occurrence cards and the measurement probes now in the DOM.
+    fn cards_and_probes(host: &RecipeHost) -> (Vec<NodeId>, Vec<NodeId>) {
+        host.with_dom(|dom| {
+            fn walk(
+                dom: &ScriptedDom,
+                node: NodeId,
+                cards: &mut Vec<NodeId>,
+                probes: &mut Vec<NodeId>,
+            ) {
+                let is_button = dom
+                    .element_name(node)
+                    .is_some_and(|name| name.local.as_ref() == "button");
+                if is_button && text_content(dom, node).contains(" · token-") {
+                    cards.push(node);
+                }
+                if dom
+                    .attribute(
+                        node,
+                        &layout_dom_api::Namespace::from(""),
+                        &layout_dom_api::LocalName::from("data-knot-recipe-measure"),
+                    )
+                    .is_some()
+                {
+                    probes.push(node);
+                }
+                for child in dom.dom_children(node) {
+                    walk(dom, child, cards, probes);
+                }
+            }
+            let (mut cards, mut probes) = (Vec::new(), Vec::new());
+            walk(dom, dom.document(), &mut cards, &mut probes);
+            (cards, probes)
+        })
+    }
+
+    fn recipe_state(text: &str, start: usize, end: usize) -> DesktopState {
+        let mut state = state(text);
+        attach_fake(&mut state);
+        select(&mut state, start, end);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        assert!(
+            state.composition.recipe.material.is_some(),
+            "{:?}",
+            state.composition.notice
+        );
+        state
+    }
+
+    #[test]
+    fn recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame() {
+        let mut host = recipe_harness(recipe_state("night night light", 0, 17));
+        let measurements = |host: &RecipeHost| host.state().composition.recipe.measurements;
+
+        // The frame the labels first appear: probes only, no cards.
+        let (cards, probes) = cards_and_probes(&host);
+        assert!(cards.is_empty(), "the scene is hidden until measured");
+        assert_eq!(probes.len(), 3, "one probe per drawn label");
+        host.with_dom(|dom| {
+            for probe in &probes {
+                assert_eq!(
+                    dom.dom_children(*probe).count(),
+                    0,
+                    "a probe has no DOM text"
+                );
+                assert!(
+                    dom.element_name(*probe)
+                        .is_some_and(|name| name.local.as_ref() == "span")
+                );
+            }
+            for label in [
+                "night · token-0-5",
+                "night · token-6-11",
+                "light · token-12-17",
+            ] {
+                let selector = Selector::role("button").containing(label);
+                assert!(
+                    taproot::matching(dom, &selector).is_empty(),
+                    "{label} resolves to nothing while hidden"
+                );
+            }
+        });
+        assert!(
+            !rendered_text(&host).contains(" · token-"),
+            "no probe text reaches the DOM"
+        );
+        assert_eq!(measurements(&host), 0);
+
+        // The next frame measures once and draws.
+        frame(&mut host);
+        assert_eq!(measurements(&host), 1);
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!(
+            (cards.len(), probes.len()),
+            (3, 0),
+            "the probes go once measured"
+        );
+        let card = host
+            .state()
+            .composition
+            .recipe
+            .measured
+            .as_ref()
+            .unwrap()
+            .card;
+        assert!(card.h < 68.0, "one line, not the old 68: {card:?}");
+        for node in &cards {
+            let (_, _, width, height) = host.painted_rect(*node).unwrap();
+            assert_eq!(
+                (width, height),
+                (card.w, card.h),
+                "the card footprint is the drawn button"
+            );
+        }
+        // The scene is exactly as tall as its laid-out cards: no empty band.
+        let scene = host.with_dom(|dom| dom.parent(cards[0]).unwrap());
+        let (_, scene_top, _, scene_height) = host.painted_rect(scene).unwrap();
+        let card_bottom = cards
+            .iter()
+            .map(|node| {
+                let (_, top, _, height) = host.painted_rect(*node).unwrap();
+                top + height
+            })
+            .fold(0.0f32, f32::max);
+        assert_eq!(
+            scene_height,
+            card_bottom - scene_top,
+            "the scene fits its cards"
+        );
+
+        // Selection, spacing, zoom and theme keep the cards and the measurement.
+        let unchanged = |host: &mut RecipeHost, what: &str| {
+            for _ in 0..3 {
+                let (cards, probes) = cards_and_probes(host);
+                assert_eq!(
+                    (cards.len(), probes.len()),
+                    (3, 0),
+                    "{what} keeps the scene drawn"
+                );
+                frame(host);
+            }
+            assert_eq!(
+                host.state().composition.recipe.measurements,
+                1,
+                "{what} does not re-measure"
+            );
+        };
+        unchanged(&mut host, "an idle frame");
+        assert!(host.click_on(&Selector::role("button").containing("night · token-6-11")));
+        host.after_dispatch();
+        host.relayout();
+        unchanged(&mut host, "a selection");
+        assert!(host.click_on(&Selector::role("button").containing("Increase recipe spacing")));
+        host.after_dispatch();
+        host.relayout();
+        unchanged(&mut host, "a spacing edit");
+        host.set_ui_zoom(2.0);
+        host.relayout();
+        unchanged(&mut host, "zoom");
+        host.set_ui_zoom(1.0);
+        host.relayout();
+        host.update(|state| state.appearance.dark = !state.appearance.dark);
+        unchanged(&mut host, "a theme change");
+
+        // A new label set hides the scene for exactly one frame, then measures once.
+        host.update(|state| {
+            let key = state.focused_key().unwrap();
+            select(state, 6, 17);
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, false);
+        });
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!(
+            (cards.len(), probes.len()),
+            (0, 2),
+            "the new label set is hidden"
+        );
+        frame(&mut host);
+        assert_eq!(measurements(&host), 2);
+        unchanged_after(&mut host, 2);
+    }
+
+    #[test]
+    fn a_recipe_below_its_minimum_shows_its_refusal_and_no_scene() {
+        // A relationship recipe needs two occurrences (Scenograph refuses a
+        // lower minimum), so the compiler refuses anything smaller and no
+        // empty scene can be drawn.
+        let mut state = recipe_state("night night light", 0, 17);
+        if let Some(material) = state.composition.recipe.material.as_mut() {
+            material.dataset.dataset.occurrences.truncate(1);
+        }
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!((cards.len(), probes.len()), (0, 0));
+        assert!(rendered_text(&host).contains("Recipe cannot be realized"));
+    }
+
+    #[test]
+    fn a_probe_that_measures_nothing_keeps_the_scene_hidden() {
+        // Without the desktop sheet a probe has no generated label, so its rect
+        // is empty: nothing is stored and no card is compiled. After a few
+        // frames the hook stops asking for more (Mere burn plan 13.46); a new
+        // label set or window size measures again.
+        let mut hooks = cambium_genet_winit_host::inert_hooks();
+        hooks.frame = Box::new(super::measure_recipe_cards);
+        let mut host = Harness::with_hooks(
+            cambium_genet_winit_host::Init {
+                state: recipe_state("night night light", 0, 17),
+                logic: workspace_composition as fn(&DesktopState) -> DesktopView,
+                sheet: String::new(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            hooks,
+        );
+        host.layout_at(1100.0, 800.0);
+        let hidden = |host: &RecipeHost, probes: usize, what: &str| {
+            let (cards, found) = cards_and_probes(host);
+            assert_eq!(
+                (cards.len(), found.len()),
+                (0, probes),
+                "{what}: the scene stays hidden"
+            );
+            assert_eq!(
+                host.state().composition.recipe.measured,
+                None,
+                "{what}: nothing is stored"
+            );
+            assert_eq!(
+                host.state().composition.recipe.measurements,
+                0,
+                "{what}: no card is compiled"
+            );
+        };
+        // Frames come for the attempts, then stop at the cap and stay stopped.
+        let gives_up = |host: &mut RecipeHost, probes: usize, what: &str| {
+            for attempt in 1..=recipe::MEASURE_ATTEMPTS {
+                let more = host.prepare_frame();
+                host.relayout();
+                assert_eq!(
+                    more,
+                    attempt < recipe::MEASURE_ATTEMPTS,
+                    "{what}: attempt {attempt} of {} asks for another frame until the cap",
+                    recipe::MEASURE_ATTEMPTS
+                );
+                hidden(host, probes, what);
+            }
+            for _ in 0..5 {
+                assert!(!host.prepare_frame(), "{what}: no frames after the cap");
+                host.relayout();
+                hidden(host, probes, what);
+            }
+            let failed = host.state().composition.recipe.failed.clone().unwrap();
+            assert_eq!(
+                failed.frames,
+                recipe::MEASURE_ATTEMPTS,
+                "{what}: the cap holds"
+            );
+        };
+        gives_up(&mut host, 3, "the first label set");
+
+        // A resize measures again, then gives up again.
+        host.layout_at(900.0, 700.0);
+        gives_up(&mut host, 3, "after a resize");
+
+        // A zoom alone is not a resize: it stays given up.
+        host.set_ui_zoom(2.0);
+        host.relayout();
+        assert!(!host.prepare_frame(), "a zoom does not restart measuring");
+        host.set_ui_zoom(1.0);
+        host.relayout();
+
+        // A new label set measures again, then gives up again.
+        host.update(|state| {
+            let key = state.focused_key().unwrap();
+            select(state, 6, 17);
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, false);
+        });
+        gives_up(&mut host, 2, "a new label set");
+    }
+
+    fn unchanged_after(host: &mut RecipeHost, count: u32) {
+        for _ in 0..3 {
+            let (cards, probes) = cards_and_probes(host);
+            assert!(
+                !cards.is_empty() && probes.is_empty(),
+                "drawn after one hidden frame"
+            );
+            frame(host);
+        }
+        assert_eq!(host.state().composition.recipe.measurements, count);
+    }
+
     fn text_content(dom: &ScriptedDom, node: NodeId) -> String {
         let own = dom.text(node).unwrap_or_default();
         let children = dom
@@ -2291,7 +2625,8 @@ mod tests {
             "{:?}",
             state.composition.notice
         );
-        let mut host = harness(state);
+        let mut host = recipe_harness(state);
+        frame(&mut host);
         assert!(host.click_on(&Selector::role("button").containing("Increase recipe spacing")));
         host.after_dispatch();
         assert!(rendered_text(&host).contains("spacing 24"));

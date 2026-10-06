@@ -1524,8 +1524,9 @@ mod tests {
     #[test]
     fn a_probe_that_measures_nothing_keeps_the_scene_hidden() {
         // Without the desktop sheet a probe has no generated label, so its rect
-        // is empty: nothing is stored, no card is compiled, and every frame
-        // measures again.
+        // is empty: nothing is stored and no card is compiled. After a few
+        // frames the hook stops asking for more (Mere burn plan 13.46); a new
+        // label set or window size measures again.
         let mut hooks = cambium_genet_winit_host::inert_hooks();
         hooks.frame = Box::new(super::measure_recipe_cards);
         let mut host = Harness::with_hooks(
@@ -1539,21 +1540,70 @@ mod tests {
             hooks,
         );
         host.layout_at(1100.0, 800.0);
-        for _ in 0..5 {
-            assert!(
-                host.prepare_frame(),
-                "an unmeasured probe keeps frames coming"
-            );
-            host.relayout();
-            let (cards, probes) = cards_and_probes(&host);
+        let hidden = |host: &RecipeHost, probes: usize, what: &str| {
+            let (cards, found) = cards_and_probes(host);
             assert_eq!(
-                (cards.len(), probes.len()),
-                (0, 3),
-                "the scene stays hidden"
+                (cards.len(), found.len()),
+                (0, probes),
+                "{what}: the scene stays hidden"
             );
-        }
-        assert_eq!(host.state().composition.recipe.measured, None);
-        assert_eq!(host.state().composition.recipe.measurements, 0);
+            assert_eq!(
+                host.state().composition.recipe.measured,
+                None,
+                "{what}: nothing is stored"
+            );
+            assert_eq!(
+                host.state().composition.recipe.measurements,
+                0,
+                "{what}: no card is compiled"
+            );
+        };
+        // Frames come for the attempts, then stop at the cap and stay stopped.
+        let gives_up = |host: &mut RecipeHost, probes: usize, what: &str| {
+            for attempt in 1..=recipe::MEASURE_ATTEMPTS {
+                let more = host.prepare_frame();
+                host.relayout();
+                assert_eq!(
+                    more,
+                    attempt < recipe::MEASURE_ATTEMPTS,
+                    "{what}: attempt {attempt} of {} asks for another frame until the cap",
+                    recipe::MEASURE_ATTEMPTS
+                );
+                hidden(host, probes, what);
+            }
+            for _ in 0..5 {
+                assert!(!host.prepare_frame(), "{what}: no frames after the cap");
+                host.relayout();
+                hidden(host, probes, what);
+            }
+            let failed = host.state().composition.recipe.failed.clone().unwrap();
+            assert_eq!(
+                failed.frames,
+                recipe::MEASURE_ATTEMPTS,
+                "{what}: the cap holds"
+            );
+        };
+        gives_up(&mut host, 3, "the first label set");
+
+        // A resize measures again, then gives up again.
+        host.layout_at(900.0, 700.0);
+        gives_up(&mut host, 3, "after a resize");
+
+        // A zoom alone is not a resize: it stays given up.
+        host.set_ui_zoom(2.0);
+        host.relayout();
+        assert!(!host.prepare_frame(), "a zoom does not restart measuring");
+        host.set_ui_zoom(1.0);
+        host.relayout();
+
+        // A new label set measures again, then gives up again.
+        host.update(|state| {
+            let key = state.focused_key().unwrap();
+            select(state, 6, 17);
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, false);
+        });
+        gives_up(&mut host, 2, "a new label set");
     }
 
     fn unchanged_after(host: &mut RecipeHost, count: u32) {

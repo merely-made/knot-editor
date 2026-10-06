@@ -190,6 +190,37 @@ Clippy or standalone excluded document-crate test claim is made. Binary SHA-256:
 
 Native binary SHA-256:
 `63c2e1b84e0af76fdac189627e1027439a1bd5a7d7221e1bb4a1504db341a393`.
+The test binary includes the recipe implementation on the published shared pin;
+subsequent changes before publication are test/receipt documentation only.
+Woodshed's generated disclosure fixture is copied byte-for-byte from its
+published `c92e7c96779ef316f5d8244a59de7cbc84f42a0b` export into
+`apps/desktop/tests/fixtures/woodshed_relationships.json` for the actual
+Mora-to-musical shared-recipe rebind test. It is copied evidence, not a live
+connection or a grant to modify a Working Set.
+
+The earlier five native captures qualified the sidecar prototype, not this
+corrected route. The corrected route has separate evidence:
+
+- Final `cargo test --locked --workspace`: 555 passed, zero failed, two ignored.
+  The file-only desktop check and native desktop build pass. Strict Clippy passes
+  for `knot-composition` and `knot-readings`; the broader desktop invocation is
+  blocked by nine pre-existing `knot-editor` lint errors, not recorded as clean.
+- Core real-store tests cover encrypted persistence/reopen, authority refusal,
+  cross-writer history, idempotence and exclusion from publishable documents.
+- `apps/desktop/tests/composition_mere.rs` drives the UI worker against a real
+  resident, checks the signed operation and absence of plaintext fallback, then
+  reopens and reads the same item and operation.
+- The native `composition.scn` run on 2026-09-30 passed in 179 frames with five
+  distinct nonblank captures. Visual review confirmed the lexical empty state,
+  opt-in sound source, Night/light rhyme result, unavailable collection, and
+  source registry. Local receipts are in
+  `/Users/markik/Code/testing/knot-editor/composition-mere-20260930/receipts`.
+  This native run deliberately supplies no mere authority; it does not qualify
+  successful native retention or a real user's Personae startup-unlock flow.
+
+The sound-result view extends below the captured viewport; this is not an
+all-viewport layout acceptance claim. Whole-history reads use the existing
+operation-store path; result bounds are not a claim of a globally bounded scan.
 
 ### Stack seams P1: Knot measures its recipe card (2026-10-05)
 
@@ -257,34 +288,26 @@ recipe scenarios and the real-store recipe test, as the native loop does.
 Native recipe receipts are held until the seiche-speed lane's headed round is
 done; they are rerun then at both window settings and compared with the
 164×68 frames.
-The test binary includes the recipe implementation on the published shared pin;
-subsequent changes before publication are test/receipt documentation only.
-Woodshed's generated disclosure fixture is copied byte-for-byte from its
-published `c92e7c96779ef316f5d8244a59de7cbc84f42a0b` export into
-`apps/desktop/tests/fixtures/woodshed_relationships.json` for the actual
-Mora-to-musical shared-recipe rebind test. It is copied evidence, not a live
-connection or a grant to modify a Working Set.
 
-The earlier five native captures qualified the sidecar prototype, not this
-corrected route. The corrected route has separate evidence:
+Two further rulings, Mere burn plan 13.46 (`b7b52e56`):
 
-- Final `cargo test --locked --workspace`: 555 passed, zero failed, two ignored.
-  The file-only desktop check and native desktop build pass. Strict Clippy passes
-  for `knot-composition` and `knot-readings`; the broader desktop invocation is
-  blocked by nine pre-existing `knot-editor` lint errors, not recorded as clean.
-- Core real-store tests cover encrypted persistence/reopen, authority refusal,
-  cross-writer history, idempotence and exclusion from publishable documents.
-- `apps/desktop/tests/composition_mere.rs` drives the UI worker against a real
-  resident, checks the signed operation and absence of plaintext fallback, then
-  reopens and reads the same item and operation.
-- The native `composition.scn` run on 2026-09-30 passed in 179 frames with five
-  distinct nonblank captures. Visual review confirmed the lexical empty state,
-  opt-in sound source, Night/light rhyme result, unavailable collection, and
-  source registry. Local receipts are in
-  `/Users/markik/Code/testing/knot-editor/composition-mere-20260930/receipts`.
-  This native run deliberately supplies no mere authority; it does not qualify
-  successful native retention or a real user's Personae startup-unlock flow.
+- A probe that never measures. The question: a probe that can never give a
+  usable size, for example after a font or stylesheet failure, made the frame
+  hook request frames forever. Mark: **"Stop after a few frames
+  (Recommended)"**. After about 3 frames with no usable rect the hook stops
+  requesting frames; the scene stays hidden, with a logged warning, and it
+  measures again on the next label change or window resize.
+- When Knot pushes. Mark: **"After the headed receipts (Recommended)"**. Once
+  the seiche-speed lane's timing round is done, Knot's recipe receipts run at
+  both window settings and their frames are compared with the old 164×68
+  ones; then Knot pushes.
 
-The sound-result view extends below the captured viewport; this is not an
-all-viewport layout acceptance claim. Whole-history reads use the existing
-operation-store path; result bounds are not a claim of a globally bounded scan.
+*Amended 2026-10-06:* the hook no longer keeps frames coming without end, as the
+list above says. As built, `MEASURE_ATTEMPTS` is 3. Failed frames are counted
+per label set and window size, the window size being the layout size times the
+zoom, so a zoom alone is not a resize. The third failure logs
+`knot: recipe cards not measured after 3 frames; ...` once and stops asking for
+frames. A new label set or a resize starts a fresh count.
+`a_probe_that_measures_nothing_keeps_the_scene_hidden` checks the cap, the
+stop, the hidden scene with nothing stored, a resize, a zoom and a new label
+set. With the cap removed, the same test fails.

@@ -1,0 +1,21 @@
+# Requires collection_acceptance --reopen-test-fixture after organization.scn.
+settle 120
+assert snap dirty == false
+click role:button Readings
+settle 4
+click role:button Collection
+click role:button Synthetic acceptance mere
+wait
+settle 4
+assert text Confirmed 1 retained items
+click role:button Include archived items
+settle 4
+assert text Night light passage
+assert text archived
+click role:button Restore collection item
+wait
+settle 4
+click role:button Return to source
+settle 4
+assert snap dirty == false
+capture collection-organization-reopened

@@ -189,7 +189,8 @@ fn run_without_native_capture_at_size(
     let mut toolbar_before = None;
     for _ in 0..1_000 {
         h.layout_at(width, height);
-        if name == "relationship_recipe_compact.scn" {
+        // Recipe cards are measured in the frame hook, as in the native loop.
+        if name == "relationship_recipe_compact.scn" || name == "relationship_recipe.scn" {
             h.prepare_frame();
             h.relayout();
         }

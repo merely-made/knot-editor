@@ -324,3 +324,109 @@ corrected route. The corrected route has separate evidence:
 The sound-result view extends below the captured viewport; this is not an
 all-viewport layout acceptance claim. Whole-history reads use the existing
 operation-store path; result bounds are not a claim of a globally bounded scan.
+
+### Stack seams P1: Knot measures its recipe card (2026-10-05)
+
+Mere's stack seams P1 (`dd2cb6fd`, on main from `19e6dc9f`) made relationship
+compilation a method of a `ProjectionCompiler` built from host-supplied
+`ItemSizes`. Its plan's ruling S20 has the host supply "the representation's
+measured size"; the compiler "writes in no size of its own". Before P1 Knot
+never had a card of its own: it drew each card at the 164×68 footprint
+scenomise wrote in, inside a fixed 184×84 cell. Every Mere row, the ruling 585
+`cubecl-runtime` row included, moves from `07db35e2` to `19e6dc9f`.
+
+Mark's rulings are recorded in Mere's burn plan 13.46 (`102aa548`):
+
+- Who adapts Knot. Mark: **"My Knot lane adapts Knot"**.
+- Knot's card size under P1. Mark: **"Measured from Knot's font"**. The desktop
+  measures each recipe's widest occurrence label in its own font, plus button
+  padding, and gives the compiler that size.
+- How to measure. Mark: **"Read the previous layout (Recommended)"**. The drawn
+  string is probed at weight 600 and read through `painted_rect` in the frame
+  hook. The result is stored by label set, and the probes are removed once
+  measured.
+- The first frame after labels change. Mark: **"Hide the scene one frame
+  (Recommended)"**.
+- The card's shape. Mark: **"One line, no width cap (Recommended)"**. The widest
+  label sets every card's width.
+- Validation's nominal size. Mark: **"Named 164×68 constant (Recommended)"**. The
+  constant is validation-only and lives in knot-composition, shared by the
+  desktop's four action gates and the tests. Only the view's draw call takes
+  the measured compiler.
+
+As built:
+
+- `knot-composition` names `VALIDATION_CARD` (164×68) and `validation_compiler()`.
+  Retention validation, the build, rebind, reopen and spacing gates and the
+  tests use it. Accept, refuse and every issue are the same at any card size
+  (`tests/recipes.rs`); retained material holds no geometry.
+- The recipe view draws only once its label set is measured. Until then the
+  scene holds one probe per drawn label: a role-less, `aria-hidden` span whose
+  label sits in an attribute and is shown only through `::after { content:
+  attr(...) }`, at the pressed weight 600 on one line. It has no DOM text or
+  role, so a scenario's `resolve` and `assert text` cannot match it.
+- The desktop frame hook reads the probes' rects from the previous layout. The
+  card is the widest probe rounded up, plus 1 px and the declared 22 px of
+  padding and border, by the probe's line plus 14 px. The hook stores it with
+  its label set, which removes the probes, and keeps frames coming while a
+  probe still has no layout.
+- Only a finite, positive probe rect counts as a measurement. A probe with no
+  rect, or a zero or NaN one, keeps the scene hidden and is measured again on
+  the next frame; the compiler is never handed such a size. This matches stack
+  seams ruling S32 ("Typed compile issue"), which will refuse a card that is
+  not finite and positive (`a_probe_that_measures_nothing_keeps_the_scene_hidden`).
+  The 164×68 validation constant passes that check.
+- A new label set (a new recipe or a rebind) is hidden for exactly one frame
+  and measured once. Selection, spacing, zoom and theme changes neither hide
+  the scene nor re-measure (`composition.rs`,
+  `recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame`).
+- Controls (`recipe.rs`, `a_measured_card_holds_its_label_on_one_line_and_a_narrower_one_wraps`):
+  each test label stays on one line at its measured card and wraps a pixel
+  under the rounded probe width. The drawn button equals the compiled
+  footprint.
+
+P1 changes the spacing whatever the card: grid pitch is now the card plus the
+gap, not a fixed 184×84 cell. The headless runners pump the frame hook for both
+recipe scenarios and the real-store recipe test, as the native loop does.
+Native recipe receipts are held until the seiche-speed lane's headed round is
+done; they are rerun then at both window settings and compared with the
+164×68 frames.
+
+Two further rulings, Mere burn plan 13.46 (`b7b52e56`):
+
+- A probe that never measures. The question: a probe that can never give a
+  usable size, for example after a font or stylesheet failure, made the frame
+  hook request frames forever. Mark: **"Stop after a few frames
+  (Recommended)"**. After about 3 frames with no usable rect the hook stops
+  requesting frames; the scene stays hidden, with a logged warning, and it
+  measures again on the next label change or window resize.
+- When Knot pushes. Mark: **"After the headed receipts (Recommended)"**. Once
+  the seiche-speed lane's timing round is done, Knot's recipe receipts run at
+  both window settings and their frames are compared with the old 164×68
+  ones; then Knot pushes.
+
+*Amended 2026-10-06:* the hook no longer keeps frames coming without end, as the
+list above says. As built, `MEASURE_ATTEMPTS` is 3. Failed frames are counted
+per label set and window size, the window size being the layout size times the
+zoom, so a zoom alone is not a resize. The third failure logs
+`knot: recipe cards not measured after 3 frames; ...` once and stops asking for
+frames. A new label set or a resize starts a fresh count.
+`a_probe_that_measures_nothing_keeps_the_scene_hidden` checks the cap, the
+stop, the hidden scene with nothing stored, a resize, a zoom and a new label
+set. With the cap removed, the same test fails.
+
+Headed receipts at `306a808` and three rulings, Mere burn plan 13.46 (`37f7e39b`):
+
+- Push Knot now? Mark: **"Fix the empty band first"**.
+- The empty band. The scene kept a 90 px minimum height, so 31 px cards left
+  about 59 px of empty panel above "Explain…". Mark: **"Fit the scene's bounds
+  (Recommended)"**. The minimum is gone: the scene is exactly as tall as its
+  laid-out cards. No recipe can draw an empty scene, because Scenograph refuses
+  a recipe needing fewer than two occurrences and the compiler refuses a
+  dataset below that, which the panel shows as "Recipe cannot be realized"
+  (`a_recipe_below_its_minimum_shows_its_refusal_and_no_scene`). The 180 px
+  minimum width stays: it is not ruled, and two cards are already wider.
+- The selected first card stays partly scrolled off after Explain. This
+  predates the change; the shared horizontal reveal does not re-run on a
+  selection change. Mark: **"Report to the reveal's owner (Recommended)"**.
+  Knot changes nothing.

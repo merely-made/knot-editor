@@ -7,23 +7,196 @@
 use super::SelectionSnapshot;
 use crate::workspace::{DesktopState, DesktopView};
 use cambium::{Keyed, button, el, span};
+use cambium_genet_winit_host::AppCtx;
 use knot_composition::DocumentAnchor;
-use knot_composition::retention::{ProjectionRecipeMaterial, RecipeSourceAnchor};
+use knot_composition::retention::{
+    ProjectionRecipeMaterial, RecipeSourceAnchor, VALIDATION_CARD, validation_compiler,
+};
 use knot_composition::{CollectionItem, ItemKind};
 use knot_readings::sound::SoundReading;
+use layout_dom_api::{LayoutDom, LocalName, Namespace};
+use sceno::Size2;
 use scenograph::relationship::{
     RecipeEdit, RelationshipRecipeDraft, RelationshipSnapshot, relationship_recipe,
 };
 use scenograph::{ProjectionInputBinding, PublicSourceRevision, RevisionEvidence, SourceBinding};
 use scenomise::projection::{
-    DisclosedRelationship, ProjectionDataset, ProjectionFieldType, ProjectionOccurrence,
-    ProjectionValue, RelationshipDataset, RelationshipProvenance, compile_relationship_snapshot,
+    CompiledProjection, DisclosedRelationship, ItemSizes, ProjectionCompiler, ProjectionDataset,
+    ProjectionFieldType, ProjectionOccurrence, ProjectionValue, RelationshipDataset,
+    RelationshipProvenance,
 };
 use std::collections::{BTreeMap, BTreeSet};
+
+/// What an occurrence button adds around its label: Knot's declared
+/// `padding:6px 10px; border:1px solid` (`appearance.rs`) in the UA's
+/// border-box, so a card is its label plus this.
+const CARD_FRAME: Size2 = Size2 {
+    w: 2.0 * (10.0 + 1.0),
+    h: 2.0 * (6.0 + 1.0),
+};
+/// Layout rects are whole pixels and a label's advance is not: one more pixel
+/// keeps the widest label on one line (Mere burn plan 13.46).
+const CARD_ROUNDING: f32 = 1.0;
+/// The probe attribute: its value is the drawn label, shown only through CSS
+/// generated content so no DOM text or role exists for a scenario to match.
+const MEASURE_ATTR: &str = "data-knot-recipe-measure";
+
+/// The card measured for one drawn label set.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct MeasuredCard {
+    pub(super) labels: Vec<String>,
+    pub(super) card: Size2,
+}
+
+/// Frames a probe may go without a usable rect before the hook stops asking
+/// for more (Mere burn plan 13.46, "Stop after a few frames").
+pub(super) const MEASURE_ATTEMPTS: u32 = 3;
+
+/// Consecutive frames whose probes gave no usable rect, for one label set in
+/// one window size. At [`MEASURE_ATTEMPTS`] the hook has given up on them.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct FailedMeasure {
+    pub(super) labels: Vec<String>,
+    pub(super) surface: (f32, f32),
+    pub(super) frames: u32,
+}
 
 #[derive(Default)]
 pub(super) struct RecipeState {
     pub(super) material: Option<ProjectionRecipeMaterial>,
+    /// The card for the label set last measured; drawing waits for it.
+    pub(super) measured: Option<MeasuredCard>,
+    /// How many measurements this session took.
+    pub(super) measurements: u32,
+    /// The current run of failed measurements, if any.
+    pub(super) failed: Option<FailedMeasure>,
+}
+
+/// A card for the widest probe: its rounded-up label, the rounding margin and
+/// the button frame, by one measured line and the frame.
+fn card_for(width: f32, height: f32) -> Size2 {
+    Size2::new(
+        width.ceil() + CARD_ROUNDING + CARD_FRAME.w,
+        height.ceil() + CARD_FRAME.h,
+    )
+}
+
+/// What each occurrence button shows, in instance order: the label set a
+/// measurement belongs to.
+fn drawn_labels(projection: &CompiledProjection) -> Vec<String> {
+    projection
+        .instance_by_occurrence
+        .iter()
+        .map(|(id, instance)| {
+            let label = projection
+                .labels
+                .get(instance)
+                .cloned()
+                .unwrap_or_else(|| id.clone());
+            format!("{label} · {id}")
+        })
+        .collect()
+}
+
+/// One hidden, role-less probe: the drawn label at the pressed weight, laid out
+/// on one line through `::after { content: attr(...) }` (`readings::CSS`).
+fn probe(label: &str) -> DesktopView {
+    Box::new(
+        el::<_, DesktopState, ()>("span", ())
+            .attr("class", "knot-recipe-measure")
+            .attr("aria-hidden", "true")
+            .attr(MEASURE_ATTR, label.to_owned()),
+    )
+}
+
+/// The frame hook's half of measurement. Reads the probes the previous layout
+/// placed, stores the card for their label set, and so removes them. Returns
+/// whether probes are still waiting for a layout: after [`MEASURE_ATTEMPTS`]
+/// frames without a usable rect it stops, leaving the scene hidden until the
+/// label set or the window size changes.
+pub(crate) fn measure_cards(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    if ctx.runner.state().composition.recipe.material.is_none() {
+        return false;
+    }
+    fn probes<D: LayoutDom>(dom: &D, node: D::NodeId, out: &mut Vec<(D::NodeId, String)>) {
+        if let Some(label) =
+            dom.attribute(node, &Namespace::from(""), &LocalName::from(MEASURE_ATTR))
+        {
+            out.push((node, label.to_owned()));
+        }
+        for child in dom.dom_children(node) {
+            probes(dom, child, out);
+        }
+    }
+    let found = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        let mut out = Vec::new();
+        probes(&*dom, ctx.runner.root(), &mut out);
+        out
+    };
+    if found.is_empty() {
+        return false;
+    }
+    let labels: Vec<String> = found.iter().map(|(_, label)| label.clone()).collect();
+    // The window's own size, not the zoomed layout size: a zoom is no resize.
+    let surface = (
+        ctx.logical_size.0 * ctx.ui_zoom,
+        ctx.logical_size.1 * ctx.ui_zoom,
+    );
+    let earlier = ctx
+        .runner
+        .state()
+        .composition
+        .recipe
+        .failed
+        .as_ref()
+        .filter(|failed| failed.labels == labels && failed.surface == surface)
+        .map_or(0, |failed| failed.frames);
+    if earlier >= MEASURE_ATTEMPTS {
+        return false;
+    }
+    // Only a finite, positive rect is a measurement. Anything else keeps the
+    // scene hidden and counts as a failed frame, so the compiler is never
+    // handed a size from a missing or degenerate probe.
+    let mut widest = (0.0f32, 0.0f32);
+    for (node, _) in &found {
+        let usable = |width: f32, height: f32| {
+            width.is_finite() && height.is_finite() && width > 0.0 && height > 0.0
+        };
+        let Some((_, _, width, height)) = ctx
+            .painted_rect(*node)
+            .filter(|&(_, _, width, height)| usable(width, height))
+        else {
+            let frames = earlier + 1;
+            if frames == MEASURE_ATTEMPTS {
+                eprintln!(
+                    "knot: recipe cards not measured after {frames} frames; the scene stays hidden until its labels or the window size change"
+                );
+            }
+            ctx.runner.update(|state| {
+                state.composition.recipe.failed = Some(FailedMeasure {
+                    labels,
+                    surface,
+                    frames,
+                });
+            });
+            return frames < MEASURE_ATTEMPTS;
+        };
+        widest = (widest.0.max(width), widest.1.max(height));
+    }
+    let measured = MeasuredCard {
+        labels,
+        card: card_for(widest.0, widest.1),
+    };
+    ctx.runner.update(|state| {
+        state.composition.recipe.measured = Some(measured);
+        state.composition.recipe.measurements += 1;
+        state.composition.recipe.failed = None;
+    });
+    false
 }
 
 fn finish_draft(
@@ -122,7 +295,8 @@ fn material(
             })
             .collect(),
     };
-    compile_relationship_snapshot(&material.snapshot, &material.dataset)
+    validation_compiler()
+        .compile_relationship_snapshot(&material.snapshot, &material.dataset)
         .map_err(|errors| format!("Recipe refused: {errors:?}"))?;
     Ok(material)
 }
@@ -156,7 +330,8 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
                 binding: material.snapshot.recipe.definition.sources["selection"].clone(),
             });
             material.snapshot.recipe = finish_draft(draft)?;
-            compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            validation_compiler()
+                .compile_relationship_snapshot(&material.snapshot, &material.dataset)
                 .map_err(|issues| format!("Rebinding refused: {issues:?}"))?;
         }
         Ok(material)
@@ -172,7 +347,8 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
 }
 
 pub(super) fn reopen(state: &mut DesktopState, material: ProjectionRecipeMaterial) {
-    match compile_relationship_snapshot(&material.snapshot, &material.dataset) {
+    match validation_compiler().compile_relationship_snapshot(&material.snapshot, &material.dataset)
+    {
         Ok(_) => {
             state.composition.recipe.material = Some(material);
             state.composition.section = 4;
@@ -196,7 +372,8 @@ fn edit(state: &mut DesktopState, spacing_delta: i32) {
         Ok(recipe) => {
             let mut candidate = material.snapshot.clone();
             candidate.recipe = recipe;
-            match compile_relationship_snapshot(&candidate, &material.dataset) {
+            match validation_compiler().compile_relationship_snapshot(&candidate, &material.dataset)
+            {
                 Ok(_) => {
                     material.snapshot = candidate;
                     state.composition.notice = Some(
@@ -229,53 +406,73 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
             ),
         ));
     };
-    let compiled = match compile_relationship_snapshot(&material.snapshot, &material.dataset) {
+    // Draw with the card measured for these labels. Until it exists the scene
+    // holds only the probes: hidden for the one frame a measurement takes.
+    let measured = state.composition.recipe.measured.as_ref();
+    let card = measured.map_or(VALIDATION_CARD, |measured| measured.card);
+    let compiled = match ProjectionCompiler::new(ItemSizes { card })
+        .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+    {
         Ok(compiled) => compiled,
         Err(issues) => return Box::new(span(format!("Recipe cannot be realized: {issues:?}"))),
     };
     let projection = &compiled.projection;
-    let occurrence_buttons: Vec<(String, DesktopView)> = projection
-        .instance_by_occurrence
-        .iter()
-        .map(|(id, instance)| {
-            let item = &projection.scene.items[instance.0 as usize];
-            let footprint = item.footprint.bounds().unwrap_or_default();
-            let label = projection
-                .labels
-                .get(instance)
-                .cloned()
-                .unwrap_or_else(|| id.clone());
-            let selected = material.snapshot.selected_occurrence.as_ref() == Some(id);
-            let target = id.clone();
-            (
-                id.clone(),
-                Box::new(
-                    button(
-                        format!("{label} · {id}"),
-                        move |state: &mut DesktopState, _| {
-                            if let Some(material) = state.composition.recipe.material.as_mut() {
-                                material.snapshot.selected_occurrence = Some(target.clone());
-                                material.snapshot.selected_relationship = None;
-                            }
-                        },
-                    )
-                    .attr("aria-pressed", selected.to_string())
-                    .attr(
-                        "style",
-                        format!(
-                            "position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;",
-                            item.transform.translate.x + footprint.origin.x
-                                - projection.scene.bounds.origin.x,
-                            item.transform.translate.y + footprint.origin.y
-                                - projection.scene.bounds.origin.y,
-                            footprint.size.w,
-                            footprint.size.h
+    let labels = drawn_labels(projection);
+    let measuring = measured.is_none_or(|measured| measured.labels != labels);
+    let probes: Vec<(String, DesktopView)> = if measuring {
+        labels
+            .iter()
+            .map(|label| (label.clone(), probe(label)))
+            .collect()
+    } else {
+        Vec::new()
+    };
+    let occurrence_buttons: Vec<(String, DesktopView)> = if measuring {
+        Vec::new()
+    } else {
+        projection
+            .instance_by_occurrence
+            .iter()
+            .map(|(id, instance)| {
+                let item = &projection.scene.items[instance.0 as usize];
+                let footprint = item.footprint.bounds().unwrap_or_default();
+                let label = projection
+                    .labels
+                    .get(instance)
+                    .cloned()
+                    .unwrap_or_else(|| id.clone());
+                let selected = material.snapshot.selected_occurrence.as_ref() == Some(id);
+                let target = id.clone();
+                (
+                    id.clone(),
+                    Box::new(
+                        button(
+                            format!("{label} · {id}"),
+                            move |state: &mut DesktopState, _| {
+                                if let Some(material) = state.composition.recipe.material.as_mut() {
+                                    material.snapshot.selected_occurrence = Some(target.clone());
+                                    material.snapshot.selected_relationship = None;
+                                }
+                            },
+                        )
+                        .attr("aria-pressed", selected.to_string())
+                        .attr(
+                            "style",
+                            format!(
+                                "position:absolute;left:{}px;top:{}px;width:{}px;height:{}px;",
+                                item.transform.translate.x + footprint.origin.x
+                                    - projection.scene.bounds.origin.x,
+                                item.transform.translate.y + footprint.origin.y
+                                    - projection.scene.bounds.origin.y,
+                                footprint.size.w,
+                                footprint.size.h
+                            ),
                         ),
-                    ),
-                ) as DesktopView,
-            )
-        })
-        .collect();
+                    ) as DesktopView,
+                )
+            })
+            .collect()
+    };
     let relations: Vec<(String, DesktopView)> = compiled
         .relationships
         .iter()
@@ -360,11 +557,13 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
             ),
             el(
                 "div",
-                el("div", Keyed::new(occurrence_buttons)).attr(
+                el("div", (Keyed::new(occurrence_buttons), Keyed::new(probes))).attr(
                     "style",
                     format!(
                         "position:relative;height:{}px;width:{}px;",
-                        projection.scene.bounds.size.h.max(90.0),
+                        // Exactly the cards' height (Mere burn plan 13.46, "Fit
+                        // the scene's bounds"); a compiled recipe has two or more.
+                        projection.scene.bounds.size.h,
                         projection.scene.bounds.size.w.max(180.0)
                     ),
                 ),
@@ -579,8 +778,9 @@ mod tests {
             },
         )
         .unwrap();
-        let compiled =
-            compile_relationship_snapshot(&material.snapshot, &material.dataset).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
         assert_eq!(compiled.projection.instance_by_occurrence.len(), 3);
         assert_eq!(
             material.dataset.dataset.occurrences[0].source,
@@ -591,7 +791,11 @@ mod tests {
             material.dataset.dataset.occurrences[1].occurrence_id
         );
         material.dataset.facets.remove("explained_relationships");
-        assert!(compile_relationship_snapshot(&material.snapshot, &material.dataset).is_err());
+        assert!(
+            validation_compiler()
+                .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+                .is_err()
+        );
     }
 
     #[test]
@@ -624,8 +828,9 @@ mod tests {
         reopened.validate().unwrap();
         let reopened = reopened.projection_recipe.unwrap();
         assert_eq!(reopened, material);
-        let compiled =
-            compile_relationship_snapshot(&reopened.snapshot, &reopened.dataset).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&reopened.snapshot, &reopened.dataset)
+            .unwrap();
         assert_eq!(
             compiled
                 .projection
@@ -714,7 +919,9 @@ mod tests {
         let edited_recipe = finish_draft(edited).unwrap();
         let mut knot_snapshot = knot.snapshot.clone();
         knot_snapshot.recipe = edited_recipe.clone();
-        compile_relationship_snapshot(&knot_snapshot, &knot.dataset).unwrap();
+        validation_compiler()
+            .compile_relationship_snapshot(&knot_snapshot, &knot.dataset)
+            .unwrap();
 
         // Retain the same authored recipe, roles and edits; only bind its
         // declared input to the music owner's disclosed source and revision.
@@ -733,7 +940,9 @@ mod tests {
             selected_occurrence: Some("set:1:card:2".into()),
             selected_relationship: None,
         };
-        let compiled = compile_relationship_snapshot(&snapshot, &music).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&snapshot, &music)
+            .unwrap();
         assert_eq!(snapshot.recipe.definition.id, edited_recipe.definition.id);
         assert_eq!(
             snapshot.recipe.definition.label,
@@ -794,8 +1003,165 @@ mod tests {
         assert!(wrong_actions.validate().is_err());
         let mut unsupported = music.clone();
         unsupported.facets.remove("explained_relationships");
-        assert!(compile_relationship_snapshot(&snapshot, &unsupported).is_err());
+        assert!(
+            validation_compiler()
+                .compile_relationship_snapshot(&snapshot, &unsupported)
+                .is_err()
+        );
         assert_eq!(serde_json::to_vec(&knot).unwrap(), knot_before);
         assert_eq!(serde_json::to_vec(&music).unwrap(), music_before);
+    }
+
+    /// Control widths for `card_controls_view`: (label, card width).
+    static CONTROLS: std::sync::Mutex<Vec<(&'static str, f32)>> = std::sync::Mutex::new(Vec::new());
+
+    const CONTROL_LABELS: [&str; 4] = [
+        "Night · token-2-7",
+        "light · token-8-13",
+        "the estuary · token-64-75",
+        "A considerably longer occurrence label · token-120-161",
+    ];
+
+    fn card_controls_view(_: &DesktopState) -> DesktopView {
+        let probes: Vec<(String, DesktopView)> = CONTROL_LABELS
+            .iter()
+            .map(|label| (label.to_string(), probe(label)))
+            .collect();
+        let controls: Vec<(String, DesktopView)> = CONTROLS
+            .lock()
+            .unwrap()
+            .iter()
+            .enumerate()
+            .map(|(k, (label, width))| {
+                (
+                    k.to_string(),
+                    Box::new(
+                        el::<_, DesktopState, ()>("button", label.to_string())
+                            .attr("data-control", k.to_string())
+                            .attr("aria-pressed", "true")
+                            .attr(
+                                "style",
+                                format!(
+                                    "position:absolute;left:0;top:{}px;width:{width}px;",
+                                    k * 90
+                                ),
+                            ),
+                    ) as DesktopView,
+                )
+            })
+            .collect();
+        Box::new(
+            el(
+                "div",
+                el(
+                    "section",
+                    el("div", (Keyed::new(probes), Keyed::new(controls)))
+                        .attr("style", "position:relative;height:1600px;"),
+                )
+                .attr("class", "knot-composition"),
+            )
+            .attr("class", "knot-workspace knot-theme-light"),
+        )
+    }
+
+    #[test]
+    fn a_measured_card_holds_its_label_on_one_line_and_a_narrower_one_wraps() {
+        use cambium_genet_winit_host::{Harness, Init, WindowCommands, inert_hooks};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.djot");
+        std::fs::write(&path, "# Note\n").unwrap();
+        let state = DesktopState::with_path(
+            knot_document::KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+            Some(path.clone()),
+        );
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: card_controls_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: crate::fonts::bundled_fonts(),
+                images: Vec::new(),
+            },
+            inert_hooks(),
+        );
+        host.layout_at(1100.0, 900.0);
+        let nodes =
+            |host: &Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+             attr: &str| {
+                host.with_dom(|dom| {
+                    fn walk(
+                        dom: &genet_scripted_dom::ScriptedDom,
+                        node: genet_scripted_dom::NodeId,
+                        attr: &LocalName,
+                        out: &mut Vec<(genet_scripted_dom::NodeId, String)>,
+                    ) {
+                        if let Some(value) = dom.attribute(node, &Namespace::from(""), attr) {
+                            out.push((node, value.to_owned()));
+                        }
+                        for child in dom.dom_children(node) {
+                            walk(dom, child, attr, out);
+                        }
+                    }
+                    let mut out = Vec::new();
+                    walk(dom, dom.document(), &LocalName::from(attr), &mut out);
+                    out
+                })
+            };
+        let cards: Vec<(&'static str, Size2)> = nodes(&host, MEASURE_ATTR)
+            .into_iter()
+            .map(|(node, label)| {
+                let (_, _, width, height) = host.painted_rect(node).expect("a probe is laid out");
+                assert!(
+                    width > 0.0 && height > 0.0,
+                    "{label} measures through generated content"
+                );
+                let label = CONTROL_LABELS
+                    .iter()
+                    .find(|known| **known == label)
+                    .unwrap();
+                (*label, card_for(width, height))
+            })
+            .collect();
+        assert_eq!(cards.len(), CONTROL_LABELS.len());
+        // Each card at the measured width (+1px), at the rounded probe width
+        // (exact) and a pixel under that (-1px), height left to the label.
+        {
+            let mut controls = CONTROLS.lock().unwrap();
+            for (label, card) in &cards {
+                controls.push((label, card.w));
+                controls.push((label, card.w - CARD_ROUNDING));
+                controls.push((label, card.w - CARD_ROUNDING - 1.0));
+            }
+        }
+        host.update(|_| {});
+        let drawn = nodes(&host, "data-control");
+        let height = |k: usize| {
+            let node = drawn
+                .iter()
+                .find(|(_, value)| *value == k.to_string())
+                .unwrap()
+                .0;
+            host.painted_rect(node).unwrap().3
+        };
+        let mut exact_fits = 0;
+        for (i, (label, card)) in cards.iter().enumerate() {
+            assert_eq!(
+                height(i * 3),
+                card.h,
+                "{label}: the measured card holds one line"
+            );
+            if height(i * 3 + 1) == card.h {
+                exact_fits += 1;
+            }
+            assert!(
+                height(i * 3 + 2) > card.h,
+                "{label}: a pixel under the probe wraps"
+            );
+        }
+        println!(
+            "cards {cards:?}; the rounded probe width alone fits {exact_fits} of {}",
+            cards.len()
+        );
     }
 }

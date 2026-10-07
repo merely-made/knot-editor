@@ -390,6 +390,51 @@ fn edit(state: &mut DesktopState, spacing_delta: i32) {
     }
 }
 
+/// An authored lens over copied disclosure, never an analysis/provider request.
+/// Compile a candidate before replacing the current reading so a refused edit
+/// cannot damage its selection, provenance or exact source actions.
+fn relationship_category(
+    material: &mut ProjectionRecipeMaterial,
+    kind: Option<String>,
+) -> Result<(), String> {
+    if material.snapshot.recipe.relationship_kind == kind {
+        return Ok(());
+    }
+    let mut draft = RelationshipRecipeDraft::new(material.snapshot.recipe.clone());
+    draft.apply(RecipeEdit::SetRelationshipKind(kind));
+    let mut candidate = material.snapshot.clone();
+    candidate.recipe = finish_draft(draft)?;
+    // Keep the explanation when it remains visible. Occurrence selection and
+    // every source anchor remain unchanged, even when its edge is filtered out.
+    if candidate.selected_relationship.as_ref().is_some_and(|id| {
+        !material.dataset.relationships.iter().any(|relation| {
+            &relation.id == id
+                && candidate
+                    .recipe
+                    .relationship_kind
+                    .as_ref()
+                    .is_none_or(|kind| kind == &relation.kind)
+        })
+    }) {
+        candidate.selected_relationship = None;
+    }
+    validation_compiler()
+        .compile_relationship_snapshot(&candidate, &material.dataset)
+        .map_err(|issues| format!("Relationship category refused: {issues:?}"))?;
+    material.snapshot = candidate;
+    Ok(())
+}
+
+fn select_category(state: &mut DesktopState, kind: Option<String>) {
+    let Some(material) = state.composition.recipe.material.as_mut() else {
+        return;
+    };
+    state.composition.notice = Some(match relationship_category(material, kind) {
+        Ok(()) => "Relationship category compiled from copied disclosure; retain deliberately to save this version.".into(),
+        Err(error) => error,
+    });
+}
+
 pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> DesktopView {
     let Some(material) = state.composition.recipe.material.as_ref() else {
         return Box::new(el(
@@ -417,6 +462,30 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
         Err(issues) => return Box::new(span(format!("Recipe cannot be realized: {issues:?}"))),
     };
     let projection = &compiled.projection;
+    let categories: Vec<(String, DesktopView)> = material
+        .dataset
+        .relationships
+        .iter()
+        .map(|relation| relation.kind.clone())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .map(|kind| {
+            let selected = material.snapshot.recipe.relationship_kind.as_ref() == Some(&kind);
+            let target = kind.clone();
+            (
+                kind.clone(),
+                Box::new(
+                    button(
+                        format!("Relationship category: {kind}"),
+                        move |state: &mut DesktopState, _| {
+                            select_category(state, Some(target.clone()))
+                        },
+                    )
+                    .attr("aria-pressed", selected.to_string()),
+                ) as DesktopView,
+            )
+        })
+        .collect();
     let labels = drawn_labels(projection);
     let measuring = measured.is_none_or(|measured| measured.labels != labels);
     let probes: Vec<(String, DesktopView)> = if measuring {
@@ -553,6 +622,28 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                     button("Decrease recipe spacing", |state: &mut DesktopState, _| {
                         edit(state, -8)
                     }),
+                ),
+            ),
+            el(
+                "div",
+                (
+                    span(
+                        "Relationship categories filter this copied reading; they do not enable new analysis sources.",
+                    ),
+                    button(
+                        "Show all disclosed relationship categories",
+                        |state: &mut DesktopState, _| select_category(state, None),
+                    )
+                    .attr(
+                        "aria-pressed",
+                        material
+                            .snapshot
+                            .recipe
+                            .relationship_kind
+                            .is_none()
+                            .to_string(),
+                    ),
+                    Keyed::new(categories),
                 ),
             ),
             el(
@@ -715,6 +806,122 @@ mod tests {
         )
         .unwrap();
         (source, reading)
+    }
+
+    #[test]
+    fn category_edit_filters_disclosure_and_roundtrips_without_changing_sources() {
+        let (source, _) = fixture();
+        let layers = SoundLayers {
+            perfect_rhyme: true,
+            assonance: true,
+            ..Default::default()
+        };
+        let reading = sound::analyze(
+            &source.text,
+            0..source.text.len(),
+            &BTreeMap::new(),
+            &layers,
+        )
+        .unwrap();
+        let mut material = material(&source, &reading, &layers).unwrap();
+        let original_dataset = material.dataset.clone();
+        let original_anchors = material.anchors.clone();
+        material.snapshot.selected_occurrence = Some("token-6-11".into());
+        let selected_edge = material
+            .dataset
+            .relationships
+            .iter()
+            .find(|relation| relation.kind == "sound.perfect_rhyme")
+            .unwrap()
+            .id
+            .clone();
+        material.snapshot.selected_relationship = Some(selected_edge.clone());
+        let original_recipe_revision = material
+            .snapshot
+            .recipe
+            .definition
+            .provenance
+            .source_revision
+            .clone();
+        relationship_category(&mut material, Some("sound.perfect_rhyme".into())).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        assert!(!compiled.relationships.is_empty());
+        assert!(
+            compiled
+                .relationships
+                .iter()
+                .all(|relation| relation.disclosure.kind == "sound.perfect_rhyme")
+        );
+        assert!(compiled.relationships.len() < original_dataset.relationships.len());
+        assert_eq!(
+            material.snapshot.selected_occurrence.as_deref(),
+            Some("token-6-11")
+        );
+        assert_eq!(
+            material.snapshot.selected_relationship.as_ref(),
+            Some(&selected_edge)
+        );
+        assert_ne!(
+            material
+                .snapshot
+                .recipe
+                .definition
+                .provenance
+                .source_revision,
+            original_recipe_revision
+        );
+        assert_eq!(material.dataset, original_dataset);
+        assert_eq!(material.anchors, original_anchors);
+        let restored: ProjectionRecipeMaterial =
+            serde_json::from_slice(&serde_json::to_vec(&material).unwrap()).unwrap();
+        restored.validate().unwrap();
+        assert_eq!(
+            restored.snapshot.recipe.relationship_kind.as_deref(),
+            Some("sound.perfect_rhyme")
+        );
+        relationship_category(&mut material, None).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        assert_eq!(
+            compiled.relationships.len(),
+            original_dataset.relationships.len()
+        );
+        assert_eq!(
+            material.snapshot.selected_relationship.as_ref(),
+            Some(&selected_edge)
+        );
+        relationship_category(&mut material, Some("sound.assonance".into())).unwrap();
+        assert!(material.snapshot.selected_relationship.is_none());
+    }
+
+    #[test]
+    fn undisclosed_category_refuses_atomically() {
+        let (source, reading) = fixture();
+        let mut material = material(
+            &source,
+            &reading,
+            &SoundLayers {
+                perfect_rhyme: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        material.snapshot.selected_relationship =
+            Some(material.dataset.relationships[0].id.clone());
+        let before = serde_json::to_vec(&material).unwrap();
+        assert!(
+            relationship_category(&mut material, Some("invented.relationship".into())).is_err()
+        );
+        assert_eq!(serde_json::to_vec(&material).unwrap(), before);
+        relationship_category(&mut material, None).unwrap();
+        assert_eq!(
+            serde_json::to_vec(&material).unwrap(),
+            before,
+            "reselecting the current category keeps its explanation"
+        );
     }
 
     #[test]

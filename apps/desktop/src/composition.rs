@@ -2633,6 +2633,10 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("night · token-6-11")));
         host.after_dispatch();
         assert!(rendered_text(&host).contains("bytes 6–11"));
+        assert!(host.click_on(
+            &Selector::role("button").containing("Relationship category: sound.perfect_rhyme")
+        ));
+        host.after_dispatch();
         assert!(host.click_on(&Selector::role("button").containing("Retain relationship recipe")));
         host.after_dispatch();
         host.update(settle_collection);
@@ -2646,6 +2650,10 @@ mod tests {
             Some("token-6-11")
         );
         assert_eq!(saved.snapshot.recipe.definition.arrangement.spacing, 24);
+        assert_eq!(
+            saved.snapshot.recipe.relationship_kind.as_deref(),
+            Some("sound.perfect_rhyme")
+        );
         host.update(|state| {
             state.composition.recipe.material = None;
             state.composition.section = 2;

@@ -81,3 +81,20 @@ edited metadata, stale revision and authority refusal; the scenario's unchanged
 details save alone does not prove typing into every field.
 The `_compact` and `_compact_reopen` variants use the compact View menu at 420px;
 the wide scenarios' direct Readings toolbar button is not a compact selector.
+
+`relationship_scene.scn` and `relationship_scene_compact.scn` launch the same
+selection fixture and exercise the opt-in static shared canvas, explicit
+foreground/background roles, camera controls, and unchanged original-source
+navigation. The windowless regression runs wide, 420px compact, and 400% zoom
+streams. These scenarios do not attach retention authority; encrypted save and
+fresh-process reopen require the marked `collection_acceptance` fixture and a
+separate native receipt. Static graph drag is deliberately ignored; it is not
+an advertised move or pin operation.
+
+The `_retained` and `_retained_compact` scene variants use the marked
+`collection_acceptance` fixture, promote light and demote Night, hide the
+background, author pan 0.10/0.00 and zoom 1.25, and explicitly retain. Their
+wide and compact `_reopen` counterparts assert those values in a separate
+process before revealing the background and using Fit. Canvas clicks are
+interactive: a click over a relationship can select its explanation. They are
+not equivalent to the non-interactive paragraph reveal clicks described above.

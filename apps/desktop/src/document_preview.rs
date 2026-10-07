@@ -290,6 +290,7 @@ fn blocks(
                     summary,
                     article_url,
                     source_url,
+                    ..
                 } => Box::new(el(
                     "article",
                     (
@@ -317,6 +318,10 @@ fn blocks(
                         .collect::<Vec<_>>();
                     Box::new(el("table", (head, el("tbody", Keyed::new(body)))))
                 },
+                other => Box::new(el(
+                    "p",
+                    format!("Unsupported preview block: {}", other.kind_name()),
+                )),
             };
             (index, view)
         })

@@ -1366,6 +1366,13 @@ restoration, or a universal dashboard to ship the safe writing cut.
   while Knot keeps product identity and authority. Relevant code is
   `mere/crates/cambium/cambium/src/workspace.rs` and
   `mere/crates/cambium/workbench/lib.rs` and `float.rs`.
+- 2026-10-06: the repin past Mere `b4f14f2c` came with Mere's vault lock seed
+  fix (every Mere row to `ea74604b`, vault lock rulings 49 and 55), so the
+  change Mere stack seams ruling S77 assigns to this lane was made there:
+  `apps/desktop/src/document_preview.rs` now has a `..` in its
+  `Block::FeedEntry` pattern and a wildcard arm that shows
+  "Unsupported block: <kind>" by `Block::kind_name`. `Block::Menu` reaches
+  that arm. Drawing it as a menu, the fuller fix, is not done.
 
 ## Related material
 

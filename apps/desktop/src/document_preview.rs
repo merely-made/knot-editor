@@ -290,6 +290,7 @@ fn blocks(
                     summary,
                     article_url,
                     source_url,
+                    ..
                 } => Box::new(el(
                     "article",
                     (
@@ -317,6 +318,12 @@ fn blocks(
                         .collect::<Vec<_>>();
                     Box::new(el("table", (head, el("tbody", Keyed::new(body)))))
                 },
+                // Inker's blocks are non-exhaustive (Mere stack seams S77):
+                // name a kind this preview cannot draw rather than drop it.
+                other => Box::new(
+                    el("p", format!("Unsupported block: {}", other.kind_name()))
+                        .attr("class", "knot-preview-unsupported"),
+                ),
             };
             (index, view)
         })

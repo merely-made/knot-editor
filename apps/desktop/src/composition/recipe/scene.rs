@@ -16,7 +16,10 @@ use sprigging::{ColorF, GraphViewport};
 use std::collections::BTreeMap;
 
 const SCENE_LEAF_KEY: u64 = 0x4b4e_4f54_5343_454e;
-const SCENE_WIDTH: u32 = 280;
+// The compact drawer leaves about 232 logical pixels after its padding.
+// Keep the declared viewport inside it: CSS-clamping a wider shared canvas
+// would crop its node targets while camera projection still used that width.
+const SCENE_WIDTH: u32 = 220;
 const SCENE_HEIGHT: u32 = 200;
 const CAMERA_STEP: f32 = 0.1;
 

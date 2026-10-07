@@ -1,0 +1,11 @@
+{
+  "observed_utc": "2026-10-07T08:47:06.875549+00:00",
+  "published_commit": "0096591a0af98bf4777d8bfe718c0423dea9fc90",
+  "branch": "main",
+  "tracked_diff_empty": true,
+  "tracked_index_diff_empty": true,
+  "receipt_status": "?? docs/receipts/2026-10-07_current_family_repin/linux-compiler-priority-observation.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-family-witness.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-ff.stderr.log\n?? docs/receipts/2026-10-07_current_family_repin/linux-ff.stdout.log\n?? docs/receipts/2026-10-07_current_family_repin/linux-inputs.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-metadata-result.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-metadata-start.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-metadata.stderr.log\n?? docs/receipts/2026-10-07_current_family_repin/linux-metadata.stdout.log\n?? docs/receipts/2026-10-07_current_family_repin/linux-preflight.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-priority-observation.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-workspace-check-result.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-workspace-check-start.json\n?? docs/receipts/2026-10-07_current_family_repin/linux-workspace-check.stderr.log\n?? docs/receipts/2026-10-07_current_family_repin/linux-workspace-check.stdout.log",
+  "gate_subprocesses_finished": true,
+  "target_retained": "/home/markik/Code/target",
+  "native_apps_or_tests_launched": false
+}

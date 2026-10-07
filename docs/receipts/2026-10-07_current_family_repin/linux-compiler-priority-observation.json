@@ -1,0 +1,19 @@
+{
+  "observed_utc": "2026-10-07T08:39:32.575114+00:00",
+  "root_pid": 185209,
+  "owned_lineage": [
+    {
+      "pid": 185209,
+      "parent_pid": 185131,
+      "name": "cargo",
+      "nice": 10
+    },
+    {
+      "pid": 189452,
+      "parent_pid": 185209,
+      "name": "rustc",
+      "nice": 10
+    }
+  ],
+  "scope": "Read-only current Cargo-owned descendant observation; confirms compiler inherits nice10."
+}

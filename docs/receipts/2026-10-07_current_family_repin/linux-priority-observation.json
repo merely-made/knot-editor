@@ -1,0 +1,13 @@
+{
+  "observed_utc": "2026-10-07T08:37:10.287058+00:00",
+  "root_pid": 185209,
+  "owned_lineage": [
+    {
+      "pid": 185209,
+      "parent_pid": 185131,
+      "name": "cargo",
+      "nice": 10
+    }
+  ],
+  "limitation": "Start observation can race nice exec and was0; this read-only later observation verifies actual Cargo nice10 and its current descendants. No whole-duration scheduling claim."
+}

@@ -288,6 +288,7 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         click(&mut host, "Read selected sounds");
         click(&mut host, "Use sound relationship recipe");
         click(&mut host, "Increase recipe spacing");
+        click(&mut host, "Relationship category: sound.perfect_rhyme");
         click(&mut host, "night · token-6-11");
         assert!(panel_text(&host).contains("bytes 6–11"));
         click(&mut host, "Retain relationship recipe");
@@ -297,6 +298,10 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         assert_eq!(item.kind, knot_composition::ItemKind::ProjectionRecipe);
         let material = item.projection_recipe.as_ref().unwrap();
         assert_eq!(material.snapshot.recipe.definition.arrangement.spacing, 24);
+        assert_eq!(
+            material.snapshot.recipe.relationship_kind.as_deref(),
+            Some("sound.perfect_rhyme")
+        );
         assert_eq!(
             material.snapshot.selected_occurrence.as_deref(),
             Some("token-6-11")

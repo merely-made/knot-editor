@@ -26,6 +26,14 @@ click role:button Explain Perfect rhyme
 settle 4
 assert text Derived by Mora
 assert text Selected occurrence: Night
+click role:button Relationship category: sound.perfect_rhyme
+settle 4
+assert text Relationship category compiled from copied disclosure
+assert text Derived by Mora
+assert text Selected occurrence: Night
+click role:button Show all disclosed relationship categories
+settle 4
+assert text Derived by Mora
 capture relationship-recipe-v1-explained
 click role:button Open selected original source
 settle 4

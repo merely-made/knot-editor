@@ -1,0 +1,33 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 3 tests
+test recovery_runtime::tests::failed_write_is_reported_and_later_edit_can_retry ... ok
+test recovery_runtime::tests::queued_edits_cannot_resurrect_an_explicitly_cleared_id ... ok
+test recovery_runtime::tests::continuous_edits_flush_before_typing_stops ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 276 filtered out; finished in 2.46s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 149 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 9 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 0.00s
+

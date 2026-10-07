@@ -1,0 +1,16 @@
+{
+  "command": [
+    "C:\\t\\cargo-targets\\knot-editor\\debug\\deps\\knot_desktop-84d0239d5c44f1d6.exe",
+    "--exact",
+    "recovery_runtime::tests::failed_write_is_reported_and_later_edit_can_retry",
+    "--nocapture"
+  ],
+  "cwd": "C:\\Users\\mark_\\Code\\repos\\knot-editor",
+  "target": "C:/t/cargo-targets/knot-editor",
+  "priority": "BelowNormal",
+  "jobs": 1,
+  "pid": 35388,
+  "started_utc": "2026-10-07T19:10:48.342593+00:00",
+  "finished_utc": "2026-10-07T19:10:50.545121+00:00",
+  "exit_code": 0
+}

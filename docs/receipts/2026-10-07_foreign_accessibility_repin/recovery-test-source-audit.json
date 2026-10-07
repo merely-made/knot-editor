@@ -1,0 +1,18 @@
+{
+  "path": "apps/desktop/src/recovery_runtime.rs",
+  "before_raw_sha256": "fca70360a0fc097040c70925f557e7c98374b48b3cacfc186bd63c15d1d841f2",
+  "after_raw_sha256": "db8f811cb6f59d6d9aef9e92962b89d3250b254fddcd05e3daa03f0f2b98ce11",
+  "production_prefix_bytes": 11308,
+  "production_prefix_sha256": "363647d9ddba7632317032e093ebe12688053e366325f5968f6726398a4fc9bf",
+  "production_prefix_exact_raw_equal": true,
+  "test_only_exact_replacement": true,
+  "runtime_policy_unchanged": true,
+  "original_frozen_inputs_verified_before_edit": 208,
+  "original_aggregate": {
+    "passed": 589,
+    "failed": 1,
+    "ignored": 3,
+    "executable_count": 42
+  },
+  "same_linked_binary_control_exit": 0
+}

@@ -13,3 +13,5 @@ crates/knot-composition/assets/oewn-notices.txt text eol=lf
 docs/receipts/2026-10-07_current_family_repin/*.txt -text -whitespace
 docs/receipts/2026-10-07_current_family_repin/candidate.gitattributes -text -whitespace
 docs/receipts/2026-10-07_current_family_repin/*.zip -text -whitespace
+
+docs/receipts/2026-10-07_foreign_accessibility_repin/* -text -whitespace

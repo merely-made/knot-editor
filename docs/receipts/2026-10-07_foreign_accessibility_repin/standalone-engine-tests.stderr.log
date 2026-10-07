@@ -1,0 +1,35 @@
+warning: patch `ipc-channel v0.22.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)` was not used in the crate graph
+warning: patch `genet-taffy v0.14.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling errand v0.4.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-document v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-document)
+warning: usage of an `unsafe` block
+   --> src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+warning: `knot-document` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 10s
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_document-38d9bf28e11cf231.exe)
+   Doc-tests knot_document

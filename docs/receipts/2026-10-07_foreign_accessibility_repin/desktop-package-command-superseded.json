@@ -1,0 +1,22 @@
+{
+  "status": "superseded",
+  "command": [
+    "cargo",
+    "+1.98.1",
+    "test",
+    "-p",
+    "knot-desktop",
+    "--lib",
+    "--locked",
+    "-j1"
+  ],
+  "owned_cargo_pid": 9660,
+  "stop_method": "normal exec session30135 Ctrl-C",
+  "tool_session_exit": 1,
+  "cargo_exit_code": null,
+  "stop_utc": "2026-10-07T19:27:29.915101+00:00",
+  "not_a_failed_code_gate": true,
+  "reason": "restore original workspace feature unification to avoid package-only dependency rebuild",
+  "remaining_source_target_owners": [],
+  "observer_limitations": 0
+}

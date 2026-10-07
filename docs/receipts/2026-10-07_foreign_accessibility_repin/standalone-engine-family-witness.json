@@ -1,0 +1,19 @@
+{
+  "selected_sources": {
+    "mere": [
+      "git+https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c755e082b5119c2485762fd28f4226d8fb"
+    ],
+    "genet": [
+      "git+https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e206a47d1c8808472de9aa461233638768"
+    ]
+  },
+  "wgpu": [],
+  "accesskit": [
+    {
+      "version": "0.24.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    }
+  ],
+  "metadata_sha256": "8577d1f8a610d2e9153127c41685a59d4872b470487ee593dfe3858c519687b0",
+  "package_count": 217
+}

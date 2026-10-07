@@ -1,0 +1,23 @@
+{
+  "command": [
+    "cargo",
+    "+1.98.1",
+    "metadata",
+    "--manifest-path",
+    "crates/knot-document/Cargo.toml",
+    "--features",
+    "engine",
+    "--locked",
+    "--offline",
+    "--format-version",
+    "1"
+  ],
+  "cwd": "C:\\Users\\mark_\\Code\\repos\\knot-editor",
+  "target": "C:/t/cargo-targets/knot-editor",
+  "priority": "BelowNormal",
+  "jobs": 1,
+  "pid": 54040,
+  "started_utc": "2026-10-07T19:21:11.177065+00:00",
+  "finished_utc": "2026-10-07T19:21:17.234044+00:00",
+  "exit_code": 0
+}

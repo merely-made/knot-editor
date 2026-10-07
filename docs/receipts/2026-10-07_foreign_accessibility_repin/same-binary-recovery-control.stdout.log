@@ -1,0 +1,6 @@
+
+running 1 test
+test recovery_runtime::tests::failed_write_is_reported_and_later_edit_can_retry ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 278 filtered out; finished in 0.89s
+

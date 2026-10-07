@@ -1,0 +1,37 @@
+{
+  "base": "2967972ce2953fa15c5e44ac0977c3114e1df67d",
+  "old_mere": "57b4893db6909d5ed9c4ccae30216f0d8164201a",
+  "new_mere": "f1d169c755e082b5119c2485762fd28f4226d8fb",
+  "genet": "965b64e206a47d1c8808472de9aa461233638768",
+  "manifests": [
+    {
+      "path": "Cargo.toml",
+      "rows": 35,
+      "before_git_sha256": "754f5c078fd5fdaa33011ed8baac5d99524f456f755decf6d275348e5361e75e",
+      "after_raw_sha256": "4c7e6edd59a96342aa5736237aae3bcacb949429f72d8e6eeb1c37dde81e6893"
+    },
+    {
+      "path": "apps/desktop/Cargo.toml",
+      "rows": 2,
+      "before_git_sha256": "22e5f6921d240114fb91cd8258f0b1746c04b40a07b3ca0498c16a71149b226b",
+      "after_raw_sha256": "fbaa552860ad0ba8012402147cf65758c72a14594f87582f2fc864041351e7d1"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "rows": 6,
+      "before_git_sha256": "8bf30973e65728a17b3f0541b74ff2712ccc590391771e61949a935b7f0ca333",
+      "after_raw_sha256": "9475b4d326f7355afba716aa08924982fff8e539d302fd146c2fdab357f44e9d"
+    }
+  ],
+  "locks": [
+    {
+      "path": "Cargo.lock",
+      "changed_source_tokens": 124
+    },
+    {
+      "path": "crates/knot-document/Cargo.lock",
+      "changed_source_tokens": 24
+    }
+  ],
+  "historical_receipts_restored_exact_git_bytes": true
+}

@@ -172,8 +172,73 @@ Cross-platform acceptance must distinguish the portable retained contract from
 host rendering, accessibility and compute backends. CPU/static fallbacks and
 explicit opt-in provider/model/resource choices are required design targets;
 Connecting Burn/embedding providers to this contextual background is not claimed
-as landed. The next bounded slices remain approachable owner/persona attachment
-and selectable source-analysis overlays, then contextual scene/dynamics reuse.
+as landed. The October 7 direction prioritizes shared scene adoption: refresh
+the stack, qualify a coherent repin, and connect projection editing, dynamics
+and foreground/background strata. Owner/persona attachment remains separate
+work, not a prerequisite for testing scenes with disposable authority.
+
+### Shared scene adoption continuation (2026-10-07)
+
+Woodshed already has contextual musical backgrounds and shared graph swatches;
+the missing work is adoption of the newer interaction/runtime contracts, not
+inventing all background behavior. Knot's relationship view currently realizes
+compiled positions as measured native controls. A dependency update alone does
+not turn either host into the full Graphshell workbench.
+
+The implementation boundary is the portable Sceno/Scenograph/Scenomise/
+Scenotime contracts and reusable Cambium components, not copied Graphshell web
+product code. Hosts retain domain facts, exact source actions and their own
+Mere stores. Foreground/background strata are authored presentation roles;
+they must not become new ownership, collection membership or source claims.
+
+The first bounded editor continuation uses shared
+`RecipeEdit::SetRelationshipKind`: choose all disclosed relationships or one
+disclosed category, compile the candidate, then install only a successful edit.
+Changing categories keeps a selected explanation if it remains visible, and
+clears it only if excluded. Occurrence selection, source anchors and the entire
+copied disclosure remain unchanged. The authored recipe
+gets a new content revision; explicit retention saves a new version through the
+existing encrypted capability. No new provider, inference or script is enabled.
+An undisclosed category refuses without changing the previous reading.
+
+At inspected Mere main `d041cc69b`, the portable `DynamicsSpec` is still not in
+source. Existing per-item placement roles, transitions and live Seiche physics
+are useful primitives, but are not a completed portable dynamics recipe/editor.
+The subsequent integration target is an editable scene with configurable
+foreground/background categories and supported motion under one binding,
+including camera navigation, static/reduced-motion presentation, keyboard
+actions and host-owned save/reopen. No native scene, screen-reader or full
+dynamics acceptance is implied by the category-editor continuation.
+
+#### Current-stack and category qualification
+
+Runtime `81f0039b482e5dff651e241e475b00b74285015d`, dependency alignment
+`493cccc`: all tracked Mere declarations use
+`d041cc69b588b6f1dadd22308c2bc4059496cabd`. Genet stays at
+`d851a9db0cd1ff7837768250f21e9dff63455940`, the revision declared by that Mere
+tree; the independently newer Genet head is not mixed into this source graph.
+Burn 0.22.0 and CubeCL 0.11.0 remain unchanged. The preview accepts the newer
+non-exhaustive Block contract with an explicit unsupported-kind fallback.
+
+`TMPDIR=/tmp cargo test --workspace --all-targets --locked --offline` passes
+**581 tests, 0 failures, 2 existing ignored**, across 42 test executables.
+This includes category filtering/no-op/refusal, source/selection preservation,
+real desktop control retention, the real encrypted-worker/store reopen,
+the updated relationship scenario and existing compact/high-zoom regressions.
+Locked metadata resolves from outside the repository config search path;
+the standalone document manifest also resolves. The ordinary locked/offline
+desktop binary builds. Focused file formatting and whitespace checks pass;
+the existing unused p2panda-stream patch and directory variable warnings remain.
+
+Evidence root:
+`/Users/markik/Code/testing/knot-editor/scene-adoption-20261007.rZcfdR/`,
+with `workspace-tests.log`, `desktop-build.log` and `metadata.json`.
+Desktop binary SHA-256:
+`c0cea602b72a4a4b78b807364db00098e33c47175ae11a09b52e5ddd19fffcf1`.
+An earlier integration attempt used two lingering desktop Mere pins and failed
+on duplicate tinct/apparatus types; the recorded passing gate uses the final
+uniform graph. No new native capture review, human screen-reader test, personal
+wallet onboarding, other-platform run or release packaging is claimed.
 
 ## Qualification
 

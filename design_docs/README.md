@@ -5,7 +5,7 @@ to an independently consumable repository.
 
 Current authority:
 
-- [Composition retention in Knot's mere](2026-09-30_composition_mere_retention.md): supersedes the plaintext collection prototype; explicit owner attachment, signed sealed retention, and non-destructive legacy import. Adds separate authored organization, reversible archive and search; organization native qualification is recorded separately below. Shared relationship recipes adopt Mere's horizontal-reveal fix with eight reviewed compact/high-zoom captures. Follow-on contextual backgrounds reuse projection/dynamics vocabulary without changing owner authority. Personal-wallet native retention remains a separate gate.
+- [Composition retention in Knot's mere](2026-09-30_composition_mere_retention.md): supersedes the plaintext collection prototype; explicit owner attachment, signed sealed retention, and non-destructive legacy import. Adds separate authored organization, reversible archive and search; organization native qualification is recorded separately below. Shared relationship recipes adopt Mere's horizontal-reveal fix with eight reviewed compact/high-zoom captures. October 7 prioritizes current-stack scene adoption and adds authored relationship-category controls over copied disclosure; full foreground/background and portable dynamics editing remain subsequent work. Personal-wallet native retention remains a separate gate.
 
 - [Composition readings](2026-09-30_knot_composition_readings.md): opt-in lexical source registry, Mora sound layers, durable collected material, offline WordNet conversion and the backend-neutral reading seam; implementation and acceptance limits are explicit.
 

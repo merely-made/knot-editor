@@ -672,7 +672,7 @@ where
     /// Seal, sign, admit, and store the next event in this device's log.
     pub async fn author(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         vault: &KnotVault,
         event: &KnotSyncEvent,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
@@ -683,7 +683,7 @@ where
     /// [`Self::author`] with an explicit author-asserted time.
     pub async fn author_at(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         vault: &KnotVault,
         event: &KnotSyncEvent,
         asserted_at: KnotAssertedTime,
@@ -699,7 +699,7 @@ where
 
     pub async fn author_communal(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         keys: &DataKeyring,
         event: &KnotSyncEvent,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
@@ -709,7 +709,7 @@ where
 
     pub async fn author_communal_at(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         keys: &DataKeyring,
         event: &KnotSyncEvent,
         asserted_at: KnotAssertedTime,
@@ -725,7 +725,7 @@ where
 
     pub async fn author_with_cipher(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         event: &KnotSyncEvent,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
@@ -735,7 +735,7 @@ where
 
     pub async fn author_with_cipher_at(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         event: &KnotSyncEvent,
         asserted_at: KnotAssertedTime,
@@ -747,13 +747,13 @@ where
 
     async fn author_under_gate(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         event: &KnotSyncEvent,
         asserted_at: KnotAssertedTime,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
         self.require_cipher(cipher)?;
-        let signing_key = SigningKey::from_bytes(&signing_seed);
+        let signing_key = SigningKey::from_bytes(signing_seed);
         let author = signing_key.verifying_key();
         let records = self.load_operations().await?;
         let entries = causal_entries(&records);
@@ -809,7 +809,7 @@ where
 
     pub async fn resolve_conflict(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         vault: &KnotVault,
         conflict: &KnotDocumentConflict,
         document: Option<VaultDocument>,
@@ -825,7 +825,7 @@ where
 
     pub async fn resolve_communal_conflict(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         keys: &DataKeyring,
         conflict: &KnotDocumentConflict,
         document: Option<VaultDocument>,
@@ -841,7 +841,7 @@ where
 
     pub async fn resolve_conflict_with_cipher(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         conflict: &KnotDocumentConflict,
         document: Option<VaultDocument>,
@@ -1287,14 +1287,15 @@ where
     /// the revision was already present for this writer.
     pub(crate) async fn retain_file_revision_with_cipher(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         revision: &KnotFileRevisionV1,
     ) -> Result<([u8; 32], bool), KnotSyncError> {
         let _gate = self.mutation_gate.lock().await;
         self.require_cipher(cipher)?;
-        let signing_key = SigningKey::from_bytes(&signing_seed);
-        let writer = *signing_key.verifying_key().as_bytes();
+        let writer = *SigningKey::from_bytes(signing_seed)
+            .verifying_key()
+            .as_bytes();
         self.require_admitted_writer(writer)?;
         if let Some(operation) = self
             .find_file_revision_with_cipher(cipher, writer, revision)
@@ -1436,7 +1437,7 @@ where
 
     pub(crate) async fn organize_composition_with_cipher(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         change: &knot_composition::retention::OrganizeComposition,
         max_items: usize,
@@ -1445,7 +1446,7 @@ where
         let _gate = self.mutation_gate.lock().await;
         self.require_cipher(cipher)?;
         self.require_admitted_writer(
-            *SigningKey::from_bytes(&signing_seed)
+            *SigningKey::from_bytes(signing_seed)
                 .verifying_key()
                 .as_bytes(),
         )?;
@@ -1489,7 +1490,7 @@ where
 
     pub(crate) async fn retain_composition_with_cipher(
         &self,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
         item: &knot_composition::CollectionItem,
         max_items: usize,
@@ -1497,7 +1498,7 @@ where
     ) -> Result<([u8; 32], bool), KnotSyncError> {
         let _gate = self.mutation_gate.lock().await;
         self.require_cipher(cipher)?;
-        let writer = *SigningKey::from_bytes(&signing_seed)
+        let writer = *SigningKey::from_bytes(signing_seed)
             .verifying_key()
             .as_bytes();
         self.require_admitted_writer(writer)?;
@@ -2943,7 +2944,7 @@ mod tests {
         let store = KnotSyncStore::in_memory(SPACE, [writer]);
         store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("closed", "trusted")),
             )
@@ -2975,7 +2976,7 @@ mod tests {
         let store = KnotSyncStore::in_memory(SPACE, [alice.master_public_key().to_bytes()]);
         let essay = "# Essay\nα holds throughout.\n";
         let essay_op = store
-            .author(seed, &vault, &KnotSyncEvent::Put(doc("essay", essay)))
+            .author(&seed, &vault, &KnotSyncEvent::Put(doc("essay", essay)))
             .await
             .unwrap();
         let captured = captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α holds");
@@ -2987,7 +2988,7 @@ mod tests {
             qualification: None,
         };
         assert!(matches!(
-            store.author(seed, &vault, &event).await,
+            store.author(&seed, &vault, &event).await,
             Err(KnotSyncError::InvalidRelation(_))
         ));
         let remote = author_unchecked(&store, seed, &vault, &event).await;
@@ -3012,7 +3013,7 @@ mod tests {
         let store = KnotSyncStore::in_memory(SPACE, [alice.master_public_key().to_bytes()]);
         let essay = "# Essay\nα holds throughout.\n";
         let essay_op = store
-            .author(seed, &vault, &KnotSyncEvent::Put(doc("essay", essay)))
+            .author(&seed, &vault, &KnotSyncEvent::Put(doc("essay", essay)))
             .await
             .unwrap();
         let honest = captured_endpoint("essay", *essay_op.hash.as_bytes(), essay, "α holds");
@@ -3026,7 +3027,7 @@ mod tests {
             qualification: None,
         };
         store
-            .author(seed, &vault, &assert_with(honest.clone()))
+            .author(&seed, &vault, &assert_with(honest.clone()))
             .await
             .unwrap();
 
@@ -3036,7 +3037,7 @@ mod tests {
         };
         assert!(matches!(
             store
-                .author(seed, &vault, &assert_with(forged.clone()))
+                .author(&seed, &vault, &assert_with(forged.clone()))
                 .await,
             Err(KnotSyncError::InvalidRelation(_))
         ));
@@ -3066,7 +3067,7 @@ mod tests {
         let source = "Source β";
         let essay_op = store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("essay", essay)),
             )
@@ -3074,7 +3075,7 @@ mod tests {
             .unwrap();
         let source_op = store
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("source", source)),
             )
@@ -3088,16 +3089,16 @@ mod tests {
             qualification: None,
         };
         let alice_relation = store
-            .author(alice.master_keypair().to_seed(), &vault, &relation_event())
+            .author(&alice.master_keypair().to_seed(), &vault, &relation_event())
             .await
             .unwrap();
         let bob_relation = store
-            .author(bob.master_keypair().to_seed(), &vault, &relation_event())
+            .author(&bob.master_keypair().to_seed(), &vault, &relation_event())
             .await
             .unwrap();
         let alice_retraction = store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::RetractRelation {
                     assertion: *alice_relation.hash.as_bytes(),
@@ -3109,7 +3110,7 @@ mod tests {
         assert!(matches!(
             store
                 .author(
-                    alice.master_keypair().to_seed(),
+                    &alice.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::RetractRelation {
                         assertion: *bob_relation.hash.as_bytes(),
@@ -3139,7 +3140,7 @@ mod tests {
         };
         assert!(matches!(
             store
-                .author(alice.master_keypair().to_seed(), &vault, &stale_capture,)
+                .author(&alice.master_keypair().to_seed(), &vault, &stale_capture,)
                 .await,
             Err(KnotSyncError::InvalidRelation(_))
         ));
@@ -3241,7 +3242,7 @@ mod tests {
         let source = "Source β";
         let essay_op = store
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::Put(doc("essay", essay)),
             )
@@ -3249,7 +3250,7 @@ mod tests {
             .unwrap();
         let source_op = store
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::Put(doc("source", source)),
             )
@@ -3258,7 +3259,7 @@ mod tests {
         let assertion_epoch = keys.rotate_random().unwrap().id();
         let assertion = store
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::AssertRelation {
                     predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -3273,7 +3274,7 @@ mod tests {
         let retraction_epoch = keys.rotate_random().unwrap().id();
         store
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::RetractRelation {
                     assertion: *assertion.hash.as_bytes(),
@@ -3319,7 +3320,7 @@ mod tests {
         let capture_epoch = keys.rotate_random().unwrap().id();
         store
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::CaptureFileRevision(file_revision("knot:document:capture", "old")),
             )
@@ -3360,7 +3361,7 @@ mod tests {
         assert!(matches!(
             store
                 .author(
-                    alice.master_keypair().to_seed(),
+                    &alice.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::CaptureFileRevision(malformed.clone()),
                 )
@@ -3388,7 +3389,7 @@ mod tests {
         assert!(matches!(
             store
                 .author(
-                    alice.master_keypair().to_seed(),
+                    &alice.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::AssertRelation {
                         predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -3418,7 +3419,7 @@ mod tests {
         assert!(
             store
                 .author(
-                    bob.master_keypair().to_seed(),
+                    &bob.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::CaptureFileRevision(file_revision(
                         "knot:document:other",
@@ -3431,7 +3432,7 @@ mod tests {
 
         let valid = store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::CaptureFileRevision(file_revision("knot:document:valid", "body")),
             )
@@ -3440,7 +3441,7 @@ mod tests {
         assert!(matches!(
             store
                 .author(
-                    alice.master_keypair().to_seed(),
+                    &alice.master_keypair().to_seed(),
                     &vault,
                     &KnotSyncEvent::AssertRelation {
                         predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -3497,7 +3498,7 @@ mod tests {
         let receiver = KnotSyncStore::in_memory_commons(SPACE, writers);
         let parent = parent_store
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::Put(doc("shared", "parent")),
             )
@@ -3506,7 +3507,7 @@ mod tests {
         child_store.accept(&parent).await.unwrap();
         let child = child_store
             .author_communal(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &keys,
                 &KnotSyncEvent::Put(doc("shared", "pending child")),
             )
@@ -3567,7 +3568,7 @@ mod tests {
         let store = KnotSyncFileStore::open_commons(&database, SPACE, [writer]).unwrap();
         store
             .author_communal(
-                seed,
+                &seed,
                 &keys,
                 &KnotSyncEvent::Put(doc("one", "before checkpoint")),
             )
@@ -3582,7 +3583,7 @@ mod tests {
 
         store
             .author_communal(
-                seed,
+                &seed,
                 &keys,
                 &KnotSyncEvent::Put(doc("two", "new checkpoint")),
             )
@@ -3686,7 +3687,7 @@ mod tests {
 
         let a_op = a
             .author(
-                alice_seed,
+                &alice_seed,
                 &alice_vault,
                 &KnotSyncEvent::Put(doc("alice-note", "amber")),
             )
@@ -3694,7 +3695,7 @@ mod tests {
             .unwrap();
         let b_op = b
             .author(
-                bob_seed,
+                &bob_seed,
                 &bob_vault,
                 &KnotSyncEvent::Put(doc("bob-note", "blue")),
             )
@@ -3720,7 +3721,7 @@ mod tests {
         let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
         let first = author
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("first", "admitted after pairing")),
             )
@@ -3733,7 +3734,7 @@ mod tests {
 
         let second = author
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("second", "rejected after revocation")),
             )
@@ -3759,7 +3760,7 @@ mod tests {
 
         let old = a
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &alice_keys,
                 &KnotSyncEvent::Put(doc("shared", "before removal")),
             )
@@ -3782,7 +3783,7 @@ mod tests {
         alice_keys.rotate_random().unwrap();
         let after_removal = a
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &alice_keys,
                 &KnotSyncEvent::Put(doc("new", "after removal")),
             )
@@ -3814,7 +3815,7 @@ mod tests {
 
         let old = a
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &alice_keys,
                 &KnotSyncEvent::Put(doc("shared", "before removal")),
             )
@@ -3825,7 +3826,7 @@ mod tests {
         alice_keys.rotate_random().unwrap();
         let after_removal = a
             .author_communal(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &alice_keys,
                 &KnotSyncEvent::Put(doc("new", "after removal")),
             )
@@ -3856,7 +3857,7 @@ mod tests {
         let vault = KnotVault::open(roots.path().join("vault"), VAULT_KEY).unwrap();
         let other = KnotVault::open(roots.path().join("other"), [0x5c; 32]).unwrap();
         store
-            .author(seed, &vault, &KnotSyncEvent::Put(doc("first", "readable")))
+            .author(&seed, &vault, &KnotSyncEvent::Put(doc("first", "readable")))
             .await
             .unwrap();
 
@@ -3896,7 +3897,7 @@ mod tests {
         let communal = KnotSyncStore::in_memory_commons(SPACE, [writer]);
         let operation = personal
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("note", "personal")),
             )
@@ -3919,7 +3920,7 @@ mod tests {
         let vault = KnotVault::open(roots.path(), VAULT_KEY).unwrap();
         let alice_version = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "alice")),
             )
@@ -3927,7 +3928,7 @@ mod tests {
             .unwrap();
         let bob_version = b
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "bob")),
             )
@@ -3936,7 +3937,7 @@ mod tests {
         a.accept(&bob_version).await.unwrap();
         b.accept(&alice_version).await.unwrap();
         a.author(
-            alice.master_keypair().to_seed(),
+            &alice.master_keypair().to_seed(),
             &vault,
             &KnotSyncEvent::Put(doc("solo", "still visible")),
         )
@@ -3968,7 +3969,7 @@ mod tests {
         let b = KnotSyncStore::in_memory(SPACE, writers);
         let base = base_store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "first\nsecond\nthird\n")),
             )
@@ -3979,7 +3980,7 @@ mod tests {
 
         let left = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "FIRST\nsecond\nthird\n")),
             )
@@ -3987,7 +3988,7 @@ mod tests {
             .unwrap();
         let right = b
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "first\nsecond\nTHIRD\n")),
             )
@@ -4011,7 +4012,7 @@ mod tests {
         let durable = doc("shared", "FIRST\nsecond\nTHIRD\nafter merge\n");
         let durable_operation = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(durable.clone()),
             )
@@ -4046,7 +4047,7 @@ mod tests {
         let b = KnotSyncStore::in_memory(SPACE, writers);
         let base = base_store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "one\ntwo\n")),
             )
@@ -4056,7 +4057,7 @@ mod tests {
         b.accept(&base).await.unwrap();
         let left = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "alice\ntwo\n")),
             )
@@ -4064,7 +4065,7 @@ mod tests {
             .unwrap();
         let right = b
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "bob\ntwo\n")),
             )
@@ -4097,7 +4098,7 @@ mod tests {
         let b = KnotSyncStore::in_memory(SPACE, writers);
         let alice_op = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "alice")),
             )
@@ -4105,7 +4106,7 @@ mod tests {
             .unwrap();
         let bob_op = b
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "bob")),
             )
@@ -4116,7 +4117,7 @@ mod tests {
         let conflict = a.projection(&vault).await.unwrap().conflicts.remove(0);
         let resolution = a
             .resolve_conflict(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &conflict,
                 Some(doc("shared", "chosen")),
@@ -4148,7 +4149,7 @@ mod tests {
         let b = KnotSyncStore::in_memory(SPACE, writers);
         let alice_op = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "alice")),
             )
@@ -4163,7 +4164,7 @@ mod tests {
             }],
         };
         a.resolve_conflict(
-            alice.master_keypair().to_seed(),
+            &alice.master_keypair().to_seed(),
             &vault,
             &local,
             Some(doc("shared", "alice resolved")),
@@ -4172,7 +4173,7 @@ mod tests {
         .unwrap();
         let bob_op = b
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "bob unseen")),
             )
@@ -4198,7 +4199,7 @@ mod tests {
         let b = KnotSyncStore::in_memory(SPACE, writers);
         let alice_op = a
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "alice")),
             )
@@ -4214,7 +4215,7 @@ mod tests {
         };
         let forged_resolution = b
             .resolve_conflict(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &forged_conflict,
                 Some(doc("shared", "forged")),
@@ -4248,7 +4249,7 @@ mod tests {
 
         let parent = parent_store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "parent")),
             )
@@ -4257,7 +4258,7 @@ mod tests {
         child_store.accept(&parent).await.unwrap();
         let child = child_store
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("shared", "child")),
             )
@@ -4265,7 +4266,7 @@ mod tests {
             .unwrap();
         let unrelated = unrelated_store
             .author(
-                carol.master_keypair().to_seed(),
+                &carol.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("solo", "visible")),
             )
@@ -4302,11 +4303,11 @@ mod tests {
         let second = {
             let store = KnotSyncFileStore::open(&database, SPACE, [writer]).unwrap();
             store
-                .author(seed, &vault, &KnotSyncEvent::Put(doc("one", "first")))
+                .author(&seed, &vault, &KnotSyncEvent::Put(doc("one", "first")))
                 .await
                 .unwrap();
             let second = store
-                .author(seed, &vault, &KnotSyncEvent::Put(doc("two", "second")))
+                .author(&seed, &vault, &KnotSyncEvent::Put(doc("two", "second")))
                 .await
                 .unwrap();
             let checkpoint = store.save_checkpoint(&vault).await.unwrap();
@@ -4321,7 +4322,7 @@ mod tests {
             *second.hash.as_bytes()
         );
         let third = reopened
-            .author(seed, &vault, &KnotSyncEvent::Put(doc("three", "third")))
+            .author(&seed, &vault, &KnotSyncEvent::Put(doc("three", "third")))
             .await
             .unwrap();
         assert_eq!(third.header.seq_num, second.header.seq_num + 1);
@@ -4387,7 +4388,7 @@ mod tests {
         let bob_vault = Arc::new(KnotVault::open(roots.path().join("bob"), VAULT_KEY).unwrap());
         alice_store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &alice_vault,
                 &KnotSyncEvent::Put(doc("alice-note", "amber")),
             )
@@ -4395,7 +4396,7 @@ mod tests {
             .unwrap();
         bob_store
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &bob_vault,
                 &KnotSyncEvent::Put(doc("bob-note", "blue")),
             )
@@ -4438,7 +4439,7 @@ mod tests {
         let authored = doc("knot:document:catalog-file", "vault source");
         store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(authored.clone()),
             )
@@ -4446,7 +4447,7 @@ mod tests {
             .unwrap();
         let first = store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::CaptureFileRevision(file_revision(
                     "knot:document:catalog-file",
@@ -4457,7 +4458,7 @@ mod tests {
             .unwrap();
         let second = store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::CaptureFileRevision(file_revision(
                     "knot:document:catalog-file",
@@ -4470,7 +4471,7 @@ mod tests {
         let old = "old file quote";
         store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::AssertRelation {
                     predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -4528,7 +4529,7 @@ mod tests {
         let revision = file_revision("knot:document:catalog-file", "quoted source");
         let alice_capture = store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::CaptureFileRevision(revision.clone()),
             )
@@ -4536,7 +4537,7 @@ mod tests {
             .unwrap();
         store
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::CaptureFileRevision(revision.clone()),
             )
@@ -4597,7 +4598,7 @@ mod tests {
         let revision = file_revision("knot:document:catalog-file", "quoted source");
         store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::CaptureFileRevision(revision.clone()),
             )

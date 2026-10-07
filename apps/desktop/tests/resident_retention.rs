@@ -118,7 +118,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     let catalog_path = root.path().join("catalog.redb");
     let store = KnotSyncFileStore::open(&store_path, [0x63; 32], [writer]).unwrap();
     pollster::block_on(store.save_checkpoint(&vault)).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
 
     let mut catalog = KnotFileCatalog::open(&notes, &catalog_path).unwrap();
     let document_id = catalog.bind(&path).unwrap();
@@ -241,7 +241,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     let reopened_vault = KnotVault::open(&vault_root, [0x62; 32]).unwrap();
     let reopened_store = KnotSyncFileStore::open(&store_path, [0x63; 32], [writer]).unwrap();
     let reopened =
-        KnotResidentSource::from_synced_vault(reopened_vault, reopened_store.clone(), seed)
+        KnotResidentSource::from_synced_vault(reopened_vault, reopened_store.clone(), &seed)
             .unwrap();
     let retry = reopened
         .capture_retention(KnotCaptureGrant::new([document_id.clone()], 4096))

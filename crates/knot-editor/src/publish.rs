@@ -713,7 +713,7 @@ mod tests {
         let store = KnotSyncStore::in_memory(SPACE, [writer]);
         let first = store
             .author(
-                owner().master_keypair().to_seed(),
+                &owner().master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("selected", "first")),
             )
@@ -721,7 +721,7 @@ mod tests {
             .unwrap();
         let second = store
             .author(
-                owner().master_keypair().to_seed(),
+                &owner().master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("selected", "second")),
             )
@@ -729,7 +729,7 @@ mod tests {
             .unwrap();
         let unrelated = store
             .author(
-                owner().master_keypair().to_seed(),
+                &owner().master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("unrelated", "hidden")),
             )
@@ -825,7 +825,7 @@ mod tests {
         let deleted = KnotSyncStore::in_memory(SPACE, writers);
         deleted
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("deleted", "before delete")),
             )
@@ -833,7 +833,7 @@ mod tests {
             .unwrap();
         deleted
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Delete {
                     id: "deleted".into(),
@@ -846,7 +846,7 @@ mod tests {
         let conflict_right = KnotSyncStore::in_memory(SPACE, writers);
         let left = conflict_left
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("conflict", "alice")),
             )
@@ -854,7 +854,7 @@ mod tests {
             .unwrap();
         let right = conflict_right
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("conflict", "bob")),
             )
@@ -867,7 +867,7 @@ mod tests {
         let pending = KnotSyncStore::in_memory(SPACE, writers);
         let base = parent
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("pending", "base")),
             )
@@ -876,7 +876,7 @@ mod tests {
         child.accept(&base).await.unwrap();
         let child_operation = child
             .author(
-                bob.master_keypair().to_seed(),
+                &bob.master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("pending", "child")),
             )
@@ -915,7 +915,7 @@ mod tests {
         let store = KnotSyncStore::in_memory(SPACE, [writer]);
         let operation = store
             .author(
-                owner().master_keypair().to_seed(),
+                &owner().master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(doc("selected", "source")),
             )

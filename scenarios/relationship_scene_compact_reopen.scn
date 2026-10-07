@@ -14,10 +14,12 @@ assert text Selected occurrence: light
 assert text bytes 8–13
 assert text Scene strata · 1 foreground · 1 background occurrences · pan 0.10, 0.00 · zoom 1.25
 click .knot-recipe-scene-status
+click .graph-canvas-swatch
 capture relationship-scene-compact-reopened
 click role:button Show scene background
 click role:button Fit relationship scene
 click .knot-recipe-scene-status
+click .graph-canvas-swatch
 capture relationship-scene-compact-reopened-background
 click role:button Open selected original source
 assert snap dirty == false

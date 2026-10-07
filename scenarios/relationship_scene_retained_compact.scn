@@ -22,6 +22,7 @@ click role:button Use sound relationship recipe
 click role:button Show relationship scene
 settle 4
 click .knot-recipe-scene-status
+click .graph-canvas-swatch
 capture relationship-scene-retained-compact-bound
 click .graph-canvas-swatch-node @data-key=token-8-13
 click role:button Promote selected occurrence
@@ -34,6 +35,7 @@ click role:button Pan scene right
 settle 4
 assert text Scene strata · 1 foreground · 1 background occurrences · pan 0.10, 0.00 · zoom 1.25
 click .knot-recipe-scene-status
+click .graph-canvas-swatch
 capture relationship-scene-retained-compact-authored
 click role:button Retain relationship recipe
 settle 30

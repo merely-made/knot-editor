@@ -291,6 +291,10 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         click(&mut host, "Relationship category: sound.perfect_rhyme");
         click(&mut host, "night · token-6-11");
         assert!(panel_text(&host).contains("bytes 6–11"));
+        click(&mut host, "Show relationship scene");
+        click(&mut host, "Hide scene background");
+        click(&mut host, "Zoom scene in");
+        click(&mut host, "Pan scene right");
         click(&mut host, "Retain relationship recipe");
         wait_for_confirmation(&mut host, 1);
         let retained = port.list(port.target()).unwrap();
@@ -307,6 +311,15 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
             Some("token-6-11")
         );
         assert_eq!(material.dataset.dataset.occurrences.len(), 3);
+        let presentation = material.presentation.as_ref().unwrap();
+        assert!(presentation.overview_visible);
+        assert!(!presentation.background_visible);
+        assert_eq!(
+            presentation.foreground_occurrences,
+            ["token-6-11".to_owned()].into_iter().collect()
+        );
+        assert!(presentation.zoom > 1.0);
+        assert!(presentation.pan_x > 0.0);
         (item, retained[0].receipt.operation)
     };
     let bytes = std::fs::read(&database).unwrap();
@@ -334,6 +347,8 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
     assert!(panel_text(&host).contains("spacing 24"));
     assert!(panel_text(&host).contains("bytes 6–11"));
     let items = port.list(port.target()).unwrap();
+    assert!(panel_text(&host).contains("Static overview"));
+    assert!(panel_text(&host).contains("pan 0.10, 0.00 · zoom 1.25"));
     assert_eq!(items[0].item, saved);
     assert_eq!(items[0].receipt.operation, operation);
     assert_eq!(

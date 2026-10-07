@@ -1,0 +1,38 @@
+settle 120
+assert snap document == essay.djot
+assert snap dirty == false
+click role:button Show Preview
+click role:button @aria-label=Select source heading: Night light
+click role:button Hide Preview
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 1 retained items
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+click role:button Use sound relationship recipe
+click role:button Show relationship scene
+settle 4
+click .knot-recipe-scene-status
+capture relationship-scene-retained-bound
+click .graph-canvas-swatch-node @data-key=token-8-13
+click role:button Promote selected occurrence
+click role:button Night · token-2-7
+click role:button Demote selected occurrence
+click role:button Hide scene background
+click role:button light · token-8-13
+click role:button Zoom scene in
+click role:button Pan scene right
+settle 4
+assert text Scene strata · 1 foreground · 1 background occurrences · pan 0.10, 0.00 · zoom 1.25
+click .knot-recipe-scene-status
+capture relationship-scene-retained-authored
+click role:button Retain relationship recipe
+settle 30
+assert text Confirmed 2 retained items
+assert text bytes 8–13
+assert snap dirty == false
+capture relationship-scene-retained-confirmed

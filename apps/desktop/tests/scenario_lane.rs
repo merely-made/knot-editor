@@ -136,6 +136,32 @@ fn compact_relationship_recipe_selects_the_offscreen_occurrence() {
     }
 }
 
+#[test]
+fn relationship_scene_controls_preserve_source_at_wide_compact_and_high_zoom() {
+    for (name, width, zoom) in [
+        ("relationship_scene.scn", 1100.0, 1.0),
+        ("relationship_scene_compact.scn", 420.0, 1.0),
+        ("relationship_scene_compact.scn", 1280.0, 4.0),
+    ] {
+        let root = tempdir().unwrap();
+        let fixture = scenario_path("fixtures/composition/selection.djot");
+        let before = std::fs::read(&fixture).unwrap();
+        let mut state = DesktopState::with_path(
+            KnotDocumentSession::open(&fixture).unwrap(),
+            WindowCommands::new(),
+            Some(fixture.clone()),
+        );
+        state.set_preferences_path(Some(root.path().join("preferences.json")));
+        let receipt =
+            run_without_native_capture_at_size(state, name, &root, width, 900.0, zoom, false);
+        assert!(
+            receipt.starts_with("RESULT ok"),
+            "{name}, {width}, {zoom}: {receipt}"
+        );
+        assert_eq!(std::fs::read(&fixture).unwrap(), before);
+    }
+}
+
 fn run_without_native_capture_at_size(
     mut state: DesktopState,
     name: &str,
@@ -173,7 +199,7 @@ fn run_without_native_capture_at_size(
             state,
             logic: desktop_view as Logic,
             sheet: desktop_sheet(),
-            fonts: if name == "relationship_recipe_compact.scn" {
+            fonts: if name.contains("compact") {
                 knot_desktop::fonts::bundled_fonts()
             } else {
                 Vec::new()
@@ -190,7 +216,7 @@ fn run_without_native_capture_at_size(
     for _ in 0..1_000 {
         h.layout_at(width, height);
         // Recipe cards are measured in the frame hook, as in the native loop.
-        if name == "relationship_recipe_compact.scn" || name == "relationship_recipe.scn" {
+        if name.starts_with("relationship_") {
             h.prepare_frame();
             h.relayout();
         }

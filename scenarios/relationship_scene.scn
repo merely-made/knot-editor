@@ -1,0 +1,36 @@
+settle 120
+assert snap document == selection.djot
+assert snap dirty == false
+click role:button Show Preview
+settle 4
+click role:button @aria-label=Select source heading: Night light
+click role:button Hide Preview
+click role:button Readings
+settle 4
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+settle 4
+click role:button Use sound relationship recipe
+click role:button Show relationship scene
+settle 4
+assert text Static overview
+capture relationship-scene-bound
+click .graph-canvas-swatch-node @data-key=token-8-13
+click role:button Promote selected occurrence
+click role:button Night · token-2-7
+click role:button Demote selected occurrence
+click role:button Hide scene background
+click role:button light · token-8-13
+click role:button Zoom scene in
+click role:button Pan scene right
+settle 4
+assert text Selected occurrence: light
+assert text bytes 8–13
+capture relationship-scene-authored
+click role:button Show scene background
+click role:button Fit relationship scene
+click role:button Hide relationship scene
+click role:button Open selected original source
+assert snap dirty == false

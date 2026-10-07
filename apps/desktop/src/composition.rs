@@ -2633,6 +2633,18 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("night · token-6-11")));
         host.after_dispatch();
         assert!(rendered_text(&host).contains("bytes 6–11"));
+        for label in [
+            "Show relationship scene",
+            "Hide scene background",
+            "Zoom scene in",
+            "Pan scene right",
+        ] {
+            assert!(
+                host.click_on(&Selector::role("button").containing(label)),
+                "{label}"
+            );
+            host.after_dispatch();
+        }
         assert!(host.click_on(
             &Selector::role("button").containing("Relationship category: sound.perfect_rhyme")
         ));
@@ -2650,6 +2662,15 @@ mod tests {
             Some("token-6-11")
         );
         assert_eq!(saved.snapshot.recipe.definition.arrangement.spacing, 24);
+        let presentation = saved.presentation.as_ref().unwrap();
+        assert!(presentation.overview_visible);
+        assert!(!presentation.background_visible);
+        assert_eq!(
+            presentation.foreground_occurrences,
+            ["token-6-11".to_owned()].into_iter().collect()
+        );
+        assert!(presentation.zoom > 1.0);
+        assert!(presentation.pan_x > 0.0);
         assert_eq!(
             saved.snapshot.recipe.relationship_kind.as_deref(),
             Some("sound.perfect_rhyme")
@@ -2669,6 +2690,64 @@ mod tests {
             &saved
         );
         assert!(rendered_text(&host).contains("bytes 6–11"));
+    }
+
+    #[test]
+    fn scene_rebind_preserves_roles_or_refuses_until_explicit_reset() {
+        let mut state = state("night light cat bat");
+        select(&mut state, 0, 11);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        for label in ["Show relationship scene", "Zoom scene in"] {
+            assert!(host.click_on(&Selector::role("button").containing(label)));
+            host.after_dispatch();
+        }
+        let presentation = host
+            .state()
+            .composition
+            .recipe
+            .material
+            .as_ref()
+            .unwrap()
+            .presentation
+            .clone();
+        host.update(|state| recipe::from_sound(state, key, true));
+        assert_eq!(
+            host.state()
+                .composition
+                .recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .presentation,
+            presentation
+        );
+        let original = host.state().composition.recipe.material.clone();
+        host.update(|state| {
+            select(state, 12, 19);
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, true);
+        });
+        assert_eq!(host.state().composition.recipe.material, original);
+        assert!(
+            host.state()
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("Reset the scene presentation")
+        );
+        assert!(host.click_on(&Selector::role("button").containing("Reset scene presentation")));
+        host.after_dispatch();
+        host.update(|state| recipe::from_sound(state, key, true));
+        let rebound = host.state().composition.recipe.material.as_ref().unwrap();
+        assert!(rebound.presentation.is_none());
+        assert_eq!(rebound.anchors[0].source.exact_quote, "cat");
     }
 
     #[test]

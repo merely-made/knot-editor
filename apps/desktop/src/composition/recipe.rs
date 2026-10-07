@@ -21,11 +21,13 @@ use scenograph::relationship::{
 };
 use scenograph::{ProjectionInputBinding, PublicSourceRevision, RevisionEvidence, SourceBinding};
 use scenomise::projection::{
-    CompiledProjection, DisclosedRelationship, ItemSizes, ProjectionCompiler, ProjectionDataset,
-    ProjectionFieldType, ProjectionOccurrence, ProjectionValue, RelationshipDataset,
-    RelationshipProvenance,
+    CompiledProjection, CompiledRelationshipProjection, DisclosedRelationship, ItemSizes,
+    ProjectionCompiler, ProjectionDataset, ProjectionFieldType, ProjectionOccurrence,
+    ProjectionValue, RelationshipDataset, RelationshipProvenance,
 };
 use std::collections::{BTreeMap, BTreeSet};
+
+mod scene;
 
 /// What an occurrence button adds around its label: Knot's declared
 /// `padding:6px 10px; border:1px solid` (`appearance.rs`) in the UA's
@@ -115,6 +117,14 @@ fn probe(label: &str) -> DesktopView {
 /// frames without a usable rect it stops, leaving the scene hidden until the
 /// label set or the window size changes.
 pub(crate) fn measure_cards(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    let measuring = measure_cards_inner(ctx);
+    scene::refresh_leaf(ctx);
+    measuring
+}
+
+fn measure_cards_inner(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
     if ctx.runner.state().composition.recipe.material.is_none() {
@@ -294,6 +304,7 @@ fn material(
                 source: occurrence.anchor,
             })
             .collect(),
+        presentation: None,
     };
     validation_compiler()
         .compile_relationship_snapshot(&material.snapshot, &material.dataset)
@@ -330,9 +341,29 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
                 binding: material.snapshot.recipe.definition.sources["selection"].clone(),
             });
             material.snapshot.recipe = finish_draft(draft)?;
+            if let Some(presentation) = &previous.presentation {
+                let disclosed_ids: BTreeSet<_> = material
+                    .dataset
+                    .dataset
+                    .occurrences
+                    .iter()
+                    .map(|occurrence| occurrence.occurrence_id.as_str())
+                    .collect();
+                if presentation
+                    .foreground_occurrences
+                    .iter()
+                    .any(|id| !disclosed_ids.contains(id.as_str()))
+                {
+                    return Err("Rebinding refused: the saved scene foreground refers to occurrences absent from this reading. Reset the scene presentation before rebinding.".to_owned());
+                }
+                material.presentation = Some(presentation.clone());
+            }
             validation_compiler()
                 .compile_relationship_snapshot(&material.snapshot, &material.dataset)
                 .map_err(|issues| format!("Rebinding refused: {issues:?}"))?;
+            material
+                .validate()
+                .map_err(|error| format!("Rebinding scene presentation refused: {error}"))?;
         }
         Ok(material)
     })();
@@ -347,9 +378,8 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
 }
 
 pub(super) fn reopen(state: &mut DesktopState, material: ProjectionRecipeMaterial) {
-    match validation_compiler().compile_relationship_snapshot(&material.snapshot, &material.dataset)
-    {
-        Ok(_) => {
+    match material.validate() {
+        Ok(()) => {
             state.composition.recipe.material = Some(material);
             state.composition.section = 4;
             state.composition.notice = Some("Retained recipe reopened against its copied disclosure. Source actions still require the exact original source; rebind explicitly to use a new reading.".into());
@@ -646,6 +676,7 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                     Keyed::new(categories),
                 ),
             ),
+            scene::view(material, &compiled),
             el(
                 "div",
                 el("div", (Keyed::new(occurrence_buttons), Keyed::new(probes))).attr(
@@ -786,7 +817,7 @@ mod tests {
     use knot_readings::sound::{self, SoundLayers};
     use std::collections::BTreeMap;
 
-    fn fixture() -> (SelectionSnapshot, SoundReading) {
+    pub(super) fn fixture() -> (SelectionSnapshot, SoundReading) {
         let text = "night night light";
         let source = SelectionSnapshot {
             key: crate::documents::DocKey(1),
@@ -1202,6 +1233,7 @@ mod tests {
             snapshot: snapshot.clone(),
             dataset: music.clone(),
             anchors: Vec::new(),
+            presentation: None,
         };
         music_material.validate().unwrap();
         assert!(music_material.anchors.is_empty());

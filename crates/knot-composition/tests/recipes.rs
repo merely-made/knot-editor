@@ -39,6 +39,114 @@ fn typed_recipe_roundtrips_and_rejects_invalid_associations_and_anchors() {
     assert!(oversized.validate().is_err());
 }
 
+#[test]
+fn scene_presentation_roundtrips_with_disclosed_occurrences() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let mut material = support::recipe_material();
+    material.presentation = Some(RecipeScenePresentation {
+        overview_visible: true,
+        background_visible: false,
+        foreground_occurrences: ["night:0".to_owned(), "light:6".to_owned()]
+            .into_iter()
+            .collect(),
+        pan_x: -1.25,
+        pan_y: 2.5,
+        zoom: 1.75,
+        ..RecipeScenePresentation::default()
+    });
+    material.validate().unwrap();
+
+    let bytes = serde_json::to_vec(&material).unwrap();
+    let decoded: knot_composition::retention::ProjectionRecipeMaterial =
+        serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(decoded, material);
+}
+
+#[test]
+fn legacy_recipe_without_scene_presentation_remains_valid_and_omitted() {
+    let material = support::recipe_material();
+    assert!(material.presentation.is_none());
+    material.validate().unwrap();
+
+    let mut encoded = serde_json::to_value(&material).unwrap();
+    let object = encoded.as_object_mut().unwrap();
+    assert!(!object.contains_key("presentation"));
+
+    // This is the historical shape: no presentation member at all.
+    let decoded: knot_composition::retention::ProjectionRecipeMaterial =
+        serde_json::from_value(encoded).unwrap();
+    assert_eq!(decoded, material);
+}
+
+#[test]
+fn scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let base = support::recipe_material();
+    let mut unknown_field = serde_json::to_value(&base).unwrap();
+    unknown_field["presentation"] =
+        serde_json::to_value(RecipeScenePresentation::default()).unwrap();
+    unknown_field["presentation"]["provider"] = serde_json::json!("remote");
+    assert!(
+        serde_json::from_value::<knot_composition::retention::ProjectionRecipeMaterial>(
+            unknown_field
+        )
+        .is_err()
+    );
+
+    let mut invalid = base.clone();
+    let mut presentation = RecipeScenePresentation::default();
+    presentation.version = 2;
+    invalid.presentation = Some(presentation);
+    assert!(invalid.validate().is_err());
+
+    let mut invalid = base.clone();
+    let mut presentation = RecipeScenePresentation::default();
+    presentation
+        .foreground_occurrences
+        .insert("not-disclosed".into());
+    invalid.presentation = Some(presentation);
+    assert!(invalid.validate().is_err());
+
+    let mut invalid = base.clone();
+    let mut presentation = RecipeScenePresentation::default();
+    presentation.foreground_occurrences.insert(String::new());
+    invalid.presentation = Some(presentation);
+    assert!(invalid.validate().is_err());
+
+    for (pan_x, pan_y, zoom) in [
+        (f32::NAN, 0.0, 1.0),
+        (0.0, f32::INFINITY, 1.0),
+        (4.01, 0.0, 1.0),
+        (0.0, -4.01, 1.0),
+        (0.0, 0.0, f32::NAN),
+        (0.0, 0.0, 0.24),
+        (0.0, 0.0, 4.01),
+    ] {
+        let mut invalid = base.clone();
+        invalid.presentation = Some(RecipeScenePresentation {
+            pan_x,
+            pan_y,
+            zoom,
+            ..RecipeScenePresentation::default()
+        });
+        assert!(
+            invalid.validate().is_err(),
+            "accepted {pan_x}, {pan_y}, {zoom}"
+        );
+    }
+
+    let mut invalid = base;
+    invalid.presentation = Some(RecipeScenePresentation {
+        foreground_occurrences: (0..257)
+            .map(|index| format!("occurrence-{index}"))
+            .collect(),
+        ..RecipeScenePresentation::default()
+    });
+    assert!(invalid.validate().is_err());
+}
+
 /// Validation compiles with a nominal card (Mere burn plan 13.46): a recipe's
 /// accept or refuse, and every issue, must not depend on the card size.
 #[test]

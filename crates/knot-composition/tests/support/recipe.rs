@@ -104,5 +104,6 @@ pub fn recipe_material() -> knot_composition::retention::ProjectionRecipeMateria
                 source: DocumentAnchor::capture("document:poem", "Night light", 6..11).unwrap(),
             },
         ],
+        presentation: None,
     }
 }

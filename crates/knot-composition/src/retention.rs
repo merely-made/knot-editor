@@ -3,6 +3,7 @@
 use crate::{CollectionError, CollectionItem, DocumentAnchor};
 use knot_capture::{KnotRetainError, KnotRetainTargetV1};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
 
 /// The card validation compiles with. Never drawn: a recipe's accept or refuse
 /// does not depend on its card size, and the desktop draws with the card it
@@ -28,6 +29,78 @@ pub struct ProjectionRecipeMaterial {
     pub snapshot: scenograph::relationship::RelationshipSnapshot,
     pub dataset: scenomise::projection::RelationshipDataset,
     pub anchors: Vec<RecipeSourceAnchor>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presentation: Option<RecipeScenePresentation>,
+}
+
+/// Host-owned display preferences for a retained scene overview. This stores
+/// only portable visibility and view values, never scene handles or authority.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct RecipeScenePresentation {
+    pub version: u16,
+    pub overview_visible: bool,
+    pub background_visible: bool,
+    pub foreground_occurrences: BTreeSet<String>,
+    pub pan_x: f32,
+    pub pan_y: f32,
+    pub zoom: f32,
+}
+
+impl Default for RecipeScenePresentation {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            overview_visible: false,
+            background_visible: true,
+            foreground_occurrences: BTreeSet::new(),
+            pan_x: 0.0,
+            pan_y: 0.0,
+            zoom: 1.0,
+        }
+    }
+}
+
+impl RecipeScenePresentation {
+    fn validate(
+        &self,
+        dataset: &scenomise::projection::RelationshipDataset,
+    ) -> Result<(), CollectionError> {
+        if self.version != 1 {
+            return Err(CollectionError::Invalid(
+                "unsupported recipe scene presentation version".into(),
+            ));
+        }
+        if self.foreground_occurrences.len() > 256
+            || self.foreground_occurrences.iter().any(|occurrence_id| {
+                occurrence_id.is_empty()
+                    || !dataset
+                        .dataset
+                        .occurrences
+                        .iter()
+                        .any(|occurrence| occurrence.occurrence_id == *occurrence_id)
+            })
+        {
+            return Err(CollectionError::Invalid(
+                "recipe scene foreground occurrence is invalid or undisclosed".into(),
+            ));
+        }
+        if !self.pan_x.is_finite()
+            || !self.pan_y.is_finite()
+            || !(-4.0..=4.0).contains(&self.pan_x)
+            || !(-4.0..=4.0).contains(&self.pan_y)
+        {
+            return Err(CollectionError::Invalid(
+                "recipe scene pan must be finite and within normalized bounds".into(),
+            ));
+        }
+        if !self.zoom.is_finite() || !(0.25..=4.0).contains(&self.zoom) {
+            return Err(CollectionError::Invalid(
+                "recipe scene zoom must be finite and within bounds".into(),
+            ));
+        }
+        Ok(())
+    }
 }
 
 /// An occurrence-specific source quotation, not a label-based lookup.
@@ -57,6 +130,9 @@ impl ProjectionRecipeMaterial {
             .map_err(|issues| {
                 CollectionError::Invalid(format!("invalid projection recipe: {issues:?}"))
             })?;
+        if let Some(presentation) = &self.presentation {
+            presentation.validate(&self.dataset)?;
+        }
         let mut seen = std::collections::HashSet::new();
         for anchor in &self.anchors {
             if !seen.insert(&anchor.node_id)

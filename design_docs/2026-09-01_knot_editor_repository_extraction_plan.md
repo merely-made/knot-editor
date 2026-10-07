@@ -154,3 +154,29 @@ The governing phase and validation receipts live in
 Validation: `cargo check -p knot-editor --all-targets --all-features` passed
 on 2026-09-29 with the existing Mere and Genet pins. The lock change is the
 new direct Insigne dependency only.
+
+### 2026-10-06: bounded browser-input compatibility adoption
+
+This maintenance source starts from Turnstone's qualified Knot revision
+`92719898b7101c1601f79183874debcdcf54d24f`. Its 32 root Mere entries, two desktop
+entries and seven narrow-document entries move together from
+`3d1cdacc90aa6a0736154d841223a3ae29e23aa5` to
+`db4ee31258b23c86572c429388c5d10bd4de9dc3`. Root lock changes are limited to 56
+Mere source entries. The Genet `69a2383b` family and other dependency versions
+retain their baseline sources. The new Mere revision carries only shared Weld
+mouse/character dispatch and ordered Graft host events on the old manifests.
+
+Validation: root `cargo metadata --locked --format-version 1` passed with one
+Mere family (55 active packages) and one original Genet family (22 packages).
+The excluded narrow document workspace has no committed baseline lock; its
+fresh diagnostic lock also passed `cargo metadata --offline --locked
+--format-version 1 --manifest-path crates/knot-document/Cargo.toml`, with eight
+Mere packages and six Genet packages from the same two immutable sources. That
+generated narrow lock is not part of the committed compatibility source.
+
+Done-condition: root and narrow-document Git-sourced metadata retain one Mere
+type family and the existing Genet family, and Turnstone qualifies the exact
+committed consumer with its native input/find/zoom, permission and teardown
+scenarios. Standalone Knot's newer main branch keeps its independent stack
+pins. Ordinary integration preserves this compatibility commit's ancestry
+without rolling current main back to the older stack.

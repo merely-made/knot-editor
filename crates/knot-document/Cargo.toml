@@ -25,12 +25,12 @@ engine = [
 
 [dependencies]
 same-file = "1.0.6"
-cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5" }
-mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5" }
-illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5", optional = true }
-inker = { git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5", optional = true }
-knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5", default-features = false }
-nematic = { git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5", default-features = false, optional = true }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3" }
+mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3", optional = true }
+inker = { git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3", optional = true }
+knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3", default-features = false }
+nematic = { git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
@@ -49,7 +49,7 @@ all = "warn"
 
 [patch.crates-io]
 # Match the stable inference runtime policy of the parent workspace.
-cubecl-runtime = { git = "https://github.com/merely-made/mere.git", rev = "3d1cdacc90aa6a0736154d841223a3ae29e23aa5" }
+cubecl-runtime = { git = "https://github.com/merely-made/mere.git", rev = "db4ee31258b23c86572c429388c5d10bd4de9dc3" }
 vello = { git = "https://github.com/mark-ik/vello.git", tag = "vello-0.10.0" }
 layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }
 genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "69a2383b2ad777b884a72f31f8f8fb7ece275c0b" }

@@ -1,0 +1,87 @@
+    Blocking waiting for file lock on package cache
+warning: patch `ipc-channel v0.22.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)` was not used in the crate graph
+warning: patch `genet-taffy v0.14.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling syn v3.0.4
+   Compiling serde_derive v1.0.229
+   Compiling smallvec v1.15.2
+   Compiling serde v1.0.229
+   Compiling num-traits v0.2.19
+   Compiling syn v2.0.119
+   Compiling parking_lot_core v0.9.12
+   Compiling string_cache_codegen v0.6.1
+   Compiling once_cell v1.21.4
+   Compiling web_atoms v0.2.6
+   Compiling parking_lot v0.12.5
+   Compiling euclid v0.22.14
+   Compiling log v0.4.34
+   Compiling string_cache v0.9.0
+   Compiling phf v0.13.1
+   Compiling bytemuck_derive v1.12.0
+   Compiling bytemuck v1.25.2
+   Compiling arrayvec v0.7.8
+   Compiling polycool v0.4.0
+   Compiling markup5ever v0.39.0
+   Compiling font-types v0.12.4
+   Compiling read-fonts v0.41.0
+   Compiling kurbo v0.13.1
+   Compiling thiserror v2.0.20
+   Compiling peniko v0.6.1
+   Compiling guillotiere v0.7.0
+   Compiling skrifa v0.44.0
+   Compiling app_units v0.7.8
+   Compiling thiserror-impl v2.0.20
+   Compiling logos-codegen v0.16.1
+   Compiling genet-paint-types v0.2.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling vello_encoding v0.10.0 (https://github.com/mark-ik/vello.git?tag=vello-0.10.0#4354955e)
+   Compiling layout-dom-api v0.1.1 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling xml5ever v0.39.0
+   Compiling html5ever v0.39.0
+   Compiling tracing-core v0.1.36
+   Compiling enumn v0.1.14
+   Compiling tracing-attributes v0.1.31
+   Compiling uuid v1.25.0
+   Compiling vello v0.10.0 (https://github.com/mark-ik/vello.git?tag=vello-0.10.0#4354955e)
+   Compiling tracing v0.1.44
+   Compiling accesskit v0.24.1
+   Compiling genet-static-dom v0.1.1 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling engine-observables-api v0.2.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling logos-derive v0.16.1
+   Compiling paint_list_api v0.1.2 (https://github.com/merely-made/netrender.git?rev=9607d16f1907f6c2085648ae96abcaa30d7c3d41#9607d16f)
+   Compiling windows-sys v0.61.2
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling logos v0.16.1
+   Compiling genet-scripted-dom v0.1.2 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling getrandom v0.4.3
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling winapi-util v0.1.11
+   Compiling same-file v1.0.6
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling windows-sys v0.59.0
+   Compiling tempfile v3.27.0
+   Compiling knot-document v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-document)
+warning: usage of an `unsafe` block
+   --> src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+warning: `knot-document` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 49s
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_document-4088118b5c78b013.exe)
+   Doc-tests knot_document

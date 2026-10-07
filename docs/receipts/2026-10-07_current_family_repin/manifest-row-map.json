@@ -1,0 +1,404 @@
+{
+  "base_commit": "ec0224e6023dc0282730e6ddc388c666ac520769",
+  "rows": [
+    {
+      "path": "Cargo.toml",
+      "line": 29,
+      "dependency_key": "reference-data",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 82,
+      "dependency_key": "chartulary",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 83,
+      "dependency_key": "chirograph",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 84,
+      "dependency_key": "eidetic",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 85,
+      "dependency_key": "esp",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 86,
+      "dependency_key": "fetch",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 87,
+      "dependency_key": "gemot",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 88,
+      "dependency_key": "graphshell",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 89,
+      "dependency_key": "graphshell-endpoint",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 90,
+      "dependency_key": "mora-cmudict",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 91,
+      "dependency_key": "muniment",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 92,
+      "dependency_key": "notochord",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 93,
+      "dependency_key": "pandect",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 94,
+      "dependency_key": "insigne",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 95,
+      "dependency_key": "personae",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 96,
+      "dependency_key": "proofs",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 97,
+      "dependency_key": "sceno",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 98,
+      "dependency_key": "scenomise",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 99,
+      "dependency_key": "scenograph",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 100,
+      "dependency_key": "scenotime",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 101,
+      "dependency_key": "script-rhai",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 102,
+      "dependency_key": "servitor",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 103,
+      "dependency_key": "stickleback",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 104,
+      "dependency_key": "transport",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 110,
+      "dependency_key": "cambium",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 111,
+      "dependency_key": "mere-view",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 112,
+      "dependency_key": "mesquite",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 113,
+      "dependency_key": "cambium-genet-winit-host",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 114,
+      "dependency_key": "sprigging",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 115,
+      "dependency_key": "workbench",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 116,
+      "dependency_key": "fleece",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 117,
+      "dependency_key": "genet-host-api",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 118,
+      "dependency_key": "genet-scripted-dom",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 119,
+      "dependency_key": "illume",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 120,
+      "dependency_key": "inker",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 121,
+      "dependency_key": "knot-editor-host",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 122,
+      "dependency_key": "layout-dom-api",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 123,
+      "dependency_key": "nematic",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 124,
+      "dependency_key": "taproot",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 149,
+      "dependency_key": "layout-dom-api",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 150,
+      "dependency_key": "genet-scripted-dom",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 151,
+      "dependency_key": "taffy",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "Cargo.toml",
+      "line": 155,
+      "dependency_key": "cubecl-runtime",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "apps/desktop/Cargo.toml",
+      "line": 22,
+      "dependency_key": "apparatus",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "apps/desktop/Cargo.toml",
+      "line": 38,
+      "dependency_key": "tinct",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 28,
+      "dependency_key": "cambium",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 29,
+      "dependency_key": "mere-surface-api",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 30,
+      "dependency_key": "illume",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 31,
+      "dependency_key": "inker",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 32,
+      "dependency_key": "knot-editor-host",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 33,
+      "dependency_key": "nematic",
+      "family": "mere",
+      "rev": "57b4893db6909d5ed9c4ccae30216f0d8164201a"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 40,
+      "dependency_key": "genet-scripted-dom",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 41,
+      "dependency_key": "layout-dom-api",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 52,
+      "dependency_key": "layout-dom-api",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 53,
+      "dependency_key": "genet-scripted-dom",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 54,
+      "dependency_key": "taffy",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "line": 60,
+      "dependency_key": "ipc-channel",
+      "family": "genet",
+      "rev": "965b64e206a47d1c8808472de9aa461233638768"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+warning: patch `ipc-channel v0.22.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)` was not used in the crate graph
+warning: patch `genet-taffy v0.14.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling syn v3.0.4
+   Compiling zerofrom v0.1.8
+   Compiling stable_deref_trait v1.2.1
+   Compiling yoke v0.8.3
+   Compiling serde_derive v1.0.229
+   Compiling serde v1.0.229
+   Compiling zerovec-derive v0.11.6
+   Compiling zerovec v0.11.8
+   Compiling displaydoc v0.2.7
+   Compiling tinystr v0.8.4
+   Compiling windows-sys v0.61.2
+   Compiling litemap v0.8.3
+   Compiling writeable v0.6.4
+   Compiling icu_locale_core v2.3.0
+   Compiling zerotrie v0.2.5
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling find-msvc-tools v0.1.11
+   Compiling cc v1.4.4
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling idna_adapter v1.2.2
+   Compiling ring v0.17.14
+   Compiling socket2 v0.6.5
+   Compiling mio v1.2.2
+   Compiling tokio-macros v2.7.2
+   Compiling bytes v1.12.1
+   Compiling tokio v1.53.1
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling getrandom v0.2.17
+   Compiling zeroize v1.9.0
+   Compiling generic-array v0.14.7
+   Compiling rustls-pki-types v1.15.1
+   Compiling euclid v0.22.14
+   Compiling bytemuck_derive v1.12.0
+   Compiling typenum v1.20.1
+   Compiling rustls v0.23.43
+   Compiling bytemuck v1.25.2
+   Compiling rustls-webpki v0.103.15
+   Compiling subtle v2.6.1
+   Compiling font-types v0.12.4
+   Compiling time v0.3.55
+   Compiling tracing v0.1.44
+   Compiling read-fonts v0.41.0
+   Compiling tokio-rustls v0.26.4
+   Compiling uuid v1.25.0
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling base64 v0.22.1
+   Compiling guillotiere v0.7.0
+   Compiling pem v3.0.6
+   Compiling digest v0.10.7
+   Compiling skrifa v0.44.0
+   Compiling yasna v0.5.2
+   Compiling app_units v0.7.8
+   Compiling thiserror-impl v2.0.20
+   Compiling hashbrown v0.17.1
+   Compiling sha2 v0.10.9
+   Compiling indexmap v2.14.0
+   Compiling thiserror v2.0.20
+   Compiling genet-paint-types v0.2.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling rcgen v0.13.2
+   Compiling vello_encoding v0.10.0 (https://github.com/mark-ik/vello.git?tag=vello-0.10.0#4354955e)
+   Compiling gemini-protocol v0.1.7
+   Compiling layout-dom-api v0.1.1 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling vello v0.10.0 (https://github.com/mark-ik/vello.git?tag=vello-0.10.0#4354955e)
+   Compiling petgraph v0.8.3
+   Compiling accesskit v0.24.1
+   Compiling genet-static-dom v0.1.1 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling scroll-protocol v0.1.0
+   Compiling misfin v0.0.4
+   Compiling engine-observables-api v0.2.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling paint_list_api v0.1.2 (https://github.com/merely-made/netrender.git?rev=9607d16f1907f6c2085648ae96abcaa30d7c3d41#9607d16f)
+   Compiling finger-protocol v0.1.1
+   Compiling nex-protocol v0.1.1
+   Compiling gopher-protocol v0.2.0
+   Compiling guppy-protocol v0.1.1
+   Compiling spartan-protocol v0.1.1
+   Compiling document-session-api v0.1.0 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling errand v0.4.0 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling logos v0.16.1
+   Compiling genet-scripted-dom v0.1.2 (https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e2)
+   Compiling sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling winapi-util v0.1.11
+   Compiling same-file v1.0.6
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893d)
+   Compiling tempfile v3.27.0
+   Compiling knot-document v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-document)
+warning: usage of an `unsafe` block
+   --> src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+warning: `knot-document` (lib test) generated 1 warning (1 duplicate)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 20s
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_document-202d9f58e8193cf1.exe)
+   Doc-tests knot_document

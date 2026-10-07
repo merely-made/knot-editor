@@ -1,0 +1,9 @@
+{
+  "started_utc": "2026-10-07T07:28:22.7281576Z",
+  "priority": "BelowNormal",
+  "target_dir": "C:/t/cargo-targets/knot-editor",
+  "exit_code": 0,
+  "command": "cargo +1.98.1 metadata --manifest-path crates/knot-document/Cargo.toml --format-version 1 --features engine",
+  "finished_utc": "2026-10-07T07:28:27.3582275Z",
+  "jobs": 1
+}

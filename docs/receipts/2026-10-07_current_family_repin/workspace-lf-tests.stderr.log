@@ -1,0 +1,75 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5#1bec457e)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling knot-composition v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-composition)
+warning: usage of an `unsafe` block
+   --> crates\knot-document\src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+   Compiling knot-editor v0.0.3 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-editor)
+   Compiling knot-desktop v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\apps\desktop)
+warning: unused variable: `store`
+    --> apps\desktop\src\recovery.rs:1199:13
+     |
+1199 |         let store = store(&temp);
+     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-desktop` (lib test) generated 1 warning (run `cargo fix --lib -p knot-desktop --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6m 54s
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_capture-da0d4884ec34fa9b.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_composition-fd131b541c1349ae.exe)
+     Running unittests src\bin\knot-wordnet-import.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_wordnet_import-77dfc2ae349b9c36.exe)
+     Running tests\collections.rs (C:/t/cargo-targets/knot-editor\debug\deps\collections-dae7148a88a6d78a.exe)
+     Running tests\recipes.rs (C:/t/cargo-targets/knot-editor\debug\deps\recipes-51cfd0aec13a4c4f.exe)
+     Running tests\wordnet_import.rs (C:/t/cargo-targets/knot-editor\debug\deps\wordnet_import-93a63cde0bb26146.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_desktop-d4c9ff448a6c6f79.exe)
+     Running unittests src\main.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot-945c706f8da1410b.exe)
+     Running tests\collapse.rs (C:/t/cargo-targets/knot-editor\debug\deps\collapse-10cc84e1fe7e6f48.exe)
+     Running tests\command_chrome.rs (C:/t/cargo-targets/knot-editor\debug\deps\command_chrome-f02de86abf7b866f.exe)
+     Running tests\composition_mere.rs (C:/t/cargo-targets/knot-editor\debug\deps\composition_mere-7090ebb9d7f59dab.exe)
+     Running tests\document_links_ui.rs (C:/t/cargo-targets/knot-editor\debug\deps\document_links_ui-3c0e00c10eff0bec.exe)
+     Running tests\preferences.rs (C:/t/cargo-targets/knot-editor\debug\deps\preferences-1d57766dc6e40a6c.exe)
+     Running tests\readings_panel.rs (C:/t/cargo-targets/knot-editor\debug\deps\readings_panel-b7b76724eb744ad9.exe)
+     Running tests\resident_retention.rs (C:/t/cargo-targets/knot-editor\debug\deps\resident_retention-d8f09a1c0f38801f.exe)
+     Running tests\scenario_lane.rs (C:/t/cargo-targets/knot-editor\debug\deps\scenario_lane-7166d3cf0e4a7081.exe)
+     Running tests\typography_fonts.rs (C:/t/cargo-targets/knot-editor\debug\deps\typography_fonts-5afb68856a6922e3.exe)
+     Running unittests examples\collection_acceptance.rs (C:/t/cargo-targets/knot-editor\debug\examples\collection_acceptance-32b0ea186d409a87.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_editor-468be01c06809d65.exe)
+     Running unittests src\bin\knot_endpoint.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_endpoint-51d5119de2bec46e.exe)
+     Running unittests src\bin\knot_sync_host.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_sync_host-63588b5668035178.exe)
+     Running tests\asserted_time.rs (C:/t/cargo-targets/knot-editor\debug\deps\asserted_time-d88d0024072f90ba.exe)
+     Running tests\authored_relations.rs (C:/t/cargo-targets/knot-editor\debug\deps\authored_relations-275d819f2de32ada.exe)
+     Running tests\capture_retention.rs (C:/t/cargo-targets/knot-editor\debug\deps\capture_retention-31d754a56cdb7e9f.exe)
+     Running tests\composition_retention.rs (C:/t/cargo-targets/knot-editor\debug\deps\composition_retention-960c134b273defc5.exe)
+     Running tests\file_catalog.rs (C:/t/cargo-targets/knot-editor\debug\deps\file_catalog-a9ae8dd31237fd15.exe)
+     Running tests\file_relations.rs (C:/t/cargo-targets/knot-editor\debug\deps\file_relations-2b51d770d6b43bc1.exe)
+     Running tests\place_projection.rs (C:/t/cargo-targets/knot-editor\debug\deps\place_projection-f722f716f8d51203.exe)
+     Running tests\predicate_definitions.rs (C:/t/cargo-targets/knot-editor\debug\deps\predicate_definitions-df8ce77ddb9330c7.exe)
+     Running tests\resident_app_route.rs (C:/t/cargo-targets/knot-editor\debug\deps\resident_app_route-f41fcbcacc8f1397.exe)
+     Running tests\resident_ownership.rs (C:/t/cargo-targets/knot-editor\debug\deps\resident_ownership-23486a95afdbfde6.exe)
+     Running tests\retain_host.rs (C:/t/cargo-targets/knot-editor\debug\deps\retain_host-f774936396f7dbdf.exe)
+     Running tests\revision_bell.rs (C:/t/cargo-targets/knot-editor\debug\deps\revision_bell-71e91a2d9d4455d2.exe)
+     Running tests\rosette_projection.rs (C:/t/cargo-targets/knot-editor\debug\deps\rosette_projection-188c56a65bcdc513.exe)
+     Running tests\search_provider_identity.rs (C:/t/cargo-targets/knot-editor\debug\deps\search_provider_identity-a3a78af0f8d95e03.exe)
+     Running tests\send_probe.rs (C:/t/cargo-targets/knot-editor\debug\deps\send_probe-73002be6ee834695.exe)
+     Running unittests examples\k2_peer.rs (C:/t/cargo-targets/knot-editor\debug\examples\k2_peer-15b30fe715e538ca.exe)
+     Running unittests examples\knot_publish_peer.rs (C:/t/cargo-targets/knot-editor\debug\examples\knot_publish_peer-0b555009be764e26.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_file_catalog-663dcbbba1a36d65.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_readings-a6827877cd2fb0bd.exe)
+     Running tests\reading_bindings.rs (C:/t/cargo-targets/knot-editor\debug\deps\reading_bindings-0c8ad548d2a8e240.exe)
+     Running tests\reading_sandbox.rs (C:/t/cargo-targets/knot-editor\debug\deps\reading_sandbox-308f12916a12f7ad.exe)

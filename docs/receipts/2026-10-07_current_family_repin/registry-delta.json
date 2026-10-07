@@ -1,0 +1,24 @@
+{
+  "base_commit": "ec0224e6023dc0282730e6ddc388c666ac520769",
+  "qualified_lock_sha256": "312ba490f88a322b67fe2296882e6c5c679cbfd06c7398e314eee64223545d59",
+  "added": [
+    {
+      "name": "wuff",
+      "version": "0.2.9",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    },
+    {
+      "name": "wuff-capi",
+      "version": "0.2.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    }
+  ],
+  "removed": [
+    {
+      "name": "fontsan-woff2",
+      "version": "0.1.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index"
+    }
+  ],
+  "other_registry_version_updates": []
+}

@@ -1,0 +1,9 @@
+{
+  "finished_utc": "2026-10-07T07:39:10.1112254Z",
+  "exit_code": 0,
+  "priority": "BelowNormal",
+  "started_utc": "2026-10-07T07:26:00.3168538Z",
+  "command": "cargo +1.98.1 check --workspace --all-targets --locked -j 1",
+  "jobs": 1,
+  "target_dir": "C:/t/cargo-targets/knot-editor"
+}

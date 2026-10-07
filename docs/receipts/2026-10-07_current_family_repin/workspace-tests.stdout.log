@@ -1,0 +1,111 @@
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 16 tests
+test optional_hash_checks_exact_original_bytes_and_never_searches ... ok
+test copied_quote_is_not_normalized_or_reinterpreted ... ok
+test stale_source_is_not_implicitly_relocated_even_if_quote_still_exists ... ok
+test unicode_ranges_are_bytes_not_characters_and_cannot_split_codepoints ... ok
+test old_collection_records_do_not_require_a_recipe_payload ... ok
+test invalid_anchor_shape_or_hash_cannot_be_persisted ... ok
+test oversized_existing_store_is_refused_without_modification ... ok
+test refused_item_or_duplicate_preserves_previous_file_and_memory ... ok
+test absent_open_is_read_only_and_collect_creates_a_reopenable_store ... ok
+test unknown_item_fields_and_duplicate_ids_are_not_silently_discarded ... ok
+test malformed_external_replacement_is_preserved_and_mutation_is_refused ... ok
+test sidecar_lock_refuses_overlapping_writes_without_changing_file ... ok
+test two_handles_cannot_lose_each_others_material ... ok
+test malformed_or_unknown_store_is_never_overwritten ... ok
+test remove_is_durable_and_absent_remove_does_not_create_a_file ... ok
+test all_item_kinds_and_author_material_survive_reopen_without_pack_access ... ok
+
+test result: ok. 16 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+
+running 2 tests
+test validation_outcome_does_not_depend_on_card_size ... ok
+test typed_recipe_roundtrips_and_rejects_invalid_associations_and_anchors ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.04s
+
+
+running 13 tests
+test local_upstream_oewn_pack_installs_disabled_then_looks_up_after_enable ... ignored, requires KNOT_TEST_OEWN_PACK pointing to an explicitly converted local upstream OEWN2025 pack
+test explicit_identity_and_nonempty_lemma_selection_are_required ... ok
+test unicode_lemma_lookup_is_exact_and_preserved ... FAILED
+test neighbors_do_not_recursively_expand_but_all_output_targets_resolve ... FAILED
+test real_lmf_structure_preserves_sense_targets_concepts_license_and_exact_text ... FAILED
+test self_closing_senses_and_explicitly_closed_relations_are_equivalent ... FAILED
+test malformed_external_entities_extensions_and_nested_important_markup_are_refused ... ok
+test oewn_retains_both_upstream_notices_and_attributions_and_refuses_unknown_license ... FAILED
+test lowered_retained_record_budget_is_enforced_before_growth ... FAILED
+test missing_targets_duplicate_senses_and_ambiguous_definitions_are_refused ... ok
+test attacker_chosen_diagnostic_names_are_bounded ... ok
+test cli_rejects_bad_input_without_creating_output ... ok
+test cli_emits_valid_pack_and_report_and_never_overwrites_output ... FAILED
+
+failures:
+
+---- unicode_lemma_lookup_is_exact_and_preserved stdout ----
+
+thread 'unicode_lemma_lookup_is_exact_and_preserved' (33280) panicked at crates\knot-composition\tests\wordnet_import.rs:185:73:
+called `Result::unwrap()` on an `Err` value: ImportError("invalid reference data: empty text or control character")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- neighbors_do_not_recursively_expand_but_all_output_targets_resolve stdout ----
+
+thread 'neighbors_do_not_recursively_expand_but_all_output_targets_resolve' (18888) panicked at crates\knot-composition\tests\wordnet_import.rs:153:73:
+called `Result::unwrap()` on an `Err` value: ImportError("invalid reference data: empty text or control character")
+
+---- real_lmf_structure_preserves_sense_targets_concepts_license_and_exact_text stdout ----
+
+thread 'real_lmf_structure_preserves_sense_targets_concepts_license_and_exact_text' (46520) panicked at crates\knot-composition\tests\wordnet_import.rs:23:73:
+called `Result::unwrap()` on an `Err` value: ImportError("invalid reference data: empty text or control character")
+
+---- self_closing_senses_and_explicitly_closed_relations_are_equivalent stdout ----
+
+thread 'self_closing_senses_and_explicitly_closed_relations_are_equivalent' (23652) panicked at crates\knot-composition\tests\wordnet_import.rs:275:71:
+called `Result::unwrap()` on an `Err` value: ImportError("invalid reference data: empty text or control character")
+
+---- oewn_retains_both_upstream_notices_and_attributions_and_refuses_unknown_license stdout ----
+
+thread 'oewn_retains_both_upstream_notices_and_attributions_and_refuses_unknown_license' (50776) panicked at crates\knot-composition\tests\wordnet_import.rs:75:73:
+called `Result::unwrap()` on an `Err` value: ImportError("invalid reference data: empty text or control character")
+
+---- lowered_retained_record_budget_is_enforced_before_growth stdout ----
+
+thread 'lowered_retained_record_budget_is_enforced_before_growth' (33872) panicked at crates\knot-composition\tests\wordnet_import.rs:113:5:
+assertion failed: import_wordnet_with_budget(FIXTURE.as_bytes(), &options("tide"),
+        2 * 1024 * 1024).is_ok()
+
+---- cli_emits_valid_pack_and_report_and_never_overwrites_output stdout ----
+
+thread 'cli_emits_valid_pack_and_report_and_never_overwrites_output' (50464) panicked at crates\knot-composition\tests\wordnet_import.rs:297:5:
+knot-wordnet-import: invalid reference data: empty text or control character
+
+
+
+failures:
+    cli_emits_valid_pack_and_report_and_never_overwrites_output
+    lowered_retained_record_budget_is_enforced_before_growth
+    neighbors_do_not_recursively_expand_but_all_output_targets_resolve
+    oewn_retains_both_upstream_notices_and_attributions_and_refuses_unknown_license
+    real_lmf_structure_preserves_sense_targets_concepts_license_and_exact_text
+    self_closing_senses_and_explicitly_closed_relations_are_equivalent
+    unicode_lemma_lookup_is_exact_and_preserved
+
+test result: FAILED. 5 passed; 7 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.18s
+

@@ -240,6 +240,36 @@ on duplicate tinct/apparatus types; the recorded passing gate uses the final
 uniform graph. No new native capture review, human screen-reader test, personal
 wallet onboarding, other-platform run or release packaging is claimed.
 
+#### Coordinated family follow-up, Windows, 2026-10-07
+
+Candidate baseline `ec0224e6023dc0282730e6ddc388c666ac520769` now aligns all
+43 Mere declarations to `57b4893db6909d5ed9c4ccae30216f0d8164201a` and all 14
+Genet declarations to `965b64e206a47d1c8808472de9aa461233638768`, including the
+independent document and desktop manifests. All 128 tracked Rust files remain
+identical to the published baseline after Git line-ending normalization.
+The lock retains registry versions except the qualified fontsan backend change
+from fontsan-woff2 to wuff/wuff-capi. Root and standalone engine metadata each
+resolve exactly one Mere revision and one Genet revision.
+
+The Windows locked workspace all-target check passes. The first test run failed
+seven WordNet cases because Git checked out the embedded OEWN notice with CRLF,
+which its existing validator rejects. A per-asset LF attribute restores exactly
+the existing Git notice bytes; neither Rust code nor the validator is changed.
+The failed control remains recorded. The WordNet rerun passes 12 tests, and the
+full locked no-fail-fast workspace rerun passes **579 tests, 0 failures, 3 existing
+ignored**, across 42 executables. Standalone document tests pass 47 with default
+features and 60 with the engine feature, each with one existing ignore and
+passing doc-tests. The third workspace ignore is Windows symbolic-link
+privilege; this cohort is separate from the preceding macOS qualification.
+
+The [current-family receipt](../docs/receipts/2026-10-07_current_family_repin/README.md)
+contains exact manifest rows, input and artifact hashes, source-identity metadata,
+raw commands/results and the failed notice bytes. Integration review approved
+publication; U9 remains ordered Knot then Redshank then Turnstone. Linux
+current-family verification belongs to the final Turnstone integration owner.
+No native or screen-reader acceptance, identity seed/vault repair, release
+packaging or complete Turnstone S0 acceptance is inferred from these tests.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

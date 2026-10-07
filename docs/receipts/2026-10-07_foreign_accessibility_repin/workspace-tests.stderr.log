@@ -1,0 +1,139 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5#1bec457e)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling muniment v0.1.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling tinct v0.1.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling workbench v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling scenograph v0.0.4 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling insigne v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling personae v0.2.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling scenomise v0.0.4 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling chartulary v0.2.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-file-catalog v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-file-catalog)
+   Compiling errand v0.4.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-forme v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling numen v0.2.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-kernel v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-capture v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-capture)
+   Compiling reference-data v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-composition v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-composition)
+   Compiling notochord v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-proofs v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling scenotime v0.0.4 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling incipit v0.2.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mora-cmudict v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling chirograph v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling stickleback v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-document v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-document)
+warning: usage of an `unsafe` block
+   --> crates\knot-document\src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+   Compiling script-rhai v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling eidetic v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-alembic v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling tabard v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling pandect v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-transport v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling graphshell-endpoint v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling servitor v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling armillary v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-fetch v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling esp v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-editor v0.0.3 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-editor)
+   Compiling luggage v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling chatelaine v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling castellan v0.0.3 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-webrtc-carrier v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mien v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling graphshell-client v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mooting v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling gemot v0.1.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling graphshell v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling cambium-winit v0.3.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling cambium-rootstock v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-readings v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-readings)
+   Compiling cambium-winit-a11y v0.3.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-cartography v0.0.2 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-apparatus v0.0.1 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mesquite v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling mere-view v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling cambium-genet-winit-host v0.1.0 (https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c7)
+   Compiling knot-desktop v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\apps\desktop)
+warning: unused variable: `store`
+    --> apps\desktop\src\recovery.rs:1199:13
+     |
+1199 |         let store = store(&temp);
+     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-desktop` (lib test) generated 1 warning (run `cargo fix --lib -p knot-desktop --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 36m 51s
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_capture-2009e620c31a1b44.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_composition-309fcbb32f2aba9a.exe)
+     Running unittests src\bin\knot-wordnet-import.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_wordnet_import-0bff7964850464cb.exe)
+     Running tests\collections.rs (C:/t/cargo-targets/knot-editor\debug\deps\collections-73389d9e630cb51b.exe)
+     Running tests\recipes.rs (C:/t/cargo-targets/knot-editor\debug\deps\recipes-9f0bfdf313dea743.exe)
+     Running tests\wordnet_import.rs (C:/t/cargo-targets/knot-editor\debug\deps\wordnet_import-49ffe1d015e5b7e5.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_desktop-84d0239d5c44f1d6.exe)
+error: test failed, to rerun pass `-p knot-desktop --lib`
+     Running unittests src\main.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot-1e43dcc73f77a4b3.exe)
+     Running tests\collapse.rs (C:/t/cargo-targets/knot-editor\debug\deps\collapse-7b67f71481cc8f80.exe)
+     Running tests\command_chrome.rs (C:/t/cargo-targets/knot-editor\debug\deps\command_chrome-17e0006999a7bdba.exe)
+     Running tests\composition_mere.rs (C:/t/cargo-targets/knot-editor\debug\deps\composition_mere-a3a2372c5744d0f5.exe)
+     Running tests\document_links_ui.rs (C:/t/cargo-targets/knot-editor\debug\deps\document_links_ui-2b89264543e94f81.exe)
+     Running tests\preferences.rs (C:/t/cargo-targets/knot-editor\debug\deps\preferences-5f773c56c3aa67bb.exe)
+     Running tests\readings_panel.rs (C:/t/cargo-targets/knot-editor\debug\deps\readings_panel-c228ac3ac3177775.exe)
+     Running tests\resident_retention.rs (C:/t/cargo-targets/knot-editor\debug\deps\resident_retention-bf5259db69ec853b.exe)
+     Running tests\scenario_lane.rs (C:/t/cargo-targets/knot-editor\debug\deps\scenario_lane-cf7dd5a235980654.exe)
+     Running tests\typography_fonts.rs (C:/t/cargo-targets/knot-editor\debug\deps\typography_fonts-11b92e27ae7b220e.exe)
+     Running unittests examples\collection_acceptance.rs (C:/t/cargo-targets/knot-editor\debug\examples\collection_acceptance-9d5bd18b20e8888d.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_editor-efea2cc44b0b7aff.exe)
+     Running unittests src\bin\knot_endpoint.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_endpoint-f238ce4a47ddf42d.exe)
+     Running unittests src\bin\knot_sync_host.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_sync_host-2ac82e976478a5b1.exe)
+     Running tests\asserted_time.rs (C:/t/cargo-targets/knot-editor\debug\deps\asserted_time-a967ce082d462422.exe)
+     Running tests\authored_relations.rs (C:/t/cargo-targets/knot-editor\debug\deps\authored_relations-3be1f935478ae158.exe)
+     Running tests\capture_retention.rs (C:/t/cargo-targets/knot-editor\debug\deps\capture_retention-d8886adc36b94c26.exe)
+     Running tests\composition_retention.rs (C:/t/cargo-targets/knot-editor\debug\deps\composition_retention-a6afd386e6ad6f81.exe)
+     Running tests\file_catalog.rs (C:/t/cargo-targets/knot-editor\debug\deps\file_catalog-f6f94f1fc62f9c5b.exe)
+     Running tests\file_relations.rs (C:/t/cargo-targets/knot-editor\debug\deps\file_relations-b4c34d935828e36a.exe)
+     Running tests\place_projection.rs (C:/t/cargo-targets/knot-editor\debug\deps\place_projection-8e6797ea37bc16f0.exe)
+     Running tests\predicate_definitions.rs (C:/t/cargo-targets/knot-editor\debug\deps\predicate_definitions-ebd499ae42cd97b8.exe)
+     Running tests\resident_app_route.rs (C:/t/cargo-targets/knot-editor\debug\deps\resident_app_route-2468aacd6302bac1.exe)
+     Running tests\resident_ownership.rs (C:/t/cargo-targets/knot-editor\debug\deps\resident_ownership-0246c131c555b437.exe)
+     Running tests\retain_host.rs (C:/t/cargo-targets/knot-editor\debug\deps\retain_host-41fbb2f141226a82.exe)
+     Running tests\revision_bell.rs (C:/t/cargo-targets/knot-editor\debug\deps\revision_bell-e4afd2f3fd298da7.exe)
+     Running tests\rosette_projection.rs (C:/t/cargo-targets/knot-editor\debug\deps\rosette_projection-ae9e4bbf29d86250.exe)
+     Running tests\search_provider_identity.rs (C:/t/cargo-targets/knot-editor\debug\deps\search_provider_identity-2ec39748f0961f35.exe)
+     Running tests\send_probe.rs (C:/t/cargo-targets/knot-editor\debug\deps\send_probe-9c09f37b8949329c.exe)
+     Running unittests examples\k2_peer.rs (C:/t/cargo-targets/knot-editor\debug\examples\k2_peer-c433c6efa6f6ba93.exe)
+     Running unittests examples\knot_publish_peer.rs (C:/t/cargo-targets/knot-editor\debug\examples\knot_publish_peer-67a5e9f3542ab867.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_file_catalog-608233904c883497.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_readings-921526c958b58950.exe)
+     Running tests\reading_bindings.rs (C:/t/cargo-targets/knot-editor\debug\deps\reading_bindings-04e7a2f54c780bee.exe)
+     Running tests\reading_sandbox.rs (C:/t/cargo-targets/knot-editor\debug\deps\reading_sandbox-5c76036f0828167e.exe)
+error: 1 target failed:
+    `-p knot-desktop --lib`

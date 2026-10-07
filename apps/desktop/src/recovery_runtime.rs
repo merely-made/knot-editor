@@ -369,7 +369,14 @@ mod tests {
         let mut runtime = RecoveryRuntime::start(root.clone(), policy, wake()).unwrap();
         let id = RecoveryId::new();
         assert!(runtime.offer(record(id, "too large")));
-        std::thread::sleep(Duration::from_millis(750));
+        // The bounded FIFO barrier waits for the offered edit. The timer may
+        // already have published its refusal before the barrier is processed.
+        if let Err(error) = runtime.flush() {
+            assert!(
+                error.contains("failed"),
+                "unexpected recovery barrier failure: {error}"
+            );
+        }
         let (error, failed) = runtime.drain_error();
         assert!(error.unwrap().contains("failed"));
         assert_eq!(failed, [id]);

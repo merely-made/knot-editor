@@ -1,0 +1,1046 @@
+{
+  "base": "2967972ce2953fa15c5e44ac0977c3114e1df67d",
+  "raw_inputs": [
+    {
+      "path": ".gitattributes",
+      "bytes": 810,
+      "sha256": "9b1b5ed61a5240efe24c380b9f80e3cc8cda44d395526b06a63daccc6de1e471"
+    },
+    {
+      "path": ".github/workflows/ci.yml",
+      "bytes": 2264,
+      "sha256": "f4600e0df1f9c89b48c73f2dbde9ab0587203ac4dd561b1b649cab1e3d83d7cc"
+    },
+    {
+      "path": ".gitignore",
+      "bytes": 605,
+      "sha256": "e72b885f759acfad43ede2d6006b1c5e1e05e3fcd48b4e348924b554bd510ea3"
+    },
+    {
+      "path": "Cargo.lock",
+      "bytes": 350448,
+      "sha256": "cb229555ca397a1428a9eee62f402a7c23792bbb447c3299538c19ef7b0b0ea4"
+    },
+    {
+      "path": "Cargo.toml",
+      "bytes": 12942,
+      "sha256": "4c7e6edd59a96342aa5736237aae3bcacb949429f72d8e6eeb1c37dde81e6893"
+    },
+    {
+      "path": "LICENSE",
+      "bytes": 15317,
+      "sha256": "0d73438590cccaea1e0505b3e664662d48f0cd95de0b521fb8622adf58db4249"
+    },
+    {
+      "path": "apps/desktop/Cargo.toml",
+      "bytes": 1874,
+      "sha256": "fbaa552860ad0ba8012402147cf65758c72a14594f87582f2fc864041351e7d1"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/.gitattributes",
+      "bytes": 92,
+      "sha256": "c1b6d995a2110afe233ffe6733924f259b3bd872f815a16b9ab0e9709b0ae9b3"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/ibm-plex-mono/IBMPlexMono-Bold.ttf",
+      "bytes": 137784,
+      "sha256": "ac27abd6450a64dd94467580a02fe6235156d5b92f2926ebbc8e7489df64e0be"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/ibm-plex-mono/IBMPlexMono-BoldItalic.ttf",
+      "bytes": 144512,
+      "sha256": "af4e05a761e98c1adf064c48a6352c9bec1a6ad70982cd2a544149323391f98e"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/ibm-plex-mono/IBMPlexMono-Italic.ttf",
+      "bytes": 143920,
+      "sha256": "3362fc791b0652193328b862c1c5f23a789bc7288b1617fa63302f88689a2a34"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/ibm-plex-mono/IBMPlexMono-Regular.ttf",
+      "bytes": 135580,
+      "sha256": "6a3412f058c7d8dfd9170c41e85ade48e5156ecb89356110ca57a0a27734af46"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/ibm-plex-mono/OFL.txt",
+      "bytes": 4363,
+      "sha256": "37784b44044a4ffd9256702b7c0982c37e5c8887ba90c6dca0479aea93dc898d"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/source-serif-4/OFL.txt",
+      "bytes": 4400,
+      "sha256": "5f94c3fd3a23131a417ab5a0c8452de57e70c3cfb9f604d88241f7065ebf9fd9"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/source-serif-4/SourceSerif4-Italic.ttf",
+      "bytes": 855432,
+      "sha256": "15fbc7e4679489a501998c3669272637a6646388ef7e4bd77eebb5bf967a1f42"
+    },
+    {
+      "path": "apps/desktop/assets/fonts/source-serif-4/SourceSerif4.ttf",
+      "bytes": 1209508,
+      "sha256": "97b2d4da6e3cb494b5a1e66ae176914d852ccabef49e0c02c0df25f3e39aca0b"
+    },
+    {
+      "path": "apps/desktop/examples/collection_acceptance.rs",
+      "bytes": 3871,
+      "sha256": "e7ac067150e22773c077d098992a98030482e2ec34e631ee7a2609af6222efa2"
+    },
+    {
+      "path": "apps/desktop/src/appearance.rs",
+      "bytes": 13762,
+      "sha256": "fab5d6ecbc06e6e2b8cebc9ec5a46acf8b6df1f481722dc3045b6ec0b8fee993"
+    },
+    {
+      "path": "apps/desktop/src/changes.rs",
+      "bytes": 8861,
+      "sha256": "ff1f0a8024a899fbdb22248e52082329207a2b7cee84e538a75e90b3db4d3025"
+    },
+    {
+      "path": "apps/desktop/src/collapse.rs",
+      "bytes": 19341,
+      "sha256": "a1849b1e74f34cb17ce1fa6caa0bb3cf6ecb2251d9aced8c21c517562afe5916"
+    },
+    {
+      "path": "apps/desktop/src/composition.rs",
+      "bytes": 111717,
+      "sha256": "8745f2194d435ea89ff1610c941ef7be920303e3c784007012978b7be41a9ec4"
+    },
+    {
+      "path": "apps/desktop/src/composition/recipe.rs",
+      "bytes": 56177,
+      "sha256": "2b041fb6350e83a8f690be72359600d34fdf98d49d5e11de40d450ed94f20b65"
+    },
+    {
+      "path": "apps/desktop/src/composition/recipe/scene.rs",
+      "bytes": 26361,
+      "sha256": "e78fdeefdd252af230653f8f62fc476882ba024e74f1ee867d827e4ddec3fe00"
+    },
+    {
+      "path": "apps/desktop/src/document_folding.rs",
+      "bytes": 15831,
+      "sha256": "92eebb913ccb04b32f8050f81e4a792c566d1ecec5a453eb182c47208d4fbc81"
+    },
+    {
+      "path": "apps/desktop/src/document_links.rs",
+      "bytes": 13470,
+      "sha256": "ad308d2716e0b2eeb318994385c0fb0d4427cc67829c9fac7e9f0acd606049e7"
+    },
+    {
+      "path": "apps/desktop/src/document_preview.rs",
+      "bytes": 20639,
+      "sha256": "74cd28f7c59c7042a8df02603d74b10838c3cda4eb1f0ec33837af0cbc00337e"
+    },
+    {
+      "path": "apps/desktop/src/documents.rs",
+      "bytes": 35545,
+      "sha256": "065cff48b284f84093a0237f9ad9840cfd71696cadd7537e04bf8c404751f5f9"
+    },
+    {
+      "path": "apps/desktop/src/fonts.rs",
+      "bytes": 1179,
+      "sha256": "5ca399c4b80f3d82f91f0e027f2928b2fe81d963b358ce61062e9e405bb9e226"
+    },
+    {
+      "path": "apps/desktop/src/graph.rs",
+      "bytes": 38442,
+      "sha256": "1c4a331402d30cbec5f4945b92d03b1ba286c4baacaec0ccddad28c92a77b481"
+    },
+    {
+      "path": "apps/desktop/src/graph/diagnostics.rs",
+      "bytes": 9013,
+      "sha256": "fb326ade8f5d25755068deb5896d446207ad1b20d82c1e00a7184085250702b7"
+    },
+    {
+      "path": "apps/desktop/src/lib.rs",
+      "bytes": 6183,
+      "sha256": "b11c02f6c9ac637842052bf5b33bf1bfd3a36fa447e50d654114f1e253bb3e48"
+    },
+    {
+      "path": "apps/desktop/src/link_workflow.rs",
+      "bytes": 30366,
+      "sha256": "1f01fb9e8a75ee2844e3021b79b613495065f4b479423453273678862b52563f"
+    },
+    {
+      "path": "apps/desktop/src/main.rs",
+      "bytes": 20342,
+      "sha256": "085537b3b6f1d76c2a1899151985c64e0e9d91f5ee4bd3f15eddd9efa48d66a9"
+    },
+    {
+      "path": "apps/desktop/src/navigator.rs",
+      "bytes": 11153,
+      "sha256": "da4813ffe3c3fe3f43d8695079ba37c2bbee8f49a18f1817b6feb41762b53ba5"
+    },
+    {
+      "path": "apps/desktop/src/preferences.rs",
+      "bytes": 21223,
+      "sha256": "16d18bbc1ae635dbf8528f675f724256f4bc3ec9c60ae1efdcd2ed96393819ea"
+    },
+    {
+      "path": "apps/desktop/src/readings.rs",
+      "bytes": 10544,
+      "sha256": "3ad69249ace38f02ba0bf3ae48bed369109314b13d93c67070cbb68f4a6c7800"
+    },
+    {
+      "path": "apps/desktop/src/recovery.rs",
+      "bytes": 50164,
+      "sha256": "20cbdb90d4fbf9124233f027cdaa330f5ab79df915cd0e8735fb8f113d53b226"
+    },
+    {
+      "path": "apps/desktop/src/recovery_runtime.rs",
+      "bytes": 14243,
+      "sha256": "fca70360a0fc097040c70925f557e7c98374b48b3cacfc186bd63c15d1d841f2"
+    },
+    {
+      "path": "apps/desktop/src/scenario.rs",
+      "bytes": 11324,
+      "sha256": "aec9599c424e736b18751c77d8ddf7a893dda66ef9482ded304ff268dd8239aa"
+    },
+    {
+      "path": "apps/desktop/src/scroll_site.rs",
+      "bytes": 208565,
+      "sha256": "e9f6ecd5febb825b45f623d712986a534269caafae5c9cd05085add0846cb7d0"
+    },
+    {
+      "path": "apps/desktop/src/status.rs",
+      "bytes": 13461,
+      "sha256": "5d5066e2d23da9aa496b279938daf989530d8d00464b57f15d77796089841042"
+    },
+    {
+      "path": "apps/desktop/src/workspace.rs",
+      "bytes": 395363,
+      "sha256": "6ed4d83c3a6e0b3fa93728f6f743198680fb64bfabc30aed48fb5e120760efc6"
+    },
+    {
+      "path": "apps/desktop/src/workspace_commands.rs",
+      "bytes": 22582,
+      "sha256": "ba61178ebb8997b0c30d1a09f6a7c34ca71f4dd77a1e966b6a0e228d4c7d36f5"
+    },
+    {
+      "path": "apps/desktop/tests/collapse.rs",
+      "bytes": 9387,
+      "sha256": "1c9b6def9c4151c05c811ac8c9a09014f53336805289c69243ef91b013ad36d6"
+    },
+    {
+      "path": "apps/desktop/tests/command_chrome.rs",
+      "bytes": 10164,
+      "sha256": "e0a566d8ee3b9c804e4482127cb436ceb84a5c5690945fe69c650b076acaa4be"
+    },
+    {
+      "path": "apps/desktop/tests/composition_mere.rs",
+      "bytes": 14299,
+      "sha256": "d7d1f7821bc29ae43513fea0d3ecf3b383ba0cfe3255b7da3977901776a3ba35"
+    },
+    {
+      "path": "apps/desktop/tests/document_links_ui.rs",
+      "bytes": 8638,
+      "sha256": "b4c914bb93e7cb1953cef5760fc232dc77317483b164423f3ed798ccce46ecb3"
+    },
+    {
+      "path": "apps/desktop/tests/fixtures/woodshed_relationships.json",
+      "bytes": 3029,
+      "sha256": "eeb42d1e157d7a00d5da09d5943f1b3ebca5cf816e989dc334a1cb6aa2923d1c"
+    },
+    {
+      "path": "apps/desktop/tests/preferences.rs",
+      "bytes": 8094,
+      "sha256": "c1e8bdcd1826dc0400db299f11c8cbc66fd5ed685ccb456d6a7c48a8e05f3eb7"
+    },
+    {
+      "path": "apps/desktop/tests/readings_panel.rs",
+      "bytes": 8942,
+      "sha256": "3065ac10003bcc6e5cc1797c2a16f66d325ecfaa562212507468cf01b6502b3d"
+    },
+    {
+      "path": "apps/desktop/tests/resident_retention.rs",
+      "bytes": 9868,
+      "sha256": "b26ba32350f867a29051963a6e38662c544c14eee394a3dfc4d127de0514370f"
+    },
+    {
+      "path": "apps/desktop/tests/scenario_lane.rs",
+      "bytes": 12751,
+      "sha256": "4856a59842dea8e249eeeb24f3c33318fa1a1ba6ef2ca445eb155cad383579fe"
+    },
+    {
+      "path": "apps/desktop/tests/typography_fonts.rs",
+      "bytes": 13472,
+      "sha256": "8f1d970a3eabfcf730c2a6fcb3988160af92265be1d744922c784c8fa8f18c22"
+    },
+    {
+      "path": "crates/knot-capture/Cargo.toml",
+      "bytes": 181,
+      "sha256": "02039a93464723c58b42edc66d54b9c5981b026843291492904d94eccbe6af22"
+    },
+    {
+      "path": "crates/knot-capture/src/lib.rs",
+      "bytes": 2019,
+      "sha256": "8951af86bdb798124dcc2133b793a92d7733c535537224e8a3055c1493cbe4e4"
+    },
+    {
+      "path": "crates/knot-composition/Cargo.toml",
+      "bytes": 573,
+      "sha256": "f93399a67ff6d074ca93676d120e2038d420b98adafcb722c187f86e3a320202"
+    },
+    {
+      "path": "crates/knot-composition/assets/oewn-notices.txt",
+      "bytes": 3266,
+      "sha256": "11ce3560ca7ee3343176f8f537e377efa517e98f203e68b0b3583d141474aa69"
+    },
+    {
+      "path": "crates/knot-composition/src/bin/knot-wordnet-import.rs",
+      "bytes": 3909,
+      "sha256": "733e3defd0283b16ab6e94daae800ac84636a1c5830080545c8faa2341a732bb"
+    },
+    {
+      "path": "crates/knot-composition/src/lib.rs",
+      "bytes": 19696,
+      "sha256": "49d174bd120bfb15131be693a4e08caabd7fa3b743c2446efdd444e746b1ba2b"
+    },
+    {
+      "path": "crates/knot-composition/src/retention.rs",
+      "bytes": 9569,
+      "sha256": "7159a87c50ef273c109c05a8bc47c36f55b5cde7c023d1d8de599561acd694b5"
+    },
+    {
+      "path": "crates/knot-composition/src/wordnet_import.rs",
+      "bytes": 37507,
+      "sha256": "a5af4dc05b755286509dbda1316515d048c257d666b8ecfe0518b72d314389b2"
+    },
+    {
+      "path": "crates/knot-composition/tests/collections.rs",
+      "bytes": 13866,
+      "sha256": "86b4c877efd032076c1e28c5cac83f9a48d587e5bb2ce99200b8520e0da138e5"
+    },
+    {
+      "path": "crates/knot-composition/tests/fixtures/wordnet.xml",
+      "bytes": 2706,
+      "sha256": "4284be1593554920c6c32074059a5d5090e9fbca0f77d5cfd6c9770cbe06c8ca"
+    },
+    {
+      "path": "crates/knot-composition/tests/recipes.rs",
+      "bytes": 7883,
+      "sha256": "b31f7dde5fb2b4f561aabe2e8af777c6d7d6319713d67cfc4e8f682cda2986db"
+    },
+    {
+      "path": "crates/knot-composition/tests/support/recipe.rs",
+      "bytes": 4122,
+      "sha256": "6bf975c2b67b89b86a0686599587cea7779262e78bd45b9416433167c142603b"
+    },
+    {
+      "path": "crates/knot-composition/tests/wordnet_import.rs",
+      "bytes": 13818,
+      "sha256": "a24162f46b8d00c94ee15a4c095d773b3bfed234f08278cc4a1a6a27efe1ddae"
+    },
+    {
+      "path": "crates/knot-document/Cargo.lock",
+      "bytes": 52191,
+      "sha256": "5ae90eb775434e9a20b6c8f99ba87625dea6ecaa3933f357a4afcfece88c8741"
+    },
+    {
+      "path": "crates/knot-document/Cargo.toml",
+      "bytes": 3104,
+      "sha256": "9475b4d326f7355afba716aa08924982fff8e539d302fd146c2fdab357f44e9d"
+    },
+    {
+      "path": "crates/knot-document/src/document_surface.rs",
+      "bytes": 51370,
+      "sha256": "a8230e856520d2d427c9cb5be4504b26e55584f66208a6c66a76b10146d4000a"
+    },
+    {
+      "path": "crates/knot-document/src/document_view.rs",
+      "bytes": 18739,
+      "sha256": "ac77fcf5184fddeb18d824f516c078cd851e13fea9e98af42ff259f52a30597b"
+    },
+    {
+      "path": "crates/knot-document/src/editor.rs",
+      "bytes": 22103,
+      "sha256": "7d33d25f1487eaa2bd9e31ef3b390208f468588d8e6cf1325ca04b541337a477"
+    },
+    {
+      "path": "crates/knot-document/src/hard_wrap.rs",
+      "bytes": 13802,
+      "sha256": "8b2be57e18b26d31db233598478c0ba2b830aded7c9612756ab24fe88e450f4c"
+    },
+    {
+      "path": "crates/knot-document/src/lib.rs",
+      "bytes": 1727,
+      "sha256": "2fccf1e1ecb14c11f157c110e31e9b09e86a240cccb32c8be4bb5c6a8407db3d"
+    },
+    {
+      "path": "crates/knot-document/src/writer.rs",
+      "bytes": 25660,
+      "sha256": "4e2e886dba83f83d8b6207c20f647f4a43ec626a8d26cb5f62a7f27196fbeeda"
+    },
+    {
+      "path": "crates/knot-editor/Cargo.toml",
+      "bytes": 3828,
+      "sha256": "0d1f8e027f799e96e5c6dea4a0901bae2fd6de23dfaff1ab2a229c3299fd4803"
+    },
+    {
+      "path": "crates/knot-editor/docs/receipts/k0_session_switch.html",
+      "bytes": 38860,
+      "sha256": "d7e7665ae08d7462fa50122638fdd32b55e328b7e912981506f1ffb0eab75f8e"
+    },
+    {
+      "path": "crates/knot-editor/examples/k2_peer.rs",
+      "bytes": 19098,
+      "sha256": "9d9b50afcdc76f0722cb4bea8936e0de26a65237d816ad4382ef529c04f5bad8"
+    },
+    {
+      "path": "crates/knot-editor/examples/knot_publish_peer.rs",
+      "bytes": 13704,
+      "sha256": "23cec502978a7ce080894550198f6346c672929ac30bb2737205ef73611598f1"
+    },
+    {
+      "path": "crates/knot-editor/src/authority.rs",
+      "bytes": 10007,
+      "sha256": "2d749345c4dc44831477a79eeb6d6143b25c02a56585158395b3b2253e40d0b6"
+    },
+    {
+      "path": "crates/knot-editor/src/bin/knot_endpoint.rs",
+      "bytes": 26990,
+      "sha256": "372e9e284d2fb61e9c6d8c750ad5a40351b6da491435ab90925d6315ff971572"
+    },
+    {
+      "path": "crates/knot-editor/src/bin/knot_sync_host.rs",
+      "bytes": 16335,
+      "sha256": "649ce3fb1fafd1718595b6e4faeeedecfece7c0deb5cc1bbffc1d6796c966065"
+    },
+    {
+      "path": "crates/knot-editor/src/capture_retention.rs",
+      "bytes": 8884,
+      "sha256": "ceaa67c6ebf46ae0e9ce61d7f12ad20daed11259f5423af4d84ba07283d683c9"
+    },
+    {
+      "path": "crates/knot-editor/src/clip_evidence.rs",
+      "bytes": 29047,
+      "sha256": "d630e3d98e7488b912bb3e2fed30a2569d7a003c6fbfc7823e9712d037e698cc"
+    },
+    {
+      "path": "crates/knot-editor/src/composition_retention.rs",
+      "bytes": 8477,
+      "sha256": "4a56be68dbddb68ace437db823cc07596402583cbddea324b4458c0168092805"
+    },
+    {
+      "path": "crates/knot-editor/src/content_classes.rs",
+      "bytes": 6527,
+      "sha256": "6d3a6fcfb836448f87693765648141a9516ff07d1e161430fcfdac3a7b1d8de8"
+    },
+    {
+      "path": "crates/knot-editor/src/did_key.rs",
+      "bytes": 7088,
+      "sha256": "f4ecff88d3ac167277101f5e1264e3558ff0b5074774280227f74a27264b0dde"
+    },
+    {
+      "path": "crates/knot-editor/src/directory.rs",
+      "bytes": 19706,
+      "sha256": "d86d712ef6a846b5d8d12550a4ab2f41bd84124570a5086a99f39eaaa0139c3a"
+    },
+    {
+      "path": "crates/knot-editor/src/djot_merge.rs",
+      "bytes": 14650,
+      "sha256": "684163b5a906ba0223968f83f8e81ab8b7468723a5ee30dea5618d57e34eec74"
+    },
+    {
+      "path": "crates/knot-editor/src/embedding.rs",
+      "bytes": 28851,
+      "sha256": "ed1232d5cbb8a172ca003664eff4a1ea94aae00482bfeb0fb8797094680b41ad"
+    },
+    {
+      "path": "crates/knot-editor/src/endpoint.rs",
+      "bytes": 165667,
+      "sha256": "9661952d6554ca3420279d7e90a2ce50b8073794c57f62087b49ffc8346d9918"
+    },
+    {
+      "path": "crates/knot-editor/src/file_revision.rs",
+      "bytes": 5287,
+      "sha256": "03da9294b701e063084700e5cd763cb0067f3fcf60a4b934ff4b1172936614c1"
+    },
+    {
+      "path": "crates/knot-editor/src/lib.rs",
+      "bytes": 6529,
+      "sha256": "76cb15d69c9c9f5bf1a893b9a04c597abcac5606ab6f8e7d9dbdf3883e79fde1"
+    },
+    {
+      "path": "crates/knot-editor/src/mark.rs",
+      "bytes": 41266,
+      "sha256": "af312a638bc4841c882173c1fb9be3f979fdc6601776dcf4946e8cd4c4069d3c"
+    },
+    {
+      "path": "crates/knot-editor/src/predicates.rs",
+      "bytes": 12010,
+      "sha256": "fcb98be6db6a05cffe218b84787a3472ada8d698fbac0e6ce64997a7acac82cf"
+    },
+    {
+      "path": "crates/knot-editor/src/publish.rs",
+      "bytes": 33676,
+      "sha256": "e66174623c90fea50ac8f0f5c28a7997aef06c9c1e33010a82b816e5aa0fca76"
+    },
+    {
+      "path": "crates/knot-editor/src/publish_carrier.rs",
+      "bytes": 5093,
+      "sha256": "4a5be8c47867e6fbc54a2ad921bc0aba794ad710e6bf45258ac3f7b545260041"
+    },
+    {
+      "path": "crates/knot-editor/src/publish_client.rs",
+      "bytes": 8802,
+      "sha256": "5aabdc8859982169022021c15604e5f9204ef914b670e1be41b1d79f35fffddd"
+    },
+    {
+      "path": "crates/knot-editor/src/publish_host.rs",
+      "bytes": 29947,
+      "sha256": "6822dcedc2531bdbc9865d7271fcb17c23a6e8a33addd6d68babed71a5f20e9d"
+    },
+    {
+      "path": "crates/knot-editor/src/publish_wire.rs",
+      "bytes": 13467,
+      "sha256": "4741c1dcbb8f8414d7f189b7c1716b791daa8b8b468a595fc339d00d39d1f5d7"
+    },
+    {
+      "path": "crates/knot-editor/src/relations.rs",
+      "bytes": 18910,
+      "sha256": "384c175a403c404485b2ca59315036bfa5aa9da1afb48328f77e2b748ad5572d"
+    },
+    {
+      "path": "crates/knot-editor/src/resident.rs",
+      "bytes": 47221,
+      "sha256": "3dbdbaff3598281a6198ba9c173ff3155bad3b0512f447c25b714f8914a3fd14"
+    },
+    {
+      "path": "crates/knot-editor/src/retain_host.rs",
+      "bytes": 4187,
+      "sha256": "f2333841626cf10dcb2bbc8b23581c5998f913f9a95d4ccbfa26e252e3c0037b"
+    },
+    {
+      "path": "crates/knot-editor/src/rosette.rs",
+      "bytes": 22304,
+      "sha256": "f8e96446e0fffa6e9c88778d395bb97898a9b1b943e4dd0cf10a62c645e546b7"
+    },
+    {
+      "path": "crates/knot-editor/src/search.rs",
+      "bytes": 38237,
+      "sha256": "7a086017fe35aded78d281d9bdddf97f1c2fed6bf30112d049f7d229eb00a0ac"
+    },
+    {
+      "path": "crates/knot-editor/src/settings.rs",
+      "bytes": 16148,
+      "sha256": "39051ece7e5fe509b74ad7dd0e7d36fb4f5dcdfab297ee30154056188cc072a1"
+    },
+    {
+      "path": "crates/knot-editor/src/startup.rs",
+      "bytes": 17677,
+      "sha256": "0a93118f7d6c36dbf12f4e8d1f3c0b66d37610e4fe0474610a2bef1d8b6f9604"
+    },
+    {
+      "path": "crates/knot-editor/src/sync.rs",
+      "bytes": 174659,
+      "sha256": "66f111dfc41b265b214f2db673528404abe2b2080755e9c623d019f57b9792bc"
+    },
+    {
+      "path": "crates/knot-editor/src/sync_coordination_tests.rs",
+      "bytes": 9052,
+      "sha256": "9a0dabb2c9fb2aecec62776f79311aa8e4e71620b1646e455edd729d41ce37cd"
+    },
+    {
+      "path": "crates/knot-editor/src/vault.rs",
+      "bytes": 20580,
+      "sha256": "7c33709c414581584638395d5f6811128bc0e4edc4a077d3f8036f68519de17c"
+    },
+    {
+      "path": "crates/knot-editor/src/watcher.rs",
+      "bytes": 7404,
+      "sha256": "beb0b2fb4541abb10bd747a36fd18a29bbca28d7af2fc03849b72ec0aa878d3a"
+    },
+    {
+      "path": "crates/knot-editor/src/web_annotation.rs",
+      "bytes": 9406,
+      "sha256": "148acdb29a993914f5a2daac14e209b5e9adf3c55fddcd9982b9e7c1f1c18745"
+    },
+    {
+      "path": "crates/knot-editor/src/writer.rs",
+      "bytes": 497,
+      "sha256": "18db1a411b2a796cf6b0e3f1be30dcc08a49cc66a65a3e14e541754423536e53"
+    },
+    {
+      "path": "crates/knot-editor/tests/asserted_time.rs",
+      "bytes": 5541,
+      "sha256": "a7c970a6a15ca3283207270b64206cf10a6039b271847115d053c39c02a7e0c1"
+    },
+    {
+      "path": "crates/knot-editor/tests/authored_relations.rs",
+      "bytes": 15860,
+      "sha256": "5053cfbd1e4e12ac800036173f41b0d5177351f871d8f09bc60ae22b6fc9c669"
+    },
+    {
+      "path": "crates/knot-editor/tests/capture_retention.rs",
+      "bytes": 10037,
+      "sha256": "0a58c7197b5688ab64d204137da721a71f5034187d827c790b73954e8cfc942f"
+    },
+    {
+      "path": "crates/knot-editor/tests/composition_retention.rs",
+      "bytes": 18842,
+      "sha256": "7bd98a6bfebffee3ac6f9f10bec246043bd091a09d3eab016b61bad19d91a1c0"
+    },
+    {
+      "path": "crates/knot-editor/tests/file_catalog.rs",
+      "bytes": 7809,
+      "sha256": "d1efd8b0530456bc46080ea05e54597f6a6d892454b83d20f9200dfa4c204f0a"
+    },
+    {
+      "path": "crates/knot-editor/tests/file_relations.rs",
+      "bytes": 5057,
+      "sha256": "e6486d0add20ba1f285b916983b520229c65871d54872848b4d98439cf3fe817"
+    },
+    {
+      "path": "crates/knot-editor/tests/fixtures/fleece_specific_resource.txt",
+      "bytes": 65,
+      "sha256": "c828e6c0e2a87fa0e6225f3f3cf760ba48380183581335c826b1f0e1244041d8"
+    },
+    {
+      "path": "crates/knot-editor/tests/place_projection.rs",
+      "bytes": 15634,
+      "sha256": "ab26c9567e35f0389d373ad4a0fb6364e0c6ce7b40fd87f7e51052ce5836951e"
+    },
+    {
+      "path": "crates/knot-editor/tests/predicate_definitions.rs",
+      "bytes": 9931,
+      "sha256": "71e53f6291bd890c43d4809354ef44481af7b9b54471eac24928f845d9f2b015"
+    },
+    {
+      "path": "crates/knot-editor/tests/resident_app_route.rs",
+      "bytes": 3755,
+      "sha256": "53217ef750feb4a99c0a2bd4cad7afa1f9e3cf058840a05cf82842e2df5f70d7"
+    },
+    {
+      "path": "crates/knot-editor/tests/resident_ownership.rs",
+      "bytes": 1755,
+      "sha256": "7786cb3df00286fe5c25c561321a94251cd2a1ea1d0d4ce63a1e8f11cde6fb7d"
+    },
+    {
+      "path": "crates/knot-editor/tests/retain_host.rs",
+      "bytes": 6345,
+      "sha256": "d35fab1c173cdc1f59a87367a6ffea3478669cd026037f84bd78e4f9db89b6b0"
+    },
+    {
+      "path": "crates/knot-editor/tests/revision_bell.rs",
+      "bytes": 8058,
+      "sha256": "9ed245e9401d8d0becbf446cf7b886c0dfeb76844e6e9ed84a07df49f5afe146"
+    },
+    {
+      "path": "crates/knot-editor/tests/rosette_projection.rs",
+      "bytes": 3760,
+      "sha256": "5829630a0b3f91b618a588bab79ea04cf6c8ee00de50dc2161c585875c586002"
+    },
+    {
+      "path": "crates/knot-editor/tests/search_provider_identity.rs",
+      "bytes": 13326,
+      "sha256": "b1581d230d9a9d1cbf8d3bce56522f79213125a132fd30120395f150f645c15a"
+    },
+    {
+      "path": "crates/knot-editor/tests/send_probe.rs",
+      "bytes": 1182,
+      "sha256": "01b91089c21e4334b620271c06d7b55b63f305780d9c06e5f1148e9703f07d1f"
+    },
+    {
+      "path": "crates/knot-file-catalog/Cargo.toml",
+      "bytes": 511,
+      "sha256": "daaf5d0dbb1c4f10be6ccdb5399a6016416dc76f8db75b5463c7db49bfa2b769"
+    },
+    {
+      "path": "crates/knot-file-catalog/src/lib.rs",
+      "bytes": 32895,
+      "sha256": "05d24d7b9f29d48cc0c2c28ffe99ac8446cf3c57b0eaef09c2fac8d9c18f791c"
+    },
+    {
+      "path": "crates/knot-readings/Cargo.toml",
+      "bytes": 506,
+      "sha256": "fc93566c051e806ecdd162e6d8fae28a1c5e3468bbb11ba1512a928ef724e670"
+    },
+    {
+      "path": "crates/knot-readings/src/backend.rs",
+      "bytes": 4851,
+      "sha256": "420ce84a0b292f386b597310e8bf7730a0d48bf8c3c1fab0bda5e52611ac9f7b"
+    },
+    {
+      "path": "crates/knot-readings/src/bindings.rs",
+      "bytes": 15163,
+      "sha256": "ad7e543934f82cdda246fdb7642312b6ce5c6520e8b68f53cca7e917722cf54f"
+    },
+    {
+      "path": "crates/knot-readings/src/input.rs",
+      "bytes": 4351,
+      "sha256": "a9037e45ceb362d96c0dbdb28684b7921f9945763132946ae71930ce3c8c134e"
+    },
+    {
+      "path": "crates/knot-readings/src/lib.rs",
+      "bytes": 9874,
+      "sha256": "5a944a56cdce1ddeb669fc882d3210f802cc8692a80969b86fe540959596af78"
+    },
+    {
+      "path": "crates/knot-readings/src/links.rs",
+      "bytes": 10661,
+      "sha256": "fe8b2a94f54b35606279184cfd66d120ab836945d072eec7fe488073e1c47ed5"
+    },
+    {
+      "path": "crates/knot-readings/src/scripts.rs",
+      "bytes": 2882,
+      "sha256": "b1bd871c6f40335bb391607fde362e95436f22d775d32b9349acdcc5c4a9de34"
+    },
+    {
+      "path": "crates/knot-readings/src/sound.rs",
+      "bytes": 14850,
+      "sha256": "9bd54f2ed3f34dd9659caa7628f8b5b747fdca7745f31d23615d576c25977a28"
+    },
+    {
+      "path": "crates/knot-readings/tests/fixtures/field_notes.djot",
+      "bytes": 423,
+      "sha256": "052d2e9d3489be74e69bba9957fcdaa65b9faae87c5a1e4494d07d95d06c02dd"
+    },
+    {
+      "path": "crates/knot-readings/tests/fixtures/headings_without_a_citation.rhai",
+      "bytes": 457,
+      "sha256": "b7586df74c2e5ea78c4bf07b56f7a413cf8856319a039ab004e0b465c394bf3c"
+    },
+    {
+      "path": "crates/knot-readings/tests/fixtures/rows_with_spans.rhai",
+      "bytes": 197,
+      "sha256": "1012f6fd3e6831e45aa112de19342130728c7c51d67255e48d23201e516922bc"
+    },
+    {
+      "path": "crates/knot-readings/tests/fixtures/runaway.rhai",
+      "bytes": 32,
+      "sha256": "31754788f3eeff3275c84bde3143db00237f2ca6ae8257301936a59e3b156a1e"
+    },
+    {
+      "path": "crates/knot-readings/tests/reading_bindings.rs",
+      "bytes": 14484,
+      "sha256": "d1a7baf16ed2cc2bb1a2ccc38e5ddfe8c6cc91992fad2cc7777286e7cb6d44a9"
+    },
+    {
+      "path": "crates/knot-readings/tests/reading_sandbox.rs",
+      "bytes": 6966,
+      "sha256": "4ee581a9319e37959d5a7e54a6cefa15586f9abe3cd3c7f219da1c088143a41c"
+    },
+    {
+      "path": "crates/knot-site/Cargo.toml",
+      "bytes": 1352,
+      "sha256": "459ffc1afd34fbd464268ae287a28d9b897b2ec499b8d679c4a7ab45ddf3e2d0"
+    },
+    {
+      "path": "crates/knot-site/examples/export_nomadnet.rs",
+      "bytes": 1949,
+      "sha256": "54fd905829655e4f7a6629e2925cf10958d545f4e7338e6df1fac1e0db86bd9b"
+    },
+    {
+      "path": "crates/knot-site/examples/local.rs",
+      "bytes": 1580,
+      "sha256": "80a757c8f570268ae4123aa7ad278f22bb702fc9ea8149a1d835df76c0936fb6"
+    },
+    {
+      "path": "crates/knot-site/examples/submit.rs",
+      "bytes": 985,
+      "sha256": "b2e1dc72fec1668c6fda6a05ea572c0557c70f0957a09b94212d3f9e25440ac8"
+    },
+    {
+      "path": "crates/knot-site/src/export.rs",
+      "bytes": 5104,
+      "sha256": "a089c899f1dc52336df94224fb3d660e92075f85dc3de43aab2f2c5951e0c98b"
+    },
+    {
+      "path": "crates/knot-site/src/lib.rs",
+      "bytes": 22348,
+      "sha256": "38c6210635f9d34775033ae8119a0523a7df850bf71894131449f7196e36b7b4"
+    },
+    {
+      "path": "crates/knot-site/src/local.rs",
+      "bytes": 8730,
+      "sha256": "b30a1cd71fda8d528405352d52a6d95b7a59004d6b0f4bb2b5798f3abfb1e505"
+    },
+    {
+      "path": "crates/knot-site/src/micron_submission.rs",
+      "bytes": 11646,
+      "sha256": "a245ff8dade325d20a126983616f794d8a3d5468aaddf2cbab4d50d585fa5a4b"
+    },
+    {
+      "path": "crates/knot-site/src/micron_submission_stub.rs",
+      "bytes": 1804,
+      "sha256": "f70688c32532bc242eebc2ca1270ac87e41be9f507b6d63dd47a4b0a4673c092"
+    },
+    {
+      "path": "crates/knot-site/src/nomadnet.rs",
+      "bytes": 5855,
+      "sha256": "82d8ad74d95297142fbe35557bb92346560fca6ecc246878734c75f5e6f77d27"
+    },
+    {
+      "path": "crates/knot-site/src/server.rs",
+      "bytes": 5241,
+      "sha256": "9f9ec0107f5a1d2e0ae50bf5d490ba21b7c73b55bcf69401ff981b251c073006"
+    },
+    {
+      "path": "crates/knot-site/src/submission.rs",
+      "bytes": 7000,
+      "sha256": "fe65c5809203c86dae889322764d7dc4ccacaeec5e2a05cd7061c87f81663260"
+    },
+    {
+      "path": "crates/knot-site/tests/export.rs",
+      "bytes": 5050,
+      "sha256": "ffd11628f405d3b8b37a9199cc4fcc079fed95af681dda4d93d3b5ba85d327ba"
+    },
+    {
+      "path": "crates/knot-site/tests/native.rs",
+      "bytes": 5144,
+      "sha256": "8b4e35bc77bff5918e754b1f2f8aabd9e5adac06c4edd06df5f125e72ac8749f"
+    },
+    {
+      "path": "crates/knot-site/tests/nomadnet.rs",
+      "bytes": 2816,
+      "sha256": "b9203603f1d681eed6bfb4ddcf603672df7c8f41bedcc6d76d72e2986c92d406"
+    },
+    {
+      "path": "crates/knot-site/tests/site.rs",
+      "bytes": 5414,
+      "sha256": "dd7a3e852d0f0348f5aa89934ffcf5b20898773bc459a469c3a132d2cc438ee5"
+    },
+    {
+      "path": "crates/knot-site/tests/snapshot.rs",
+      "bytes": 1690,
+      "sha256": "ad833dad4a0b2b750eaae11877b55379a4f488ed09b6780dfd2b7f9d57fa4966"
+    },
+    {
+      "path": "crates/knot-site/tests/submission.rs",
+      "bytes": 5264,
+      "sha256": "129ef1d6ba58014ff4d053e3aa969401d51063d593a77a0ad089078ce4405d15"
+    },
+    {
+      "path": "rust-toolchain.toml",
+      "bytes": 103,
+      "sha256": "129a2c0c70b169ee0dd50047d208e3a4b26290542d73c112671bf45759fccdb6"
+    },
+    {
+      "path": "rustfmt.toml",
+      "bytes": 1082,
+      "sha256": "948ddbb2504264fd8339ce7ce06152cb516a76b6ab8b9fa079cc7b5266c2754c"
+    },
+    {
+      "path": "scenarios/capture_pairing.scn",
+      "bytes": 397,
+      "sha256": "bb69870f069720b221af41957ceccaf7a158b12358790bb5bc7bd420d34f8d5e"
+    },
+    {
+      "path": "scenarios/collection_organization.scn",
+      "bytes": 1033,
+      "sha256": "46c72ed0d01d3b70284dad11c65ed9c58c305fb0e06bc945a1843dab6aa02a5f"
+    },
+    {
+      "path": "scenarios/collection_organization_compact.scn",
+      "bytes": 1086,
+      "sha256": "338cc47bf9323b62a912bde3f9e23367f044bfa0ea865a13361716a844c045bf"
+    },
+    {
+      "path": "scenarios/collection_organization_compact_reopen.scn",
+      "bytes": 657,
+      "sha256": "6b119438b8231af245a2414d6f68ab2fea3e9fe2d868582483380a31b47aa0ec"
+    },
+    {
+      "path": "scenarios/collection_organization_reopen.scn",
+      "bytes": 571,
+      "sha256": "a9981d97f617a049acf65b6f3c5128bb91595e07dff0bdcf543897bf4a3f7911"
+    },
+    {
+      "path": "scenarios/composition.scn",
+      "bytes": 1067,
+      "sha256": "fb39ef43563168e3a46743d416d2203f177a67e0df730386d6b4e82cc3925e48"
+    },
+    {
+      "path": "scenarios/fixtures/composition/selection.djot",
+      "bytes": 81,
+      "sha256": "692bdfb58ae28591771e03e1089865a6ef5c84606f7239f21d0d97edecb7b517"
+    },
+    {
+      "path": "scenarios/fixtures/field_notes.djot",
+      "bytes": 606,
+      "sha256": "0e4add41721114ee3e7687922f9fb824ceaf459ca21cf47edddd5953b38508d5"
+    },
+    {
+      "path": "scenarios/fixtures/readings/references.rhai",
+      "bytes": 219,
+      "sha256": "a9ec40b6b52457609b7710cbed713bceaa7d6dc27651a2c25888235f3f0481f4"
+    },
+    {
+      "path": "scenarios/fixtures/site-one/about.scroll",
+      "bytes": 82,
+      "sha256": "6b2dffad14aff8ce663503970acbdc5700aa1f25841deb5fd7cbad59527ae3ad"
+    },
+    {
+      "path": "scenarios/fixtures/site-one/index.scroll",
+      "bytes": 76,
+      "sha256": "d9e161b3bc3b82ddaa5c7526469f8b91b2d368375b0a5223beaa437f3c4dffb3"
+    },
+    {
+      "path": "scenarios/fixtures/site-one/site.json",
+      "bytes": 356,
+      "sha256": "27a1da9751bd28c316ff3266cc74b7e9178c040b1e1108bb6387228a6dbf5d15"
+    },
+    {
+      "path": "scenarios/fixtures/site-two/index.scroll",
+      "bytes": 90,
+      "sha256": "79a8e9f20affada9eda0cf85d6390e160b625c34f20f36dfc02961838a514f51"
+    },
+    {
+      "path": "scenarios/fixtures/site-two/notes.scroll",
+      "bytes": 88,
+      "sha256": "6a682de76e4f96b3fb44a651f075d0470369871728351b8f63cd3a206d1da22c"
+    },
+    {
+      "path": "scenarios/fixtures/site-two/site.json",
+      "bytes": 361,
+      "sha256": "6f3861d7cc7914131b7d3c37a51d5b3ed8c10ee9e77fd521999d0355a3daeff4"
+    },
+    {
+      "path": "scenarios/focused_writing.scn",
+      "bytes": 403,
+      "sha256": "2ecb5db899376c7e83bbc10edb6b7096a831e16767bdba9e6e72e6162f4404df"
+    },
+    {
+      "path": "scenarios/lane_smoke.scn",
+      "bytes": 677,
+      "sha256": "642657e2ddb85cfcdd91c975a9c05c5eaed6117109f4f0ebf1618b9ad4d5e8a1"
+    },
+    {
+      "path": "scenarios/last_tab_graph.scn",
+      "bytes": 357,
+      "sha256": "d3ad22e8a714f6923e87d19d54dbaab75cbd56a90ab7da39dc25ce9728961de3"
+    },
+    {
+      "path": "scenarios/relationship_recipe.scn",
+      "bytes": 1531,
+      "sha256": "8ad5ea9c85995733193f87a2d927ef467b1ac32c9ba3df55a9aac5c38f2c4714"
+    },
+    {
+      "path": "scenarios/relationship_recipe_compact.scn",
+      "bytes": 1598,
+      "sha256": "1b59d3e8719d6daee0965f8d27a5341aeccf6b623549ee6ca8c6a3a67825b4cb"
+    },
+    {
+      "path": "scenarios/relationship_scene.scn",
+      "bytes": 1222,
+      "sha256": "326f98a383df1e1802d31f38f6e311b6e527af5c8c54b24234f45f74d1843e2a"
+    },
+    {
+      "path": "scenarios/relationship_scene_compact.scn",
+      "bytes": 1431,
+      "sha256": "a7605fb5501e4411c5650d3f0b31be8369759d63c2d98ecf1d67def8af8d63c4"
+    },
+    {
+      "path": "scenarios/relationship_scene_compact_reopen.scn",
+      "bytes": 939,
+      "sha256": "c56394071f260ae15ece312e9cad8f894a1c2a1bd0dab70d5b9882a8c3d4d044"
+    },
+    {
+      "path": "scenarios/relationship_scene_reopen.scn",
+      "bytes": 828,
+      "sha256": "87801a1a3705e6265876d12e756ac56c14efc9b7e1533beb20f879a80198a902"
+    },
+    {
+      "path": "scenarios/relationship_scene_retained.scn",
+      "bytes": 1455,
+      "sha256": "e3f777ac1059d48ac6b7447eb5b6f3d28f9ab962336bf9025627dc117316ec5f"
+    },
+    {
+      "path": "scenarios/relationship_scene_retained_compact.scn",
+      "bytes": 1672,
+      "sha256": "63eddb0a4247f53b781b12cde2814a002b2e22ebfd605d785d3a2cb9bd83720a"
+    },
+    {
+      "path": "scenarios/research_with_references.scn",
+      "bytes": 709,
+      "sha256": "633b1ae42a0f9e0ffa4e7764a532307bbd6d01fd58c0263db0faec76624528be"
+    },
+    {
+      "path": "scenarios/source_beside_preview.scn",
+      "bytes": 453,
+      "sha256": "9afcdb16d77851833eb72be36628b97321d0a5cd3a367c7de4cdfedab129f608"
+    },
+    {
+      "path": "scenarios/two_sites.scn",
+      "bytes": 842,
+      "sha256": "5ac1a27b8a844e3dc9e9a9aef350b24f404d37d70a960df92e74d23cdb98396a"
+    },
+    {
+      "path": "scripts/submission_fixture.py",
+      "bytes": 5999,
+      "sha256": "a39fc2cca124e6ff7a631e827e72c98120e9ec9abbec8e0d2334256e19f40497"
+    },
+    {
+      "path": "scripts/verify_gemini_client.py",
+      "bytes": 1914,
+      "sha256": "4482b7968fa7fcf353b802add320f2a1253934c8393b331b7f9d58cb65a4b86e"
+    },
+    {
+      "path": "scripts/verify_scroll_client.py",
+      "bytes": 2897,
+      "sha256": "b24fd1f706ff779c06d4a1844a5d3eadd1c2e49fdbe7b01535fbd5cd956b3196"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/.gitignore",
+      "bytes": 43,
+      "sha256": "6a56f196b23f548d478ba7b567b21e9e54ee6fffeb8d761613185f67ec0549fe"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/go.mod",
+      "bytes": 36,
+      "sha256": "4433f676df9855b765b1eb5a9af16f571c8d19468805a5144a3057615133e20a"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/lifecycle_test.go",
+      "bytes": 3859,
+      "sha256": "59a8b717c22d7946e3d506d377b48ae673667c8d892964cd3dd76d725b58b75f"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/loopback_smoke.py",
+      "bytes": 7737,
+      "sha256": "fbb5def0ea70b797a97f5b7d740010d3958be73b8f54c0b91f5ee153347345cc"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/main.go",
+      "bytes": 14599,
+      "sha256": "ad041771173bf304d19cc822c6f441cdbdaca2f1dd0ec63b9b2a6d86a99185b1"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/main_test.go",
+      "bytes": 4439,
+      "sha256": "3dca32d5cd25d4efed402ac25a4e10e5baa3008db7cdbe2423370d6159640244"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/nomadnet_browser_smoke.py",
+      "bytes": 9430,
+      "sha256": "3d6f514c370ca19bf9a9df6440a4a5c50a69ce49df42747d4248c0551cdec938"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/nomadnet_node_smoke.py",
+      "bytes": 8476,
+      "sha256": "32d3bad917e0f0a47f39a3a70bd9dddafb07ea78dc1d62c36a5e7150fd6d75a5"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/testdata/three-pages/pages/about.mu",
+      "bytes": 34,
+      "sha256": "2d081e5d9afdbc06067b42da67dfb2d0197bd2a4a111fdce162beaeb4a7bd5a4"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/testdata/three-pages/pages/index.mu",
+      "bytes": 97,
+      "sha256": "c823b270ae63ff9fee781ad7990e064457b756c726f7c8eb7c1ec11b0f4b3f59"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/testdata/three-pages/pages/notes.mu",
+      "bytes": 34,
+      "sha256": "f0551cab5c65b6a50c442304f6212c9b19fc78cfc81c467c7ae1cf472d10b77f"
+    },
+    {
+      "path": "tools/knot-nomadnet-go/testdata/three-pages/snapshot.json",
+      "bytes": 1051,
+      "sha256": "aee055718a876869bf0ba71f335779488d68bab43f96edb1ad4f86f96dee7915"
+    }
+  ],
+  "archive_sha256": "0675b8449d058c74f081559db1018de55d8996e7faa5d1bb976f2019c149a60e"
+}

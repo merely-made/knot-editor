@@ -1,0 +1,37 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5#1bec457e)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: usage of an `unsafe` block
+   --> crates\knot-document\src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+   Compiling knot-desktop v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\apps\desktop)
+warning: unused variable: `store`
+    --> apps\desktop\src\recovery.rs:1199:13
+     |
+1199 |         let store = store(&temp);
+     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-desktop` (lib test) generated 1 warning (run `cargo fix --lib -p knot-desktop --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 24s
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_capture-2009e620c31a1b44.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_composition-309fcbb32f2aba9a.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_desktop-84d0239d5c44f1d6.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_editor-efea2cc44b0b7aff.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_file_catalog-608233904c883497.exe)
+     Running unittests src\lib.rs (C:/t/cargo-targets/knot-editor\debug\deps\knot_readings-921526c958b58950.exe)

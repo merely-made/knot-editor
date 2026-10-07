@@ -1,0 +1,20 @@
+{
+  "command": [
+    "cargo",
+    "+1.98.1",
+    "test",
+    "--workspace",
+    "--locked",
+    "--lib",
+    "recovery_runtime::tests",
+    "-j1"
+  ],
+  "cwd": "C:\\Users\\mark_\\Code\\repos\\knot-editor",
+  "target": "C:/t/cargo-targets/knot-editor",
+  "priority": "BelowNormal",
+  "jobs": 1,
+  "pid": 46612,
+  "started_utc": "2026-10-07T19:27:32.776726+00:00",
+  "finished_utc": "2026-10-07T19:30:03.470460+00:00",
+  "exit_code": 0
+}

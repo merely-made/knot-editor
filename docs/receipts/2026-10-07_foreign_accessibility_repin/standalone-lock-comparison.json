@@ -1,0 +1,37 @@
+{
+  "before_count": 218,
+  "after_count": 218,
+  "removed": [],
+  "added": [],
+  "changed": [
+    {
+      "before": {
+        "name": "inker",
+        "version": "0.1.1",
+        "source": "git+https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c755e082b5119c2485762fd28f4226d8fb",
+        "dependencies": [
+          "document-session-api",
+          "getrandom 0.4.3",
+          "petgraph",
+          "serde",
+          "tracing",
+          "uuid"
+        ]
+      },
+      "after": {
+        "name": "inker",
+        "version": "0.1.1",
+        "source": "git+https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c755e082b5119c2485762fd28f4226d8fb",
+        "dependencies": [
+          "accesskit",
+          "document-session-api",
+          "getrandom 0.4.3",
+          "petgraph",
+          "serde",
+          "tracing",
+          "uuid"
+        ]
+      }
+    }
+  ]
+}

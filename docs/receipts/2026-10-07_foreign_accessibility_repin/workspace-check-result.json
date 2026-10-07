@@ -1,0 +1,19 @@
+{
+  "command": [
+    "cargo",
+    "+1.98.1",
+    "check",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "-j1"
+  ],
+  "cwd": "C:\\Users\\mark_\\Code\\repos\\knot-editor",
+  "target": "C:/t/cargo-targets/knot-editor",
+  "priority": "BelowNormal",
+  "jobs": 1,
+  "pid": 35724,
+  "started_utc": "2026-10-07T18:18:15.013113+00:00",
+  "finished_utc": "2026-10-07T18:20:40.013756+00:00",
+  "exit_code": 0
+}

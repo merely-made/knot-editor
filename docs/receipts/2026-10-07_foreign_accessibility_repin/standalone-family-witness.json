@@ -1,0 +1,13 @@
+{
+  "sources": {
+    "mere": [
+      "git+https://github.com/merely-made/mere.git?rev=f1d169c755e082b5119c2485762fd28f4226d8fb#f1d169c755e082b5119c2485762fd28f4226d8fb"
+    ],
+    "genet": [
+      "git+https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e206a47d1c8808472de9aa461233638768"
+    ]
+  },
+  "wgpu": [],
+  "package_count": 122,
+  "metadata_sha256": "aa4246a363c5a6eafadc4b0282a3a921a86ea2d489a5272d841f40b2cd3408ff"
+}

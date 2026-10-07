@@ -1,0 +1,12 @@
+{
+  "stderr": {
+    "from": "desktop-repaired-tests.stderr.log",
+    "to": "desktop-package-superseded.stderr.log",
+    "sha256": "456EE917ECCAC0D2FF7E65A1156F2FB1222D9B746603DA2F2AA1E07D204C47E5"
+  },
+  "stdout": {
+    "from": "desktop-repaired-tests.stdout.log",
+    "to": "desktop-package-superseded.stdout.log",
+    "sha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855"
+  }
+}

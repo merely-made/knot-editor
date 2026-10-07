@@ -59,3 +59,25 @@ matching source text on the global surface. Research asserts both the reading
 result row count and exact labels emitted by `references.rhai`. Open-reading
 snapshot flags count pinned and following tiles alike, and `wait` includes
 graph, publication, retention, and pending capture work.
+
+`relationship_recipe_compact.scn` launches
+`scenarios/fixtures/composition/selection.djot` with isolated settings. It uses
+the compact View menu, binds actual opt-in sound results, edits spacing, selects
+the second spatial occurrence, explains the rhyme, checks the original-source
+action, and refuses stale rebind and retention without authority. Paragraph
+clicks deliberately reveal non-interactive explanation/anchor/notice text for
+capture; they do not invoke a mutation. The headless regression runs at 420×900
+and at 1280×900 with 400% UI zoom. Native receipts still require foreground
+capture review at both settings; matching hidden text is not visual acceptance.
+
+`collection_organization.scn` and `collection_organization_reopen.scn` run with
+the `collection_acceptance` desktop example, not ordinary personal-wallet
+startup. Initialize with `--initialize-test-fixture /absolute/empty/test/root`,
+then use `--reopen-test-fixture` on that same marked disposable root in a new
+process. The instrument uses public test keys and must never hold personal data.
+The scenarios exercise the visible details editor, archive/restore, encrypted
+fresh-process reopen and original-source navigation. Worker/store tests cover
+edited metadata, stale revision and authority refusal; the scenario's unchanged
+details save alone does not prove typing into every field.
+The `_compact` and `_compact_reopen` variants use the compact View menu at 420px;
+the wide scenarios' direct Readings toolbar button is not a compact selector.

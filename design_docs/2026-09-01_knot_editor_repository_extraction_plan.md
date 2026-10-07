@@ -154,3 +154,23 @@ The governing phase and validation receipts live in
 Validation: `cargo check -p knot-editor --all-targets --all-features` passed
 on 2026-09-29 with the existing Mere and Genet pins. The lock change is the
 new direct Insigne dependency only.
+
+## Progress, 2026-10-06: qualified browser compatibility ancestry
+
+The immutable maintenance revision
+`91cb44a2c00c088f0677956d31f3cdca6828c59e` retains Turnstone's qualified
+`92719898` Knot baseline and replaces its Mere `3d1cdacc` references with
+`db4ee312`. It preserves that baseline's Genet `69a2383` family. Root locked
+metadata resolves one Mere family (55 active packages) and one Genet family
+(22 packages); the separate document manifest's diagnostic gate resolved 8
+Mere and 6 Genet packages. Its generated ignored diagnostic lock was removed.
+
+An ordinary two-parent main merge retains this qualified maintenance revision
+as reachable ancestry. Published main's newer source, Cargo manifests, lockfile
+and toolchain remain unchanged, including Mere `e0cea3e0` and Genet `d851a9db`.
+The main merge documents provenance; it does not roll main back to the consumer's
+maintenance dependency family. Turnstone pins the exact maintenance revision
+and records its Scry/Weld native qualification and frozen source archive at
+`turnstone/docs/receipts/browser_supplier_integration_20261006/`.
+The primary checkout's unpublished local documentation and concurrent work
+remain separate from this integration.

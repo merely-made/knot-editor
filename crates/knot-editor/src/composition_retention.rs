@@ -126,7 +126,7 @@ impl CompositionRetainPort for KnotResidentCompositionPort {
     ) -> Result<Vec<RetainedCompositionItem>, KnotRetainError> {
         self.execute(expected, |state, grant| {
             let (store, _, cipher) = authority(state)?;
-            let items = pollster::block_on(store.composition_with_cipher(
+            let (items, _) = pollster::block_on(store.organized_composition_with_cipher(
                 cipher,
                 grant.max_items,
                 knot_composition::MAX_STORE_BYTES,
@@ -134,22 +134,63 @@ impl CompositionRetainPort for KnotResidentCompositionPort {
             .map_err(error)?;
             items
                 .into_iter()
-                .map(|(item, operation, writer)| {
-                    if serde_json::to_vec(&item).map_err(error)?.len() > grant.max_item_bytes {
-                        return Err(error("composition item exceeds grant byte limit"));
-                    }
-                    Ok(RetainedCompositionItem {
-                        receipt: CompositionReceipt {
-                            target: self.target.clone(),
-                            item_id: item.id.clone(),
-                            operation,
-                            already_retained: true,
-                        },
-                        item,
-                        author: writer,
-                    })
-                })
+                .map(
+                    |(item, operation, writer, organization, organization_revision)| {
+                        if serde_json::to_vec(&item).map_err(error)?.len() > grant.max_item_bytes {
+                            return Err(error("composition item exceeds grant byte limit"));
+                        }
+                        if serde_json::to_vec(&organization).map_err(error)?.len()
+                            > grant.max_item_bytes
+                        {
+                            return Err(error("organization exceeds grant byte limit"));
+                        }
+                        Ok(RetainedCompositionItem {
+                            receipt: CompositionReceipt {
+                                target: self.target.clone(),
+                                item_id: item.id.clone(),
+                                operation,
+                                already_retained: true,
+                            },
+                            item,
+                            author: writer,
+                            organization,
+                            organization_revision,
+                        })
+                    },
+                )
                 .collect()
+        })
+    }
+    fn organize(
+        &self,
+        expected: &KnotRetainTargetV1,
+        change: knot_composition::retention::OrganizeComposition,
+    ) -> Result<CompositionReceipt, KnotRetainError> {
+        self.execute(expected, |state, grant| {
+            change.organization.validate().map_err(error)?;
+            if serde_json::to_vec(&change.organization)
+                .map_err(error)?
+                .len()
+                > grant.max_item_bytes
+            {
+                return Err(error("organization exceeds grant byte limit"));
+            }
+            let (store, seed, cipher) = authority(state)?;
+            let (operation, already_retained) =
+                pollster::block_on(store.organize_composition_with_cipher(
+                    seed,
+                    cipher,
+                    &change,
+                    grant.max_items,
+                    knot_composition::MAX_STORE_BYTES,
+                ))
+                .map_err(error)?;
+            Ok(CompositionReceipt {
+                target: self.target.clone(),
+                item_id: change.item_id,
+                operation,
+                already_retained,
+            })
         })
     }
 }

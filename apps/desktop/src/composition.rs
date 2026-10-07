@@ -9,9 +9,11 @@ use crate::{
     documents::DocKey,
     workspace::{DesktopState, DesktopView},
 };
-use cambium::{Keyed, TextInput, button, el, lens, span, text_field_typed};
+use cambium::{Keyed, TextInput, button, el, lens, span, text_field_typed, textarea_typed};
 use cambium_genet_winit_host::HostWake;
-use knot_composition::retention::{CompositionRetainPort, RetainedCompositionItem};
+use knot_composition::retention::{
+    CompositionRetainPort, OrganizeComposition, RetainedCompositionItem,
+};
 use knot_composition::{CollectionItem, CollectionStore, DocumentAnchor, ItemKind, PackSource};
 use knot_readings::sound::{self, SoundLayers, SoundReading};
 use reference_data::{LexicalEntry, LookupQuery, ReferenceId, SourceKey, SourceRegistry};
@@ -20,6 +22,10 @@ use std::{
     path::PathBuf,
     sync::{Arc, mpsc},
 };
+
+mod recipe;
+
+pub(crate) use recipe::measure_cards as measure_recipe_cards;
 
 #[derive(Clone)]
 pub(crate) struct SelectionSnapshot {
@@ -87,11 +93,20 @@ impl SelectionSnapshot {
 
 #[derive(Default)]
 pub struct CompositionState {
+    recipe: recipe::RecipeState,
     pub(crate) query: TextInput,
     pub(crate) import_path: TextInput,
     pub(crate) import_digest: TextInput,
     pub(crate) notice: Option<String>,
     retained: Vec<RetainedCompositionItem>,
+    collection_search: TextInput,
+    show_archived: bool,
+    organization_edit: Option<(knot_capture::KnotRetainTargetV1, OrganizeComposition)>,
+    organization_label: TextInput,
+    organization_collection: TextInput,
+    organization_notes: TextInput,
+    organization_tags: TextInput,
+    organization_order: TextInput,
     targets: Vec<Arc<dyn CompositionRetainPort>>,
     selected_target: Option<usize>,
     wake: Option<HostWake>,
@@ -162,6 +177,7 @@ impl CompositionState {
         self.targets = targets;
         self.selected_target = None;
         self.retained.clear();
+        self.organization_edit = None;
         self.wake = Some(wake);
         self.notice = Some(if self.receiver.is_some() {
             "Destinations changed during retention. The previous destination may contain the item; choose it and refresh before retrying.".into()
@@ -175,6 +191,19 @@ impl CompositionState {
     }
 
     fn request(&mut self, items: Vec<CollectionItem>, legacy: bool) {
+        self.request_operation(items, legacy, None);
+    }
+
+    fn request_organization(&mut self, change: OrganizeComposition) {
+        self.request_operation(Vec::new(), false, Some(change));
+    }
+
+    fn request_operation(
+        &mut self,
+        items: Vec<CollectionItem>,
+        legacy: bool,
+        change: Option<OrganizeComposition>,
+    ) {
         if self.busy() {
             self.notice = Some("A collection request is already in progress.".into());
             return;
@@ -229,6 +258,13 @@ impl CompositionState {
                         return Err("Retention receipt did not match the requested item and destination.".into());
                     }
                 }
+                if let Some(change) = change {
+                    let id = change.item_id.clone();
+                    let receipt = port.organize(&target, change).map_err(|error| error.to_string())?;
+                    if receipt.target != target || receipt.item_id != id {
+                        return Err("Organization receipt did not match the requested item and destination.".into());
+                    }
+                }
                 let retained = port.list(&target).map_err(|error| error.to_string())?;
                 if retained.iter().any(|entry| entry.receipt.target != target || entry.receipt.item_id != entry.item.id) {
                     return Err("Collection returned mismatched authority receipts.".into());
@@ -258,6 +294,23 @@ impl CompositionState {
                 match update.result {
                     Ok(retained) => {
                         self.retained = retained;
+                        self.retained.sort_by(|a, b| {
+                            (
+                                &a.organization.collection,
+                                a.organization.order,
+                                &a.organization.label,
+                                a.author,
+                                &a.item.id,
+                            )
+                                .cmp(&(
+                                    &b.organization.collection,
+                                    b.organization.order,
+                                    &b.organization.label,
+                                    b.author,
+                                    &b.item.id,
+                                ))
+                        });
+                        self.organization_edit = None;
                         if self.retry_target.is_some()
                             && self
                                 .selected_target
@@ -287,6 +340,7 @@ impl CompositionState {
                     },
                     Err(error) => {
                         self.retained.clear();
+                        self.organization_edit = None;
                         self.notice = Some(format!(
                             "Collection could not be confirmed: {error}. Refresh or retry the same request; no plaintext fallback was written."
                         ))
@@ -297,6 +351,7 @@ impl CompositionState {
             Err(mpsc::TryRecvError::Disconnected) => {
                 self.receiver = None;
                 self.retained.clear();
+                self.organization_edit = None;
                 self.notice = Some("Collection worker disconnected; outcome is uncertain. Refresh the destination before retrying.".into());
             },
         }
@@ -863,6 +918,10 @@ fn sound_view(state: &DesktopState, key: DocKey) -> DesktopView {
         "section",
         (
             el("h4", "Sound-pattern reading"),
+            button(
+                "Use sound relationship recipe",
+                move |state: &mut DesktopState, _| recipe::from_sound(state, key, false),
+            ),
             span(
                 "CMUdict · bundled English pronunciation data · Carnegie Mellon University · opt-in each launch",
             ),
@@ -996,42 +1055,208 @@ fn sound_note(reading: &SoundReading, layers: &SoundLayers) -> String {
     lines.join("\n")
 }
 
+fn start_organization_edit(state: &mut DesktopState, change: OrganizeComposition) {
+    if state.composition.busy() {
+        return;
+    }
+    let Some(target) = state
+        .composition
+        .selected_target
+        .and_then(|i| state.composition.targets.get(i))
+        .map(|p| p.target().clone())
+    else {
+        return;
+    };
+    let organization = &change.organization;
+    state.composition.organization_label = TextInput::new(&organization.label);
+    state.composition.organization_collection = TextInput::new(&organization.collection);
+    state.composition.organization_notes = TextInput::new(&organization.author_notes);
+    state.composition.organization_tags = TextInput::new(organization.tags.join(", "));
+    state.composition.organization_order = TextInput::new(organization.order.to_string());
+    state.composition.organization_edit = Some((target, change));
+}
+
+fn save_organization_edit(state: &mut DesktopState) {
+    if state.composition.busy() {
+        return;
+    }
+    let Some((target, mut change)) = state.composition.organization_edit.clone() else {
+        return;
+    };
+    if state
+        .composition
+        .selected_target
+        .and_then(|i| state.composition.targets.get(i))
+        .map(|p| p.target())
+        != Some(&target)
+    {
+        state.composition.notice =
+            Some("Collection destination changed; reopen the item before editing.".into());
+        return;
+    }
+    let Ok(order) = state
+        .composition
+        .organization_order
+        .text()
+        .trim()
+        .parse::<i64>()
+    else {
+        state.composition.notice = Some("Order must be a signed whole number.".into());
+        return;
+    };
+    change.organization.label = state.composition.organization_label.text().to_owned();
+    change.organization.collection = state.composition.organization_collection.text().to_owned();
+    change.organization.author_notes = state.composition.organization_notes.text().to_owned();
+    // Preserve legacy tags containing commas when this field was not edited.
+    if state.composition.organization_tags.text() != change.organization.tags.join(", ") {
+        change.organization.tags = state
+            .composition
+            .organization_tags
+            .text()
+            .split(',')
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .map(str::to_owned)
+            .collect();
+    }
+    change.organization.order = order;
+    if let Err(error) = change.organization.validate() {
+        state.composition.notice = Some(error.to_string());
+        return;
+    }
+    state.composition.request_organization(change);
+}
+
+fn collection_matches(entry: &RetainedCompositionItem, search: &str, show_archived: bool) -> bool {
+    if entry.organization.archived && !show_archived {
+        return false;
+    }
+    let search = search.trim().to_lowercase();
+    search.is_empty()
+        || [
+            &entry.organization.label,
+            &entry.organization.collection,
+            &entry.organization.author_notes,
+            &entry.item.text,
+        ]
+        .into_iter()
+        .chain(entry.organization.tags.iter())
+        .any(|text| text.to_lowercase().contains(&search))
+}
+
 fn collection_view(state: &DesktopState) -> DesktopView {
-    let items: Vec<(String, DesktopView)> = state.composition.retained.iter().map(|retained| {
+    let items: Vec<(String, DesktopView)> = state
+        .composition
+        .retained
+        .iter()
+        .filter(|entry| {
+            collection_matches(
+                entry,
+                state.composition.collection_search.text(),
+                state.composition.show_archived,
+            )
+        })
+        .map(|retained| {
             let item = &retained.item;
             let anchor = item.document_source.clone();
-            (format!("{}:{}", crate::workspace::hex32(&retained.author), item.id), Box::new(el("div", (
-                span(item.label.clone()),
-                item.document_source.as_ref().map(|source| span(format!("Quotation: {}", source.exact_quote))),
-                el("pre", item.text.clone()).attr("class", "knot-readings-note"),
-                span(format!("{} · {:?} · {}", item.collection, item.kind, item.author_notes)),
-                span(item.pack_sources.iter().map(|source| format!("{} {} / {}", source.pack_id, source.pack_version, source.entry_ref)).collect::<Vec<_>>().join("; ")),
-                span(format!("Retained operation {} · author {}", crate::workspace::hex32(&retained.receipt.operation), crate::workspace::hex32(&retained.author))),
-                button("Return to source", move |state: &mut DesktopState, _| {
-                    let Some(anchor) = anchor.as_ref() else { return; };
-                    // Scratch addresses are not durable identities and can name
-                    // multiple open documents, even with identical bytes.
-                    if anchor.document_address.starts_with("scratch:") {
-                        state.composition.notice = Some("Scratch quotations have no durable source identity. The retained quotation remains available; save the source before collecting a navigable anchor.".into()); return;
-                    }
-                    let target = state.docs.docs().find_map(|(key, entry)| {
-                        let snapshot = entry.document.snapshot();
-                        (snapshot.source.address == anchor.document_address).then_some((key, snapshot.text))
-                    });
-                    let Some((key, text)) = target else {
-                        state.composition.notice = Some("Open the original document to return to this quotation.".into()); return;
-                    };
-                    if let Err(error) = anchor.validate_source(&text) {
-                        state.composition.notice = Some(format!("Original source changed; retained quotation is safe: {error}")); return;
-                    }
-                    state.focus_document(key);
-                    let result = state.document_mut().session_mut().select_source_span(&anchor.document_address, &text,
-                        anchor.byte_span.start as usize, anchor.byte_span.end as usize);
-                    if result.is_ok() { state.entry_mut().focus_source_requested = true; }
-                    state.composition.notice = result.err();
-                }).attr("aria-disabled", item.document_source.is_none().to_string()),
-            ))) as DesktopView)
-        }).collect();
+            let saved_recipe = item.projection_recipe.clone();
+            let change = OrganizeComposition {
+                author: retained.author,
+                item_id: item.id.clone(),
+                expected_revision: retained.organization_revision,
+                organization: retained.organization.clone(),
+            };
+            let edit = change.clone();
+            (
+                format!("{}:{}", crate::workspace::hex32(&retained.author), item.id),
+                Box::new(el(
+                    "div",
+                    (
+                        span(retained.organization.label.clone()),
+                        item.document_source
+                            .as_ref()
+                            .map(|source| span(format!("Quotation: {}", source.exact_quote))),
+                        el("pre", item.text.clone()).attr("class", "knot-readings-note"),
+                        span(format!(
+                            "{} · {:?} · {}",
+                            retained.organization.collection,
+                            item.kind,
+                            retained.organization.author_notes
+                        )),
+                        span(format!(
+                            "Tags: {} · order {}{}",
+                            retained.organization.tags.join(", "),
+                            retained.organization.order,
+                            if retained.organization.archived {
+                                " · archived"
+                            } else {
+                                ""
+                            }
+                        )),
+                        span(format!(
+                            "Organization revision {}",
+                            crate::workspace::hex32(&retained.organization_revision)
+                        )),
+                        button(
+                            "Edit collection details",
+                            move |state: &mut DesktopState, _| {
+                                start_organization_edit(state, edit.clone())
+                            },
+                        )
+                        .attr("aria-disabled", state.composition.busy().to_string()),
+                        button(
+                            if retained.organization.archived {
+                                "Restore collection item"
+                            } else {
+                                "Archive collection item"
+                            },
+                            move |state: &mut DesktopState, _| {
+                                if state.composition.busy() {
+                                    return;
+                                }
+                                let mut change = change.clone();
+                                change.organization.archived = !change.organization.archived;
+                                state.composition.request_organization(change);
+                            },
+                        )
+                        .attr("aria-disabled", state.composition.busy().to_string()),
+                        span(
+                            item.pack_sources
+                                .iter()
+                                .map(|source| {
+                                    format!(
+                                        "{} {} / {}",
+                                        source.pack_id, source.pack_version, source.entry_ref
+                                    )
+                                })
+                                .collect::<Vec<_>>()
+                                .join("; "),
+                        ),
+                        span(format!(
+                            "Retained operation {} · author {}",
+                            crate::workspace::hex32(&retained.receipt.operation),
+                            crate::workspace::hex32(&retained.author)
+                        )),
+                        saved_recipe.map(|saved| {
+                            button(
+                                "Open retained relationship recipe",
+                                move |state: &mut DesktopState, _| {
+                                    recipe::reopen(state, saved.clone())
+                                },
+                            )
+                        }),
+                        button("Return to source", move |state: &mut DesktopState, _| {
+                            let Some(anchor) = anchor.as_ref() else {
+                                return;
+                            };
+                            return_to_source(state, anchor);
+                        })
+                        .attr("aria-disabled", item.document_source.is_none().to_string()),
+                    ),
+                )) as DesktopView,
+            )
+        })
+        .collect();
     let targets: Vec<(usize, DesktopView)> = state
         .composition
         .targets
@@ -1055,6 +1280,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                         }
                         state.composition.generation = state.composition.generation.wrapping_add(1);
                         state.composition.selected_target = Some(index);
+                        state.composition.organization_edit = None;
                         state.composition.retained.clear();
                         state.composition.request(Vec::new(), false);
                     })
@@ -1079,13 +1305,67 @@ fn collection_view(state: &DesktopState) -> DesktopView {
             }).attr("aria-disabled", state.composition.retry_items.is_empty().to_string()),
             button("Import legacy collection into selected mere", |state: &mut DesktopState, _| state.composition.request(Vec::new(), true)),
             span("Legacy import is explicit, preserves item IDs for safe retries, and never modifies or deletes collection.json."),
+            el("label", (span("Search collection"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.collection_search))),
+            button("Include archived items", |state: &mut DesktopState, _| state.composition.show_archived = !state.composition.show_archived)
+                .attr("aria-pressed", state.composition.show_archived.to_string()),
+            span("Archive hides an item from the ordinary view; it does not erase its retained history. Commas separate tags."),
+            state.composition.organization_edit.as_ref().filter(|_| !state.composition.busy()).map(|_| el("section", (
+                el("h4", "Edit collection details"),
+                el("label", (span("Label"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_label))),
+                el("label", (span("Collection"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_collection))),
+                el("label", (span("Author notes"), lens(|input: &mut TextInput| textarea_typed(input), |state: &mut DesktopState| &mut state.composition.organization_notes))),
+                el("label", (span("Tags, separated by commas"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_tags))),
+                el("label", (span("Order"), lens(|input: &mut TextInput| text_field_typed(input), |state: &mut DesktopState| &mut state.composition.organization_order))),
+                button("Save collection details", |state: &mut DesktopState, _| save_organization_edit(state)).attr("aria-disabled", state.composition.busy().to_string()),
+                button("Cancel collection edit", |state: &mut DesktopState, _| state.composition.organization_edit = None),
+                span("Saving changes organization only; original material and provenance remain retained.").attr("class", "knot-collection-editor-end"),
+            ))),
             Keyed::new(items),
         ),
     ))
 }
 
+fn return_to_source(state: &mut DesktopState, anchor: &DocumentAnchor) {
+    // Scratch addresses can name multiple occurrences or documents and are
+    // not an owner-issued durable source identity.
+    if anchor.document_address.starts_with("scratch:") {
+        state.composition.notice = Some("Scratch quotations have no durable source identity. The retained quotation remains available; save the source before collecting a navigable anchor.".into());
+        return;
+    }
+    let targets: Vec<_> = state
+        .docs
+        .docs()
+        .filter_map(|(key, entry)| {
+            let snapshot = entry.document.snapshot();
+            (snapshot.source.address == anchor.document_address).then_some((key, snapshot.text))
+        })
+        .collect();
+    let [(key, text)] = targets.as_slice() else {
+        state.composition.notice =
+            Some("Open exactly one original document to return to this quotation.".into());
+        return;
+    };
+    if let Err(error) = anchor.validate_source(text) {
+        state.composition.notice = Some(format!(
+            "Original source changed; retained quotation is safe: {error}"
+        ));
+        return;
+    }
+    state.focus_document(*key);
+    let result = state.document_mut().session_mut().select_source_span(
+        &anchor.document_address,
+        text,
+        anchor.byte_span.start as usize,
+        anchor.byte_span.end as usize,
+    );
+    if result.is_ok() {
+        state.entry_mut().focus_source_requested = true;
+    }
+    state.composition.notice = result.err();
+}
+
 pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
-    let tabs: Vec<(usize, DesktopView)> = ["Lexical", "Sound", "Collection", "Sources"]
+    let tabs: Vec<(usize, DesktopView)> = ["Lexical", "Sound", "Collection", "Sources", "Recipes"]
         .into_iter()
         .enumerate()
         .map(|(index, label)| {
@@ -1110,7 +1390,8 @@ pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
         0 => lexical_view(state, key),
         1 => sound_view(state, key),
         2 => collection_view(state),
-        _ => registry_view(state),
+        3 => registry_view(state),
+        _ => recipe::view(state, key),
     };
     Box::new(el("section", (
         el("h3", "Composition"),
@@ -1119,7 +1400,7 @@ pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
             .attr("aria-label", "Collect selected passage"),
         el("div", Keyed::new(tabs)).attr("class", "knot-composition-tabs"),
         content,
-        state.composition.notice.as_ref().map(|notice| span(notice.clone())),
+        state.composition.notice.as_ref().map(|notice| span(notice.clone()).attr("class", "knot-composition-notice")),
     )).attr("class", "knot-composition"))
 }
 
@@ -1163,11 +1444,11 @@ mod tests {
                 operation: [4; 32],
                 already_retained: false,
             };
-            items.push(RetainedCompositionItem {
+            items.push(RetainedCompositionItem::from_retention(
                 item,
-                receipt: receipt.clone(),
-                author: self.target.writer,
-            });
+                self.target.writer,
+                receipt.clone(),
+            ));
             Ok(receipt)
         }
         fn list(
@@ -1179,6 +1460,33 @@ mod tests {
                 return Err(knot_capture::KnotRetainError("authority revoked".into()));
             }
             Ok(self.items.lock().unwrap().clone())
+        }
+        fn organize(
+            &self,
+            expected: &knot_capture::KnotRetainTargetV1,
+            change: OrganizeComposition,
+        ) -> Result<knot_composition::retention::CompositionReceipt, knot_capture::KnotRetainError>
+        {
+            assert_eq!(expected, &self.target);
+            if self.revoked.load(std::sync::atomic::Ordering::SeqCst) {
+                return Err(knot_capture::KnotRetainError("authority revoked".into()));
+            }
+            let mut items = self.items.lock().unwrap();
+            let entry = items
+                .iter_mut()
+                .find(|entry| entry.author == change.author && entry.item.id == change.item_id)
+                .ok_or_else(|| knot_capture::KnotRetainError("missing item".into()))?;
+            if entry.organization_revision != change.expected_revision {
+                return Err(knot_capture::KnotRetainError("stale organization".into()));
+            }
+            entry.organization = change.organization;
+            entry.organization_revision[0] = entry.organization_revision[0].wrapping_add(1);
+            Ok(knot_composition::retention::CompositionReceipt {
+                target: self.target.clone(),
+                item_id: change.item_id,
+                operation: entry.organization_revision,
+                already_retained: false,
+            })
         }
     }
 
@@ -1212,6 +1520,100 @@ mod tests {
         panic!("collection worker did not finish");
     }
 
+    #[test]
+    fn organization_worker_preserves_original_and_filters_archived_and_search() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Cat", "original source");
+        let receipt = port.retain(port.target(), item.clone()).unwrap();
+        state.composition.request(Vec::new(), false);
+        settle_collection(&mut state);
+        let entry = state.composition.retained[0].clone();
+        start_organization_edit(
+            &mut state,
+            OrganizeComposition {
+                author: entry.author,
+                item_id: item.id.clone(),
+                expected_revision: entry.organization_revision,
+                organization: entry.organization,
+            },
+        );
+        state.composition.organization_label = TextInput::new("Night study");
+        state.composition.organization_collection = TextInput::new("Poetry");
+        state.composition.organization_tags = TextInput::new("prosody, rhyme");
+        state.composition.organization_order = TextInput::new("-2");
+        save_organization_edit(&mut state);
+        settle_collection(&mut state);
+        let entry = state.composition.retained[0].clone();
+        assert_eq!(entry.item, item);
+        assert_eq!(entry.receipt, receipt);
+        assert_eq!(entry.organization.label, "Night study");
+        assert_eq!(entry.organization.collection, "Poetry");
+        assert_eq!(entry.organization.order, -2);
+        assert!(collection_matches(&entry, "PROSODY", false));
+        assert!(collection_matches(&entry, "original source", false));
+        assert!(!collection_matches(&entry, "unrelated", false));
+        let mut change = OrganizeComposition {
+            author: entry.author,
+            item_id: item.id,
+            expected_revision: entry.organization_revision,
+            organization: entry.organization,
+        };
+        change.organization.archived = true;
+        state.composition.request_organization(change);
+        settle_collection(&mut state);
+        assert!(!collection_matches(
+            &state.composition.retained[0],
+            "",
+            false
+        ));
+        assert!(collection_matches(&state.composition.retained[0], "", true));
+    }
+
+    #[test]
+    fn organization_editor_refuses_changed_destination_and_invalid_order_before_submission() {
+        let mut state = state("cat");
+        let port = attach_fake(&mut state);
+        let item = CollectionItem::new(ItemKind::Note, "Cat", "source");
+        port.retain(port.target(), item.clone()).unwrap();
+        let entry = port.list(port.target()).unwrap().remove(0);
+        start_organization_edit(
+            &mut state,
+            OrganizeComposition {
+                author: entry.author,
+                item_id: item.id,
+                expected_revision: entry.organization_revision,
+                organization: entry.organization,
+            },
+        );
+        state.composition.organization_order = TextInput::new("not a number");
+        save_organization_edit(&mut state);
+        assert!(!state.composition.busy());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("whole number")
+        );
+        state.composition.selected_target = None;
+        save_organization_edit(&mut state);
+        assert!(!state.composition.busy());
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("destination changed")
+        );
+        assert_eq!(
+            port.list(port.target()).unwrap()[0].organization_revision,
+            entry.organization_revision
+        );
+    }
+
     fn state(text: &str) -> DesktopState {
         DesktopState::new(
             KnotDocumentSession::scratch("scratch:composition", text),
@@ -1242,6 +1644,338 @@ mod tests {
         );
         host.layout_at(1100.0, 800.0);
         host
+    }
+
+    type RecipeHost = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
+
+    fn workspace_composition(state: &DesktopState) -> DesktopView {
+        Box::new(
+            el("div", view(state, state.focused_key().unwrap()))
+                .attr("class", state.appearance.root_class()),
+        )
+    }
+
+    /// The panel under the real desktop sheet and fonts, with the frame hook
+    /// that measures recipe cards.
+    fn recipe_harness(state: DesktopState) -> RecipeHost {
+        let mut hooks = cambium_genet_winit_host::inert_hooks();
+        hooks.frame = Box::new(super::measure_recipe_cards);
+        let mut host = Harness::with_hooks(
+            cambium_genet_winit_host::Init {
+                state,
+                logic: workspace_composition as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: crate::fonts::bundled_fonts(),
+                images: Vec::new(),
+            },
+            hooks,
+        );
+        host.layout_at(1100.0, 800.0);
+        host
+    }
+
+    /// One native frame: the frame hook, then the layout it feeds.
+    fn frame(host: &mut RecipeHost) {
+        host.prepare_frame();
+        host.relayout();
+    }
+
+    /// The occurrence cards and the measurement probes now in the DOM.
+    fn cards_and_probes(host: &RecipeHost) -> (Vec<NodeId>, Vec<NodeId>) {
+        host.with_dom(|dom| {
+            fn walk(
+                dom: &ScriptedDom,
+                node: NodeId,
+                cards: &mut Vec<NodeId>,
+                probes: &mut Vec<NodeId>,
+            ) {
+                let is_button = dom
+                    .element_name(node)
+                    .is_some_and(|name| name.local.as_ref() == "button");
+                if is_button && text_content(dom, node).contains(" · token-") {
+                    cards.push(node);
+                }
+                if dom
+                    .attribute(
+                        node,
+                        &layout_dom_api::Namespace::from(""),
+                        &layout_dom_api::LocalName::from("data-knot-recipe-measure"),
+                    )
+                    .is_some()
+                {
+                    probes.push(node);
+                }
+                for child in dom.dom_children(node) {
+                    walk(dom, child, cards, probes);
+                }
+            }
+            let (mut cards, mut probes) = (Vec::new(), Vec::new());
+            walk(dom, dom.document(), &mut cards, &mut probes);
+            (cards, probes)
+        })
+    }
+
+    fn recipe_state(text: &str, start: usize, end: usize) -> DesktopState {
+        let mut state = state(text);
+        attach_fake(&mut state);
+        select(&mut state, start, end);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        assert!(
+            state.composition.recipe.material.is_some(),
+            "{:?}",
+            state.composition.notice
+        );
+        state
+    }
+
+    #[test]
+    fn recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame() {
+        let mut host = recipe_harness(recipe_state("night night light", 0, 17));
+        let measurements = |host: &RecipeHost| host.state().composition.recipe.measurements;
+
+        // The frame the labels first appear: probes only, no cards.
+        let (cards, probes) = cards_and_probes(&host);
+        assert!(cards.is_empty(), "the scene is hidden until measured");
+        assert_eq!(probes.len(), 3, "one probe per drawn label");
+        host.with_dom(|dom| {
+            for probe in &probes {
+                assert_eq!(
+                    dom.dom_children(*probe).count(),
+                    0,
+                    "a probe has no DOM text"
+                );
+                assert!(
+                    dom.element_name(*probe)
+                        .is_some_and(|name| name.local.as_ref() == "span")
+                );
+            }
+            for label in [
+                "night · token-0-5",
+                "night · token-6-11",
+                "light · token-12-17",
+            ] {
+                let selector = Selector::role("button").containing(label);
+                assert!(
+                    taproot::matching(dom, &selector).is_empty(),
+                    "{label} resolves to nothing while hidden"
+                );
+            }
+        });
+        assert!(
+            !rendered_text(&host).contains(" · token-"),
+            "no probe text reaches the DOM"
+        );
+        assert_eq!(measurements(&host), 0);
+
+        // The next frame measures once and draws.
+        frame(&mut host);
+        assert_eq!(measurements(&host), 1);
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!(
+            (cards.len(), probes.len()),
+            (3, 0),
+            "the probes go once measured"
+        );
+        let card = host
+            .state()
+            .composition
+            .recipe
+            .measured
+            .as_ref()
+            .unwrap()
+            .card;
+        assert!(card.h < 68.0, "one line, not the old 68: {card:?}");
+        for node in &cards {
+            let (_, _, width, height) = host.painted_rect(*node).unwrap();
+            assert_eq!(
+                (width, height),
+                (card.w, card.h),
+                "the card footprint is the drawn button"
+            );
+        }
+        // The scene is exactly as tall as its laid-out cards: no empty band.
+        let scene = host.with_dom(|dom| dom.parent(cards[0]).unwrap());
+        let (_, scene_top, _, scene_height) = host.painted_rect(scene).unwrap();
+        let card_bottom = cards
+            .iter()
+            .map(|node| {
+                let (_, top, _, height) = host.painted_rect(*node).unwrap();
+                top + height
+            })
+            .fold(0.0f32, f32::max);
+        assert_eq!(
+            scene_height,
+            card_bottom - scene_top,
+            "the scene fits its cards"
+        );
+
+        // Selection, spacing, zoom and theme keep the cards and the measurement.
+        let unchanged = |host: &mut RecipeHost, what: &str| {
+            for _ in 0..3 {
+                let (cards, probes) = cards_and_probes(host);
+                assert_eq!(
+                    (cards.len(), probes.len()),
+                    (3, 0),
+                    "{what} keeps the scene drawn"
+                );
+                frame(host);
+            }
+            assert_eq!(
+                host.state().composition.recipe.measurements,
+                1,
+                "{what} does not re-measure"
+            );
+        };
+        unchanged(&mut host, "an idle frame");
+        assert!(host.click_on(&Selector::role("button").containing("night · token-6-11")));
+        host.after_dispatch();
+        host.relayout();
+        unchanged(&mut host, "a selection");
+        assert!(host.click_on(&Selector::role("button").containing("Increase recipe spacing")));
+        host.after_dispatch();
+        host.relayout();
+        unchanged(&mut host, "a spacing edit");
+        host.set_ui_zoom(2.0);
+        host.relayout();
+        unchanged(&mut host, "zoom");
+        host.set_ui_zoom(1.0);
+        host.relayout();
+        host.update(|state| state.appearance.dark = !state.appearance.dark);
+        unchanged(&mut host, "a theme change");
+
+        // A new label set hides the scene for exactly one frame, then measures once.
+        host.update(|state| {
+            let key = state.focused_key().unwrap();
+            select(state, 6, 17);
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, false);
+        });
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!(
+            (cards.len(), probes.len()),
+            (0, 2),
+            "the new label set is hidden"
+        );
+        frame(&mut host);
+        assert_eq!(measurements(&host), 2);
+        unchanged_after(&mut host, 2);
+    }
+
+    #[test]
+    fn a_recipe_below_its_minimum_shows_its_refusal_and_no_scene() {
+        // A relationship recipe needs two occurrences (Scenograph refuses a
+        // lower minimum), so the compiler refuses anything smaller and no
+        // empty scene can be drawn.
+        let mut state = recipe_state("night night light", 0, 17);
+        if let Some(material) = state.composition.recipe.material.as_mut() {
+            material.dataset.dataset.occurrences.truncate(1);
+        }
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!((cards.len(), probes.len()), (0, 0));
+        assert!(rendered_text(&host).contains("Recipe cannot be realized"));
+    }
+
+    #[test]
+    fn a_probe_that_measures_nothing_keeps_the_scene_hidden() {
+        // Without the desktop sheet a probe has no generated label, so its rect
+        // is empty: nothing is stored and no card is compiled. After a few
+        // frames the hook stops asking for more (Mere burn plan 13.46); a new
+        // label set or window size measures again.
+        let mut hooks = cambium_genet_winit_host::inert_hooks();
+        hooks.frame = Box::new(super::measure_recipe_cards);
+        let mut host = Harness::with_hooks(
+            cambium_genet_winit_host::Init {
+                state: recipe_state("night night light", 0, 17),
+                logic: workspace_composition as fn(&DesktopState) -> DesktopView,
+                sheet: String::new(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            hooks,
+        );
+        host.layout_at(1100.0, 800.0);
+        let hidden = |host: &RecipeHost, probes: usize, what: &str| {
+            let (cards, found) = cards_and_probes(host);
+            assert_eq!(
+                (cards.len(), found.len()),
+                (0, probes),
+                "{what}: the scene stays hidden"
+            );
+            assert_eq!(
+                host.state().composition.recipe.measured,
+                None,
+                "{what}: nothing is stored"
+            );
+            assert_eq!(
+                host.state().composition.recipe.measurements,
+                0,
+                "{what}: no card is compiled"
+            );
+        };
+        // Frames come for the attempts, then stop at the cap and stay stopped.
+        let gives_up = |host: &mut RecipeHost, probes: usize, what: &str| {
+            for attempt in 1..=recipe::MEASURE_ATTEMPTS {
+                let more = host.prepare_frame();
+                host.relayout();
+                assert_eq!(
+                    more,
+                    attempt < recipe::MEASURE_ATTEMPTS,
+                    "{what}: attempt {attempt} of {} asks for another frame until the cap",
+                    recipe::MEASURE_ATTEMPTS
+                );
+                hidden(host, probes, what);
+            }
+            for _ in 0..5 {
+                assert!(!host.prepare_frame(), "{what}: no frames after the cap");
+                host.relayout();
+                hidden(host, probes, what);
+            }
+            let failed = host.state().composition.recipe.failed.clone().unwrap();
+            assert_eq!(
+                failed.frames,
+                recipe::MEASURE_ATTEMPTS,
+                "{what}: the cap holds"
+            );
+        };
+        gives_up(&mut host, 3, "the first label set");
+
+        // A resize measures again, then gives up again.
+        host.layout_at(900.0, 700.0);
+        gives_up(&mut host, 3, "after a resize");
+
+        // A zoom alone is not a resize: it stays given up.
+        host.set_ui_zoom(2.0);
+        host.relayout();
+        assert!(!host.prepare_frame(), "a zoom does not restart measuring");
+        host.set_ui_zoom(1.0);
+        host.relayout();
+
+        // A new label set measures again, then gives up again.
+        host.update(|state| {
+            let key = state.focused_key().unwrap();
+            select(state, 6, 17);
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, false);
+        });
+        gives_up(&mut host, 2, "a new label set");
+    }
+
+    fn unchanged_after(host: &mut RecipeHost, count: u32) {
+        for _ in 0..3 {
+            let (cards, probes) = cards_and_probes(host);
+            assert!(
+                !cards.is_empty() && probes.is_empty(),
+                "drawn after one hidden frame"
+            );
+            frame(host);
+        }
+        assert_eq!(host.state().composition.recipe.measurements, count);
     }
 
     fn text_content(dom: &ScriptedDom, node: NodeId) -> String {
@@ -1777,11 +2511,11 @@ mod tests {
         sender
             .send(CollectionUpdate {
                 generation: 1,
-                result: Ok(vec![RetainedCompositionItem {
+                result: Ok(vec![RetainedCompositionItem::from_retention(
                     item,
+                    port.target.writer,
                     receipt,
-                    author: port.target.writer,
-                }]),
+                )]),
             })
             .unwrap();
         state.composition.drain();
@@ -1835,11 +2569,11 @@ mod tests {
             sender
                 .send(CollectionUpdate {
                     generation: state.composition.generation,
-                    result: Ok(vec![RetainedCompositionItem {
-                        item: returned,
-                        receipt: receipt.clone(),
+                    result: Ok(vec![RetainedCompositionItem::from_retention(
+                        returned,
                         author,
-                    }]),
+                        receipt.clone(),
+                    )]),
                 })
                 .unwrap();
             state.composition.drain();
@@ -1874,5 +2608,96 @@ mod tests {
                 .unwrap()
                 .contains("authority revoked")
         );
+    }
+
+    #[test]
+    fn recipe_editor_uses_shared_edits_retains_typed_material_and_reopens_selection() {
+        let mut state = state("night night light");
+        attach_fake(&mut state);
+        select(&mut state, 0, 17);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        assert!(
+            state.composition.recipe.material.is_some(),
+            "{:?}",
+            state.composition.notice
+        );
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        assert!(host.click_on(&Selector::role("button").containing("Increase recipe spacing")));
+        host.after_dispatch();
+        assert!(rendered_text(&host).contains("spacing 24"));
+        assert!(host.click_on(&Selector::role("button").containing("night · token-6-11")));
+        host.after_dispatch();
+        assert!(rendered_text(&host).contains("bytes 6–11"));
+        assert!(host.click_on(&Selector::role("button").containing("Retain relationship recipe")));
+        host.after_dispatch();
+        host.update(settle_collection);
+        let saved = host.state().composition.retained[0]
+            .item
+            .projection_recipe
+            .clone()
+            .unwrap();
+        assert_eq!(
+            saved.snapshot.selected_occurrence.as_deref(),
+            Some("token-6-11")
+        );
+        assert_eq!(saved.snapshot.recipe.definition.arrangement.spacing, 24);
+        host.update(|state| {
+            state.composition.recipe.material = None;
+            state.composition.section = 2;
+        });
+        assert!(
+            host.click_on(
+                &Selector::role("button").containing("Open retained relationship recipe")
+            )
+        );
+        host.after_dispatch();
+        assert_eq!(
+            host.state().composition.recipe.material.as_ref().unwrap(),
+            &saved
+        );
+        assert!(rendered_text(&host).contains("bytes 6–11"));
+    }
+
+    #[test]
+    fn explicit_recipe_rebind_preserves_arrangement_and_refuses_stale_reading() {
+        let mut state = state("night light cat bat");
+        select(&mut state, 0, 11);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        let original = state.composition.recipe.material.clone().unwrap();
+        select(&mut state, 12, 19);
+        recipe::from_sound(&mut state, key, true);
+        assert_eq!(
+            state.composition.recipe.material.as_ref().unwrap(),
+            &original
+        );
+        assert!(
+            state
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("selection changed")
+        );
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, true);
+        let rebound = state.composition.recipe.material.as_ref().unwrap();
+        assert_ne!(
+            rebound.dataset.dataset.source.resource,
+            original.dataset.dataset.source.resource
+        );
+        assert_eq!(
+            rebound.snapshot.recipe.definition.arrangement,
+            original.snapshot.recipe.definition.arrangement
+        );
+        assert_eq!(rebound.anchors[0].source.exact_quote, "cat");
     }
 }

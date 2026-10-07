@@ -8,6 +8,9 @@ repository.workspace = true
 description = "Local durable collections of copied composition material and explicit provenance."
 
 [dependencies]
+scenomise.workspace = true
+scenograph.workspace = true
+sceno.workspace = true
 knot-capture.workspace = true
 serde.workspace = true
 serde_json.workspace = true

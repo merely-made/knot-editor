@@ -43,6 +43,10 @@ fn wait_for_confirmation(host: &mut DesktopHarness, count: usize) {
     let expected = format!("Confirmed {count} retained items");
     for _ in 0..1_000 {
         if panel_text(host).contains(&expected) {
+            // The worker's confirmation can enter the retained DOM from the
+            // post-dispatch hook after the wake's layout. Deliver the next
+            // redraw before resolving controls newly inserted by that result.
+            host.relayout();
             return;
         }
         host.process_wake();
@@ -141,6 +145,20 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
         pollster::block_on(store.tail_receipt()).unwrap().operations,
         vec![operation]
     );
+    assert!(host.click_on(&Selector::role("button").containing("Archive collection item")));
+    wait_for_confirmation(&mut host, 1);
+    assert!(!panel_text(&host).contains("Restore collection item"));
+    assert!(host.click_on(&Selector::role("button").containing("Include archived items")));
+    host.after_dispatch();
+    host.relayout();
+    assert!(panel_text(&host).contains("Restore collection item"));
+    assert!(host.click_on(&Selector::role("button").containing("Restore collection item")));
+    wait_for_confirmation(&mut host, 1);
+    assert!(!read_port.list(&target).unwrap()[0].organization.archived);
+    assert!(host.click_on(&Selector::role("button").containing("Archive collection item")));
+    wait_for_confirmation(&mut host, 1);
+    let archived_revision = read_port.list(&target).unwrap()[0].organization_revision;
+    assert_ne!(archived_revision, operation);
     assert_eq!(std::fs::read_to_string(&document_path).unwrap(), source);
     assert!(
         !root
@@ -179,4 +197,148 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     assert_eq!(after.len(), 1);
     assert_eq!(after[0].item, items[0].item);
     assert_eq!(after[0].receipt.operation, operation);
+    assert!(after[0].organization.archived);
+    assert_eq!(after[0].organization_revision, archived_revision);
+}
+
+#[test]
+fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() {
+    let root = tempfile::tempdir().unwrap();
+    let document = root.path().join("poem.djot");
+    std::fs::write(&document, "night night light").unwrap();
+    let identity = InMemoryProvider::from_seed([0x61; 32]);
+    let seed = identity.master_keypair().to_seed();
+    let writer = identity.master_public_key().to_bytes();
+    let vault_path = root.path().join("vault");
+    let database = root.path().join("sync.redb");
+    let persona = KnotPersonaDisplayV1 {
+        stable_id: "persona:recipe".into(),
+        label: "Recipe mere".into(),
+    };
+    let make_host = |port: Arc<dyn CompositionRetainPort>| {
+        let session = KnotDocumentSession::open(&document).unwrap();
+        let mut state =
+            DesktopState::with_path(session, WindowCommands::new(), Some(document.clone()));
+        let snapshot = state.document().snapshot();
+        state
+            .document_mut()
+            .session_mut()
+            .select_source_span(&snapshot.source.address, &snapshot.text, 0, 17)
+            .unwrap();
+        state.set_preferences_path(Some(root.path().join("settings/preferences.json")));
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: desktop_view as fn(&DesktopState) -> DesktopView,
+                sheet: desktop_sheet(),
+                fonts: Vec::new(),
+                images: Vec::new(),
+            },
+            host_hooks(),
+        );
+        let wake = host.wake();
+        host.update(|state| state.set_composition_targets(vec![port], wake));
+        host.layout_at(1100.0, 800.0);
+        host
+    };
+    let open_resident = || {
+        KnotResidentSource::from_synced_vault(
+            KnotVault::open(&vault_path, [0x62; 32]).unwrap(),
+            KnotSyncFileStore::open(&database, [0x63; 32], [writer]).unwrap(),
+            seed,
+        )
+        .unwrap()
+    };
+    let click = |host: &mut DesktopHarness, label: &str| {
+        let selector = Selector::role("button").containing(label);
+        let matches = host.with_dom(|dom| taproot::matching(dom, &selector));
+        let geometry: Vec<_> = matches
+            .iter()
+            .map(|node| (host.painted_rect(*node), host.visible_rect(*node)))
+            .collect();
+        assert!(
+            host.click_on(&selector),
+            "unclickable button {label}, geometry {geometry:?}: {}",
+            panel_text(host)
+        );
+        host.after_dispatch();
+        // One native frame: the frame hook measures any new recipe cards.
+        host.prepare_frame();
+        host.relayout();
+    };
+    let (saved, operation) = {
+        let resident = open_resident();
+        let port = Arc::new(
+            KnotResidentCompositionPort::new(
+                persona.clone(),
+                resident
+                    .composition_retention(CompositionGrant::new(65536, 20))
+                    .unwrap(),
+            )
+            .unwrap(),
+        );
+        let mut host = make_host(port.clone());
+        click(&mut host, "Readings");
+        click(&mut host, "Collection");
+        click(&mut host, "Recipe mere");
+        wait_for_confirmation(&mut host, 0);
+        click(&mut host, "Sound");
+        click(&mut host, "Enable bundled CMUdict");
+        click(&mut host, "Perfect rhyme");
+        click(&mut host, "Read selected sounds");
+        click(&mut host, "Use sound relationship recipe");
+        click(&mut host, "Increase recipe spacing");
+        click(&mut host, "night · token-6-11");
+        assert!(panel_text(&host).contains("bytes 6–11"));
+        click(&mut host, "Retain relationship recipe");
+        wait_for_confirmation(&mut host, 1);
+        let retained = port.list(port.target()).unwrap();
+        let item = retained[0].item.clone();
+        assert_eq!(item.kind, knot_composition::ItemKind::ProjectionRecipe);
+        let material = item.projection_recipe.as_ref().unwrap();
+        assert_eq!(material.snapshot.recipe.definition.arrangement.spacing, 24);
+        assert_eq!(
+            material.snapshot.selected_occurrence.as_deref(),
+            Some("token-6-11")
+        );
+        assert_eq!(material.dataset.dataset.occurrences.len(), 3);
+        (item, retained[0].receipt.operation)
+    };
+    let bytes = std::fs::read(&database).unwrap();
+    assert!(
+        !bytes
+            .windows("token-6-11".len())
+            .any(|window| window == b"token-6-11")
+    );
+    let resident = open_resident();
+    let port = Arc::new(
+        KnotResidentCompositionPort::new(
+            persona,
+            resident
+                .composition_retention(CompositionGrant::new(65536, 20))
+                .unwrap(),
+        )
+        .unwrap(),
+    );
+    let mut host = make_host(port.clone());
+    click(&mut host, "Readings");
+    click(&mut host, "Collection");
+    click(&mut host, "Recipe mere");
+    wait_for_confirmation(&mut host, 1);
+    click(&mut host, "Open retained relationship recipe");
+    assert!(panel_text(&host).contains("spacing 24"));
+    assert!(panel_text(&host).contains("bytes 6–11"));
+    let items = port.list(port.target()).unwrap();
+    assert_eq!(items[0].item, saved);
+    assert_eq!(items[0].receipt.operation, operation);
+    assert_eq!(
+        std::fs::read_to_string(&document).unwrap(),
+        "night night light"
+    );
+    assert!(
+        !root
+            .path()
+            .join("settings/composition/collection.json")
+            .exists()
+    );
 }

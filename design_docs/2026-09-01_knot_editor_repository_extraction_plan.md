@@ -180,3 +180,19 @@ committed consumer with its native input/find/zoom, permission and teardown
 scenarios. Standalone Knot's newer main branch keeps its independent stack
 pins. Ordinary integration preserves this compatibility commit's ancestry
 without rolling current main back to the older stack.
+
+### 2026-10-06: browser font backend compatibility maintenance
+
+From compatibility `91cb44a2`, all 41 app-facing Mere source entries move
+together to `edf175f9c0a8645318ac8925adf0af6956f61425`. The eight root and six
+narrow-document Genet source entries move to
+`679d8314aab4ec9f57a903c79dde244c3c565c1e`. Runtime source, other source pins,
+and package versions are unchanged. The deterministic root lock changes only
+56 Mere and 22 Genet source records and fontsan 0.7's provider edge: remove
+`fontsan-woff2`, add `wuff-capi,wuff`. Existing registry versions/checksums stay
+unchanged. The narrow-document workspace still has no committed baseline lock.
+
+Genet's valid-WOFF2, malformed-WOFF2 and SFNT identity native tests pass. Actual
+locked published-source Turnstone resolution/build/native qualification remains
+pending before main integration. Standalone Knot's newer main/source family and
+the primary checkout's unpublished documentation remain separate work.

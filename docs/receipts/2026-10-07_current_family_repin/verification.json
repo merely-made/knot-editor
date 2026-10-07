@@ -1,0 +1,13 @@
+{
+  "base_commit": "ec0224e6023dc0282730e6ddc388c666ac520769",
+  "origin_main_at_final_review": "ec0224e6023dc0282730e6ddc388c666ac520769",
+  "head_equals_origin_main": true,
+  "qualified_input_archives_match": 7,
+  "unchanged_tracked_rust_files": 128,
+  "source_archive_entries_verified": 135,
+  "json_files_parsed_before_this_record": 21,
+  "relative_file_links_checked": 52,
+  "missing_relative_links": [],
+  "whitespace_check": "git diff --check passed",
+  "runtime_gates": "No native/AT/Linux/package/full Turnstone S0 claim; U9 downstream ordered publication remains pending."
+}

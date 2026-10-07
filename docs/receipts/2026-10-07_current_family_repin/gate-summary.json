@@ -1,0 +1,80 @@
+{
+  "workspace-check": {
+    "finished_utc": "2026-10-07T07:39:10.1112254Z",
+    "exit_code": 0,
+    "priority": "BelowNormal",
+    "started_utc": "2026-10-07T07:26:00.3168538Z",
+    "command": "cargo +1.98.1 check --workspace --all-targets --locked -j 1",
+    "jobs": 1,
+    "target_dir": "C:/t/cargo-targets/knot-editor",
+    "test_summary_count": 0,
+    "passed": 0,
+    "failed": 0,
+    "ignored": 0
+  },
+  "workspace-tests": {
+    "started_utc": "2026-10-07T07:40:03.6798661Z",
+    "finished_utc": "2026-10-07T08:10:27.8530308Z",
+    "command": "cargo +1.98.1 test --workspace --all-targets --locked -j 1",
+    "priority": "BelowNormal",
+    "exit_code": 101,
+    "jobs": 1,
+    "target_dir": "C:/t/cargo-targets/knot-editor",
+    "test_summary_count": 6,
+    "passed": 23,
+    "failed": 7,
+    "ignored": 1
+  },
+  "wordnet-lf-tests": {
+    "exit_code": 0,
+    "command": "cargo +1.98.1 test -p knot-composition --test wordnet_import --locked -j 1",
+    "started_utc": "2026-10-07T08:16:45.3525987Z",
+    "target_dir": "C:/t/cargo-targets/knot-editor",
+    "jobs": 1,
+    "finished_utc": "2026-10-07T08:17:35.9369390Z",
+    "priority": "BelowNormal",
+    "test_summary_count": 1,
+    "passed": 12,
+    "failed": 0,
+    "ignored": 1
+  },
+  "workspace-lf-tests": {
+    "exit_code": 0,
+    "command": "cargo +1.98.1 test --workspace --all-targets --locked --no-fail-fast -j 1",
+    "started_utc": "2026-10-07T08:17:35.9919275Z",
+    "target_dir": "C:/t/cargo-targets/knot-editor",
+    "jobs": 1,
+    "finished_utc": "2026-10-07T08:27:19.4086866Z",
+    "priority": "BelowNormal",
+    "test_summary_count": 42,
+    "passed": 579,
+    "failed": 0,
+    "ignored": 3
+  },
+  "standalone-default-tests": {
+    "exit_code": 0,
+    "finished_utc": "2026-10-07T08:13:56.1252318Z",
+    "command": "cargo +1.98.1 test --manifest-path crates/knot-document/Cargo.toml --locked -j 1",
+    "priority": "BelowNormal",
+    "started_utc": "2026-10-07T08:12:06.0353670Z",
+    "jobs": 1,
+    "target_dir": "C:/t/cargo-targets/knot-editor",
+    "test_summary_count": 2,
+    "passed": 47,
+    "failed": 0,
+    "ignored": 1
+  },
+  "standalone-engine-tests": {
+    "exit_code": 0,
+    "finished_utc": "2026-10-07T08:16:17.1930332Z",
+    "command": "cargo +1.98.1 test --manifest-path crates/knot-document/Cargo.toml --features engine --locked -j 1",
+    "priority": "BelowNormal",
+    "started_utc": "2026-10-07T08:13:56.1982289Z",
+    "jobs": 1,
+    "target_dir": "C:/t/cargo-targets/knot-editor",
+    "test_summary_count": 2,
+    "passed": 60,
+    "failed": 0,
+    "ignored": 1
+  }
+}

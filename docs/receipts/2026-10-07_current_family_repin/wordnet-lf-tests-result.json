@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "command": "cargo +1.98.1 test -p knot-composition --test wordnet_import --locked -j 1",
+  "started_utc": "2026-10-07T08:16:45.3525987Z",
+  "target_dir": "C:/t/cargo-targets/knot-editor",
+  "jobs": 1,
+  "finished_utc": "2026-10-07T08:17:35.9369390Z",
+  "priority": "BelowNormal"
+}

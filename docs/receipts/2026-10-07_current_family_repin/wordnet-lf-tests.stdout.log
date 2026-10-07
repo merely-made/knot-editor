@@ -1,0 +1,18 @@
+
+running 13 tests
+test local_upstream_oewn_pack_installs_disabled_then_looks_up_after_enable ... ignored, requires KNOT_TEST_OEWN_PACK pointing to an explicitly converted local upstream OEWN2025 pack
+test explicit_identity_and_nonempty_lemma_selection_are_required ... ok
+test malformed_external_entities_extensions_and_nested_important_markup_are_refused ... ok
+test lowered_retained_record_budget_is_enforced_before_growth ... ok
+test neighbors_do_not_recursively_expand_but_all_output_targets_resolve ... ok
+test unicode_lemma_lookup_is_exact_and_preserved ... ok
+test oewn_retains_both_upstream_notices_and_attributions_and_refuses_unknown_license ... ok
+test missing_targets_duplicate_senses_and_ambiguous_definitions_are_refused ... ok
+test real_lmf_structure_preserves_sense_targets_concepts_license_and_exact_text ... ok
+test self_closing_senses_and_explicitly_closed_relations_are_equivalent ... ok
+test attacker_chosen_diagnostic_names_are_bounded ... ok
+test cli_rejects_bad_input_without_creating_output ... ok
+test cli_emits_valid_pack_and_report_and_never_overwrites_output ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.19s
+

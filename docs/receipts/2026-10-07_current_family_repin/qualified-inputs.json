@@ -1,0 +1,197 @@
+{
+  "base_commit": "ec0224e6023dc0282730e6ddc388c666ac520769",
+  "inputs": {
+    "Cargo.toml": {
+      "archive": "root-Cargo.toml",
+      "sha256": "754f5c078fd5fdaa33011ed8baac5d99524f456f755decf6d275348e5361e75e",
+      "bytes": 12942
+    },
+    "Cargo.lock": {
+      "archive": "root-Cargo.lock",
+      "sha256": "312ba490f88a322b67fe2296882e6c5c679cbfd06c7398e314eee64223545d59",
+      "bytes": 350434
+    },
+    "apps/desktop/Cargo.toml": {
+      "archive": "desktop-Cargo.toml",
+      "sha256": "22e5f6921d240114fb91cd8258f0b1746c04b40a07b3ca0498c16a71149b226b",
+      "bytes": 1874
+    },
+    "crates/knot-document/Cargo.toml": {
+      "archive": "standalone-Cargo.toml",
+      "sha256": "8bf30973e65728a17b3f0541b74ff2712ccc590391771e61949a935b7f0ca333",
+      "bytes": 3104
+    },
+    "crates/knot-document/Cargo.lock": {
+      "archive": "standalone-Cargo.lock",
+      "sha256": "301e56e981f9fabd1f4f21c67e2aeebbe8046ba3bc6993e993d1e7207214c9d8",
+      "bytes": 52177
+    }
+  },
+  "metadata_reports": {
+    "metadata-family.json": {
+      "source_packages": {
+        "git+https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893db6909d5ed9c4ccae30216f0d8164201a": [
+          "armillary",
+          "cambium",
+          "cambium-genet-winit-host",
+          "cambium-rootstock",
+          "cambium-winit",
+          "cambium-winit-a11y",
+          "castellan",
+          "chartulary",
+          "chatelaine",
+          "chirograph",
+          "eidetic",
+          "errand",
+          "esp",
+          "gemot",
+          "graphshell",
+          "graphshell-client",
+          "graphshell-endpoint",
+          "illume",
+          "incipit",
+          "inker",
+          "insigne",
+          "knot-editor-host",
+          "luggage",
+          "mere",
+          "mere-alembic",
+          "mere-apparatus",
+          "mere-cartography",
+          "mere-fetch",
+          "mere-forme",
+          "mere-kernel",
+          "mere-proofs",
+          "mere-surface-api",
+          "mere-transport",
+          "mere-view",
+          "mere-webrtc-carrier",
+          "meristem",
+          "mesquite",
+          "mien",
+          "mooting",
+          "mora-cmudict",
+          "muniment",
+          "nematic",
+          "notochord",
+          "numen",
+          "pandect",
+          "personae",
+          "pictograph",
+          "reference-data",
+          "sceno",
+          "scenograph",
+          "scenomise",
+          "scenotime",
+          "script-rhai",
+          "seiche",
+          "servitor",
+          "sprigging",
+          "stickleback",
+          "tabard",
+          "tinct",
+          "uxtree",
+          "workbench"
+        ],
+        "git+https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e206a47d1c8808472de9aa461233638768": [
+          "buckram",
+          "cadency",
+          "document-session-api",
+          "engine-observables-api",
+          "fleece",
+          "genet-document-resources",
+          "genet-fontique",
+          "genet-host-api",
+          "genet-livery",
+          "genet-paint-types",
+          "genet-parley",
+          "genet-render",
+          "genet-render-host",
+          "genet-scripted-dom",
+          "genet-static-dom",
+          "genet-taffy",
+          "genet-text",
+          "genet-winit-host",
+          "layout-dom-api",
+          "livery",
+          "netfetcher",
+          "taproot"
+        ]
+      },
+      "path_packages": [
+        [
+          "knot-capture",
+          "crates\\knot-capture\\Cargo.toml"
+        ],
+        [
+          "knot-composition",
+          "crates\\knot-composition\\Cargo.toml"
+        ],
+        [
+          "knot-desktop",
+          "apps\\desktop\\Cargo.toml"
+        ],
+        [
+          "knot-document",
+          "crates\\knot-document\\Cargo.toml"
+        ],
+        [
+          "knot-editor",
+          "crates\\knot-editor\\Cargo.toml"
+        ],
+        [
+          "knot-file-catalog",
+          "crates\\knot-file-catalog\\Cargo.toml"
+        ],
+        [
+          "knot-readings",
+          "crates\\knot-readings\\Cargo.toml"
+        ],
+        [
+          "knot-site",
+          "crates\\knot-site\\Cargo.toml"
+        ]
+      ],
+      "sha256": "60bf26687d73afac88170898ff4191def1b46558aa3abd7ce91867990b6295b4"
+    },
+    "standalone-metadata-family.json": {
+      "source_packages": {
+        "git+https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893db6909d5ed9c4ccae30216f0d8164201a": [
+          "cambium",
+          "errand",
+          "illume",
+          "inker",
+          "knot-editor-host",
+          "mere-surface-api",
+          "meristem",
+          "nematic",
+          "sceno",
+          "sprigging",
+          "workbench"
+        ],
+        "git+https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e206a47d1c8808472de9aa461233638768": [
+          "document-session-api",
+          "engine-observables-api",
+          "genet-paint-types",
+          "genet-scripted-dom",
+          "genet-static-dom",
+          "genet-text",
+          "layout-dom-api"
+        ]
+      },
+      "path_packages": [
+        [
+          "knot-document",
+          "crates\\knot-document\\Cargo.toml"
+        ]
+      ],
+      "sha256": "e3a38eed4e95a7f50001d99caf71ab8cf776c71f7c7ceca3026b1072aa7b167e"
+    }
+  },
+  "additional_qualified_input": {
+    "path": "crates/knot-composition/assets/oewn-notices.txt",
+    "sha256": "11ce3560ca7ee3343176f8f537e377efa517e98f203e68b0b3583d141474aa69",
+    "bytes": 3266,
+    "reproduction": "Existing baseline Git blob, pinned LF by .gitattributes. Failed CRLF bytes and correction evidence retained in windows-line-ending-control.json."
+  }
+}

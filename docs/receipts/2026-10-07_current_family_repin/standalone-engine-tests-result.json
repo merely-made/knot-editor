@@ -1,0 +1,9 @@
+{
+  "exit_code": 0,
+  "finished_utc": "2026-10-07T08:16:17.1930332Z",
+  "command": "cargo +1.98.1 test --manifest-path crates/knot-document/Cargo.toml --features engine --locked -j 1",
+  "priority": "BelowNormal",
+  "started_utc": "2026-10-07T08:13:56.1982289Z",
+  "jobs": 1,
+  "target_dir": "C:/t/cargo-targets/knot-editor"
+}

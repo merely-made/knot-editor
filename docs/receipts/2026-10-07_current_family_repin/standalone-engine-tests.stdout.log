@@ -1,0 +1,71 @@
+
+running 61 tests
+test document_surface::tests::outline_snapshot_large_unicode_and_atom_fixture_receipt ... ignored, manual A2 outline performance and parser-limit receipt
+test document_surface::recovery_candidate_tests::candidate_rejects_invalid_selection_without_panicking ... ok
+test document_surface::recovery_candidate_tests::candidate_keeps_exact_utf8_selection_and_has_no_file_target ... ok
+test document_surface::tests::outline_snapshot_uses_committed_unicode_source_and_selects_the_heading_span ... ok
+test document_surface::tests::preview_and_fold_selection_reject_stale_or_forged_snapshots_without_mutation ... ok
+test document_surface::tests::preview_and_fold_snapshots_are_unicode_exact_and_select_retained_source ... ok
+test document_surface::tests::read_only_scratch_is_an_explicit_immutable_projection ... ok
+test document_surface::tests::read_only_session_allows_view_local_outline_selection ... ok
+test document_surface::tests::read_only_file_mode_opens_without_atomic_replace_authority ... ok
+test document_surface::tests::compare_disk_is_unicode_exact_and_does_not_mutate_a_refusal_or_undo ... ok
+test document_surface::tests::external_edit_or_deletion_refuses_save_until_explicit_reload ... ok
+test document_surface::tests::scratch_save_is_an_explicit_typed_refusal ... ok
+test document_surface::tests::read_only_file_refuses_edit_and_save_without_mutating_document_state ... ok
+test document_surface::tests::native_source_has_no_editor_folds ... ok
+test document_view::tests::note_highlighting_is_limited_to_djot_and_legacy_knot ... ok
+test document_surface::tests::compare_disk_reads_each_external_edit_freshly ... ok
+test document_view::tests::host_owned_status_leaves_the_row_and_save_to_the_host ... ok
+test document_view::tests::read_only_posture_has_explicit_visible_labels ... ok
+test document_view::tests::read_only_view_has_no_editable_textbox_or_save_button ... ok
+test document_view::tests::state_uses_the_session_input_as_the_component_buffer ... ok
+test editor::tests::commands_drive_the_one_source_used_by_every_readout ... ok
+test document_surface::tests::compare_disk_reports_an_identity_only_replacement ... ok
+test document_surface::tests::outline_selection_rejects_stale_or_forged_ranges_without_changing_session_state ... ok
+test document_surface::tests::compare_disk_refuses_scratch_and_reports_missing_or_invalid_files_without_mutation ... ok
+test document_surface::tests::byte_identical_replacement_is_still_an_external_change ... ok
+test document_surface::tests::same_path_save_as_keeps_the_external_change_guard ... ok
+test editor::tests::ime_preedit_is_not_committed_or_fed_to_the_readout ... ok
+test document_surface::tests::scratch_save_as_creates_a_new_djot_target_and_retains_undo_history ... ok
+test document_surface::tests::save_as_does_not_clobber_an_existing_target_or_convert_scratch ... ok
+test editor::tests::layout_selection_preserves_byte_affinity ... ok
+test document_surface::tests::file_session_round_trips_edit_save_drop_and_reopen ... ok
+test document_surface::tests::file_becoming_read_only_after_open_refuses_save_but_allows_save_as ... ok
+test hard_wrap::tests::blank_lines_separate_paragraphs_and_short_blocks_do_not_count ... ok
+test document_surface::tests::long_valid_filename_supports_save_as_then_atomic_save ... ok
+test hard_wrap::tests::block_structure_is_excluded ... ok
+test hard_wrap::tests::exactly_half_of_prose_lines_is_not_a_majority ... ok
+test hard_wrap::tests::latin1_columns_and_tabs_use_eight_column_stops ... ok
+test hard_wrap::tests::matching_fences_and_div_closers_exclude_their_contents ... ok
+test hard_wrap::tests::non_whitespace_latin1_control_characters_return_none ... ok
+test hard_wrap::tests::one_oversized_outlier_does_not_expand_the_wrap_column ... ok
+test hard_wrap::tests::ordinary_soft_wrapped_paragraphs_are_not_inferred ... ok
+test hard_wrap::tests::oversized_source_returns_none_before_scanning ... ok
+test hard_wrap::tests::repeated_long_prose_continuations_infer_the_longest_column ... ok
+test hard_wrap::tests::short_or_mismatched_fence_closers_do_not_end_a_fence ... ok
+test hard_wrap::tests::small_wrapped_passage_does_not_outvote_single_line_paragraphs ... ok
+test hard_wrap::tests::wide_or_combining_unicode_returns_none_instead_of_guessing ... ok
+test editor::tests::djot_cannot_be_relabelled_as_a_native_protocol_file ... ok
+test writer::tests::a_canonical_knot_round_trip_is_byte_exact ... ok
+test editor::tests::gemtext_preview_uses_the_native_engine_without_rewriting_source ... ok
+test editor::tests::micron_preview_uses_the_native_engine_without_rewriting_source ... ok
+test writer::tests::native_protocol_extensions_preserve_their_source_identity ... ok
+test editor::tests::scroll_preview_uses_native_engine_and_retains_relations ... ok
+test writer::tests::foreign_formats_reach_a_fixed_point_after_one_parse_write ... ok
+test editor::tests::scroll_save_preserves_native_source_and_rejects_implicit_conversion ... ok
+test writer::atomic_tests::failed_replacement_leaves_the_old_document_bytes_intact ... ok
+test editor::tests::committed_commands_write_back_to_the_native_file ... ok
+test writer::tests::untouched_files_never_enter_the_write_path ... ok
+test writer::atomic_tests::windows_replace_file_failure_retains_recovery_artifacts ... ok
+test writer::atomic_tests::windows_replace_file_preserves_an_alternate_data_stream ... ok
+test writer::tests::caller_selects_the_output_format ... ok
+test editor::tests::gemtext_and_micron_save_exact_source_and_refuse_conversion ... ok
+
+test result: ok. 60 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

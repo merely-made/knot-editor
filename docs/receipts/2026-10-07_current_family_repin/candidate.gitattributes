@@ -1,0 +1,15 @@
+* text=auto
+*.rs text eol=lf
+*.toml text eol=lf
+*.md text eol=lf
+*.html text eol=lf
+
+# Retain qualification inputs and raw Cargo receipts byte for byte.
+docs/receipts/2026-10-07_current_family_repin/*.json -text -whitespace
+docs/receipts/2026-10-07_current_family_repin/*.log -text -whitespace
+docs/receipts/2026-10-07_current_family_repin/*-Cargo.lock -text -whitespace
+docs/receipts/2026-10-07_current_family_repin/*-Cargo.toml -text -whitespace
+crates/knot-composition/assets/oewn-notices.txt text eol=lf
+docs/receipts/2026-10-07_current_family_repin/*.txt -text -whitespace
+docs/receipts/2026-10-07_current_family_repin/candidate.gitattributes -text -whitespace
+docs/receipts/2026-10-07_current_family_repin/*.zip -text -whitespace

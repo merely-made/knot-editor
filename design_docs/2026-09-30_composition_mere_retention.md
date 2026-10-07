@@ -270,6 +270,87 @@ current-family verification belongs to the final Turnstone integration owner.
 No native or screen-reader acceptance, identity seed/vault repair, release
 packaging or complete Turnstone S0 acceptance is inferred from these tests.
 
+#### Static relationship scene continuation
+
+Knot's next bounded adapter uses Cambium's shared `graph_canvas` over the
+Scenomise-compiled, copied sound disclosure. The overview is opt-in. Explicit
+controls promote or demote the selected occurrence, show or hide background,
+and pan, zoom or fit the camera. Foreground/background are presentation roles,
+not collection membership, ownership, new analysis, or an inferred relationship.
+The existing measured occurrence controls and exact-source actions remain the
+keyboard and source-navigation path. The overview is explicitly static: node
+drag events do not move source, recipe, or presentation state. This is not live
+physics, a portable dynamics editor, or provider/inference adoption.
+
+An optional versioned `RecipeScenePresentation` accompanies retained recipe
+material in Knot's own signed, encrypted mere. It contains visibility, declared
+foreground occurrence IDs, and finite bounded camera values only. Explicit
+retention creates the existing immutable item version; editing alone does not
+write to the store. Missing presentation data remains valid and serializes in
+the historical recipe shape. Updated readers are required for recipes that
+include the new field; older strict readers cannot be assumed forward-compatible.
+An explicit rebind preserves valid presentation IDs and refuses a binding that
+would strand them, rather than silently pruning authored roles.
+
+Qualification for this continuation is separate from the historical category
+and current-family receipts above. Windowless scenario success is not native
+capture acceptance; synthetic encrypted-store acceptance is not personal-wallet
+onboarding, screen-reader qualification, or a release package.
+
+#### Static scene qualification, macOS, 2026-10-07
+
+Runtime `bbd72a8f20a9e8a4153d21457bc0d1416a72c2df` includes the scene
+adapter (`cf3741d`), scoped transparent-target styling (`655ea47`) and compact
+viewport correction (`bbd72a8`). The coordinated Mere `57b4893d` / Genet
+`965b64e2` family remains unchanged. Freshly fetched Mere main `ea9e6da74`
+has no source changes in the scene/Cambium paths since that qualified Mere pin;
+its portable scene crates still contain no `DynamicsSpec`.
+
+The final `TMPDIR=/tmp cargo test --workspace --all-targets --locked --offline`
+gate passes **592 tests, 0 failures, 2 existing ignored**, across 42 executables.
+It includes versioned presentation validation and legacy omission, node/relation
+activation, background-node filtering, static drag immutability, bounded camera,
+explicit rebind preservation/refusal/reset, real encrypted worker/store reopen,
+and actual canvas-node clicks at wide, 420px and 400% UI zoom. Ordinary desktop
+and synthetic `collection_acceptance` binaries build locked/offline. Focused
+formatting and whitespace checks pass; existing unused patch/directory warnings
+remain. Earlier compile errors and intermediate gates remain in the evidence.
+
+Four committed-runtime native lanes pass: 1100×900 save and new-process reopen,
+then 420×900 save and new-process reopen, using separate marked disposable
+authorities. All **10 PNGs** were reviewed; receipts report zero blank frames.
+The save flows promote light, demote Night, hide background, author pan
+`0.10, 0.00` and zoom `1.25`, then explicitly retain. Reopen asserts these values,
+selected light and its exact bytes 8–13 before showing the background and using
+Fit. Each source file remains byte-exact. The overview stays static while canvas
+selection remains interactive; camera controls and exact source controls remain
+reachable by scrolling. Native 400% zoom and human screen-reader acceptance are
+not part of this cohort.
+
+Native review caught two host-integration faults despite green scenarios: generic
+Knot button styling covered graph hit targets, then CSS clamped the 280px canvas
+while projection still used that width. The final scoped styling keeps node and
+relation targets transparent, and the declared 220px viewport fits the compact
+drawer. Earlier captures are retained as controls, not counted as final visual
+acceptance. The control panel is still long; compact camera controls are a useful
+subsequent refinement. Labels can be culled by the shared overview's density
+policy; exact occurrence controls remain available below it.
+
+Evidence root:
+`/Users/markik/Code/testing/knot-editor/relationship-scene-20261007.B3zrsH/`.
+Final logs: `workspace-width-tests.log`, `scene-width-tests.log` and
+`desktop-width-build.log`; native directories are `wide-qualified-captures`,
+`wide-qualified-reopen-captures`, `narrow-qualified-captures` and
+`narrow-qualified-reopen-captures`, each with `scenario.done`.
+Desktop SHA-256:
+`870fade299149272067407b6d9a44325a2bdf508cf94ec2ebe7f2d9aa04abd92`.
+Synthetic acceptance binary SHA-256:
+`72e6a8195f279a1e0239b39e713a1fc6946890d8ae99cd8aa0ee7a7f3e66a0b5`.
+Test app wrappers are ad-hoc signed acceptance instruments, not release bundles.
+Public test-key retention does not establish personal-wallet onboarding, other
+platform native acceptance, publication signing or a complete ambient/dynamics
+workbench. No provider, inference, live physics or new shared authority is added.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

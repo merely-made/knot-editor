@@ -122,7 +122,7 @@ async fn hold(revoke_after_first_fetch: bool) -> Result<(), String> {
     let store = KnotSyncStore::in_memory(network.0, [holder.master_public_key().to_bytes()]);
     store
         .author(
-            holder.master_keypair().to_seed(),
+            &holder.master_keypair().to_seed(),
             &vault,
             &KnotSyncEvent::Put(knot_editor::VaultDocument {
                 id: "receipt-source".into(),

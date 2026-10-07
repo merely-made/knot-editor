@@ -152,7 +152,7 @@ impl StartupUnlockedPersonalVault {
     /// uses. This is an endpoint-owned setup seam, not a cleartext file write.
     pub fn author_document(&self, document: VaultDocument) -> Result<(), String> {
         pollster::block_on(self.store.author(
-            *self.signing_seed,
+            &self.signing_seed,
             &self.vault,
             &KnotSyncEvent::Put(document),
         ))
@@ -173,9 +173,10 @@ impl StartupUnlockedPersonalVault {
         &self.store
     }
 
-    /// The seed this device signs and binds its transport with.
-    pub fn signing_seed(&self) -> [u8; 32] {
-        *self.signing_seed
+    /// The seed this device signs and binds its transport with, lent: a copy
+    /// taken into async code would outlive the unlock (Mere vault lock ruling 49).
+    pub fn signing_seed(&self) -> &[u8; 32] {
+        &self.signing_seed
     }
 
     /// Consume the recovered authority into a writable Graphshell endpoint.
@@ -185,7 +186,7 @@ impl StartupUnlockedPersonalVault {
 
     /// Consume the startup unlock into one cloneable resident source.
     pub fn into_resident_source(self) -> Result<KnotResidentSource, String> {
-        KnotResidentSource::from_synced_vault(self.vault, self.store, *self.signing_seed)
+        KnotResidentSource::from_synced_vault(self.vault, self.store, &self.signing_seed)
     }
 
     /// Split one startup unlock between the mutable Graphshell editor endpoint
@@ -209,7 +210,7 @@ impl StartupUnlockedPersonalVault {
         let publish_store = self.store.clone();
         let publish_identity = Ed25519Keypair::from_seed(*self.signing_seed);
         let source =
-            KnotResidentSource::from_synced_vault(self.vault, self.store, *self.signing_seed)?;
+            KnotResidentSource::from_synced_vault(self.vault, self.store, &self.signing_seed)?;
         Ok((
             source,
             KnotPublishSource::from_unlocked(publish_identity, publish_store, publish_vault),

@@ -60,7 +60,7 @@ async fn an_asserted_time_rides_the_signed_header_into_the_projection() {
     let body = "# Essay\nα holds throughout.\n";
     let put = store
         .author_at(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::Put(document("essay", body)),
             KnotAssertedTime::At(TRANSCRIBED),
@@ -72,7 +72,7 @@ async fn an_asserted_time_rides_the_signed_header_into_the_projection() {
     let captured = endpoint("essay", *put.hash.as_bytes(), body, "α holds");
     let assertion = store
         .author_at(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::AssertRelation {
                 predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -116,7 +116,7 @@ async fn the_asserted_time_is_inside_the_operation_hash_and_absent_when_unassert
         KnotSyncFileStore::open(temp.path().join("untimed.redb"), SPACE, writers).unwrap();
     let with_time = timed
         .author_at(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::Put(document.clone()),
             KnotAssertedTime::At(TRANSCRIBED),
@@ -125,7 +125,7 @@ async fn the_asserted_time_is_inside_the_operation_hash_and_absent_when_unassert
         .unwrap();
     let without_time = untimed
         .author_at(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::Put(document),
             KnotAssertedTime::None,
@@ -146,7 +146,7 @@ async fn the_asserted_time_is_inside_the_operation_hash_and_absent_when_unassert
     // `Now` reads this machine's clock; it never invents a time.
     let now = KnotSyncFileStore::open(temp.path().join("now.redb"), SPACE, writers).unwrap();
     let current = now
-        .author(seed, &vault, &KnotSyncEvent::Delete { id: "essay".into() })
+        .author(&seed, &vault, &KnotSyncEvent::Delete { id: "essay".into() })
         .await
         .unwrap();
     let asserted = current.header.extensions.asserted_at_ms.unwrap();

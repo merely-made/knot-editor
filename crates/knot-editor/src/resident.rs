@@ -127,7 +127,7 @@ impl KnotSyncHost {
     /// serve as both the thing admitted and the thing dialled.
     pub async fn open(
         store: &KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         config: KnotSyncHostConfig,
     ) -> Result<Self, KnotSyncHostError> {
         Self::open_inner(store, signing_seed, config, None).await
@@ -137,7 +137,7 @@ impl KnotSyncHost {
     /// Personae-derived writer identities.
     pub async fn open_with_evidence(
         store: &KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         config: KnotSyncHostConfig,
         blobs: Arc<BlobStore>,
         max_artifact_bytes: u64,
@@ -166,7 +166,7 @@ impl KnotSyncHost {
     /// authoring and remote serving.
     pub async fn open_with_scoped_evidence(
         store: &KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         config: KnotSyncHostConfig,
         blobs: Arc<BlobStore>,
         readers: BlobReadAuthorizer,
@@ -198,7 +198,7 @@ impl KnotSyncHost {
     /// Bind a communal space with an authorizer materialized from Gemot facts.
     pub async fn open_with_communal_evidence(
         store: &KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         config: KnotSyncHostConfig,
         blobs: Arc<BlobStore>,
         max_artifact_bytes: u64,
@@ -239,12 +239,13 @@ impl KnotSyncHost {
 
     async fn open_inner(
         store: &KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         config: KnotSyncHostConfig,
         evidence: Option<KnotEvidenceHost>,
     ) -> Result<Self, KnotSyncHostError> {
         validate_authority_source(store.encryption_profile(), config.authority.source())?;
-        let mut builder = P2pandaTransport::builder_from_seed(signing_seed).gossip();
+        // Borrowed into the builder's one cleared copy (Mere vault lock ruling 49).
+        let mut builder = P2pandaTransport::builder_from_seed_ref(signing_seed).gossip();
         if let Some(evidence) = &evidence {
             builder =
                 builder.scoped_blobs(&evidence.blobs, evidence.scope, evidence.readers.clone());
@@ -918,7 +919,7 @@ mod tests {
         );
         let mut host = KnotSyncHost::open_with_communal_evidence(
             &store,
-            resident.master_keypair().to_seed(),
+            &resident.master_keypair().to_seed(),
             KnotSyncHostConfig {
                 authority: empty,
                 relay_urls: vec![],
@@ -1060,7 +1061,7 @@ mod tests {
         };
         alice_store
             .author(
-                alice.master_keypair().to_seed(),
+                &alice.master_keypair().to_seed(),
                 &alice_vault,
                 &KnotSyncEvent::Put(authored.clone()),
             )
@@ -1071,7 +1072,7 @@ mod tests {
         let bob_blobs = bob_evidence.resident_blob_store().unwrap();
         let mut alice_host = KnotSyncHost::open_with_evidence(
             &alice_store,
-            alice.master_keypair().to_seed(),
+            &alice.master_keypair().to_seed(),
             KnotSyncHostConfig {
                 authority: KnotSpaceAuthoritySnapshot::new(
                     KnotAuthoritySource::PersonalPairing,
@@ -1091,7 +1092,7 @@ mod tests {
         let alice_ticket = alice_host.ticket().await.unwrap();
         let bob_host = KnotSyncHost::open_with_evidence(
             &bob_store,
-            bob.master_keypair().to_seed(),
+            &bob.master_keypair().to_seed(),
             KnotSyncHostConfig {
                 authority: KnotSpaceAuthoritySnapshot::new(
                     KnotAuthoritySource::PersonalPairing,

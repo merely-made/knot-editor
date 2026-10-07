@@ -483,7 +483,7 @@ mod tests {
         let store = KnotSyncStore::in_memory(NETWORK.0, [writer]);
         store
             .author(
-                holder().master_keypair().to_seed(),
+                &holder().master_keypair().to_seed(),
                 &vault,
                 &KnotSyncEvent::Put(crate::VaultDocument {
                     id: "selected".into(),

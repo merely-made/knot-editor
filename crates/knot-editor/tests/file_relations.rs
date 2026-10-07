@@ -43,7 +43,7 @@ async fn catalog_capture_keeps_disk_authority_and_historical_relation_after_reop
     let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
     let capture_op = store
         .author(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::CaptureFileRevision(captured.clone()),
         )
@@ -82,7 +82,7 @@ async fn catalog_capture_keeps_disk_authority_and_historical_relation_after_reop
     };
     store
         .author(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::AssertRelation {
                 predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -97,7 +97,7 @@ async fn catalog_capture_keeps_disk_authority_and_historical_relation_after_reop
     let newer = source.capture_file_revision(&id, 4096).unwrap();
     assert_ne!(captured.body, newer.body);
     store
-        .author(seed, &vault, &KnotSyncEvent::CaptureFileRevision(newer))
+        .author(&seed, &vault, &KnotSyncEvent::CaptureFileRevision(newer))
         .await
         .unwrap();
     let projection = store.projection(&vault).await.unwrap();

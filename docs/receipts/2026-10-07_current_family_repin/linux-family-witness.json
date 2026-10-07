@@ -1,0 +1,136 @@
+{
+  "published_commit": "0096591a0af98bf4777d8bfe718c0423dea9fc90",
+  "metadata_sha256": "5c7d3e5240440a55a1638a81ae3b8669f9c824340bae87a30e93e030349f4adb",
+  "family_sources": {
+    "git+https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893db6909d5ed9c4ccae30216f0d8164201a": [
+      "armillary",
+      "cambium",
+      "cambium-genet-winit-host",
+      "cambium-rootstock",
+      "cambium-winit",
+      "cambium-winit-a11y",
+      "castellan",
+      "chartulary",
+      "chatelaine",
+      "chirograph",
+      "eidetic",
+      "errand",
+      "esp",
+      "gemot",
+      "graphshell",
+      "graphshell-client",
+      "graphshell-endpoint",
+      "illume",
+      "incipit",
+      "inker",
+      "insigne",
+      "knot-editor-host",
+      "luggage",
+      "mere",
+      "mere-alembic",
+      "mere-apparatus",
+      "mere-cartography",
+      "mere-fetch",
+      "mere-forme",
+      "mere-kernel",
+      "mere-proofs",
+      "mere-surface-api",
+      "mere-transport",
+      "mere-view",
+      "mere-webrtc-carrier",
+      "meristem",
+      "mesquite",
+      "mien",
+      "mooting",
+      "mora-cmudict",
+      "muniment",
+      "nematic",
+      "notochord",
+      "numen",
+      "pandect",
+      "personae",
+      "pictograph",
+      "reference-data",
+      "sceno",
+      "scenograph",
+      "scenomise",
+      "scenotime",
+      "script-rhai",
+      "seiche",
+      "servitor",
+      "sprigging",
+      "stickleback",
+      "tabard",
+      "tinct",
+      "uxtree",
+      "workbench"
+    ],
+    "git+https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e206a47d1c8808472de9aa461233638768": [
+      "buckram",
+      "cadency",
+      "document-session-api",
+      "engine-observables-api",
+      "fleece",
+      "genet-document-resources",
+      "genet-fontique",
+      "genet-host-api",
+      "genet-livery",
+      "genet-paint-types",
+      "genet-parley",
+      "genet-render",
+      "genet-render-host",
+      "genet-scripted-dom",
+      "genet-static-dom",
+      "genet-taffy",
+      "genet-text",
+      "genet-winit-host",
+      "layout-dom-api",
+      "livery",
+      "netfetcher",
+      "taproot"
+    ]
+  },
+  "fontsan": [
+    {
+      "id": "registry+https://github.com/rust-lang/crates.io-index#fontsan@0.7.0",
+      "features": [
+        "libz-sys",
+        "wuff"
+      ]
+    }
+  ],
+  "path_packages": [
+    {
+      "name": "knot-capture",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-capture/Cargo.toml"
+    },
+    {
+      "name": "knot-composition",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-composition/Cargo.toml"
+    },
+    {
+      "name": "knot-desktop",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/apps/desktop/Cargo.toml"
+    },
+    {
+      "name": "knot-document",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-document/Cargo.toml"
+    },
+    {
+      "name": "knot-editor",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-editor/Cargo.toml"
+    },
+    {
+      "name": "knot-file-catalog",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-file-catalog/Cargo.toml"
+    },
+    {
+      "name": "knot-readings",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-readings/Cargo.toml"
+    },
+    {
+      "name": "knot-site",
+      "manifest_path": "/home/markik/Code/repos/knot-editor/crates/knot-site/Cargo.toml"
+    }
+  ]
+}

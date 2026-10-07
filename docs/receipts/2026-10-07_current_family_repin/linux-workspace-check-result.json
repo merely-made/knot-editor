@@ -1,0 +1,23 @@
+{
+  "published_commit": "0096591a0af98bf4777d8bfe718c0423dea9fc90",
+  "started_utc": "2026-10-07T08:36:32.115385+00:00",
+  "finished_utc": "2026-10-07T08:45:20.682911+00:00",
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "cargo",
+    "+1.98.1",
+    "check",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "-j",
+    "1"
+  ],
+  "exit_code": 0,
+  "requested_nice": 10,
+  "jobs": 1,
+  "target_dir": "/home/markik/Code/target",
+  "lock_sha256_after": "312ba490f88a322b67fe2296882e6c5c679cbfd06c7398e314eee64223545d59"
+}

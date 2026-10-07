@@ -1,0 +1,20 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5#1bec457e)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+ Downloading crates ...
+  Downloaded fsevent-sys v4.1.0
+  Downloaded kqueue v1.2.1
+  Downloaded libredox v0.1.20
+  Downloaded kqueue-sys v1.1.2
+  Downloaded accesskit_consumer v0.38.0
+  Downloaded core-models v0.0.7
+  Downloaded crabgrind v0.2.6
+  Downloaded accesskit_macos v0.26.3
+  Downloaded hax-lib-macros-types v0.3.7
+  Downloaded system-configuration v0.8.0
+  Downloaded tokio_with_wasm v0.9.0
+  Downloaded raunch v1.0.1
+  Downloaded tokio_with_wasm_proc v0.9.0
+  Downloaded uuid-rng-internal v1.27.0

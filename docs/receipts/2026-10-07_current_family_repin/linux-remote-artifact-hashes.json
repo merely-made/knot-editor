@@ -1,0 +1,85 @@
+{
+  "scope": "All Linux artifacts generated on the verification host; excludes this index. Original published Windows evidence unchanged.",
+  "files": [
+    {
+      "path": "linux-compiler-priority-observation.json",
+      "sha256": "0e392a2ffe7cc49f55ea74e04a39d852c9241114933f3cee47745b2cd92cf37a",
+      "bytes": 411
+    },
+    {
+      "path": "linux-family-witness.json",
+      "sha256": "21bc07d3c35a6421616d9ccf54248da22f5ce91b4d7bb74a5d6aa34e449e4021",
+      "bytes": 3486
+    },
+    {
+      "path": "linux-ff.stderr.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "linux-ff.stdout.log",
+      "sha256": "20cee9721301b0edf460cd079aedb7ba158f980db5756287b3b80325cbd01e0c",
+      "bytes": 24392
+    },
+    {
+      "path": "linux-inputs.json",
+      "sha256": "8d72ae64633b980fcfea414333a45003b63fb5dd453ac094fa5359245a9b51bc",
+      "bytes": 1420
+    },
+    {
+      "path": "linux-metadata-result.json",
+      "sha256": "91898ac7a38750d5c814959befc1e8e7d3028658f82fe4260669606c473b735c",
+      "bytes": 510
+    },
+    {
+      "path": "linux-metadata-start.json",
+      "sha256": "9409ef0871174a74a5fc4b66d95b0a552a29b619bcf4643a1c6e91a02a7d728d",
+      "bytes": 295
+    },
+    {
+      "path": "linux-metadata.stderr.log",
+      "sha256": "537a1d6652f073d52133f9df0c4ef8567f8afae839440c170580aa16195b2bf4",
+      "bytes": 984
+    },
+    {
+      "path": "linux-metadata.stdout.log",
+      "sha256": "5c7d3e5240440a55a1638a81ae3b8669f9c824340bae87a30e93e030349f4adb",
+      "bytes": 5558251
+    },
+    {
+      "path": "linux-postflight.json",
+      "sha256": "d2826bd6a6a9a039a03f1873f5d7737b2247e3303d38fa5d64335954f2212508",
+      "bytes": 1526
+    },
+    {
+      "path": "linux-preflight.json",
+      "sha256": "f5623f90c0643671e4cbba527ec288a1e51e0642df779afd3d6ea7c40c632bbb",
+      "bytes": 323
+    },
+    {
+      "path": "linux-priority-observation.json",
+      "sha256": "6c8cbecafc4c6fa9c68671e1ec99810dc38319f7d04bd77fb4f7e8650b04a654",
+      "bytes": 399
+    },
+    {
+      "path": "linux-workspace-check-result.json",
+      "sha256": "890e1ed9acf34e0dbc2527504169d697ba9ec0eb5dfadc587102869d0449211c",
+      "bytes": 533
+    },
+    {
+      "path": "linux-workspace-check-start.json",
+      "sha256": "22cb40281a6651d0bb7e5539899a8d116e53940f1e7bbb387befb746ee8cedd3",
+      "bytes": 318
+    },
+    {
+      "path": "linux-workspace-check.stderr.log",
+      "sha256": "d10a5a837b0077fe31da2d0c03868f8648baa909a9abd27bf3e839674f983ac6",
+      "bytes": 38111
+    },
+    {
+      "path": "linux-workspace-check.stdout.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    }
+  ]
+}

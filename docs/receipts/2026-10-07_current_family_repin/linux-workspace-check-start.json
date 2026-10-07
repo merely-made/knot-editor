@@ -1,0 +1,19 @@
+{
+  "pid": 185209,
+  "started_utc": "2026-10-07T08:36:32.115385+00:00",
+  "command": [
+    "nice",
+    "-n",
+    "10",
+    "cargo",
+    "+1.98.1",
+    "check",
+    "--workspace",
+    "--all-targets",
+    "--locked",
+    "-j",
+    "1"
+  ],
+  "observed_parent_nice_at_start": 0,
+  "target": "/home/markik/Code/target"
+}

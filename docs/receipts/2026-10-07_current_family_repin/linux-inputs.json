@@ -1,0 +1,35 @@
+{
+  "published_commit": "0096591a0af98bf4777d8bfe718c0423dea9fc90",
+  "inputs": {
+    "Cargo.toml": {
+      "sha256": "754f5c078fd5fdaa33011ed8baac5d99524f456f755decf6d275348e5361e75e",
+      "bytes": 12942
+    },
+    "Cargo.lock": {
+      "sha256": "312ba490f88a322b67fe2296882e6c5c679cbfd06c7398e314eee64223545d59",
+      "bytes": 350434
+    },
+    "apps/desktop/Cargo.toml": {
+      "sha256": "22e5f6921d240114fb91cd8258f0b1746c04b40a07b3ca0498c16a71149b226b",
+      "bytes": 1874
+    },
+    "crates/knot-document/Cargo.toml": {
+      "sha256": "8bf30973e65728a17b3f0541b74ff2712ccc590391771e61949a935b7f0ca333",
+      "bytes": 3104
+    },
+    ".gitattributes": {
+      "sha256": "3e12a593bc4f27e4d1cf2c07e296e74d5e89d8276a61220106ad315d97b238ef",
+      "bytes": 736
+    },
+    "crates/knot-composition/assets/oewn-notices.txt": {
+      "sha256": "11ce3560ca7ee3343176f8f537e377efa517e98f203e68b0b3583d141474aa69",
+      "bytes": 3266
+    }
+  },
+  "locked_sources": [
+    "git+https://github.com/merely-made/genet.git?rev=965b64e206a47d1c8808472de9aa461233638768#965b64e206a47d1c8808472de9aa461233638768",
+    "git+https://github.com/merely-made/mere.git?rev=57b4893db6909d5ed9c4ccae30216f0d8164201a#57b4893db6909d5ed9c4ccae30216f0d8164201a"
+  ],
+  "source_scope": "Clean exact published main before receipt generation; remote Mere primary and other repositories untouched.",
+  "target": "/home/markik/Code/target"
+}

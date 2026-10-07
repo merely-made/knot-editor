@@ -21,8 +21,8 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-pub mod wordnet_import;
 pub mod retention;
+pub mod wordnet_import;
 
 pub const STORE_VERSION: u32 = 1;
 pub const MAX_STORE_BYTES: usize = 16 * 1024 * 1024;
@@ -43,6 +43,7 @@ pub enum ItemKind {
     Sense,
     Pronunciation,
     Note,
+    ProjectionRecipe,
 }
 
 /// A precise reference to the pack edition from which material was collected.
@@ -186,7 +187,7 @@ impl std::error::Error for AnchorError {}
 
 /// An independent durable copy. Removing a pack or changing a document cannot
 /// change this material. `collection` groups it across all readings/documents.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CollectionItem {
     pub id: String,
@@ -194,6 +195,9 @@ pub struct CollectionItem {
     pub kind: ItemKind,
     pub label: String,
     pub text: String,
+    /// Typed recipe and retained disclosure; `text` remains a readable summary.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection_recipe: Option<retention::ProjectionRecipeMaterial>,
     #[serde(default)]
     pub pack_sources: Vec<PackSource>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -215,6 +219,7 @@ impl CollectionItem {
             kind,
             label: label.into(),
             text: text.into(),
+            projection_recipe: None,
             pack_sources: Vec::new(),
             document_source: None,
             author_notes: String::new(),
@@ -225,6 +230,12 @@ impl CollectionItem {
 
     pub fn in_collection(mut self, collection: impl Into<String>) -> Self {
         self.collection = collection.into();
+        self
+    }
+
+    pub fn with_projection_recipe(mut self, material: retention::ProjectionRecipeMaterial) -> Self {
+        self.kind = ItemKind::ProjectionRecipe;
+        self.projection_recipe = Some(material);
         self
     }
 
@@ -254,6 +265,15 @@ impl CollectionItem {
     }
 
     pub fn validate(&self) -> Result<(), CollectionError> {
+        match (&self.kind, &self.projection_recipe) {
+            (ItemKind::ProjectionRecipe, Some(material)) => material.validate()?,
+            (ItemKind::ProjectionRecipe, None) | (_, Some(_)) => {
+                return Err(CollectionError::Invalid(
+                    "projection recipe kind and typed payload must match".into(),
+                ));
+            },
+            (_, None) => {},
+        }
         bounded_nonempty("item id", &self.id, MAX_ID_BYTES)?;
         bounded_nonempty("collection", &self.collection, MAX_ID_BYTES)?;
         bounded_nonempty("label", &self.label, MAX_LABEL_BYTES)?;

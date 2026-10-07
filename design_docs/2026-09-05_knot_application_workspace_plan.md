@@ -862,6 +862,19 @@ restoration, or a universal dashboard to ship the safe writing cut.
   actionable resource limits without freezing the writing view.
 
 ## Findings and progress
+- 2026-10-06 received from Mere's smolweb fidelity plan, WS4 (Mere stack
+  seams rulings S71, S72, S74 and S77): Mere `b4f14f2c` made inker's `Block`
+  `#[non_exhaustive]`, added `Block::Menu` (a typed menu, which gopher menus
+  now lower to) and gave `Block::FeedEntry` five fields (`published`,
+  `updated`, `guid`, `enclosures`, `content_address`). At knot-editor's next
+  repin past it, the exhaustive `Block` match in
+  `apps/desktop/src/document_preview.rs` needs a wildcard arm (Mere's own
+  renderers name a kind they cannot draw with `Block::kind_name`) and its
+  `Block::FeedEntry` pattern a `..`; drawing `Block::Menu` (a fixed-width type
+  column, then the label; a search row submits through its
+  `InlineSpan::Submit`) is the fuller fix. `scroll_site.rs` already has a
+  wildcard. Recorded in Mere's
+  `design_docs/nematic_docs/implementation_strategy/2026-07-01_smolweb_fidelity_plan.md`, §7.
 - 2026-10-06 received from Mere's S14 archive pass (Mere rulings S60 and
   S69): Mere archived its Knot shared surface and port contribution plan
   (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-24_knot_shared_surface_and_port_contribution_plan.md`). F0,

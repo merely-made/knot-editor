@@ -542,7 +542,8 @@ Reopened retained material starts clean with no prior session undo stack.
 Arrangement-control disclosure and draft values are session-only; accepted
 options ride in the existing immutable relationship recipe material.
 
-Qualification status: implemented and locally qualified on committed runtime
+Initial qualification status (preserved checkpoint): implemented and locally
+qualified on committed runtime
 `aa8a59d94d7acc2f1925c405118b21e413a2092e`; publication is held for the
 layout-performance decision below. Source commits are `f39a63a7` (shared editor
 and history), `341d5ca9` (field-contract compatibility) and `aa8a59d9` (visible
@@ -585,6 +586,86 @@ Acceptance instrument SHA-256:
 This synthetic signed/encrypted fixture does not establish personal-wallet native,
 human assistive-technology, cross-platform native, signing/release, inferred
 ambient neighborhoods or G4b live dynamics qualification.
+
+### Boundary-lookup continuation (2026-10-08)
+
+The user authorized the bounded shared-stack repair after the preceding
+publication hold. Genet now publishes `15713014e2e23b887360471552f75f60684f5384`
+over current-main baseline `6cb2284a`: repeated retained-paragraph cluster owner,
+boundary style, finite break-flag and atomic-marker queries use indexes. The
+original scan functions remain test-only semantic oracles. Wrapping policy,
+Parley, source/caret assertions and the exact 400-line Micron fixture are
+unchanged. No speculative source-span interval index is included.
+
+Mere's coherent adoption is published at
+`227062a92e0698621c488251590dba3437d780e7`. All 38 current Genet rows across
+root, Graphshell web and Distillery probe move together; optional Mere→Knot
+identity-seed pins remain under ruling 58. Its locked Cambium library gate
+passes 251, Mesquite library passes 19, and Rootstock's no-default-features /
+image-decode check passes. These are not Graphshell headed/browser gates.
+
+Knot committed runtime `ec46d0ac0f474f6129b5b0e4fcd6e4b8a534689d` advances every
+current Mere declaration, including the desktop's direct Apparatus/Tinct rows
+and CubeCL runtime patch, plus standalone document declarations. The root lock
+resolves 65 Mere packages at `227062a92` and 22 Genet packages at `15713014`,
+with no second source revision or path override from either repository. No
+product source or fixture assertion changes accompany this repin.
+
+- Portable workspace gate: `TMPDIR=/tmp cargo test --workspace --all-targets
+  --locked` passes 616, zero failed, two existing ignores and zero filtered,
+  including the unchanged large Micron test and all four Collapse integration
+  tests. The 42 target result lines are the count authority; focused repeats
+  overlap rather than add to this total.
+- Portable exact-test repeat: the same unchanged 400-line fixture passes in
+  9.82 seconds on the published Git-pinned family (85.00 seconds command time,
+  including a narrower-graph rebuild). The speed improvement therefore survives
+  ordinary dependency resolution without the disposable path configuration.
+- Remaining automated gates pass: workspace all-target check, optional
+  `knot-editor/embed-bert-wgpu` library check, desktop/instrument build, and
+  standalone document default 45 / engine+highlight 61 tests (one existing
+  ignore each). The separate ignored document lock is regenerated before the
+  final locked gates; its original locked refusal is retained, not overwritten.
+- Diagnostic comparison before the portable repin: unchanged Knot `1eacea2`
+  passes the exact large test in 384.58 seconds with the original locked Git
+  family and 7.87 seconds with the repair's disposable local overrides. Baseline
+  sampling places the delay in repeated owner/style scans. Other builds were
+  active: this is debug diagnostic evidence, not a controlled release benchmark
+  or proof of an old-pin regression. The override config is not shipped.
+- Upstream residual: Genet's complete Livery gate passes 650 with three failures
+  and seven ignores. The two float failures and one table-glyph failure reproduce
+  on its untouched current-main base; no assertion is loosened or failure hidden.
+  New oracle/RTL/ligature/comparison-bound tests and the no-default feature check
+  pass. Knot's consumer gate does not imply a wholly green Genet suite.
+- Native: macOS wide 1100×900 and compact 420×900 save and fresh-process
+  reopen each report `RESULT ok`, five captures per run
+  (2548/2494/2553/2496 frames). All 20 final PNGs are reviewed: option field
+  boundaries/defaults, columns 2, retained-state text, strata/category controls,
+  usable pan rows, restored camera and exact-source controls are present across
+  the matrix. Columns 0 is refused, undo/redo and Use default remain guarded,
+  and encrypted retention survives reopen without carrying old session history.
+  Both source fixtures compare byte-exact; all four apps exited and the native
+  foreground lease was released to the coordinated owner chats.
+- Existing visual residuals remain: canvas label collision can suppress a nearby
+  label, and long occurrence-button labels can clip at compact width. The latter
+  is reproduced in the prior committed-family capture, not a repin regression;
+  full selected-source text and accessible targets remain available.
+
+Qualification is complete for this bounded committed-runtime slice; the
+layout-performance publication hold is closed. Earlier implementation and
+field-affordance commits are carried with this coherent repin, not replaced.
+Exact desktop SHA-256:
+`4329a46dfeadc65528235c003133ceddab95f81ba8cbb40eaee4b9fbed549d70`.
+Acceptance instrument SHA-256:
+`a6ab72521cca060f40a283b9824c7b0d67e59c80a4f8cacea5d4363bdfa81b44`.
+The separate cohort is
+`/Users/markik/Code/testing/knot-editor/boundary-family-20261008.knV7Gq/README.md`.
+The shared repair and preserved baseline evidence are in
+`/Users/markik/Code/testing/genet-boundary-20261008.R85RvP/README.md`.
+Earlier editorial qualification remains preserved above; later success must
+not silently replace the initial affordance failures or performance evidence.
+This marked synthetic-authority macOS matrix is not personal-wallet, human
+assistive-technology, cross-platform native, signing/release, inferred ambient
+neighborhood or G4b live-execution qualification.
 
 ## Qualification
 

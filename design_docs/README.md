@@ -14,10 +14,16 @@ its qualification is recorded in the same composition plan.
 The October 8 shared editorial slice adopts the declared arrangement controls
 and bounded session undo on a coherent newer dependency family. G2 channels and
 the G4a portable specification have now landed; G4b execution binding remains
-separate from Knot's static scene. The slice is locally qualified on `aa8a59d9`:
-615 workspace checks plus the exact large Micron test and 20 reviewed native
-save/reopen captures. Publication is held for the large fixture's layout cost;
-the same composition plan records the evidence and separate upstream decision.
+separate from Knot's static scene. The initial `aa8a59d9` qualification and its
+layout-cost hold are preserved. The authorized Genet boundary-lookup repair is
+now adopted through published Mere `227062a92` / Genet `15713014` on committed
+Knot runtime `ec46d0a`: 616 workspace checks with nothing filtered, standalone
+document default/engine gates, core/WGPU checks and 20 newly reviewed macOS
+save/reopen captures pass. The unchanged large Micron repeat is 9.82 seconds
+versus 384.58 in the preserved original-family diagnostic; this is not a release
+benchmark. The publication hold is closed. The same composition plan retains
+three reproduced upstream baseline failures and existing compact/scene-label
+visual residuals; it does not infer live dynamics or release acceptance.
 
 - [Shared accessibility family repin, October 7](../docs/receipts/2026-10-07_foreign_accessibility_repin/README.md): every Mere source moves coherently to `f1d169c7`; Genet remains `965b64e2`. The admitted published relationship-scene source is preserved. Locked compile, standalone default/engine and the composed 590-test workspace set are qualified; the original timing failure and test-only barrier repair remain explicit. Human assistive-technology and native foreign semantics stay separate. Mere's optional Knot identity-seed pin remains under ruling 58.
 

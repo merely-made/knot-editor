@@ -5165,6 +5165,7 @@ fn update_collapse_layout(
 pub const DESKTOP_CSS: &str = concat!(
     // Empty app-owned buffers need a block height to remain visible/clickable.
     ".knot-workspace [role=\"textbox\"][data-cambium-text-value] { min-height:1.2em; }",
+    ".knot-workspace [role=\"textbox\"][data-cambium-text-value]:not([aria-multiline=\"true\"]) { padding:4px 6px; border:1px solid; border-radius:4px; box-sizing:border-box; background:transparent; color:inherit; }",
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px 20px 0; height:100vh; box-sizing:border-box; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
     ".knot-command-entry { display:flex; align-items:center; gap:8px; }",

@@ -542,11 +542,49 @@ Reopened retained material starts clean with no prior session undo stack.
 Arrangement-control disclosure and draft values are session-only; accepted
 options ride in the existing immutable relationship recipe material.
 
-Validation target: shared option/default/refusal tests, atomic authoring and
-exact-confirmation history tests, full workspace gates, desktop build, and native
-wide/420px save plus fresh-process reopen with invalid input, accepted options,
-undo/redo, default restoration and byte-exact source checks. Qualification is
-recorded below after these gates complete.
+Qualification status: implemented and locally qualified on committed runtime
+`aa8a59d94d7acc2f1925c405118b21e413a2092e`; publication is held for the
+layout-performance decision below. Source commits are `f39a63a7` (shared editor
+and history), `341d5ca9` (field-contract compatibility) and `aa8a59d9` (visible
+single-line field affordance). No shared-stack source was changed.
+
+- Automated: the locked/offline all-target workspace gate reports 615 passing
+  checks, zero failed, two ignored and one filtered large Micron redraw test.
+  That exact unchanged test separately passes on the same final runtime in
+  190.66 seconds. Focused recipe tests pass 37; excluded standalone document
+  default and engine+highlight pass 45/61, each with one ignored. Core and optional
+  wgpu embedder checks and desktop/instrument builds pass. Focused results overlap
+  the workspace count and are not additional unique tests.
+- Native: macOS wide 1100×900 and compact 420×900 save/fresh-process reopen all
+  report `RESULT ok`, five captures per run (2548/2494/2553/2496 frames).
+  All 20 final PNGs are reviewed: fields and measured defaults are visible,
+  columns 0 is refused, 2 is applied, undo/redo works, confirmed encrypted
+  retention survives fresh reopen, and Use default can be undone to the retained
+  position. Foreground/category/camera assertions and source navigation remain.
+  Both source fixtures compare byte-exact after reopen; all four apps exited.
+- Initial wide captures exposed empty fields without visible editing boundaries.
+  The host's field styling now provides minimum height, padding and a border;
+  the initial captures/authority/log/instrument remain preserved, separate from
+  the final matrix. Existing scene label collision can suppress one nearby label;
+  textual occurrence and source controls remain available.
+- Performance hold: the unchanged 400-line Micron first-layout/redraw fixture
+  passes, but earlier and final repeats take 243.40 and 190.66 seconds. Samples
+  and a read-only source audit identify repeated cluster-boundary owner/style
+  scans in Livery; current published Genet `6cb2284a` has the same path. These
+  debug observations are not a controlled old-pin regression comparison or a
+  release benchmark. A bounded upstream repair and owner coordination remain a
+  separate scope decision; the test was not reduced or its assertions removed.
+
+Evidence and exact commands:
+`/Users/markik/Code/testing/knot-editor/editorial-20261008.9rqdPX/README.md`;
+initial failure logs, final gates, scripts, paint lists, captures and
+`performance-blocker.md` are preserved there. Final desktop SHA-256:
+`f5848ddfddcc8935d5166714dd9ff0203359e3b8367991afddb98c7da979b865`.
+Acceptance instrument SHA-256:
+`3d74d23a21c6cbbbc1a66d91b1c2d645395986e0cf64f9b2aedaa61577dd89ef`.
+This synthetic signed/encrypted fixture does not establish personal-wallet native,
+human assistive-technology, cross-platform native, signing/release, inferred
+ambient neighborhoods or G4b live dynamics qualification.
 
 ## Qualification
 

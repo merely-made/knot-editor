@@ -116,3 +116,6 @@ arrangement controls, reject columns 0 without replacing the recipe, apply colum
 columns 2 and a confirmed retained marker, removes the override through Use default,
 and undoes to the retained position. Both widths capture expanded option controls.
 Scene and arrangement disclosures reopen collapsed; session undo does not persist.
+The October 8 committed-runtime native qualification covers five captures per
+save/reopen process at each width (20 final captures); the composition retention
+plan records the local receipts and independent layout-performance publication hold.

@@ -14,8 +14,10 @@ its qualification is recorded in the same composition plan.
 The October 8 shared editorial slice adopts the declared arrangement controls
 and bounded session undo on a coherent newer dependency family. G2 channels and
 the G4a portable specification have now landed; G4b execution binding remains
-separate from Knot's static scene. Its implementation and qualification belong
-to the same composition plan.
+separate from Knot's static scene. The slice is locally qualified on `aa8a59d9`:
+615 workspace checks plus the exact large Micron test and 20 reviewed native
+save/reopen captures. Publication is held for the large fixture's layout cost;
+the same composition plan records the evidence and separate upstream decision.
 
 - [Shared accessibility family repin, October 7](../docs/receipts/2026-10-07_foreign_accessibility_repin/README.md): every Mere source moves coherently to `f1d169c7`; Genet remains `965b64e2`. The admitted published relationship-scene source is preserved. Locked compile, standalone default/engine and the composed 590-test workspace set are qualified; the original timing failure and test-only barrier repair remain explicit. Human assistive-technology and native foreign semantics stay separate. Mere's optional Knot identity-seed pin remains under ruling 58.
 

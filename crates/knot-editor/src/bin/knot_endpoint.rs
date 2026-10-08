@@ -372,7 +372,7 @@ fn communal_fixture_endpoint(
 ```
 ";
     pollster::block_on(store.author_communal(
-        RECEIVED_SEED,
+        &RECEIVED_SEED,
         &keys,
         &knot_editor::KnotSyncEvent::Put(knot_editor::VaultDocument {
             id: "received".into(),
@@ -387,7 +387,7 @@ fn communal_fixture_endpoint(
     let mut endpoint = knot_editor::KnotEndpoint::from_communal_vault(
         vault,
         store,
-        LOCAL_SEED,
+        &LOCAL_SEED,
         keys,
         knot_editor::KnotWriteGrant::new(max_source_bytes),
     )

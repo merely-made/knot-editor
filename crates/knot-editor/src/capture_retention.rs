@@ -186,18 +186,18 @@ impl KnotFileCapturePort {
                 signing_seed,
             }) => (
                 store,
-                **signing_seed,
+                &**signing_seed,
                 KnotSyncCipher::Personal(&state.vault),
             ),
             Some(VaultSyncAuthority::Commons {
                 store,
                 signing_seed,
                 keys,
-            }) => (store, **signing_seed, KnotSyncCipher::CommonsData(keys)),
+            }) => (store, &**signing_seed, KnotSyncCipher::CommonsData(keys)),
             None => return Err(KnotCaptureError::SyncUnavailable),
         };
         let (operation, already_retained) = pollster::block_on(
-            store.retain_file_revision_with_cipher(seed, cipher, &prepared.revision),
+            store.retain_file_revision_with_cipher(&seed, cipher, &prepared.revision),
         )?;
         Ok(KnotCaptureReceipt {
             destination,
@@ -228,12 +228,12 @@ pub(super) fn destination_for_state(
         Some(VaultSyncAuthority::Personal {
             store,
             signing_seed,
-        }) => (store, **signing_seed),
+        }) => (store, &**signing_seed),
         Some(VaultSyncAuthority::Commons {
             store,
             signing_seed,
             keys: _,
-        }) => (store, **signing_seed),
+        }) => (store, &**signing_seed),
         None => return Err(KnotCaptureError::SyncUnavailable),
     };
     if let Some(VaultSyncAuthority::Commons { keys, .. }) = state.sync.as_ref()
@@ -241,7 +241,7 @@ pub(super) fn destination_for_state(
     {
         return Err(KnotCaptureError::KeysUnavailable);
     }
-    let writer = *SigningKey::from_bytes(&seed).verifying_key().as_bytes();
+    let writer = *SigningKey::from_bytes(seed).verifying_key().as_bytes();
     if !store
         .admitted_writers()
         .into_iter()

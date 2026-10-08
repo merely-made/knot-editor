@@ -91,13 +91,13 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
     let vault = open_vault(temp.path());
 
     let put = store
-        .author(alice_seed, &vault, &KnotSyncEvent::Put(document("essay")))
+        .author(&alice_seed, &vault, &KnotSyncEvent::Put(document("essay")))
         .await
         .unwrap();
     let head = *put.hash.as_bytes();
 
     let minted = store
-        .author(alice_seed, &vault, &define("corroborates", None))
+        .author(&alice_seed, &vault, &define("corroborates", None))
         .await
         .unwrap();
     let root = *minted.hash.as_bytes();
@@ -105,14 +105,14 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
 
     // An assertion signed under the original label.
     let early = store
-        .author(alice_seed, &vault, &assert_with(minted_ref.clone(), head))
+        .author(&alice_seed, &vault, &assert_with(minted_ref.clone(), head))
         .await
         .unwrap();
 
     // Only the minting author renames the predicate.
     assert!(matches!(
         store
-            .author(bob_seed, &vault, &define("hijacked", Some(root)))
+            .author(&bob_seed, &vault, &define("hijacked", Some(root)))
             .await,
         Err(KnotSyncError::InvalidPredicate(_))
     ));
@@ -120,7 +120,7 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
     assert!(matches!(
         store
             .author(
-                alice_seed,
+                &alice_seed,
                 &vault,
                 &KnotSyncEvent::DefinePredicate {
                     slug: "corroborates-strongly".to_owned(),
@@ -139,7 +139,7 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
     assert!(matches!(
         store
             .author(
-                alice_seed,
+                &alice_seed,
                 &vault,
                 &KnotSyncEvent::DefinePredicate {
                     slug: "supports".to_owned(),
@@ -157,7 +157,7 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
 
     let renamed = store
         .author(
-            alice_seed,
+            &alice_seed,
             &vault,
             &define("corroborates strongly", Some(root)),
         )
@@ -200,7 +200,7 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
     // Retirement: a superseding definition carrying a replacement.
     store
         .author(
-            alice_seed,
+            &alice_seed,
             &vault,
             &KnotSyncEvent::DefinePredicate {
                 slug: "corroborates".to_owned(),
@@ -220,7 +220,7 @@ async fn a_predicate_is_minted_renamed_and_retired_under_one_iri() {
     // A retired predicate refuses a new assertion and keeps the earlier one.
     assert!(matches!(
         store
-            .author(alice_seed, &vault, &assert_with(minted_ref.clone(), head))
+            .author(&alice_seed, &vault, &assert_with(minted_ref.clone(), head))
             .await,
         Err(KnotSyncError::InvalidRelation(_))
     ));
@@ -266,7 +266,7 @@ async fn an_unknown_bare_label_and_an_unavailable_definition_are_refused_at_auth
     .unwrap();
     let vault = open_vault(temp.path());
     let put = store
-        .author(seed, &vault, &KnotSyncEvent::Put(document("essay")))
+        .author(&seed, &vault, &KnotSyncEvent::Put(document("essay")))
         .await
         .unwrap();
     let head = *put.hash.as_bytes();
@@ -274,14 +274,14 @@ async fn an_unknown_bare_label_and_an_unavailable_definition_are_refused_at_auth
     let unknown = KnotPredicateRefV1::Unrecognized("corroborates".to_owned());
     assert!(matches!(
         store
-            .author(seed, &vault, &assert_with(unknown, head))
+            .author(&seed, &vault, &assert_with(unknown, head))
             .await,
         Err(KnotSyncError::InvalidRelation(_))
     ));
     assert!(matches!(
         store
             .author(
-                seed,
+                &seed,
                 &vault,
                 &assert_with(KnotPredicateRefV1::Defined([0x99; 32]), head),
             )

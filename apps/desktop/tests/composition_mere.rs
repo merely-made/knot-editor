@@ -74,7 +74,7 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     let store = KnotSyncFileStore::open(&store_path, [0x73; 32], [writer]).unwrap();
     let read_vault = KnotVault::open(&vault_path, [0x72; 32]).unwrap();
     pollster::block_on(store.save_checkpoint(&read_vault)).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let port = KnotResidentCompositionPort::new(
         KnotPersonaDisplayV1 {
             stable_id: "persona:test-mere".into(),
@@ -182,7 +182,7 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     let reopened_vault = KnotVault::open(&vault_path, [0x72; 32]).unwrap();
     let reopened_store = KnotSyncFileStore::open(&store_path, [0x73; 32], [writer]).unwrap();
     let reopened =
-        KnotResidentSource::from_synced_vault(reopened_vault, reopened_store, seed).unwrap();
+        KnotResidentSource::from_synced_vault(reopened_vault, reopened_store, &seed).unwrap();
     let reopened_port = KnotResidentCompositionPort::new(
         KnotPersonaDisplayV1 {
             stable_id: "persona:test-mere".into(),
@@ -245,7 +245,7 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         KnotResidentSource::from_synced_vault(
             KnotVault::open(&vault_path, [0x62; 32]).unwrap(),
             KnotSyncFileStore::open(&database, [0x63; 32], [writer]).unwrap(),
-            seed,
+            &seed,
         )
         .unwrap()
     };

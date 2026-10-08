@@ -43,7 +43,7 @@ fn organization_is_encrypted_revision_guarded_reversible_and_reopens_without_rew
     let (receipt, final_revision, final_organization) = {
         let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
         let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
-        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
         let port = adapter(&resident);
         let receipt = port.retain(port.target(), original.clone()).unwrap();
         let initial = port.list(port.target()).unwrap().remove(0);
@@ -121,7 +121,7 @@ fn organization_is_encrypted_revision_guarded_reversible_and_reopens_without_rew
     assert!(!root.path().join("collection.json").exists());
     let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
     let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store, seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     let reopened = port.list(port.target()).unwrap().remove(0);
     assert_eq!(reopened.item, original);
@@ -159,7 +159,7 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
     let receipts = {
         let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
         let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
-        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
         let port = adapter(&resident);
         let a = port.retain(port.target(), first.clone()).unwrap();
         let b = port.retain(port.target(), second.clone()).unwrap();
@@ -185,7 +185,7 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
     );
     let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
     let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store, seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     let items = port.list(port.target()).unwrap();
     assert_eq!(items.len(), 2);
@@ -220,7 +220,7 @@ fn encrypted_reopen_retry_and_no_publishing_exposure() {
         let vault = KnotVault::open(root.path().join("vault"), [52; 32]).unwrap();
         let store = KnotSyncFileStore::open(&path, [53; 32], [writer]).unwrap();
         let read_vault = KnotVault::open(root.path().join("vault"), [52; 32]).unwrap();
-        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+        let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
         let port = adapter(&resident);
         let receipt = port.retain(port.target(), item.clone()).unwrap();
         assert!(!receipt.already_retained);
@@ -250,7 +250,7 @@ fn encrypted_reopen_retry_and_no_publishing_exposure() {
     );
     let vault = KnotVault::open(root.path().join("vault"), [52; 32]).unwrap();
     let store = KnotSyncFileStore::open(&path, [53; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store, seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     assert_eq!(port.list(port.target()).unwrap()[0].item, item);
     let retry = port.retain(port.target(), item).unwrap();
@@ -264,7 +264,7 @@ fn denied_revoked_locked_and_wrong_destination_fail_closed() {
     let (seed, writer) = identity();
     let vault = KnotVault::open(root.path().join("vault"), [52; 32]).unwrap();
     let store = KnotSyncFileStore::open(root.path().join("sync.redb"), [53; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let item = CollectionItem::new(ItemKind::Passage, "quote", "text");
     let authority = resident
         .composition_retention(CompositionGrant::new(8192, 20))
@@ -336,14 +336,14 @@ fn concurrent_retries_share_one_operation_and_other_devices_are_readable() {
     .unwrap();
     let item = CollectionItem::new(ItemKind::Note, "another device", "retained elsewhere");
     pollster::block_on(store.author(
-        other.master_keypair().to_seed(),
+        &other.master_keypair().to_seed(),
         &vault,
         &knot_editor::KnotSyncEvent::RetainCompositionV1 {
             item_json: serde_json::to_string(&item).unwrap(),
         },
     ))
     .unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let ports: Vec<_> = (0..4).map(|_| adapter(&resident)).collect();
     let own = CollectionItem::new(ItemKind::Note, "local", "retry me");
     let receipts = std::thread::scope(|scope| {
@@ -403,7 +403,7 @@ fn organization_predecessor_cannot_borrow_an_unrelated_item_receipt() {
     let vault_path = root.path().join("vault");
     let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
     let store = KnotSyncFileStore::open(root.path().join("sync.redb"), [53; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let port = adapter(&resident);
     let first = CollectionItem::new(ItemKind::Note, "First", "first source");
     let second = CollectionItem::new(ItemKind::Note, "Second", "second source");
@@ -418,7 +418,7 @@ fn organization_predecessor_cannot_borrow_an_unrelated_item_receipt() {
             .unwrap(),
     };
     assert!(
-        pollster::block_on(store.author(seed, &read_vault, &event))
+        pollster::block_on(store.author(&seed, &read_vault, &event))
             .unwrap_err()
             .to_string()
             .contains("another item")
@@ -435,7 +435,7 @@ fn commons_keys_are_required_for_both_reads_and_writes() {
         KnotSyncFileStore::open_commons(root.path().join("sync.redb"), [53; 32], [writer]).unwrap();
     let mut keys = stickleback::DataKeyring::new();
     keys.rotate_random().unwrap();
-    let resident = KnotResidentSource::from_communal_vault(vault, store, seed, keys).unwrap();
+    let resident = KnotResidentSource::from_communal_vault(vault, store, &seed, keys).unwrap();
     let port = adapter(&resident);
     let item = CollectionItem::new(
         ItemKind::Note,

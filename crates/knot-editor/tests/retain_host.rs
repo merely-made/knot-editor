@@ -42,7 +42,7 @@ fn resident() -> (
     let vault = KnotVault::open(root.path().join("vault"), [0x52; 32]).unwrap();
     let store =
         KnotSyncFileStore::open(root.path().join("sync.redb"), [0x53; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let read_vault = KnotVault::open(root.path().join("vault"), [0x52; 32]).unwrap();
     pollster::block_on(store.save_checkpoint(&read_vault)).unwrap();
     (root, resident, store, read_vault, writer, seed)
@@ -91,7 +91,7 @@ fn host_adapter_retains_exact_reviewed_bytes_and_reuses_the_signed_operation() {
         Some(revision())
     );
     let reopened_resident =
-        KnotResidentSource::from_synced_vault(reopened_vault, reopened, seed).unwrap();
+        KnotResidentSource::from_synced_vault(reopened_vault, reopened, &seed).unwrap();
     let reopened_port = adapter(&reopened_resident);
     let retry = reopened_port
         .retain_reviewed(reopened_port.target(), revision())

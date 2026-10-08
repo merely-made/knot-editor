@@ -61,7 +61,7 @@ async fn same_writer_authors_are_serial_and_have_distinct_operations() {
         first_barrier.wait().await;
         first_store
             .author(
-                seed,
+                &seed,
                 &first_vault,
                 &KnotSyncEvent::Put(document("first", "one")),
             )
@@ -75,7 +75,7 @@ async fn same_writer_authors_are_serial_and_have_distinct_operations() {
         second_barrier.wait().await;
         second_store
             .author(
-                seed,
+                &seed,
                 &second_vault,
                 &KnotSyncEvent::Put(document("second", "two")),
             )
@@ -116,7 +116,7 @@ async fn concurrent_retained_captures_reuse_one_operation() {
         let capture = capture.clone();
         tokio::spawn(async move {
             store
-                .retain_file_revision_with_cipher(seed, KnotSyncCipher::Personal(&vault), &capture)
+                .retain_file_revision_with_cipher(&seed, KnotSyncCipher::Personal(&vault), &capture)
                 .await
                 .unwrap()
         })
@@ -127,7 +127,7 @@ async fn concurrent_retained_captures_reuse_one_operation() {
         let capture = capture.clone();
         tokio::spawn(async move {
             store
-                .retain_file_revision_with_cipher(seed, KnotSyncCipher::Personal(&vault), &capture)
+                .retain_file_revision_with_cipher(&seed, KnotSyncCipher::Personal(&vault), &capture)
                 .await
                 .unwrap()
         })
@@ -150,17 +150,21 @@ async fn mutation_gate_makes_accept_author_and_retain_pending_until_release() {
     let store = KnotSyncStore::in_memory(SPACE, [writer]);
     let ingress_source = KnotSyncStore::in_memory(SPACE, [writer]);
     let ingress = ingress_source
-        .author(seed, &vault, &KnotSyncEvent::Put(document("ingress", "in")))
+        .author(
+            &seed,
+            &vault,
+            &KnotSyncEvent::Put(document("ingress", "in")),
+        )
         .await
         .unwrap();
     let _guard = store.mutation_gate.lock().await;
     let mut accept: Pin<Box<dyn Future<Output = _>>> = Box::pin(store.accept(&ingress));
     let author_event = KnotSyncEvent::Put(document("authored", "after"));
     let mut author: Pin<Box<dyn Future<Output = _>>> =
-        Box::pin(store.author(seed, &vault, &author_event));
+        Box::pin(store.author(&seed, &vault, &author_event));
     let capture = revision("retained");
     let mut retain: Pin<Box<dyn Future<Output = _>>> = Box::pin(
-        store.retain_file_revision_with_cipher(seed, KnotSyncCipher::Personal(&vault), &capture),
+        store.retain_file_revision_with_cipher(&seed, KnotSyncCipher::Personal(&vault), &capture),
     );
     let mut checkpoint: Pin<Box<dyn Future<Output = _>>> = Box::pin(store.save_checkpoint(&vault));
     assert!(matches!(poll_once(accept.as_mut()), Poll::Pending));
@@ -204,7 +208,7 @@ async fn queued_retention_observes_admission_after_gate_release() {
     let capture = revision("denied");
     let guard = store.mutation_gate.lock().await;
     let mut retain: Pin<Box<dyn Future<Output = _>>> = Box::pin(
-        store.retain_file_revision_with_cipher(seed, KnotSyncCipher::Personal(&vault), &capture),
+        store.retain_file_revision_with_cipher(&seed, KnotSyncCipher::Personal(&vault), &capture),
     );
     assert!(matches!(poll_once(retain.as_mut()), Poll::Pending));
     assert!(store.deny_writer(&writer));
@@ -220,7 +224,7 @@ async fn queued_retention_observes_admission_after_gate_release() {
     assert!(store.admit_writer(writer));
     let guard = store.mutation_gate.lock().await;
     let mut cancelled = Box::pin(store.retain_file_revision_with_cipher(
-        seed,
+        &seed,
         KnotSyncCipher::Personal(&vault),
         &capture,
     ));
@@ -230,7 +234,7 @@ async fn queued_retention_observes_admission_after_gate_release() {
     assert!(store.load_operations().await.unwrap().is_empty());
     let (_, already_present) = tokio::time::timeout(
         Duration::from_secs(30),
-        store.retain_file_revision_with_cipher(seed, KnotSyncCipher::Personal(&vault), &capture),
+        store.retain_file_revision_with_cipher(&seed, KnotSyncCipher::Personal(&vault), &capture),
     )
     .await
     .expect("cancelled waiter blocked a later capture")

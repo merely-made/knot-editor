@@ -8,6 +8,9 @@ Current authority:
 The composition plan also records the October 7 compact camera refinement:
 wrapping Fit/Zoom controls, session-only Pan disclosure and a textual strata key.
 Its current-family native qualification is separate from earlier scene receipts.
+The next bounded slice adds retained background-category lenses over copied
+relationships, with foreground protection and session-only category disclosure;
+its qualification is recorded in the same composition plan.
 The fresh Mere-main audit distinguishes landed G3 runtime composition/editor undo
 from the still-open G2 channels and G4 portable dynamics contract.
 

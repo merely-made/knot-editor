@@ -8,6 +8,10 @@ assert text Confirmed 2 retained items
 click role:button Open retained relationship recipe
 settle 4
 assert text Static overview
+assert text Show scene category controls
+click role:button Show scene category controls
+assert text Show scene background category: sound.perfect_rhyme
+assert text Background categories: 0 enabled / 1 compiled; 1 occurrences shown
 assert text Show scene camera controls
 assert text Foreground · emphasized occurrence
 assert text Background · contextual occurrence
@@ -22,7 +26,11 @@ click role:button Hide scene camera controls
 click .knot-recipe-scene-status
 click .graph-canvas-swatch
 capture relationship-scene-reopened
-click role:button Show scene background
+click role:button Show all scene background categories
+assert text Background categories: 1 enabled / 1 compiled; 2 occurrences shown
+click .knot-recipe-scene-category-status
+capture scene-background-categories-restored
+click role:button Hide scene category controls
 click role:button Fit relationship scene
 click .knot-recipe-scene-status
 click .graph-canvas-swatch

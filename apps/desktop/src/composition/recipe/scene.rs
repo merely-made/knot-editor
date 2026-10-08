@@ -13,7 +13,7 @@ use cambium::{
 use cambium_genet_winit_host::AppCtx;
 use knot_composition::retention::RecipeScenePresentation;
 use sprigging::{ColorF, GraphViewport};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 const SCENE_LEAF_KEY: u64 = 0x4b4e_4f54_5343_454e;
 // The compact drawer leaves about 232 logical pixels after its padding.
@@ -33,6 +33,8 @@ enum SceneLayer {
 enum SceneAction {
     Overview(bool),
     Background(bool),
+    BackgroundCategory { kind: String, visible: bool },
+    ShowAllBackgroundCategories,
     PromoteSelected,
     DemoteSelected,
     Pan(f32, f32),
@@ -76,6 +78,7 @@ fn swatch(
         .clone()
         .unwrap_or_else(RecipeScenePresentation::default);
     let scene = &compiled.projection.scene;
+    let visible_occurrences = visible_occurrence_ids(material, compiled);
     let mut positions = BTreeMap::new();
     let mut nodes = Vec::with_capacity(material.dataset.dataset.occurrences.len());
 
@@ -100,15 +103,15 @@ fn swatch(
             normalized(y, scene.bounds.origin.y, scene.bounds.size.h),
         );
         positions.insert(occurrence.occurrence_id.clone(), position);
-        let foreground = presentation
-            .foreground_occurrences
-            .contains(&occurrence.occurrence_id);
-        if !presentation.background_visible && !foreground {
+        if !visible_occurrences.contains(&occurrence.occurrence_id) {
             continue;
         }
         nodes.push(GraphCanvasNode {
             id: occurrence.occurrence_id.clone(),
-            kind: if foreground {
+            kind: if presentation
+                .foreground_occurrences
+                .contains(&occurrence.occurrence_id)
+            {
                 SceneLayer::Foreground
             } else {
                 SceneLayer::Background
@@ -135,20 +138,27 @@ fn swatch(
             let disclosure = &relation.disclosure;
             let from = positions.get(&disclosure.from_occurrence)?;
             let to = positions.get(&disclosure.to_occurrence)?;
-            Some(GraphCanvasRelation {
+            let foreground_relation = presentation
+                .foreground_occurrences
+                .contains(&disclosure.from_occurrence)
+                && presentation
+                    .foreground_occurrences
+                    .contains(&disclosure.to_occurrence);
+            let visible = foreground_relation
+                || (presentation.background_visible
+                    && !presentation
+                        .hidden_background_categories
+                        .contains(&disclosure.kind)
+                    && visible_occurrences.contains(&disclosure.from_occurrence)
+                    && visible_occurrences.contains(&disclosure.to_occurrence));
+            visible.then(|| GraphCanvasRelation {
                 id: disclosure.id.clone(),
                 from: disclosure.from_occurrence.clone(),
                 to: disclosure.to_occurrence.clone(),
                 kind: disclosure.kind.clone(),
                 label: disclosure.label.clone(),
                 route: vec![*from, *to],
-                visible: presentation.background_visible
-                    || (presentation
-                        .foreground_occurrences
-                        .contains(&disclosure.from_occurrence)
-                        && presentation
-                            .foreground_occurrences
-                            .contains(&disclosure.to_occurrence)),
+                visible,
                 emphasized: material.snapshot.selected_relationship.as_ref()
                     == Some(&disclosure.id),
             })
@@ -171,6 +181,40 @@ fn swatch(
         zoom: presentation.zoom,
     };
     swatch
+}
+
+fn visible_occurrence_ids(
+    material: &ProjectionRecipeMaterial,
+    compiled: &CompiledRelationshipProjection,
+) -> BTreeSet<String> {
+    let presentation = material.presentation.as_ref().cloned().unwrap_or_default();
+    let mut related_background = BTreeSet::new();
+    if !presentation.hidden_background_categories.is_empty() {
+        for relation in &compiled.relationships {
+            let disclosure = &relation.disclosure;
+            if !presentation
+                .hidden_background_categories
+                .contains(&disclosure.kind)
+            {
+                related_background.insert(disclosure.from_occurrence.clone());
+                related_background.insert(disclosure.to_occurrence.clone());
+            }
+        }
+    }
+    material
+        .dataset
+        .dataset
+        .occurrences
+        .iter()
+        .filter_map(|occurrence| {
+            let id = &occurrence.occurrence_id;
+            (presentation.foreground_occurrences.contains(id)
+                || (presentation.background_visible
+                    && (presentation.hidden_background_categories.is_empty()
+                        || related_background.contains(id))))
+            .then(|| id.clone())
+        })
+        .collect()
 }
 
 fn apply_action(
@@ -239,6 +283,36 @@ fn apply_action(
                 .presentation
                 .get_or_insert_with(RecipeScenePresentation::default)
                 .background_visible = visible;
+        },
+        SceneAction::BackgroundCategory { kind, visible } => {
+            if !candidate
+                .dataset
+                .relationships
+                .iter()
+                .any(|relation| relation.kind == kind)
+            {
+                return Err("The background category is not disclosed by this recipe.".into());
+            }
+            let presentation = candidate
+                .presentation
+                .get_or_insert_with(RecipeScenePresentation::default);
+            if visible {
+                presentation.hidden_background_categories.remove(&kind);
+            } else {
+                presentation.hidden_background_categories.insert(kind);
+            }
+            presentation.version = if presentation.hidden_background_categories.is_empty() {
+                1
+            } else {
+                2
+            };
+        },
+        SceneAction::ShowAllBackgroundCategories => {
+            let presentation = candidate
+                .presentation
+                .get_or_insert_with(RecipeScenePresentation::default);
+            presentation.hidden_background_categories.clear();
+            presentation.version = 1;
         },
         SceneAction::PromoteSelected => {
             let selected = candidate
@@ -313,11 +387,22 @@ fn apply_action(
 
 fn apply_canvas_event(
     material: &mut ProjectionRecipeMaterial,
+    compiled: &CompiledRelationshipProjection,
     event: GraphCanvasEvent<String>,
 ) -> Result<bool, String> {
     let action = match event {
-        GraphCanvasEvent::Activate(id) => SceneAction::SelectOccurrence(id),
-        GraphCanvasEvent::RelationActivate(id) => SceneAction::SelectRelationship(id),
+        GraphCanvasEvent::Activate(id) => {
+            if !swatch_node_visible(material, compiled, &id) {
+                return Ok(false);
+            }
+            SceneAction::SelectOccurrence(id)
+        },
+        GraphCanvasEvent::RelationActivate(id) => {
+            if !swatch_relation_visible(material, compiled, &id) {
+                return Ok(false);
+            }
+            SceneAction::SelectRelationship(id)
+        },
         GraphCanvasEvent::Pan { delta } => SceneAction::Pan(delta.0, delta.1),
         GraphCanvasEvent::Zoom { factor } => SceneAction::Zoom(factor),
         // This overview is a static compiled projection. GraphCanvas exposes
@@ -325,6 +410,43 @@ fn apply_canvas_event(
         GraphCanvasEvent::Drag(_) | GraphCanvasEvent::Expand => return Ok(false),
     };
     apply_action(material, action)
+}
+
+fn swatch_node_visible(
+    material: &ProjectionRecipeMaterial,
+    compiled: &CompiledRelationshipProjection,
+    id: &str,
+) -> bool {
+    visible_occurrence_ids(material, compiled).contains(id)
+}
+
+fn swatch_relation_visible(
+    material: &ProjectionRecipeMaterial,
+    compiled: &CompiledRelationshipProjection,
+    id: &str,
+) -> bool {
+    let Some(disclosure) = compiled
+        .relationships
+        .iter()
+        .map(|relation| &relation.disclosure)
+        .find(|relation| relation.id == id)
+    else {
+        return false;
+    };
+    let presentation = material.presentation.as_ref().cloned().unwrap_or_default();
+    let foreground_relation = presentation
+        .foreground_occurrences
+        .contains(&disclosure.from_occurrence)
+        && presentation
+            .foreground_occurrences
+            .contains(&disclosure.to_occurrence);
+    foreground_relation
+        || (presentation.background_visible
+            && !presentation
+                .hidden_background_categories
+                .contains(&disclosure.kind)
+            && swatch_node_visible(material, compiled, &disclosure.from_occurrence)
+            && swatch_node_visible(material, compiled, &disclosure.to_occurrence))
 }
 
 fn dispatch_control(state: &mut DesktopState, action: SceneAction) {
@@ -341,7 +463,18 @@ fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
     let Some(material) = state.composition.recipe.material.as_mut() else {
         return;
     };
-    if let Err(error) = apply_canvas_event(material, event) {
+    let card = state
+        .composition
+        .recipe
+        .measured
+        .as_ref()
+        .map_or(VALIDATION_CARD, |measured| measured.card);
+    let compiled = ProjectionCompiler::new(ItemSizes { card })
+        .compile_relationship_snapshot(&material.snapshot, &material.dataset);
+    let result = compiled
+        .map_err(|error| format!("{error:?}"))
+        .and_then(|compiled| apply_canvas_event(material, &compiled, event));
+    if let Err(error) = result {
         state.composition.notice = Some(error);
     }
 }
@@ -350,6 +483,7 @@ pub(super) fn view(
     material: &ProjectionRecipeMaterial,
     compiled: &CompiledRelationshipProjection,
     camera_controls_expanded: bool,
+    background_controls_expanded: bool,
 ) -> DesktopView {
     let presentation = material
         .presentation
@@ -375,6 +509,59 @@ pub(super) fn view(
         .occurrences
         .len()
         .saturating_sub(foreground_count);
+    let categories: BTreeSet<_> = compiled
+        .relationships
+        .iter()
+        .map(|relation| relation.disclosure.kind.clone())
+        .collect();
+    let visible_categories = categories
+        .iter()
+        .filter(|kind| !presentation.hidden_background_categories.contains(*kind))
+        .count();
+    let shown_occurrences = visible_occurrence_ids(material, compiled).len();
+    let category_buttons: Vec<(String, DesktopView)> = categories
+        .iter()
+        .map(|kind| {
+            let visible = !presentation.hidden_background_categories.contains(kind);
+            let action_kind = kind.clone();
+            (
+                kind.clone(),
+                Box::new(
+                    button(
+                        if visible {
+                            format!("Hide scene background category: {kind}")
+                        } else {
+                            format!("Show scene background category: {kind}")
+                        },
+                        move |state: &mut DesktopState, _| {
+                            dispatch_control(
+                                state,
+                                SceneAction::BackgroundCategory {
+                                    kind: action_kind.clone(),
+                                    visible: !visible,
+                                },
+                            )
+                        },
+                    )
+                    .attr("aria-pressed", visible.to_string()),
+                ) as DesktopView,
+            )
+        })
+        .collect();
+    let category_controls: Option<DesktopView> = background_controls_expanded.then(|| {
+        Box::new(el(
+            "div",
+            (
+                Keyed::new(category_buttons),
+                button(
+                    "Show all scene background categories",
+                    |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::ShowAllBackgroundCategories)
+                    },
+                ),
+            ),
+        )) as DesktopView
+    });
     let pan_controls = camera_controls_expanded.then(|| {
         Box::new(
             el(
@@ -407,6 +594,9 @@ pub(super) fn view(
                     presentation.pan_x, presentation.pan_y, presentation.zoom
                 ))
                 .attr("class", "knot-recipe-scene-status"),
+                span(format!("Background categories: {visible_categories} enabled / {} compiled; {shown_occurrences} occurrences shown", categories.len()))
+                    .attr("class", "knot-recipe-scene-category-status"),
+                span("Background category filters change presentation only; foreground occurrences stay visible."),
                 el(
                     "div",
                     (
@@ -456,6 +646,20 @@ pub(super) fn view(
                         ),
                     ),
                 ),
+                button(
+                    if background_controls_expanded {
+                        "Hide scene category controls"
+                    } else {
+                        "Show scene category controls"
+                    },
+                    move |state: &mut DesktopState, _| {
+                        state.composition.recipe.background_controls_expanded =
+                            !background_controls_expanded;
+                    },
+                )
+                .attr("aria-expanded", background_controls_expanded.to_string())
+                .attr("aria-controls", "knot-recipe-scene-category-controls"),
+                el("div", category_controls).attr("id", "knot-recipe-scene-category-controls"),
                 el("div", (
                     button("Zoom scene out", |state: &mut DesktopState, _| {
                         dispatch_control(state, SceneAction::Zoom(0.8))
@@ -568,6 +772,23 @@ mod tests {
         .unwrap()
     }
 
+    fn mixed_material() -> ProjectionRecipeMaterial {
+        let (source, _) = super::super::tests::fixture();
+        let layers = SoundLayers {
+            perfect_rhyme: true,
+            assonance: true,
+            ..Default::default()
+        };
+        let reading = knot_readings::sound::analyze(
+            &source.text,
+            0..source.text.len(),
+            &std::collections::BTreeMap::new(),
+            &layers,
+        )
+        .unwrap();
+        super::super::material(&source, &reading, &layers).unwrap()
+    }
+
     #[test]
     fn first_enable_seeds_foreground_without_changing_recipe_selection() {
         let mut material = material();
@@ -626,7 +847,10 @@ mod tests {
             phase: PointerPhase::Move,
             position: (0.8, 0.7),
         });
-        assert!(!apply_canvas_event(&mut material, event).unwrap());
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        assert!(!apply_canvas_event(&mut material, &compiled, event).unwrap());
         assert_eq!(serde_json::to_vec(&material).unwrap(), before);
     }
 
@@ -635,8 +859,12 @@ mod tests {
         let mut material = material();
         apply_action(&mut material, SceneAction::Overview(true)).unwrap();
         let relation = material.dataset.relationships[0].clone();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
         apply_canvas_event(
             &mut material,
+            &compiled,
             GraphCanvasEvent::RelationActivate(relation.id.clone()),
         )
         .unwrap();
@@ -650,6 +878,7 @@ mod tests {
         );
         apply_canvas_event(
             &mut material,
+            &compiled,
             GraphCanvasEvent::Activate(relation.to_occurrence.clone()),
         )
         .unwrap();
@@ -708,5 +937,217 @@ mod tests {
             relation.visible
                 == (foreground.contains(&relation.from) && foreground.contains(&relation.to))
         }));
+    }
+
+    #[test]
+    fn background_category_filter_is_presentation_only_and_keeps_foreground_visible() {
+        let mut material = material();
+        apply_action(&mut material, SceneAction::Overview(true)).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        let kind = compiled.relationships[0].disclosure.kind.clone();
+        let original_dataset = material.dataset.clone();
+        let original_snapshot = material.snapshot.clone();
+        material
+            .presentation
+            .as_mut()
+            .unwrap()
+            .foreground_occurrences
+            .insert(compiled.relationships[0].disclosure.from_occurrence.clone());
+        apply_action(
+            &mut material,
+            SceneAction::BackgroundCategory {
+                kind: kind.clone(),
+                visible: false,
+            },
+        )
+        .unwrap();
+        let presentation = material.presentation.as_ref().unwrap();
+        assert_eq!(presentation.version, 2);
+        assert!(presentation.hidden_background_categories.contains(&kind));
+        assert_eq!(material.dataset, original_dataset);
+        assert_eq!(material.snapshot, original_snapshot);
+
+        let graph = swatch(&material, &compiled);
+        assert!(
+            graph
+                .graph
+                .nodes
+                .iter()
+                .any(|node| presentation.foreground_occurrences.contains(&node.id))
+        );
+        assert!(graph.relations.iter().all(|relation| relation.kind != kind));
+        apply_action(&mut material, SceneAction::ShowAllBackgroundCategories).unwrap();
+        let presentation = material.presentation.as_ref().unwrap();
+        assert!(presentation.hidden_background_categories.is_empty());
+        assert_eq!(presentation.version, 1);
+    }
+
+    #[test]
+    fn category_controls_follow_the_global_recipe_category_filter() {
+        let mut material = mixed_material();
+        let categories: BTreeSet<_> = material
+            .dataset
+            .relationships
+            .iter()
+            .map(|relation| relation.kind.clone())
+            .collect();
+        assert!(categories.len() > 1);
+        let selected = categories.iter().next().unwrap().clone();
+        material.snapshot.recipe.relationship_kind = Some(selected.clone());
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        let compiled_categories: BTreeSet<_> = compiled
+            .relationships
+            .iter()
+            .map(|relation| relation.disclosure.kind.clone())
+            .collect();
+        assert_eq!(compiled_categories, BTreeSet::from([selected]));
+    }
+
+    #[test]
+    fn invalid_background_category_action_preserves_material() {
+        let mut material = material();
+        apply_action(&mut material, SceneAction::Overview(true)).unwrap();
+        let before = material.clone();
+        assert!(
+            apply_action(
+                &mut material,
+                SceneAction::BackgroundCategory {
+                    kind: "not-disclosed".into(),
+                    visible: false,
+                }
+            )
+            .is_err()
+        );
+        assert_eq!(material, before);
+    }
+
+    #[test]
+    fn isolated_background_occurrences_keep_legacy_visibility_until_filtered() {
+        let mut material = material();
+        apply_action(&mut material, SceneAction::Overview(true)).unwrap();
+        material
+            .presentation
+            .as_mut()
+            .unwrap()
+            .foreground_occurrences
+            .clear();
+        let mut compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        compiled.relationships.clear();
+        let isolated = material.dataset.dataset.occurrences[0]
+            .occurrence_id
+            .clone();
+        assert!(
+            swatch(&material, &compiled)
+                .graph
+                .nodes
+                .iter()
+                .any(|node| node.id == isolated)
+        );
+
+        let kind = material.dataset.relationships[0].kind.clone();
+        apply_action(
+            &mut material,
+            SceneAction::BackgroundCategory {
+                kind,
+                visible: false,
+            },
+        )
+        .unwrap();
+        assert!(
+            !swatch(&material, &compiled)
+                .graph
+                .nodes
+                .iter()
+                .any(|node| node.id == isolated)
+        );
+    }
+
+    #[test]
+    fn foreground_edge_survives_category_and_master_background_hides() {
+        let mut material = material();
+        apply_action(&mut material, SceneAction::Overview(true)).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        let disclosure = &compiled.relationships[0].disclosure;
+        let relation_id = disclosure.id.clone();
+        let category = disclosure.kind.clone();
+        let from = disclosure.from_occurrence.clone();
+        let to = disclosure.to_occurrence.clone();
+        material
+            .presentation
+            .as_mut()
+            .unwrap()
+            .foreground_occurrences
+            .extend([from, to]);
+        apply_action(
+            &mut material,
+            SceneAction::BackgroundCategory {
+                kind: category,
+                visible: false,
+            },
+        )
+        .unwrap();
+        apply_action(&mut material, SceneAction::Background(false)).unwrap();
+        let graph = swatch(&material, &compiled);
+        assert!(
+            graph
+                .relations
+                .iter()
+                .any(|relation| relation.id == relation_id)
+        );
+    }
+
+    #[test]
+    fn hidden_canvas_targets_are_noops_but_fallback_occurrence_selection_remains_available() {
+        let mut material = material();
+        apply_action(&mut material, SceneAction::Overview(true)).unwrap();
+        material
+            .presentation
+            .as_mut()
+            .unwrap()
+            .foreground_occurrences
+            .clear();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        let relation = material.dataset.relationships[0].clone();
+        apply_action(&mut material, SceneAction::Background(false)).unwrap();
+        let before = material.clone();
+        assert!(
+            !apply_canvas_event(
+                &mut material,
+                &compiled,
+                GraphCanvasEvent::Activate(relation.from_occurrence.clone()),
+            )
+            .unwrap()
+        );
+        assert_eq!(material, before);
+        assert!(
+            !apply_canvas_event(
+                &mut material,
+                &compiled,
+                GraphCanvasEvent::RelationActivate(relation.id),
+            )
+            .unwrap()
+        );
+        assert_eq!(material, before);
+        assert!(
+            apply_action(
+                &mut material,
+                SceneAction::SelectOccurrence(relation.from_occurrence.clone()),
+            )
+            .unwrap()
+        );
+        assert_eq!(
+            material.snapshot.selected_occurrence.as_deref(),
+            Some(relation.from_occurrence.as_str())
+        );
     }
 }

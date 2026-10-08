@@ -2694,6 +2694,105 @@ mod tests {
     }
 
     #[test]
+    fn background_category_lenses_preserve_disclosure_and_foreground() {
+        let mut state = recipe_state("night night light", 0, 17);
+        let key = state.focused_key().unwrap();
+        state.composition.layers.alliteration = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        let click = |host: &mut RecipeHost, label: &str| {
+            assert!(
+                host.click_on(&Selector::role("button").containing(label)),
+                "{label}"
+            );
+            host.after_dispatch();
+        };
+        let nodes = |host: &RecipeHost| {
+            host.with_dom(|dom| {
+                dom.all_with_class(dom.document(), "graph-canvas-swatch-node")
+                    .len()
+            })
+        };
+        click(&mut host, "Show relationship scene");
+        click(&mut host, "Show scene category controls");
+        let original = host.state().composition.recipe.material.clone().unwrap();
+        let source = host.state().document().snapshot();
+        assert_eq!(nodes(&host), 3);
+        click(
+            &mut host,
+            "Hide scene background category: sound.perfect_rhyme",
+        );
+        assert_eq!(
+            nodes(&host),
+            2,
+            "the alliteration background stays disclosed"
+        );
+        let filtered = host.state().composition.recipe.material.as_ref().unwrap();
+        assert_eq!(filtered.snapshot, original.snapshot);
+        assert_eq!(filtered.dataset, original.dataset);
+        assert_eq!(filtered.anchors, original.anchors);
+        assert_eq!(filtered.presentation.as_ref().unwrap().version, 2);
+        click(
+            &mut host,
+            "Hide scene background category: sound.alliteration",
+        );
+        assert_eq!(
+            nodes(&host),
+            1,
+            "foreground stays visible with all categories hidden"
+        );
+        click(&mut host, "Show all scene background categories");
+        assert_eq!(nodes(&host), 3);
+        assert_eq!(
+            host.state()
+                .composition
+                .recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .presentation
+                .as_ref()
+                .unwrap()
+                .version,
+            1
+        );
+        assert_eq!(host.state().document().snapshot(), source);
+        click(
+            &mut host,
+            "Hide scene background category: sound.alliteration",
+        );
+        let retained_filters = host.state().composition.recipe.material.clone();
+        host.update(|state| {
+            state.composition.layers.alliteration = false;
+            analyze_sound(state, key, false);
+            recipe::from_sound(state, key, true);
+        });
+        assert_eq!(host.state().composition.recipe.material, retained_filters);
+        assert!(
+            host.state()
+                .composition
+                .notice
+                .as_ref()
+                .unwrap()
+                .contains("Reset the scene presentation")
+        );
+        click(&mut host, "Reset scene presentation");
+        host.update(|state| recipe::from_sound(state, key, true));
+        assert!(
+            host.state()
+                .composition
+                .recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .presentation
+                .is_none()
+        );
+    }
+
+    #[test]
     fn scene_camera_disclosure_is_session_only_and_removes_pan_targets() {
         let mut host = recipe_harness(recipe_state("night night light", 0, 17));
         frame(&mut host);
@@ -2733,6 +2832,28 @@ mod tests {
         }
         assert!(rendered_text(&host).contains("Selected occurrence role: foreground"));
         assert!(rendered_text(&host).contains("Background · contextual occurrence"));
+        for (label, expanded) in [
+            ("Show scene category controls", true),
+            ("Hide scene category controls", false),
+        ] {
+            assert!(host.click_on(&Selector::role("button").containing(label)));
+            host.after_dispatch();
+            assert_eq!(
+                host.state().composition.recipe.background_controls_expanded,
+                expanded
+            );
+            assert_eq!(host.state().composition.recipe.material, material);
+            assert_eq!(host.state().composition.notice, notice);
+            assert_eq!(
+                host.with_dom(|dom| !taproot::matching(
+                    dom,
+                    &Selector::role("button")
+                        .containing("Hide scene background category: sound.perfect_rhyme")
+                )
+                .is_empty()),
+                expanded
+            );
+        }
     }
 
     #[test]

@@ -64,6 +64,57 @@ fn scene_presentation_roundtrips_with_disclosed_occurrences() {
 }
 
 #[test]
+fn presentation_v1_without_background_categories_remains_byte_identical() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let bytes: &[u8] = br#"{"version":1,"overview_visible":false,"background_visible":true,"foreground_occurrences":[],"pan_x":0.0,"pan_y":0.0,"zoom":1.0}"#;
+    let decoded: RecipeScenePresentation = serde_json::from_slice(bytes).unwrap();
+    assert!(decoded.hidden_background_categories.is_empty());
+    assert_eq!(serde_json::to_vec(&decoded).unwrap(), bytes.to_vec());
+}
+
+#[test]
+fn presentation_v2_roundtrips_exact_disclosed_background_categories() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let mut material = support::recipe_material();
+    material.presentation = Some(RecipeScenePresentation {
+        version: 2,
+        hidden_background_categories: ["perfect_rhyme".to_owned()].into(),
+        ..RecipeScenePresentation::default()
+    });
+    material.validate().unwrap();
+    let bytes = serde_json::to_vec(&material).unwrap();
+    let decoded: knot_composition::retention::ProjectionRecipeMaterial =
+        serde_json::from_slice(&bytes).unwrap();
+    assert_eq!(decoded, material);
+}
+
+#[test]
+fn presentation_v2_allows_an_empty_background_category_set() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let mut material = support::recipe_material();
+    material.presentation = Some(RecipeScenePresentation {
+        version: 2,
+        ..RecipeScenePresentation::default()
+    });
+    material.validate().unwrap();
+}
+
+#[test]
+fn presentation_v1_refuses_nonempty_background_categories() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let mut material = support::recipe_material();
+    material.presentation = Some(RecipeScenePresentation {
+        hidden_background_categories: ["perfect_rhyme".to_owned()].into(),
+        ..RecipeScenePresentation::default()
+    });
+    assert!(material.validate().is_err());
+}
+
+#[test]
 fn legacy_recipe_without_scene_presentation_remains_valid_and_omitted() {
     let material = support::recipe_material();
     assert!(material.presentation.is_none());
@@ -97,7 +148,7 @@ fn scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values() 
 
     let mut invalid = base.clone();
     let mut presentation = RecipeScenePresentation::default();
-    presentation.version = 2;
+    presentation.version = 3;
     invalid.presentation = Some(presentation);
     assert!(invalid.validate().is_err());
 
@@ -145,6 +196,31 @@ fn scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values() 
         ..RecipeScenePresentation::default()
     });
     assert!(invalid.validate().is_err());
+}
+
+#[test]
+fn presentation_rejects_invalid_background_categories() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let base = support::recipe_material();
+    for categories in [["undisclosed".to_owned()].into(), [String::new()].into()] {
+        let mut material = base.clone();
+        material.presentation = Some(RecipeScenePresentation {
+            version: 2,
+            hidden_background_categories: categories,
+            ..RecipeScenePresentation::default()
+        });
+        assert!(material.validate().is_err());
+    }
+
+    let mut oversized = base;
+    oversized.presentation = Some(RecipeScenePresentation {
+        version: 2,
+        hidden_background_categories: (0..257).map(|index| format!("category-{index}")).collect(),
+        ..RecipeScenePresentation::default()
+    });
+    let error = oversized.validate().unwrap_err().to_string();
+    assert!(error.contains("too many recipe scene background categories"));
 }
 
 /// Validation compiles with a nominal card (Mere burn plan 13.46): a recipe's

@@ -4363,6 +4363,39 @@ fn document_key_of<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<DocKey> {
     None
 }
 
+/// Cambium's editable application fields are focusable divs, not native
+/// textarea elements. Their committed buffer is exposed on this marker; the
+/// role alone also appears on host wrappers and is not enough to identify the
+/// focused editing node.
+fn is_cambium_textbox<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    let namespace = Namespace::from("");
+    dom.attribute(node, &namespace, &LocalName::from("role"))
+        .is_some_and(|role| role.eq_ignore_ascii_case("textbox"))
+        && dom
+            .attribute(
+                node,
+                &namespace,
+                &LocalName::from("data-cambium-text-value"),
+            )
+            .is_some()
+}
+
+fn is_text_control<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    LayoutDom::element_name(dom, node)
+        .is_some_and(|name| matches!(name.local.as_ref(), "input" | "textarea"))
+        || is_cambium_textbox(dom, node)
+}
+
+/// Whether `node` is the active document's editable Cambium text field (or a
+/// legacy textarea while a surface is transitioning between host versions).
+fn is_source_text_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    let is_legacy_textarea =
+        LayoutDom::element_name(dom, node).is_some_and(|name| name.local.as_ref() == "textarea");
+    (is_legacy_textarea || is_cambium_textbox(dom, node))
+        && ancestor_has_class(dom, node, "knot-document-body")
+        && document_key_of(dom, node).is_some()
+}
+
 fn ancestor_has_class<D: LayoutDom>(dom: &D, focused: D::NodeId, class: &str) -> bool {
     let mut node = Some(focused);
     while let Some(current) = node {
@@ -4378,9 +4411,8 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     let focused = runner.focus()?;
     let dom = runner.dom();
     let dom_ref = dom.borrow();
-    let name = LayoutDom::element_name(&*dom_ref, focused)?;
-    let is_text_control = name.local.as_ref() == "textarea" || name.local.as_ref() == "input";
-    let is_document_textarea = name.local.as_ref() == "textarea";
+    let is_text_control = is_text_control(&*dom_ref, focused);
+    let is_document_text_field = is_source_text_field(&*dom_ref, focused);
     if !is_text_control {
         return None;
     }
@@ -4447,7 +4479,7 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
             get_mut: Box::new(|state| &mut state.save_as_path),
         });
     }
-    if is_document_textarea {
+    if is_document_text_field {
         let key = document.or_else(|| runner.state().focused_key())?;
         if runner.state().surface_for(key).snapshot().write_posture
             == knot_document::KnotDocumentWritePostureV1::ReadOnly
@@ -4477,8 +4509,7 @@ pub(crate) fn source_is_focused(runner: &DesktopRunner) -> bool {
     };
     let dom = runner.dom();
     let dom = dom.borrow();
-    LayoutDom::element_name(&*dom, focused).is_some_and(|name| name.local.as_ref() == "textarea")
-        && document_key_of(&*dom, focused).is_some()
+    is_source_text_field(&*dom, focused)
 }
 
 pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
@@ -4594,7 +4625,7 @@ pub fn close_request(runner: &mut DesktopRunner, request: CloseRequest) -> Close
 
 /// Complete an outline activation after the click has rebuilt the retained
 /// tree. The click target itself is a button, so focus must be returned to the
-/// existing document textarea before the next key or IME event is routed.
+/// existing document text field before the next key or IME event is routed.
 pub fn after_dispatch(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
@@ -4678,9 +4709,7 @@ fn focus_pending_source(
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
         let target = ctx.runner.focusables().into_iter().find(|node| {
-            LayoutDom::element_name(&*dom_ref, *node)
-                .is_some_and(|name| name.local.as_ref() == "textarea")
-                && ancestor_has_class(&*dom_ref, *node, "knot-document-body")
+            is_source_text_field(&*dom_ref, *node)
                 && document_key_of(&*dom_ref, *node) == focused_key
         });
         let workspace = target.and_then(|mut node| loop {
@@ -4725,9 +4754,7 @@ fn focus_path_field(
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
         ctx.runner.focusables().into_iter().find(|node| {
-            LayoutDom::element_name(&*dom_ref, *node)
-                .is_some_and(|name| name.local.as_ref() == "input")
-                && ancestor_has_id(&*dom_ref, *node, id)
+            is_text_control(&*dom_ref, *node) && ancestor_has_id(&*dom_ref, *node, id)
         })
     };
     if let Some(target) = target {
@@ -4827,7 +4854,7 @@ fn focus_command_palette(
         let target = ctx.runner.focusables().into_iter().find(|node| {
             let dom = ctx.runner.dom();
             let dom = dom.borrow();
-            LayoutDom::element_name(&*dom, *node).is_some_and(|name| name.local.as_ref() == "input")
+            is_text_control(&*dom, *node)
                 && ancestor_has_id(&*dom, *node, "knot-command-query")
         });
         if let Some(target) = target {
@@ -4877,8 +4904,7 @@ fn focus_command_menu(
             focusables.into_iter().find(|node| {
                 let dom = ctx.runner.dom();
                 let dom = dom.borrow();
-                LayoutDom::element_name(&*dom, *node)
-                    .is_some_and(|name| name.local.as_ref() == "textarea")
+                is_source_text_field(&*dom, *node)
                     && document_key_of(&*dom, *node) == ctx.runner.state().focused_key()
             })
         });
@@ -5137,6 +5163,8 @@ fn update_collapse_layout(
 }
 
 pub const DESKTOP_CSS: &str = concat!(
+    // Empty app-owned buffers need a block height to remain visible/clickable.
+    ".knot-workspace [role=\"textbox\"][data-cambium-text-value] { min-height:1.2em; }",
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px 20px 0; height:100vh; box-sizing:border-box; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
     ".knot-command-entry { display:flex; align-items:center; gap:8px; }",
@@ -5149,7 +5177,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-command-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; z-index:199; background:#0004; }",
     ".knot-command-palette { position:fixed; top:58px; left:0; right:0; margin:0 auto; z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; box-sizing:border-box; overflow:visible; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
     ".knot-command-query { display:flex; flex-direction:column; gap:4px; }",
-    ".knot-command-query input { width:100%; box-sizing:border-box; }",
+    ".knot-command-query [role=\"textbox\"][data-cambium-text-value] { width:100%; box-sizing:border-box; }",
     ".knot-command-palette .command-surface { display:flex; flex-direction:column; min-height:0; outline:none; }",
     ".knot-command-palette .command-items { display:flex; flex-direction:column; max-height:56vh; overflow:auto; }",
     ".knot-command-palette .command-item { display:flex; align-items:center; gap:8px; min-height:28px; padding:5px 8px; border-radius:4px; }",
@@ -5164,10 +5192,10 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
-    ".knot-path-field input { min-width:280px; flex:1; }",
+    ".knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:280px; flex:1; }",
     ".knot-path-popover { display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; box-sizing:border-box; }",
     ".knot-path-popover .knot-path-field { min-width:0; }",
-    ".knot-path-popover .knot-path-field input { min-width:0; }",
+    ".knot-path-popover .knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:0; }",
     ".knot-reading { display:flex; flex-direction:column; gap:8px; padding:8px 12px; min-width:0; }",
     ".knot-reading-header { display:flex; align-items:center; gap:6px; min-width:0; padding-right:1px; box-sizing:border-box; }",
     ".knot-reading-title { font-weight:600; white-space:nowrap; }",
@@ -5233,7 +5261,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; padding:16px; border:1px solid; box-sizing:border-box; }",
     ".knot-document { flex:1; min-width:0; }",
-    ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
+    ".knot-document-body [role=\"textbox\"][data-cambium-text-value] { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
     ".knot-outline { display:flex; flex-direction:column; min-width:0; }",
     ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
     ".knot-outline-row { display:block; width:100%; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
@@ -5249,7 +5277,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
-    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
+    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
     "@media (max-height:320px) { .knot-workspace { gap:4px; padding-top:4px; } .knot-workspace-toolbar { flex:none; } .knot-workspace > .status-bar { padding-top:2px; padding-bottom:2px; min-height:24px; } .knot-frame .frisket-content { padding-top:4px; padding-bottom:4px; } .knot-writing-area { padding-top:4px; padding-bottom:4px; } .knot-appearance-panel { padding:4px; max-height:20vh; } .knot-workspace > [id=knot-link-form], .knot-confirm { max-height:25vh; overflow:auto; min-height:0; flex:none; } }",
 );
 
@@ -6245,6 +6273,7 @@ mod tests {
         if dom
             .element_name(node)
             .is_some_and(|name| name.local.as_ref() == "input")
+            || is_cambium_textbox(dom, node)
         {
             return Some(node);
         }
@@ -6265,6 +6294,22 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| named_node(dom, child, name))
+    }
+
+    /// Find the actual Cambium editing node, not the role-bearing document
+    /// wrapper around it.
+    fn cambium_text_field(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom
+            .attributes(node)
+            .any(|attribute| attribute.name.local.as_ref() == "data-cambium-text-value")
+        {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| cambium_text_field(dom, child))
     }
 
     fn attr_node(
@@ -6308,7 +6353,7 @@ mod tests {
                     .expect("the document body");
                 (
                     body,
-                    named_node(&dom, body, "textarea").expect("the editor"),
+                    cambium_text_field(&dom, body).expect("the editor"),
                 )
             };
             let (column_x, _, column_width, _) = host.painted_rect(body).expect("column layout");
@@ -7767,7 +7812,7 @@ mod tests {
                 &second_key.0.to_string(),
             )
             .expect("second tile");
-            named_node(&dom, tile, "textarea").expect("second editor")
+            cambium_text_field(&dom, tile).expect("second editor")
         };
         let (x, y, width, height) = host.painted_rect(editor).expect("editor layout");
         host.click_at(x + width / 2.0, y + height / 2.0);
@@ -7958,12 +8003,12 @@ mod tests {
             host.state().document().snapshot().selection.focus.byte,
             item.end
         );
-        let textarea = {
+        let text_field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            named_node(&dom, dom.document(), "textarea").expect("document textarea")
+            cambium_text_field(&dom, dom.document()).expect("document text field")
         };
-        assert_eq!(host.focus(), Some(textarea));
+        assert_eq!(host.focus(), Some(text_field));
 
         assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-site")));
         let folder_input = {
@@ -7981,12 +8026,12 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Second heading")));
         assert!(!host.state().scroll.popover.open);
         assert!(host.click_on(&Selector::role("button").containing("Second heading")));
-        let textarea = {
+        let text_field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            named_node(&dom, dom.document(), "textarea").expect("document textarea")
+            cambium_text_field(&dom, dom.document()).expect("document text field")
         };
-        assert_eq!(host.focus(), Some(textarea));
+        assert_eq!(host.focus(), Some(text_field));
         host.key_injected("!");
         assert_eq!(host.state().scroll.folder.text(), "");
         assert_eq!(host.state().document().snapshot().text, "# Café\n\n!");

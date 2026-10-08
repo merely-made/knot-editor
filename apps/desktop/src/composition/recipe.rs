@@ -27,6 +27,8 @@ use scenomise::projection::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+mod editor;
+mod history;
 mod scene;
 
 /// What an occurrence button adds around its label: Knot's declared
@@ -66,6 +68,10 @@ pub(super) struct FailedMeasure {
 #[derive(Default)]
 pub(super) struct RecipeState {
     pub(super) material: Option<ProjectionRecipeMaterial>,
+    pub(super) history: history::RecipeHistory,
+    pub(super) editor_controls_expanded: bool,
+    pub(super) editor_option_drafts: BTreeMap<String, cambium::TextInput>,
+    pub(super) editor_family_select: cambium::SelectState,
     /// Whether this session has expanded the static-scene pan controls.
     /// This is deliberately UI state, not part of the retained presentation.
     pub(super) camera_controls_expanded: bool,
@@ -374,7 +380,9 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
     })();
     match result {
         Ok(material) => {
+            state.composition.recipe.history.reset(&material, false);
             state.composition.recipe.material = Some(material);
+            editor::reset_controls(&mut state.composition.recipe);
             state.composition.section = 4;
             state.composition.notice = Some("Shared relationship recipe bound to actual sound occurrences. Rebinding and retention are explicit.".into());
         },
@@ -385,7 +393,9 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
 pub(super) fn reopen(state: &mut DesktopState, material: ProjectionRecipeMaterial) {
     match material.validate() {
         Ok(()) => {
+            state.composition.recipe.history.reset(&material, true);
             state.composition.recipe.material = Some(material);
+            editor::reset_controls(&mut state.composition.recipe);
             state.composition.section = 4;
             state.composition.notice = Some("Retained recipe reopened against its copied disclosure. Source actions still require the exact original source; rebind explicitly to use a new reading.".into());
         },
@@ -396,32 +406,79 @@ pub(super) fn reopen(state: &mut DesktopState, material: ProjectionRecipeMateria
 }
 
 fn edit(state: &mut DesktopState, spacing_delta: i32) {
-    let Some(material) = state.composition.recipe.material.as_mut() else {
+    let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
     };
-    let mut draft = RelationshipRecipeDraft::new(material.snapshot.recipe.clone());
     let mut arrangement = material.snapshot.recipe.definition.arrangement.clone();
     arrangement.spacing = (arrangement.spacing as i64 + spacing_delta as i64).clamp(1, 256) as u32;
+    commit_arrangement(state, arrangement);
+}
+
+/// Validate a complete candidate before recording or installing an authored edit.
+fn install_edit(state: &mut DesktopState, candidate: ProjectionRecipeMaterial) {
+    let recipe = &mut state.composition.recipe;
+    if let Some(before) = recipe.material.as_ref() {
+        recipe.history.record(before, &candidate);
+    }
+    recipe.material = Some(candidate);
+}
+
+pub(super) fn commit_arrangement(
+    state: &mut DesktopState,
+    arrangement: scenograph::Arrangement,
+) -> bool {
+    let Some(material) = state.composition.recipe.material.as_ref() else {
+        return false;
+    };
+    let mut candidate = material.clone();
+    let mut draft = RelationshipRecipeDraft::new(material.snapshot.recipe.clone());
     draft.apply(RecipeEdit::SetArrangement(arrangement));
-    match finish_draft(draft) {
-        Ok(recipe) => {
-            let mut candidate = material.snapshot.clone();
-            candidate.recipe = recipe;
-            match validation_compiler().compile_relationship_snapshot(&candidate, &material.dataset)
-            {
-                Ok(_) => {
-                    material.snapshot = candidate;
-                    state.composition.notice = Some(
-                        "Shared recipe edit compiled; retain deliberately to save this version."
-                            .into(),
-                    );
-                },
-                Err(issues) => {
-                    state.composition.notice = Some(format!("Arrangement refused: {issues:?}"))
-                },
-            }
+    let result = finish_draft(draft).and_then(|recipe| {
+        candidate.snapshot.recipe = recipe;
+        candidate
+            .validate()
+            .map_err(|error| format!("Arrangement refused: {error}"))
+    });
+    match result {
+        Ok(()) => {
+            install_edit(state, candidate);
+            editor::reset_controls(&mut state.composition.recipe);
+            state.composition.notice = Some(
+                "Shared recipe edit compiled; retain deliberately to save this version.".into(),
+            );
+            true
         },
-        Err(issues) => state.composition.notice = Some(format!("Recipe edit refused: {issues:?}")),
+        Err(error) => {
+            state.composition.notice = Some(error);
+            false
+        },
+    }
+}
+
+fn step_history(state: &mut DesktopState, redo: bool) {
+    let recipe = &mut state.composition.recipe;
+    let Some(current) = recipe.material.as_ref() else {
+        return;
+    };
+    let result = if redo {
+        recipe.history.redo(current)
+    } else {
+        recipe.history.undo(current)
+    };
+    match result {
+        Ok(Some(material)) => {
+            recipe.material = Some(material);
+            editor::reset_controls(recipe);
+            state.composition.notice = Some("Recipe edit history restored; retained versions and source documents are unchanged.".into());
+        },
+        Ok(None) => {},
+        Err(error) => state.composition.notice = Some(format!("Recipe history refused: {error}")),
+    }
+}
+
+pub(super) fn mark_retained(recipe: &mut RecipeState, retained: &ProjectionRecipeMaterial) {
+    if let Some(current) = recipe.material.as_ref() {
+        recipe.history.mark_retained(current, retained);
     }
 }
 
@@ -461,11 +518,15 @@ fn relationship_category(
 }
 
 fn select_category(state: &mut DesktopState, kind: Option<String>) {
-    let Some(material) = state.composition.recipe.material.as_mut() else {
+    let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
     };
-    state.composition.notice = Some(match relationship_category(material, kind) {
-        Ok(()) => "Relationship category compiled from copied disclosure; retain deliberately to save this version.".into(),
+    let mut candidate = material.clone();
+    state.composition.notice = Some(match relationship_category(&mut candidate, kind) {
+        Ok(()) => {
+            install_edit(state, candidate);
+            "Relationship category compiled from copied disclosure; retain deliberately to save this version.".into()
+        },
         Err(error) => error,
     });
 }
@@ -651,6 +712,26 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
             el(
                 "div",
                 (
+                    button("Undo recipe edit", |state: &mut DesktopState, _| {
+                        step_history(state, false)
+                    })
+                    .attr(
+                        "aria-disabled",
+                        (!state.composition.recipe.history.can_undo()).to_string(),
+                    ),
+                    button("Redo recipe edit", |state: &mut DesktopState, _| {
+                        step_history(state, true)
+                    })
+                    .attr(
+                        "aria-disabled",
+                        (!state.composition.recipe.history.can_redo()).to_string(),
+                    ),
+                    span(if state.composition.recipe.history.is_dirty() {
+                        "Recipe edits not retained"
+                    } else {
+                        "Recipe edits retained"
+                    })
+                    .attr("class", "knot-recipe-retention-status"),
                     button("Increase recipe spacing", |state: &mut DesktopState, _| {
                         edit(state, 8)
                     }),
@@ -659,6 +740,7 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                     }),
                 ),
             ),
+            editor::view(state),
             el(
                 "div",
                 (

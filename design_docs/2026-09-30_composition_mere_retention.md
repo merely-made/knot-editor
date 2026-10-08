@@ -492,6 +492,54 @@ Acceptance SHA-256: `3e3b613d4c9d9da801dac1e203ba35555bb6c1a1f7918b5414e67c97f35
 No cross-platform native, human assistive-technology, signing/release or inferred
 background qualification is claimed by this macOS fixture matrix.
 
+### Shared editorial adoption (2026-10-08)
+
+Feature target: author arrangements from shared declarations with bounded
+session undo, while retaining new versions deliberately in Knot's own mere.
+
+The coherent dependency family advances to Mere `b555eaed6` and Genet
+`e84f9c7f`. These published contracts include the Scenograph E1–E5 foundation,
+the G2 channel registry and G4a portable dynamics core. Adopting the pin does
+not adopt live dynamics: G4b's host binding and running compositions on reopen
+remain separate. Knot's standalone search embedder adapts ESP's `load_wgpu`
+call by explicitly choosing its standalone device; it has no renderer-device
+sharing seam and makes no claim to share one. No models are downloaded.
+
+`Show recipe arrangement controls` reveals a bounded family picker and rows
+from `Family::options`, with declared kinds and resolved defaults from the
+current measured card. Defaults and measured-default explanations are separate
+text rather than placeholder-only content. Family and option changes require
+explicit Apply; blank or Use default removes an override. Invalid drafts stay
+editable, while the accepted material and history are unchanged. Switching a
+family clears its old option map; the shared compiler can refuse a family whose
+requirements this copied dataset does not satisfy. This first host has the
+built-in catalog, not a custom solver installation UI.
+
+`Undo recipe edit` and `Redo recipe edit` use Cambium's `edit-history` leaf
+contract, with 64 authored snapshots. Each entry keeps the recipe and scene
+presentation, not another copy of the input dataset and anchors. Spacing,
+relationship-category lenses and scene presentation actions join the same
+history. Navigation and disclosure expansion do not record authoring edits.
+Restoration preserves the current occurrence selection and clears an explanation
+excluded by the restored relationship category. Every candidate validates
+before install or stack movement. A new binding, explicit rebind or retained
+reopen starts a fresh history; undo cannot cross a copied-source boundary.
+
+The editor's retained marker changes only on a confirmed collection projection
+matching the exact current material, not on submitting a request. Delayed
+confirmation of an older recipe cannot mark newer edits retained. Undo to the
+confirmed position restores the marker. This is session editing history, not
+journal undo, and never overwrites a retained item or changes source bytes.
+Reopened retained material starts clean with no prior session undo stack.
+Arrangement-control disclosure and draft values are session-only; accepted
+options ride in the existing immutable relationship recipe material.
+
+Validation target: shared option/default/refusal tests, atomic authoring and
+exact-confirmation history tests, full workspace gates, desktop build, and native
+wide/420px save plus fresh-process reopen with invalid input, accepted options,
+undo/redo, default restoration and byte-exact source checks. Qualification is
+recorded below after these gates complete.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

@@ -260,28 +260,20 @@ mod tests {
 
     use super::*;
 
-    fn contains_element(dom: &ScriptedDom, node: genet_scripted_dom::NodeId, name: &str) -> bool {
-        dom.element_name(node)
-            .is_some_and(|qualified| qualified.local.as_ref() == name)
-            || dom
-                .dom_children(node)
-                .any(|child| contains_element(dom, child, name))
-    }
-
-    #[cfg(feature = "highlight")]
-    fn first_element(
+    // Cambium owns editable text as a focusable div, not a browser textarea.
+    // The value attribute distinguishes its actual buffer from host wrappers.
+    fn editable_field(
         dom: &ScriptedDom,
         node: genet_scripted_dom::NodeId,
-        name: &str,
     ) -> Option<genet_scripted_dom::NodeId> {
         if dom
-            .element_name(node)
-            .is_some_and(|qualified| qualified.local.as_ref() == name)
+            .attributes(node)
+            .any(|attribute| attribute.name.local.as_ref() == "data-cambium-text-value")
         {
             return Some(node);
         }
         dom.dom_children(node)
-            .find_map(|child| first_element(dom, child, name))
+            .find_map(|child| editable_field(dom, child))
     }
 
     #[cfg(feature = "highlight")]
@@ -348,7 +340,7 @@ mod tests {
             Some("div".to_owned())
         );
         assert!(
-            !contains_element(&rendered, runner.root(), "textarea"),
+            editable_field(&rendered, runner.root()).is_none(),
             "a read-only document must not retain an editable text control"
         );
         assert!(
@@ -388,7 +380,7 @@ mod tests {
             );
             assert_eq!(count("knot-document-save") == 1, shown, "{status:?}: Save");
             assert!(
-                contains_element(&rendered, runner.root(), "textarea"),
+                editable_field(&rendered, runner.root()).is_some(),
                 "{status:?}: the text stays editable"
             );
         }
@@ -408,7 +400,7 @@ mod tests {
             state,
         );
         let rendered = dom.borrow();
-        assert!(!contains_element(&rendered, runner.root(), "textarea"));
+        assert!(editable_field(&rendered, runner.root()).is_none());
         assert!(
             rendered
                 .all_with_class(rendered.document(), "knot-document-save")
@@ -442,8 +434,8 @@ mod tests {
             .next()
             .expect("highlighted Djot heading");
         assert!(!descendant_text(&rendered, heading).is_empty());
-        let textarea = first_element(&rendered, runner.root(), "textarea")
-            .expect("highlighted editable textarea");
+        let textarea =
+            editable_field(&rendered, runner.root()).expect("highlighted editable textarea");
         assert_eq!(descendant_text(&rendered, textarea), "# caf\u{e9}\n");
         drop(rendered);
 

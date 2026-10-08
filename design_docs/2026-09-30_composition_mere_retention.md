@@ -431,6 +431,38 @@ Integrated desktop SHA-256:
 Integrated acceptance binary SHA-256:
 `41ef64aed6df2d54c72afd0b65b3b9a7e0049147d7b199ef38998b2d59072214`.
 
+### Retained background-category lenses (2026-10-07)
+
+The static scene now offers session-only `Show scene category controls` disclosure
+with an independent Show/Hide action for each compiled relationship kind and
+`Show all scene background categories`. These controls reuse the existing palette
+and accessible button pattern. The category status reports enabled categories,
+compiled categories and shown occurrences; it does not imply the master background
+switch is enabled. This is host-owned presentation, not a shared DynamicsSpec.
+
+Foreground occurrences and foreground-to-foreground relationships remain visible
+through category and master-background hides. With no exclusions, isolated
+background occurrences retain their historical visibility. With exclusions,
+background occurrences require an incident enabled compiled relationship. Hidden
+relationships are omitted from canvas hit routes, and stale hidden node/relation
+activations are refused. Exact textual occurrence selection remains available.
+The existing recipe-wide relationship filter is applied before these scene lenses.
+Copied analysis, source anchors and the authored projection snapshot are unchanged.
+
+Presentation version 1 preserves its historical serialized shape and accepts no
+category exclusions. Version 2 retains a bounded set of exact disclosed kinds;
+unknown, empty or oversized entries are rejected. Clearing exclusions canonicalizes
+the presentation back to version 1. Older readers cannot consume authored version
+2 presentation. Edits still require explicit retention as a new immutable version.
+Rebinding to disclosure that no longer contains an excluded category refuses with
+an instruction to reset the scene presentation; it never silently prunes the choice.
+Category-control expansion itself is session-only and reopens collapsed.
+
+Fresh Mere-main audit at `96c0ed97d` finds the C1 interaction work landed, while G2
+and the G4 portable dynamics contract remain unfinished. This slice needs no repin:
+the qualified Mere `f1d169c7` / Genet `965b64e2` family supplies its existing contracts.
+It does not add physics, providers, inference or ambient-neighborhood discovery.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

@@ -92,10 +92,13 @@ separate native receipt. Static graph drag is deliberately ignored; it is not
 an advertised move or pin operation.
 
 The `_retained` and `_retained_compact` scene variants use the marked
-`collection_acceptance` fixture, promote light and demote Night, hide the
-background, author pan 0.10/0.00 and zoom 1.25, and explicitly retain. Their
+`collection_acceptance` fixture, promote light and demote Night, exclude the
+perfect-rhyme background category while leaving the master background enabled,
+author pan 0.10/0.00 and zoom 1.25, and explicitly retain version 2 presentation. Their
 wide and compact `_reopen` counterparts assert those values in a separate
-process before revealing the background and using Fit. Canvas clicks are
+process before restoring all background categories and using Fit. Category controls
+reopen collapsed; the scenarios expand them, assert the retained exclusion and
+capture restored categories before collapsing them again. Canvas clicks are
 interactive: a click over a relationship can select its explanation. They are
 not equivalent to the non-interactive paragraph reveal clicks described above.
 

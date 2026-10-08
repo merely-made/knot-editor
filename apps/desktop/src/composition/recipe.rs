@@ -69,6 +69,8 @@ pub(super) struct RecipeState {
     /// Whether this session has expanded the static-scene pan controls.
     /// This is deliberately UI state, not part of the retained presentation.
     pub(super) camera_controls_expanded: bool,
+    /// Category controls are session UI; authored exclusions live in material.
+    pub(super) background_controls_expanded: bool,
     /// The card for the label set last measured; drawing waits for it.
     pub(super) measured: Option<MeasuredCard>,
     /// How many measurements this session took.
@@ -366,7 +368,7 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
                 .map_err(|issues| format!("Rebinding refused: {issues:?}"))?;
             material
                 .validate()
-                .map_err(|error| format!("Rebinding scene presentation refused: {error}"))?;
+                .map_err(|error| format!("Rebinding scene presentation refused: {error}. Reset the scene presentation before rebinding."))?;
         }
         Ok(material)
     })();
@@ -683,6 +685,7 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                 material,
                 &compiled,
                 state.composition.recipe.camera_controls_expanded,
+                state.composition.recipe.background_controls_expanded,
             ),
             el(
                 "div",

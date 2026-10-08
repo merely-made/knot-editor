@@ -293,6 +293,11 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         assert!(panel_text(&host).contains("bytes 6–11"));
         click(&mut host, "Show relationship scene");
         click(&mut host, "Hide scene background");
+        click(&mut host, "Show scene category controls");
+        click(
+            &mut host,
+            "Hide scene background category: sound.perfect_rhyme",
+        );
         click(&mut host, "Zoom scene in");
         click(&mut host, "Show scene camera controls");
         click(&mut host, "Pan scene right");
@@ -315,6 +320,11 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         let presentation = material.presentation.as_ref().unwrap();
         assert!(presentation.overview_visible);
         assert!(!presentation.background_visible);
+        assert_eq!(presentation.version, 2);
+        assert_eq!(
+            presentation.hidden_background_categories,
+            ["sound.perfect_rhyme".to_owned()].into()
+        );
         assert_eq!(
             presentation.foreground_occurrences,
             ["token-6-11".to_owned()].into_iter().collect()
@@ -351,6 +361,9 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
     assert!(panel_text(&host).contains("Static overview"));
     assert!(panel_text(&host).contains("pan 0.10, 0.00 · zoom 1.25"));
     assert!(panel_text(&host).contains("Show scene camera controls"));
+    assert!(panel_text(&host).contains("Show scene category controls"));
+    click(&mut host, "Show scene category controls");
+    assert!(panel_text(&host).contains("Show scene background category: sound.perfect_rhyme"));
     assert!(!panel_text(&host).contains("Pan scene right"));
     assert_eq!(items[0].item, saved);
     assert_eq!(items[0].receipt.operation, operation);

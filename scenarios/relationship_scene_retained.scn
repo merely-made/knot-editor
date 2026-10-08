@@ -23,7 +23,10 @@ click .graph-canvas-swatch-node @data-key=token-8-13
 click role:button Promote selected occurrence
 click role:button Night · token-2-7
 click role:button Demote selected occurrence
-click role:button Hide scene background
+click role:button Show scene category controls
+click role:button Hide scene background category: sound.perfect_rhyme
+click role:button Hide scene category controls
+assert text Background categories: 0 enabled / 1 compiled; 1 occurrences shown
 click role:button light · token-8-13
 click role:button Zoom scene in
 click role:button Show scene camera controls

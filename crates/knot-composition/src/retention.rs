@@ -41,6 +41,10 @@ pub struct RecipeScenePresentation {
     pub version: u16,
     pub overview_visible: bool,
     pub background_visible: bool,
+    /// Relationship kinds hidden from the background. This is host-owned
+    /// presentation state and names only categories disclosed by the recipe.
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub hidden_background_categories: BTreeSet<String>,
     pub foreground_occurrences: BTreeSet<String>,
     pub pan_x: f32,
     pub pan_y: f32,
@@ -53,6 +57,7 @@ impl Default for RecipeScenePresentation {
             version: 1,
             overview_visible: false,
             background_visible: true,
+            hidden_background_categories: BTreeSet::new(),
             foreground_occurrences: BTreeSet::new(),
             pan_x: 0.0,
             pan_y: 0.0,
@@ -66,9 +71,31 @@ impl RecipeScenePresentation {
         &self,
         dataset: &scenomise::projection::RelationshipDataset,
     ) -> Result<(), CollectionError> {
-        if self.version != 1 {
+        // Version 1 is the historical shape. Keep it readable and writable
+        // when the new field is empty, preserving its serialized bytes. Older
+        // readers will reject version 2, so writers must use v2 only when
+        // storing this category filter and should canonicalize an empty set to v1.
+        if !matches!(self.version, 1 | 2)
+            || (self.version == 1 && !self.hidden_background_categories.is_empty())
+        {
             return Err(CollectionError::Invalid(
                 "unsupported recipe scene presentation version".into(),
+            ));
+        }
+        if self.hidden_background_categories.len() > 256 {
+            return Err(CollectionError::Invalid(
+                "too many recipe scene background categories".into(),
+            ));
+        }
+        if self.hidden_background_categories.iter().any(|category| {
+            category.is_empty()
+                || !dataset
+                    .relationships
+                    .iter()
+                    .any(|relationship| relationship.kind.as_str() == category.as_str())
+        }) {
+            return Err(CollectionError::Invalid(
+                "recipe scene background category is invalid or undisclosed".into(),
             ));
         }
         if self.foreground_occurrences.len() > 256

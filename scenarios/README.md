@@ -118,4 +118,9 @@ and undoes to the retained position. Both widths capture expanded option control
 Scene and arrangement disclosures reopen collapsed; session undo does not persist.
 The October 8 committed-runtime native qualification covers five captures per
 save/reopen process at each width (20 final captures); the composition retention
-plan records the local receipts and independent layout-performance publication hold.
+plan preserves the initial local receipts and layout-performance hold, then
+records its closure on the published Genet boundary-lookup / coherent Mere
+family. The new committed-runtime wide/compact save and fresh-process reopen
+matrix also has 20 reviewed captures and byte-exact source fixtures. This remains
+static-scene and marked synthetic-authority acceptance, not G4b live execution
+or personal-wallet qualification.

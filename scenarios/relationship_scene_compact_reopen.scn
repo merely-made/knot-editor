@@ -16,6 +16,11 @@ assert text Background · contextual occurrence
 assert text Selected occurrence: light
 assert text bytes 8–13
 assert text Scene strata · 1 foreground · 1 background occurrences · pan 0.10, 0.00 · zoom 1.25
+click role:button Show scene camera controls
+click role:button Pan scene down
+click role:button Pan scene up
+capture scene-camera-pan-visible
+click role:button Hide scene camera controls
 click .knot-recipe-scene-status
 click .graph-canvas-swatch
 capture relationship-scene-compact-reopened

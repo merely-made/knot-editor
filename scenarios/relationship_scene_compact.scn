@@ -29,7 +29,9 @@ click role:button Demote selected occurrence
 click role:button Hide scene background
 click role:button light · token-8-13
 click role:button Zoom scene in
+click role:button Show scene camera controls
 click role:button Pan scene right
+click role:button Hide scene camera controls
 settle 4
 assert text Selected occurrence: light
 assert text bytes 8–13

@@ -30,6 +30,11 @@ pub const CSS: &str = concat!(
     // Keep the exemption inside this scene, as the Graph tile already does.
     ".knot-recipe-scene button.graph-canvas-swatch-node, .knot-recipe-scene button.graph-canvas-swatch-relation { padding:0; border:0; border-radius:0; background:transparent; color:inherit; }",
     ".knot-recipe-scene button.graph-canvas-swatch-node:hover, .knot-recipe-scene button.graph-canvas-swatch-relation:hover { background:transparent; }",
+    ".knot-composition .knot-recipe-scene-camera-row, .knot-composition .knot-recipe-scene-pan-controls { flex-direction:row; flex-wrap:wrap; }",
+    ".knot-recipe-scene-camera-row > button, .knot-recipe-scene-pan-controls > button { flex:1 1 96px; min-width:0; }",
+    // Match the two authored strata colors in the shared canvas, with text as well.
+    ".knot-recipe-scene-key-foreground { color:#db7a33; }",
+    ".knot-recipe-scene-key-background { color:#476b94; }",
     ".knot-composition .knot-recipe-measure { position:absolute; left:0; top:0; visibility:hidden; white-space:nowrap; font-weight:600; }",
     ".knot-composition .knot-recipe-measure::after { content:attr(data-knot-recipe-measure); }",
     ".knot-composition .knot-composition-tabs { flex-direction:row; flex-wrap:wrap; }",

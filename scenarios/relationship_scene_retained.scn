@@ -26,7 +26,11 @@ click role:button Demote selected occurrence
 click role:button Hide scene background
 click role:button light · token-8-13
 click role:button Zoom scene in
+click role:button Show scene camera controls
+settle 4
+capture scene-camera-expanded
 click role:button Pan scene right
+click role:button Hide scene camera controls
 settle 4
 assert text Scene strata · 1 foreground · 1 background occurrences · pan 0.10, 0.00 · zoom 1.25
 click .knot-recipe-scene-status

@@ -351,6 +351,31 @@ Public test-key retention does not establish personal-wallet onboarding, other
 platform native acceptance, publication signing or a complete ambient/dynamics
 workbench. No provider, inference, live physics or new shared authority is added.
 
+#### Compact camera controls continuation, 2026-10-07
+
+Fit and Zoom remain available in a wrapping primary row. Four Pan buttons are
+created only while the `Show scene camera controls` disclosure is expanded;
+collapsing removes their DOM, hit and focus targets. The disclosure has an
+`aria-expanded` state and a stable `aria-controls` target. Its bool lives only
+in `RecipeState`, defaults collapsed in a new process, and is not part of
+`RecipeScenePresentation`. Opening or closing it does not change material,
+selection, provenance, collection retention or the action notice. Reset stays
+available while the overview is hidden, including explicit rebind recovery.
+Foreground/background reuse the canvas palette in a textual color key; the
+selected occurrence's authored role is also named in text.
+
+This slice stays on the coherent Mere `f1d169c7` / Genet `965b64e2` family
+adopted by published Knot `14cd06e`. A fresh source audit of Mere main
+`356a832cf` found substantial subsequent work: G3 currency-aware force mixes,
+common-scale calibration, grouped compositions and ordered schedules, plus
+projection-editor undo and session saves. These are real shared primitives,
+not yet Knot feature adoption. G2's unified semantic channel registry and G4's
+portable `DynamicsSpec`, persistence and composition pickers remain open.
+Knot already owns its copied relationship dataset/compiler adapter, typed
+occurrence/relation activation, stale/refusal behavior and saved camera/strata.
+The next integration should build on those seams and the shared G2/G4 contract,
+not invent a parallel private dynamics format or infer relationships from layout.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

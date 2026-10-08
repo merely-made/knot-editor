@@ -505,6 +505,14 @@ remain separate. Knot's standalone search embedder adapts ESP's `load_wgpu`
 call by explicitly choosing its standalone device; it has no renderer-device
 sharing seam and makes no claim to share one. No models are downloaded.
 
+This family also changes the editing-field representation: Cambium's actual
+buffer is a focusable app-owned `div` with `role="textbox"` and
+`data-cambium-text-value`, not a browser `input` or `textarea`. Knot's document,
+save/path, source-focus and small-web controls must discover and style that
+buffer rather than a host wrapper. Compatibility qualification keeps the
+existing Unicode, caret, Tab-focus, document/site isolation and saved-byte
+assertions; native acceptance below includes ordinary source selection too.
+
 `Show recipe arrangement controls` reveals a bounded family picker and rows
 from `Family::options`, with declared kinds and resolved defaults from the
 current measured card. Defaults and measured-default explanations are separate

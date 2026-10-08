@@ -66,6 +66,9 @@ pub(super) struct FailedMeasure {
 #[derive(Default)]
 pub(super) struct RecipeState {
     pub(super) material: Option<ProjectionRecipeMaterial>,
+    /// Whether this session has expanded the static-scene pan controls.
+    /// This is deliberately UI state, not part of the retained presentation.
+    pub(super) camera_controls_expanded: bool,
     /// The card for the label set last measured; drawing waits for it.
     pub(super) measured: Option<MeasuredCard>,
     /// How many measurements this session took.
@@ -676,7 +679,11 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                     Keyed::new(categories),
                 ),
             ),
-            scene::view(material, &compiled),
+            scene::view(
+                material,
+                &compiled,
+                state.composition.recipe.camera_controls_expanded,
+            ),
             el(
                 "div",
                 el("div", (Keyed::new(occurrence_buttons), Keyed::new(probes))).attr(

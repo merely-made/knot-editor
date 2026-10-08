@@ -98,3 +98,11 @@ wide and compact `_reopen` counterparts assert those values in a separate
 process before revealing the background and using Fit. Canvas clicks are
 interactive: a click over a relationship can select its explanation. They are
 not equivalent to the non-interactive paragraph reveal clicks described above.
+
+Camera refinement: Fit and Zoom remain available in a wrapping row. Pan buttons
+are created only after `Show scene camera controls` and removed after `Hide
+scene camera controls`. This disclosure is session-only, not saved presentation.
+Retained scenarios capture the expanded controls and collapse them after authoring
+pan; fresh-process reopen asserts the collapsed disclosure alongside the restored
+camera. Foreground/background have both a canvas-matching color key and a textual
+selected-role label. Reset remains available even when the overview is hidden.

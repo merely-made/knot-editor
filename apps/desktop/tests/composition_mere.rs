@@ -294,6 +294,7 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         click(&mut host, "Show relationship scene");
         click(&mut host, "Hide scene background");
         click(&mut host, "Zoom scene in");
+        click(&mut host, "Show scene camera controls");
         click(&mut host, "Pan scene right");
         click(&mut host, "Retain relationship recipe");
         wait_for_confirmation(&mut host, 1);
@@ -349,6 +350,8 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
     let items = port.list(port.target()).unwrap();
     assert!(panel_text(&host).contains("Static overview"));
     assert!(panel_text(&host).contains("pan 0.10, 0.00 · zoom 1.25"));
+    assert!(panel_text(&host).contains("Show scene camera controls"));
+    assert!(!panel_text(&host).contains("Pan scene right"));
     assert_eq!(items[0].item, saved);
     assert_eq!(items[0].receipt.operation, operation);
     assert_eq!(

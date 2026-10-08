@@ -349,6 +349,7 @@ fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
 pub(super) fn view(
     material: &ProjectionRecipeMaterial,
     compiled: &CompiledRelationshipProjection,
+    camera_controls_expanded: bool,
 ) -> DesktopView {
     let presentation = material
         .presentation
@@ -361,12 +362,41 @@ pub(super) fn view(
     let selected_is_foreground =
         selected.is_some_and(|id| presentation.foreground_occurrences.contains(id));
     let foreground_count = presentation.foreground_occurrences.len();
+    let selected_role = selected.map_or("none selected", |id| {
+        if presentation.foreground_occurrences.contains(id) {
+            "foreground"
+        } else {
+            "background"
+        }
+    });
     let background_count = material
         .dataset
         .dataset
         .occurrences
         .len()
         .saturating_sub(foreground_count);
+    let pan_controls = camera_controls_expanded.then(|| {
+        Box::new(
+            el(
+                "div",
+                (
+                    button("Pan scene left", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Pan(-CAMERA_STEP, 0.0))
+                    }),
+                    button("Pan scene right", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Pan(CAMERA_STEP, 0.0))
+                    }),
+                    button("Pan scene up", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Pan(0.0, -CAMERA_STEP))
+                    }),
+                    button("Pan scene down", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Pan(0.0, CAMERA_STEP))
+                    }),
+                ),
+            )
+            .attr("class", "knot-recipe-scene-pan-controls"),
+        ) as DesktopView
+    });
     let body: DesktopView = if presentation.overview_visible {
         Box::new(el(
             "div",
@@ -377,6 +407,15 @@ pub(super) fn view(
                     presentation.pan_x, presentation.pan_y, presentation.zoom
                 ))
                 .attr("class", "knot-recipe-scene-status"),
+                el(
+                    "div",
+                    (
+                        span("Foreground · emphasized occurrence").attr("class", "knot-recipe-scene-key-foreground"),
+                        span("Background · contextual occurrence").attr("class", "knot-recipe-scene-key-background"),
+                        span(format!("Selected occurrence role: {selected_role}")),
+                    ),
+                )
+                .attr("class", "knot-recipe-scene-key"),
                 graph_canvas(
                     &swatch(material, compiled),
                     |state: &mut DesktopState, event| dispatch_canvas(state, event),
@@ -417,32 +456,32 @@ pub(super) fn view(
                         ),
                     ),
                 ),
-                el(
-                    "div",
-                    (
-                        button("Pan scene left", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Pan(-CAMERA_STEP, 0.0))
-                        }),
-                        button("Pan scene right", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Pan(CAMERA_STEP, 0.0))
-                        }),
-                        button("Pan scene up", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Pan(0.0, -CAMERA_STEP))
-                        }),
-                        button("Pan scene down", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Pan(0.0, CAMERA_STEP))
-                        }),
-                        button("Zoom scene out", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Zoom(0.8))
-                        }),
-                        button("Zoom scene in", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Zoom(1.25))
-                        }),
-                        button("Fit relationship scene", |state: &mut DesktopState, _| {
-                            dispatch_control(state, SceneAction::Fit)
-                        }),
-                    ),
-                ),
+                el("div", (
+                    button("Zoom scene out", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Zoom(0.8))
+                    }),
+                    button("Zoom scene in", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Zoom(1.25))
+                    }),
+                    button("Fit relationship scene", |state: &mut DesktopState, _| {
+                        dispatch_control(state, SceneAction::Fit)
+                    }),
+                ))
+                .attr("class", "knot-recipe-scene-camera-row"),
+                button(
+                    if camera_controls_expanded {
+                        "Hide scene camera controls"
+                    } else {
+                        "Show scene camera controls"
+                    },
+                    move |state: &mut DesktopState, _| {
+                        state.composition.recipe.camera_controls_expanded =
+                            !camera_controls_expanded;
+                    },
+                )
+                .attr("aria-expanded", camera_controls_expanded.to_string())
+                .attr("aria-controls", "knot-recipe-scene-camera-controls"),
+                el("div", pan_controls).attr("id", "knot-recipe-scene-camera-controls"),
             ),
         ))
     } else {
@@ -463,10 +502,8 @@ pub(super) fn view(
                     },
                 )
                 .attr("aria-pressed", presentation.overview_visible.to_string()),
-                material.presentation.as_ref().map(|_| {
-                    button("Reset scene presentation", |state: &mut DesktopState, _| {
-                        dispatch_control(state, SceneAction::Reset)
-                    })
+                button("Reset scene presentation", |state: &mut DesktopState, _| {
+                    dispatch_control(state, SceneAction::Reset)
                 }),
                 body,
             ),

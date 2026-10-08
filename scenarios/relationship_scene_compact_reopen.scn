@@ -10,6 +10,9 @@ assert text Confirmed 2 retained items
 click role:button Open retained relationship recipe
 settle 4
 assert text Static overview
+assert text Show scene camera controls
+assert text Foreground · emphasized occurrence
+assert text Background · contextual occurrence
 assert text Selected occurrence: light
 assert text bytes 8–13
 assert text Scene strata · 1 foreground · 1 background occurrences · pan 0.10, 0.00 · zoom 1.25

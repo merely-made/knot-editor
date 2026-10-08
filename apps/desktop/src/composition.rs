@@ -2637,6 +2637,7 @@ mod tests {
             "Show relationship scene",
             "Hide scene background",
             "Zoom scene in",
+            "Show scene camera controls",
             "Pan scene right",
         ] {
             assert!(
@@ -2690,6 +2691,48 @@ mod tests {
             &saved
         );
         assert!(rendered_text(&host).contains("bytes 6–11"));
+    }
+
+    #[test]
+    fn scene_camera_disclosure_is_session_only_and_removes_pan_targets() {
+        let mut host = recipe_harness(recipe_state("night night light", 0, 17));
+        frame(&mut host);
+        assert!(host.click_on(&Selector::role("button").containing("Show relationship scene")));
+        host.after_dispatch();
+        assert!(host.click_on(&Selector::role("button").containing("night · token-0-5")));
+        host.after_dispatch();
+        let material = host.state().composition.recipe.material.clone();
+        let notice = host.state().composition.notice.clone();
+        let has_pan = |host: &RecipeHost| {
+            host.with_dom(|dom| {
+                !taproot::matching(dom, &Selector::role("button").containing("Pan scene right"))
+                    .is_empty()
+            })
+        };
+        assert!(!host.state().composition.recipe.camera_controls_expanded);
+        assert!(!has_pan(&host));
+        for (label, expanded) in [
+            ("Show scene camera controls", true),
+            ("Hide scene camera controls", false),
+        ] {
+            assert!(host.click_on(&Selector::role("button").containing(label)));
+            host.after_dispatch();
+            assert_eq!(
+                host.state().composition.recipe.camera_controls_expanded,
+                expanded
+            );
+            assert_eq!(has_pan(&host), expanded);
+            assert_eq!(host.state().composition.recipe.material, material);
+            assert_eq!(host.state().composition.notice, notice);
+            for primary in ["Zoom scene in", "Zoom scene out", "Fit relationship scene"] {
+                assert!(host.with_dom(|dom| {
+                    !taproot::matching(dom, &Selector::role("button").containing(primary))
+                        .is_empty()
+                }));
+            }
+        }
+        assert!(rendered_text(&host).contains("Selected occurrence role: foreground"));
+        assert!(rendered_text(&host).contains("Background · contextual occurrence"));
     }
 
     #[test]

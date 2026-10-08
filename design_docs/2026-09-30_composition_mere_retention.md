@@ -376,6 +376,45 @@ occurrence/relation activation, stale/refusal behavior and saved camera/strata.
 The next integration should build on those seams and the shared G2/G4 contract,
 not invent a parallel private dynamics format or infer relationships from layout.
 
+Qualification: runtime `d4191004db50129bb4b88d5b243df98307a1cab1`, with
+reopen capture scripts strengthened in `43c5c17`. The current-family locked,
+offline macOS workspace gate passes **593 tests, 0 failures, 2 existing ignored**
+across 42 executables, including the four Collapse checks. A final rerun of the
+real-store and scenario integration suites passes **10 tests**. Scoped disclosure
+coverage verifies absent collapsed Pan targets and unchanged recipe/notice.
+Focused rustfmt and whitespace checks pass; existing dependency-patch and unused
+directory-variable warnings remain. Desktop and synthetic acceptance builds pass.
+
+Final native lanes pass at 1100×900 and 420×900: explicit encrypted save followed
+by a fresh-process reopen. All **14 final PNGs** were reviewed, with zero blank
+frames. Reopen restores pan `0.10, 0.00`, zoom `1.25`, foreground light,
+background Night, selected light and bytes 8–13, but defaults the disclosure to
+collapsed. Expanded Pan rows are explicitly revealed and reviewed; down/up
+returns to the authored camera before collapse. Source files remain byte-exact.
+The narrow scene stays within its declared 220px viewport; exact occurrence
+controls below remain horizontally revealable under the existing shared policy.
+
+Evidence root:
+`/Users/markik/Code/testing/knot-editor/scene-controls-20261007.DuIjHI/`.
+Logs: `workspace.log`, `integration-final.log`, `build.log`. Final native
+directories: `wide-captures`, `wide-reopen-controls-captures`, `narrow-captures`,
+`narrow-reopen-final-captures`, each with `scenario.done`. Earlier wide reopen
+captures are preserved separately. Initial expanded save captures did not reveal
+Pan rows, so the strengthened reopen captures are their visual witness. A later
+AX observation relaunched the completed narrow instrument into its old output
+directory, producing paintlist file-exists failures; that log is retained and
+excluded from final acceptance. The final isolated rerun passes without reuse.
+An initial scoped test incorrectly assumed opening also selected an occurrence;
+its explicit-selection correction and successful rerun are retained in evidence.
+
+Desktop SHA-256:
+`dd17b1f9d711d551436cae531dd98e778ff71b23a5b70ec9ea7c8ad6046ad3cc`.
+Synthetic acceptance binary SHA-256:
+`48ed14690dffdbfe1080989d1dc03f756ef4a4ce20ad6973974a548f6012924a`.
+This qualifies the bounded static host UI and synthetic encrypted retention,
+not a release bundle, personal-wallet onboarding, assistive-technology behavior,
+other platforms' native UI, new contextual sources or portable dynamics adoption.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

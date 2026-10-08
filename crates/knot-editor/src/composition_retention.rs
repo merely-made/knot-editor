@@ -105,7 +105,7 @@ impl CompositionRetainPort for KnotResidentCompositionPort {
             let (store, seed, cipher) = authority(state)?;
             let (operation, already_retained) =
                 pollster::block_on(store.retain_composition_with_cipher(
-                    seed,
+                    &seed,
                     cipher,
                     &item,
                     grant.max_items,
@@ -178,7 +178,7 @@ impl CompositionRetainPort for KnotResidentCompositionPort {
             let (store, seed, cipher) = authority(state)?;
             let (operation, already_retained) =
                 pollster::block_on(store.organize_composition_with_cipher(
-                    seed,
+                    &seed,
                     cipher,
                     &change,
                     grant.max_items,
@@ -196,21 +196,21 @@ impl CompositionRetainPort for KnotResidentCompositionPort {
 }
 fn authority(
     state: &super::VaultSource,
-) -> Result<(&crate::KnotSyncFileStore, [u8; 32], KnotSyncCipher<'_>), KnotRetainError> {
+) -> Result<(&crate::KnotSyncFileStore, &[u8; 32], KnotSyncCipher<'_>), KnotRetainError> {
     match state.sync.as_ref() {
         Some(VaultSyncAuthority::Personal {
             store,
             signing_seed,
         }) => Ok((
             store,
-            **signing_seed,
+            &**signing_seed,
             KnotSyncCipher::Personal(&state.vault),
         )),
         Some(VaultSyncAuthority::Commons {
             store,
             signing_seed,
             keys,
-        }) => Ok((store, **signing_seed, KnotSyncCipher::CommonsData(keys))),
+        }) => Ok((store, &**signing_seed, KnotSyncCipher::CommonsData(keys))),
         None => Err(error("composition sync authority unavailable")),
     }
 }

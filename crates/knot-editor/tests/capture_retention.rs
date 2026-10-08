@@ -48,8 +48,8 @@ fn retention_preserves_vault_documents_and_retries_after_reopen() {
         media_type: "text/x-djot".into(),
         body: b"editable note".to_vec(),
     };
-    pollster::block_on(store.author(seed, &vault, &KnotSyncEvent::Put(document.clone()))).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    pollster::block_on(store.author(&seed, &vault, &KnotSyncEvent::Put(document.clone()))).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let before = KnotVault::open(&vault_path, key).unwrap();
     let before_revision = before.revision();
     let before_projection = pollster::block_on(store.projection(&before)).unwrap();
@@ -95,7 +95,7 @@ fn retention_preserves_vault_documents_and_retries_after_reopen() {
     drop(resident);
     drop(store);
     let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
-    let reopened = KnotResidentSource::from_synced_vault(after, store, seed).unwrap();
+    let reopened = KnotResidentSource::from_synced_vault(after, store, &seed).unwrap();
     let retry = reopened
         .capture_retention(grant())
         .unwrap()
@@ -111,7 +111,7 @@ fn concurrent_retries_share_one_signed_capture_and_metadata_changes_do_not() {
     let (seed, writer) = identity();
     let vault = KnotVault::open(temp.path().join("vault"), [3; 32]).unwrap();
     let store = KnotSyncFileStore::open(temp.path().join("sync.redb"), [2; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store, seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = resident.capture_retention(grant()).unwrap();
     let prepared = port.prepare(revision()).unwrap();
     let ports: Vec<_> = (0..4)
@@ -152,7 +152,7 @@ fn grants_revocation_lock_and_writer_policy_are_checked_at_retention() {
     let (seed, writer) = identity();
     let vault = KnotVault::open(temp.path().join("vault"), [3; 32]).unwrap();
     let store = KnotSyncFileStore::open(temp.path().join("sync.redb"), [2; 32], [writer]).unwrap();
-    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), seed).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store.clone(), &seed).unwrap();
     let port = resident.capture_retention(grant()).unwrap();
     let prepared = port.prepare(revision()).unwrap();
     let narrow = resident
@@ -190,7 +190,7 @@ fn another_space_and_unsynced_resident_cannot_retain_review() {
         let store =
             KnotSyncFileStore::open(temp.path().join(format!("{name}.redb")), space, [writer])
                 .unwrap();
-        KnotResidentSource::from_synced_vault(vault, store, seed).unwrap()
+        KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap()
     };
     let first = create("first", [1; 32]);
     let second = create("second", [2; 32]);
@@ -225,7 +225,7 @@ fn communal_capture_uses_current_resident_keys_and_respects_vault_lock() {
     let resident = KnotResidentSource::from_communal_vault(
         vault,
         store.clone(),
-        seed,
+        &seed,
         DataKeyring::from_bytes(&keys.to_bytes().unwrap()).unwrap(),
     )
     .unwrap();

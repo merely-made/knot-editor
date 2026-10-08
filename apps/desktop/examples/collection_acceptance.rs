@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let writer = identity.master_public_key().to_bytes();
     let vault = KnotVault::open(root.join("vault"), [0x72; 32])?;
     let store = KnotSyncFileStore::open(root.join("sync.redb"), [0x73; 32], [writer])?;
-    let resident = KnotResidentSource::from_synced_vault(vault, store, seed)?;
+    let resident = KnotResidentSource::from_synced_vault(vault, store, &seed)?;
     let port = KnotResidentCompositionPort::new(
         KnotPersonaDisplayV1 {
             stable_id: "persona:public-test-fixture".into(),

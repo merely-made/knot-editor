@@ -133,11 +133,11 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
     let subject = document("essay", subject_body);
     let object = document("source", object_body);
     let subject_operation = store
-        .author(alice_seed, &vault, &KnotSyncEvent::Put(subject.clone()))
+        .author(&alice_seed, &vault, &KnotSyncEvent::Put(subject.clone()))
         .await
         .unwrap();
     let object_operation = store
-        .author(alice_seed, &vault, &KnotSyncEvent::Put(object.clone()))
+        .author(&alice_seed, &vault, &KnotSyncEvent::Put(object.clone()))
         .await
         .unwrap();
     let subject_quote = "α holds throughout.";
@@ -157,7 +157,7 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
 
     let alice_assertion_operation = store
         .author(
-            alice_seed,
+            &alice_seed,
             &vault,
             &KnotSyncEvent::AssertRelation {
                 predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
@@ -171,7 +171,7 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
         .unwrap();
     let bob_assertion_operation = store
         .author(
-            bob_seed,
+            &bob_seed,
             &vault,
             &KnotSyncEvent::AssertRelation {
                 predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Contradicts),
@@ -278,7 +278,7 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
     assert!(
         store
             .author(
-                bob_seed,
+                &bob_seed,
                 &vault,
                 &KnotSyncEvent::RetractRelation {
                     assertion: *alice_assertion_operation.hash.as_bytes(),
@@ -290,7 +290,7 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
     );
     store
         .author(
-            alice_seed,
+            &alice_seed,
             &vault,
             &KnotSyncEvent::RetractRelation {
                 assertion: *alice_assertion_operation.hash.as_bytes(),

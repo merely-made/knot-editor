@@ -245,7 +245,7 @@ impl KnotResidentSource {
     pub fn from_synced_vault(
         vault: KnotVault,
         store: KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
     ) -> Result<Self, String> {
         let projection = pollster::block_on(store.projection(&vault))
             .map_err(|error| format!("could not project Knot sync store: {error}"))?;
@@ -253,7 +253,7 @@ impl KnotResidentSource {
             vault,
             sync: Some(VaultSyncAuthority::Personal {
                 store,
-                signing_seed: Zeroizing::new(signing_seed),
+                signing_seed: Zeroizing::new(*signing_seed),
             }),
             conflicts: BTreeSet::new(),
             document_heads: BTreeMap::new(),
@@ -267,7 +267,7 @@ impl KnotResidentSource {
     pub fn from_communal_vault(
         vault: KnotVault,
         store: KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         keys: DataKeyring,
     ) -> Result<Self, String> {
         let projection = pollster::block_on(store.communal_projection(&keys))
@@ -276,7 +276,7 @@ impl KnotResidentSource {
             vault,
             sync: Some(VaultSyncAuthority::Commons {
                 store,
-                signing_seed: Zeroizing::new(signing_seed),
+                signing_seed: Zeroizing::new(*signing_seed),
                 keys,
             }),
             conflicts: BTreeSet::new(),
@@ -694,7 +694,7 @@ impl KnotEndpoint {
     pub fn from_synced_vault(
         vault: KnotVault,
         store: KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         grant: KnotWriteGrant,
     ) -> Result<Self, String> {
         Ok(KnotResidentSource::from_synced_vault(vault, store, signing_seed)?.session(Some(grant)))
@@ -704,7 +704,7 @@ impl KnotEndpoint {
     pub fn from_communal_vault(
         vault: KnotVault,
         store: KnotSyncFileStore,
-        signing_seed: [u8; 32],
+        signing_seed: &[u8; 32],
         keys: DataKeyring,
         grant: KnotWriteGrant,
     ) -> Result<Self, String> {
@@ -1807,7 +1807,7 @@ impl KnotEndpoint {
                         store,
                         signing_seed,
                     } => {
-                        pollster::block_on(store.author(**signing_seed, &source.vault, &event))
+                        pollster::block_on(store.author(signing_seed, &source.vault, &event))
                             .map_err(|error| format!("could not author Knot save: {error}"))?;
                         pollster::block_on(store.projection(&source.vault))
                             .map_err(|error| format!("could not project Knot save: {error}"))?
@@ -1817,7 +1817,7 @@ impl KnotEndpoint {
                         signing_seed,
                         keys,
                     } => {
-                        pollster::block_on(store.author_communal(**signing_seed, keys, &event))
+                        pollster::block_on(store.author_communal(signing_seed, keys, &event))
                             .map_err(|error| {
                                 format!("could not author Commons Knot save: {error}")
                             })?;
@@ -3686,7 +3686,7 @@ Fallback.
         let store =
             KnotSyncFileStore::open(sync_dir.path().join("knot.redb"), space, [writer]).unwrap();
         pollster::block_on(store.author(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::Put(VaultDocument {
                 id: "field-note".into(),
@@ -3702,7 +3702,8 @@ Fallback.
             .document_heads["field-note"];
 
         let mut endpoint =
-            KnotEndpoint::from_synced_vault(vault, store, seed, KnotWriteGrant::new(4096)).unwrap();
+            KnotEndpoint::from_synced_vault(vault, store, &seed, KnotWriteGrant::new(4096))
+                .unwrap();
         let request = endpoint.describe().projections.remove(0).request;
         let snapshot = endpoint.snapshot(request).unwrap();
         let (target, editable, action) = editable_resource(&mut endpoint, &snapshot, "field-note");
@@ -3797,7 +3798,7 @@ Fallback.
         let vault = KnotVault::open(vault_dir.path(), key).unwrap();
         let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
         pollster::block_on(store.author(
-            seed,
+            &seed,
             &vault,
             &KnotSyncEvent::Put(VaultDocument {
                 id: "field-note".into(),
@@ -3808,7 +3809,7 @@ Fallback.
         ))
         .unwrap();
 
-        let resident = KnotResidentSource::from_synced_vault(vault, store, seed).unwrap();
+        let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
         resident.grant_content_retention(
             crate::BlobClipEvidenceStore::open(evidence_dir.path(), 4096).unwrap(),
         );
@@ -3942,7 +3943,7 @@ Fallback.
         let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
         pollster::block_on(
             store.author(
-                seed,
+                &seed,
                 &vault,
                 &KnotSyncEvent::Put(VaultDocument {
                     id: "field-note".into(),
@@ -3961,7 +3962,8 @@ Fallback.
             ..KnotEffectPolicy::default()
         };
         let mut endpoint =
-            KnotEndpoint::from_synced_vault(vault, store, seed, KnotWriteGrant::new(4096)).unwrap();
+            KnotEndpoint::from_synced_vault(vault, store, &seed, KnotWriteGrant::new(4096))
+                .unwrap();
         endpoint.grant_effects(KnotEffectAuthority::new(policy.clone()).with_fetcher(StubFetcher));
         let request = endpoint.describe().projections.remove(0).request;
         let snapshot = endpoint.snapshot(request).unwrap();
@@ -3995,7 +3997,8 @@ Fallback.
         let vault = KnotVault::open(vault_dir.path(), key).unwrap();
         let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
         let mut reopened =
-            KnotEndpoint::from_synced_vault(vault, store, seed, KnotWriteGrant::new(4096)).unwrap();
+            KnotEndpoint::from_synced_vault(vault, store, &seed, KnotWriteGrant::new(4096))
+                .unwrap();
         reopened.grant_effects(
             KnotEffectAuthority::new(policy.clone()).with_fetcher(OfflineStubFetcher),
         );
@@ -4112,7 +4115,7 @@ Fallback.
         let mut keys = DataKeyring::new();
         let first_epoch = keys.rotate_random().unwrap().id();
         pollster::block_on(store.author_communal(
-            seed,
+            &seed,
             &keys,
             &KnotSyncEvent::Put(VaultDocument {
                 id: "shared-note".into(),
@@ -4134,7 +4137,7 @@ Fallback.
             ..KnotEffectPolicy::default()
         };
         let mut endpoint =
-            KnotEndpoint::from_communal_vault(vault, store, seed, keys, KnotWriteGrant::new(4096))
+            KnotEndpoint::from_communal_vault(vault, store, &seed, keys, KnotWriteGrant::new(4096))
                 .unwrap();
         endpoint.grant_effects(KnotEffectAuthority::new(policy.clone()).with_fetcher(StubFetcher));
         let request = endpoint.describe().projections.remove(0).request;

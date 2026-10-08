@@ -463,6 +463,35 @@ and the G4 portable dynamics contract remain unfinished. This slice needs no rep
 the qualified Mere `f1d169c7` / Genet `965b64e2` family supplies its existing contracts.
 It does not add physics, providers, inference or ambient-neighborhood discovery.
 
+Qualification at runtime commit `122968da05ba67e412458ac1ad7b2aaeb35b551e`:
+
+- Locked/offline workspace all-targets gate: **605 passed, 0 failed, 2 ignored**
+  across 42 test executables. Desktop and `collection_acceptance` builds succeed.
+  Tests cover mixed rhyme/alliteration lenses, foreground edges, isolated legacy
+  background nodes, stale hit routing, exact v1 serialization, v2 bounds and
+  invalid-state refusal, rebind/reset and real encrypted-store reopen.
+- Four native runs: 1100×900 save and fresh-process reopen, then 420×900 save
+  and fresh-process reopen, UI zoom 1. All return `RESULT ok`, four captures
+  each; all **16 PNGs reviewed**. Expanded category buttons wrap without overlap;
+  excluded perfect rhyme leaves only the foreground light occurrence, Show all
+  restores Night, and Fit restores the camera. Reopen asserts saved roles,
+  exclusion, pan 0.10/0.00, zoom 1.25 and initially collapsed disclosures.
+  The reopened Pan capture visibly exercises all four Pan controls; the initial
+  save's expanded-camera capture is not evidence that all Pan rows are on screen.
+- The unchanged occurrence fallback row remains horizontally revealed at compact
+  width; this slice does not redesign that row. Both original fixture documents
+  compare byte-for-byte with their original text after all runs. The stores use
+  marked public test identities, not a personal-wallet acceptance claim.
+- Evidence: `/Users/markik/Code/testing/knot-editor/background-categories-20261007.1yLcLd/`.
+  Original compile errors and the two incorrectly foregrounded test fixtures are
+  preserved in `scene-tests.log` and `workspace.log`; corrections and the final
+  green gate are separate logs. Native instrument and scripts are preserved.
+
+Desktop SHA-256: `53ca7b6a0ae7758386a5b4ef26ef02128f47e27fc81a28c2e4d96606f1833a62`.
+Acceptance SHA-256: `3e3b613d4c9d9da801dac1e203ba35555bb6c1a1f7918b5414e67c97f357ee24`.
+No cross-platform native, human assistive-technology, signing/release or inferred
+background qualification is claimed by this macOS fixture matrix.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

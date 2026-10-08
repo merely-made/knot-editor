@@ -11,8 +11,11 @@ Its current-family native qualification is separate from earlier scene receipts.
 The next bounded slice adds retained background-category lenses over copied
 relationships, with foreground protection and session-only category disclosure;
 its qualification is recorded in the same composition plan.
-The fresh Mere-main audit distinguishes landed G3 runtime composition/editor undo
-from the still-open G2 channels and G4 portable dynamics contract.
+The October 8 shared editorial slice adopts the declared arrangement controls
+and bounded session undo on a coherent newer dependency family. G2 channels and
+the G4a portable specification have now landed; G4b execution binding remains
+separate from Knot's static scene. Its implementation and qualification belong
+to the same composition plan.
 
 - [Shared accessibility family repin, October 7](../docs/receipts/2026-10-07_foreign_accessibility_repin/README.md): every Mere source moves coherently to `f1d169c7`; Genet remains `965b64e2`. The admitted published relationship-scene source is preserved. Locked compile, standalone default/engine and the composed 590-test workspace set are qualified; the original timing failure and test-only barrier repair remain explicit. Human assistive-technology and native foreign semantics stay separate. Mere's optional Knot identity-seed pin remains under ruling 58.
 

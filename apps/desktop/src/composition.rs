@@ -311,6 +311,11 @@ impl CompositionState {
                                 ))
                         });
                         self.organization_edit = None;
+                        for entry in &self.retained {
+                            if let Some(material) = entry.item.projection_recipe.as_ref() {
+                                recipe::mark_retained(&mut self.recipe, material);
+                            }
+                        }
                         if self.retry_target.is_some()
                             && self
                                 .selected_target
@@ -355,6 +360,30 @@ impl CompositionState {
                 self.notice = Some("Collection worker disconnected; outcome is uncertain. Refresh the destination before retrying.".into());
             },
         }
+    }
+
+    pub(crate) fn recipe_scenario_fields(&self) -> (String, String, bool) {
+        let arrangement = self
+            .recipe
+            .material
+            .as_ref()
+            .map(|m| m.snapshot.recipe.definition.arrangement.kind.clone())
+            .unwrap_or_default();
+        let columns = self
+            .recipe
+            .material
+            .as_ref()
+            .and_then(|m| {
+                m.snapshot
+                    .recipe
+                    .definition
+                    .arrangement
+                    .options
+                    .get("columns")
+                    .cloned()
+            })
+            .unwrap_or_else(|| "default".into());
+        (arrangement, columns, !self.recipe.history.is_dirty())
     }
 }
 
@@ -1612,6 +1641,124 @@ mod tests {
             port.list(port.target()).unwrap()[0].organization_revision,
             entry.organization_revision
         );
+    }
+
+    #[test]
+    fn recipe_editor_history_refuses_invalid_edits_and_tracks_exact_retention() {
+        let mut state = state("night night light");
+        attach_fake(&mut state);
+        select(&mut state, 0, 17);
+        let key = state.focused_key().unwrap();
+        state.composition.cmudict_enabled = true;
+        state.composition.layers.perfect_rhyme = true;
+        analyze_sound(&mut state, key, false);
+        recipe::from_sound(&mut state, key, false);
+        let original = state.composition.recipe.material.clone().unwrap();
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        assert!(rendered_text(&host).contains("Recipe edits not retained"));
+        assert!(
+            host.click_on(&Selector::role("button").containing("Show recipe arrangement controls"))
+        );
+        host.after_dispatch();
+        let dataset = original.dataset.clone();
+        let anchors = original.anchors.clone();
+        assert!(host.click_on(
+            &Selector::role("textbox").with_attr("id", "knot-recipe-option-input-columns")
+        ));
+        host.key_char("0");
+        host.after_dispatch();
+        assert!(
+            host.click_on(&Selector::role("button").containing("Apply recipe option: columns"))
+        );
+        host.after_dispatch();
+        assert_eq!(
+            host.state().composition.recipe.material.as_ref(),
+            Some(&original)
+        );
+        assert!(!host.state().composition.recipe.history.can_undo());
+        assert!(
+            rendered_text(&host).contains("positive whole number"),
+            "{}",
+            rendered_text(&host)
+        );
+        assert!(host.click_on(
+            &Selector::role("textbox").with_attr("id", "knot-recipe-option-input-columns")
+        ));
+        host.press_key(&cambium_genet_winit_host::KeyPress::new(
+            cambium_genet_winit_host::Key::Named(cambium_genet_winit_host::NamedKey::Backspace),
+        ));
+        host.key_char("2");
+        host.after_dispatch();
+        assert!(
+            host.click_on(&Selector::role("button").containing("Apply recipe option: columns"))
+        );
+        host.after_dispatch();
+        let edited = host.state().composition.recipe.material.clone().unwrap();
+        assert_eq!(
+            edited
+                .snapshot
+                .recipe
+                .definition
+                .arrangement
+                .options
+                .get("columns")
+                .map(String::as_str),
+            Some("2")
+        );
+        assert_eq!(edited.dataset, dataset);
+        assert_eq!(edited.anchors, anchors);
+        assert!(host.click_on(&Selector::role("button").containing("Undo recipe edit")));
+        host.after_dispatch();
+        assert_eq!(
+            host.state().composition.recipe.material.as_ref(),
+            Some(&original)
+        );
+        assert!(host.click_on(&Selector::role("button").containing("Redo recipe edit")));
+        host.after_dispatch();
+        assert_eq!(
+            host.state().composition.recipe.material.as_ref(),
+            Some(&edited)
+        );
+        host.update(|state| recipe::mark_retained(&mut state.composition.recipe, &edited));
+        assert!(rendered_text(&host).contains("Recipe edits retained"));
+        assert!(host.click_on(&Selector::role("button").containing("Increase recipe spacing")));
+        host.after_dispatch();
+        host.update(|state| recipe::mark_retained(&mut state.composition.recipe, &edited));
+        assert!(rendered_text(&host).contains("Recipe edits not retained"));
+        assert!(host.click_on(&Selector::role("button").containing("Undo recipe edit")));
+        host.after_dispatch();
+        assert!(rendered_text(&host).contains("Recipe edits retained"));
+        assert!(host.click_on(&Selector::role("button").containing("Show relationship scene")));
+        host.after_dispatch();
+        assert!(
+            host.state()
+                .composition
+                .recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .presentation
+                .is_some()
+        );
+        assert!(host.click_on(&Selector::role("button").containing("Undo recipe edit")));
+        host.after_dispatch();
+        assert!(
+            host.state()
+                .composition
+                .recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .presentation
+                .is_none()
+        );
+        host.update(|state| recipe::reopen(state, edited.clone()));
+        assert!(!host.state().composition.recipe.history.can_undo());
+        assert!(!host.state().composition.recipe.history.can_redo());
+        assert!(!host.state().composition.recipe.history.is_dirty());
+        assert_eq!(host.state().document().snapshot().text, "night night light");
+        assert!(!host.state().document().snapshot().dirty);
     }
 
     fn state(text: &str) -> DesktopState {

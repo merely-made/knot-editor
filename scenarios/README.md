@@ -109,3 +109,10 @@ Retained scenarios capture the expanded controls and collapse them after authori
 pan; fresh-process reopen asserts the collapsed disclosure alongside the restored
 camera. Foreground/background have both a canvas-matching color key and a textual
 selected-role label. Reset remains available even when the overview is hidden.
+
+Editorial continuation: retained scene scenarios first reveal declaration-driven
+arrangement controls, reject columns 0 without replacing the recipe, apply columns
+2, undo and redo, then retain the accepted options with the scene. Reopen asserts
+columns 2 and a confirmed retained marker, removes the override through Use default,
+and undoes to the retained position. Both widths capture expanded option controls.
+Scene and arrangement disclosures reopen collapsed; session undo does not persist.

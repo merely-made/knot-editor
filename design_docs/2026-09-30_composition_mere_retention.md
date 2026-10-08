@@ -415,6 +415,22 @@ This qualifies the bounded static host UI and synthetic encrypted retention,
 not a release bundle, personal-wallet onboarding, assistive-technology behavior,
 other platforms' native UI, new contextual sources or portable dynamics adoption.
 
+Publication integration: main advanced to `eabd443` (vault-lock ruling 49,
+borrow signing seeds rather than copy them) during qualification. It merged
+cleanly as `4d984f3a285ff7f5e156151bb561530586b49fde`; scene source and
+dependency pins are byte-identical to the qualified runtime. The full locked,
+offline workspace gate passes again with **593 / 0 / 2**, and both builds pass
+(`workspace-merged.log`, `build-merged.log`). A targeted fresh-process encrypted
+reopen on this merged runtime also passes, with three additional reviewed PNGs
+and zero blank frames in `merged-wide-reopen-captures`. It restores material
+retained by the earlier instrument and verifies collapsed/expanded controls.
+This is an additional integrated-runtime reopen, not a rerun of the entire
+four-lane native matrix. The original instrument is preserved separately.
+Integrated desktop SHA-256:
+`136d64726742ebc20cdfb02b31f806a6126e960f513b8764a7b25f44220eb579`.
+Integrated acceptance binary SHA-256:
+`41ef64aed6df2d54c72afd0b65b3b9a7e0049147d7b199ef38998b2d59072214`.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

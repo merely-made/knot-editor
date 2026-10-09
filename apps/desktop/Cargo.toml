@@ -20,7 +20,7 @@ edit-history.workspace = true
 scenomise.workspace = true
 scenograph.workspace = true
 sceno.workspace = true
-apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", rev = "227062a92e0698621c488251590dba3437d780e7", default-features = false, features = ["serde"] }
+apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", rev = "463c8d402039497978ac9eca0d314aa995366559", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mesquite.workspace = true
 knot-site = { path = "../../crates/knot-site" }
@@ -36,7 +36,7 @@ mere-view.workspace = true
 sprigging.workspace = true
 workbench.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
-tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "227062a92e0698621c488251590dba3437d780e7" }
+tinct = { version = "0.1.2", git = "https://github.com/merely-made/mere.git", rev = "463c8d402039497978ac9eca0d314aa995366559" }
 knot-file-catalog.workspace = true
 knot-readings.workspace = true
 knot-composition.workspace = true

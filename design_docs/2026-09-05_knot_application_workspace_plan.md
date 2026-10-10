@@ -4,6 +4,71 @@
 **Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; the next workspace sequence is scoped below, while headed acceptance and G1-G3 product work remain open
 **Owner:** Knot Editor
 
+## Application appearance adoption, 2026-10-09
+
+**Status: implemented and native macOS qualified, 2026-10-10.** The standalone desktop now embeds the existing
+Tabard workshop through Cambium and its current Genet host. The application
+retains its writing preferences, document authority, renderer, command queue,
+bundled fonts, and default Tinct seeds. The shared library supplies saved user
+definitions; Knot's existing preferences retain the chosen theme and mode.
+Saving or previewing a definition leaves the applied presentation unchanged
+until explicit Apply succeeds. Preference write failures preserve the current
+presentation, and corrupt libraries remain intact with authoring disabled.
+
+The desktop adapter consumes exact derived mode palettes and appends authored
+CSS after Knot's semantic role rules. Arbitrary CSS has no typed graph palette;
+the graph fallback is disclosed in the appearance controls. Shared export guards
+protect preferences and open source files, including path aliases. Embedding
+hosts continue to own their supplied stylesheet: ordinary input never replaces
+it merely because an authored library has loaded. Only explicit appearance or
+editor transitions request a stylesheet replacement, preserving scroll and
+focus during unrelated dispatch.
+
+The current immutable dependency family is Mere `7019f07d36a9da8c1a3edbbcbabad606e9cb3278`
+and Genet `7422e90613f9017e5bb790e3acb48f61776b2eda`, based on Knot origin
+`ab191d4` after a scoped fast-forward preserving the appearance candidate.
+Full metadata resolves one source identity per family. At these pins with the
+explicit fixed renderer, the desktop library gate passed 298 tests
+with one existing diagnostic ignored; command chrome and preferences passed
+8 and 4 tests. Mounted appearance, existing scenario and bundled-font geometry
+gates passed 17, 8 and 3 tests: 338 passes, no failures. The full locked, offline
+current-pin gate completed with exit zero in
+`/tmp/knot-tabard-header-final-gates.log`; the matching production
+binary build passed in `/tmp/knot-tabard-header-native-build.log`.
+Earlier interrupted and preceding-pin logs are retained
+separately and do not substitute for current native presentation evidence.
+
+The standalone workspace now explicitly patches `netrender-vello`,
+`vello_encoding` and `vello_shaders` to immutable
+`491c376cf2b01fc11132cf8f86419dec114ae032`; dependency workspace patches are
+not inherited. Its normal/build native host cone reaches that fixed renderer.
+The separate legacy `vello` tag remains the shared stack's existing Sprigging
+dependency. Full metadata and both inverse dependency trees retain this
+distinction instead of treating the legacy package as the native renderer.
+
+
+Native macOS acceptance passed through the shared LaunchServices helper using
+isolated profiles: wide four-mode authoring and reopening, authored roles and
+reopening, then the final 420 × 900 authoring and reopening at the repaired
+Mere pin. The six accepted runs contain 173 successful presentations and
+21 nonblank captures, all reviewed. The earlier wide/authored receipts use the
+fixed-renderer `11236fd4` family; the final narrow pair uses `7019f07d` and
+binary SHA256 `60f1f79565cabdfd69fc5d1488b8405c16f9e9910beb3cc6b4698afcb12bcd46`.
+The shared header repair puts Undo, Redo and Save below the title at 420 pixels;
+Back/Apply, four-mode controls, source, Site/Menu and status remain readable.
+The saved copy and high-contrast-dark mode return in a fresh process, every
+writing preference is preserved, and the source fixture remains byte-exact.
+No new GPU reset occurred during these runs.
+
+The rejected pre-repair 420-pixel header receipts remain preserved. Initial
+claims of missing labels during image review were retracted after independent
+decoded pixel-region checks proved the glyphs present; no paint-loss fix is
+claimed. The checked-in [acceptance ledger](validation/2026-10-10_tabard_application_acceptance.json)
+records exact receipt and image hashes. Original scroll, focus, document and
+font assertions remain unchanged. This qualifies the tested macOS native lanes;
+Windows/Linux presentation, live screen-reader/IME and native export chooser
+interaction were not exercised here.
+
 ## Ruling
 
 Knot's next application target is a coherent writing workspace:

@@ -11,6 +11,8 @@ use tinct::{Seeds, Srgb, derive_palette};
 #[serde(rename_all = "kebab-case")]
 pub struct Appearance {
     pub dark: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub theme_choice: Option<tabard::theme::choice::ThemeChoice>,
     pub highlight: bool,
     pub font_size: u8,
     pub source_face: SourceFace,
@@ -23,6 +25,7 @@ impl Default for Appearance {
     fn default() -> Self {
         Self {
             dark: false,
+            theme_choice: None,
             highlight: true,
             font_size: 16,
             source_face: SourceFace::default(),
@@ -79,6 +82,7 @@ impl<'de> Deserialize<'de> for Appearance {
         #[serde(default, rename_all = "kebab-case")]
         struct Stored {
             dark: bool,
+            theme_choice: Option<tabard::theme::choice::ThemeChoice>,
             highlight: bool,
             font_size: u8,
             source_face: SourceFace,
@@ -92,6 +96,7 @@ impl<'de> Deserialize<'de> for Appearance {
                 let defaults = Appearance::default();
                 Self {
                     dark: defaults.dark,
+                    theme_choice: None,
                     highlight: defaults.highlight,
                     font_size: defaults.font_size,
                     source_face: defaults.source_face,
@@ -105,6 +110,7 @@ impl<'de> Deserialize<'de> for Appearance {
         let stored = Stored::deserialize(deserializer)?;
         Ok(Self {
             dark: stored.dark,
+            theme_choice: stored.theme_choice,
             highlight: stored.highlight,
             font_size: stored.font_size,
             source_face: stored.source_face,
@@ -166,25 +172,9 @@ impl Appearance {
             if self.relaxed { "1.7" } else { "1.35" },
         )
     }
-
-    pub(crate) fn graph_color(&self, state: &mere_view::NodeState) -> sprigging::ColorF {
-        let palette = derive_palette(&seeds(self.dark));
-        let color = match state {
-            mere_view::NodeState::Available => palette.primary,
-            mere_view::NodeState::Unavailable => palette.text_dim,
-            mere_view::NodeState::Open => palette.success,
-            mere_view::NodeState::Dirty => palette.danger,
-        };
-        sprigging::ColorF::new(
-            color.r as f32 / 255.0,
-            color.g as f32 / 255.0,
-            color.b as f32 / 255.0,
-            1.0,
-        )
-    }
 }
 
-fn seeds(dark: bool) -> Seeds {
+pub(crate) fn seeds(dark: bool) -> Seeds {
     Seeds {
         primary: Srgb::rgb(58, 102, 166),
         secondary: Srgb::rgb(44, 132, 125),
@@ -215,7 +205,7 @@ pub fn appearance_css() -> String {
     let mut css = String::from(
         ".knot-workspace { min-height:100vh;box-sizing:border-box;font-family:system-ui,sans-serif;font-size:13px; } \
          .knot-workspace button,.knot-workspace input { font:inherit;padding:6px 10px;border:1px solid;border-radius:4px; } \
-         .knot-workspace .knot-document-body textarea { font-family:inherit;font-size:inherit;line-height:inherit;padding:0;border:none;box-sizing:border-box;width:100%;min-width:0; } \
+         .knot-workspace .knot-document-body textarea,.knot-workspace .knot-document-body [data-cambium-text-value] { font-family:inherit;font-size:inherit;line-height:inherit;padding:0;border:none;box-sizing:border-box;width:100%;min-width:0;min-height:240px; } \
          .knot-document-body { line-height:inherit; } \
          .knot-workspace .knot-document-read-only { padding:0;border:none;box-sizing:border-box; } \
          .knot-workspace .knot-folded-source .fold-gutter { margin-left:-1.75em; } \
@@ -230,42 +220,12 @@ pub fn appearance_css() -> String {
         } else {
             ".knot-theme-light"
         };
-        css.push_str(&format!(
-            "{scope} {{ background:{};color:{}; }} \
-             {scope} button,{scope} input {{ background:{};color:{};border-color:{}; }} \
-             {scope} button:hover {{ background:{}; }} \
-             {scope} .knot-writing-area,{scope} .knot-document-body textarea,{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail,{scope} .status-overflow-content {{ background:{};color:{};border-color:{}; }} \
-             {scope} .status-bar {{ border-color:{}; }} \
-             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error,{scope} .status-chip[data-severity=warning] {{ color:{}; }} \
-             {scope} .status-chip[data-severity=refused] {{ color:{};border-color:{}; }} \
-             {scope} .detail-key {{ color:{}; }} \
-             {scope} .frisket-tabbar {{ background:{};border-color:{}; }} \
-             {scope} .frisket-divider {{ background:{}; }} \
-             {scope} .frisket-tab {{ background:transparent;color:{}; }} \
-             {scope} .frisket-tab.active {{ background:{};color:{};border-color:{}; }} \
-             {scope} .frisket-content,{scope} .frisket-open-panel {{ background:{};color:{}; }} \
-             {scope} .frisket-close {{ color:{}; }} \
-             {scope} .tab-mark {{ color:{}; }}",
-            rgb(p.bg), rgb(p.text), rgb(p.surface_2), rgb(p.text), rgb(p.text_dim),
-            rgb(p.surface_hover), rgb(p.surface), rgb(p.text), rgb(p.text_dim),
-            rgb(p.text_dim), rgb(p.danger),
-            rgb(p.danger), rgb(p.danger), rgb(p.text_dim),
-            rgb(p.bg), rgb(p.surface_hover), rgb(p.surface_hover), rgb(p.text_dim),
-            rgb(p.surface), rgb(p.text), rgb(p.surface_hover), rgb(p.surface), rgb(p.text),
-            rgb(p.text_dim), rgb(p.primary),
-        ));
-        css.push_str(&format!(
-            "{scope} .knot-command-palette .command-item.selected {{ background:{};color:{}; }}",
-            rgb(p.primary),
-            rgb(p.on_primary),
-        ));
-        for rule in cambium::syntax_css(&seeds) {
-            css.push_str(&format!("{scope} {rule}"));
-        }
-        css.push_str(&format!(
-            "{} {{ outline:2px solid {};outline-offset:2px; }}",
-            focus_selector(scope),
-            rgb(p.primary),
+        css.push_str(&palette_css(
+            scope,
+            &seeds,
+            p,
+            tinct::ModeProfile::from_seeds(&seeds),
+            false,
         ));
     }
     css
@@ -352,4 +312,128 @@ mod tests {
             }
         }
     }
+}
+
+/// Map the exact selected Tabard mode onto Knot’s existing semantic roles.
+pub fn selected_palette_css(mode: &tabard::ModePalette) -> String {
+    let scope = if mode.mode.dark() {
+        ".knot-theme-dark"
+    } else {
+        ".knot-theme-light"
+    };
+    palette_css(
+        scope,
+        &mode.effective_seeds,
+        mode.palette,
+        tinct::ModeProfile {
+            dark: mode.mode.dark(),
+            high_contrast: mode.mode.high_contrast(),
+        },
+        false,
+    )
+}
+
+/// Consume authored Tabard role properties without claiming a derived palette.
+/// Fallbacks keep omitted roles at Knot's existing mode colors.
+pub fn authored_role_css(mode: &tabard::ModePalette) -> String {
+    let scope = if mode.mode.dark() {
+        ".knot-theme-dark"
+    } else {
+        ".knot-theme-light"
+    };
+    palette_css(
+        scope,
+        &mode.effective_seeds,
+        mode.palette,
+        tinct::ModeProfile {
+            dark: mode.mode.dark(),
+            high_contrast: mode.mode.high_contrast(),
+        },
+        true,
+    )
+}
+
+fn palette_css(
+    scope: &str,
+    seeds: &Seeds,
+    p: tinct::Palette,
+    mode: tinct::ModeProfile,
+    authored: bool,
+) -> String {
+    let color = |role: &str, value: Srgb| {
+        if authored {
+            format!("var(--tabard-color-{role}, {})", rgb(value))
+        } else {
+            rgb(value)
+        }
+    };
+    let mut css = String::new();
+    css.push_str(&format!(
+            "{scope} {{ background:{};color:{}; }} \
+             {scope} button,{scope} input,{scope} [role=\"textbox\"][data-cambium-text-value] {{ background:{};color:{};border-color:{}; }} \
+             {scope} button:hover {{ background:{}; }} \
+             {scope} .knot-writing-area,{scope} .knot-document-body textarea,{scope} .knot-document-body [data-cambium-text-value],{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail,{scope} .status-overflow-content {{ background:{};color:{};border-color:{}; }} \
+             {scope} .status-bar {{ border-color:{}; }} \
+             {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error,{scope} .status-chip[data-severity=warning] {{ color:{}; }} \
+             {scope} .status-chip[data-severity=refused] {{ color:{};border-color:{}; }} \
+             {scope} .detail-key {{ color:{}; }} \
+             {scope} .frisket-tabbar {{ background:{};border-color:{}; }} \
+             {scope} .frisket-divider {{ background:{}; }} \
+             {scope} .frisket-tab {{ background:transparent;color:{}; }} \
+             {scope} .frisket-tab.active {{ background:{};color:{};border-color:{}; }} \
+             {scope} .frisket-content,{scope} .frisket-open-panel {{ background:{};color:{}; }} \
+             {scope} .frisket-close {{ color:{}; }} \
+             {scope} .tab-mark {{ color:{}; }}",
+            color("bg", p.bg), color("text", p.text), color("surface-2", p.surface_2), color("text", p.text), color("text-dim", p.text_dim),
+            color("surface-hover", p.surface_hover), color("surface", p.surface), color("text", p.text), color("text-dim", p.text_dim),
+            color("text-dim", p.text_dim), color("danger", p.danger),
+            color("danger", p.danger), color("danger", p.danger), color("text-dim", p.text_dim),
+            color("bg", p.bg), color("surface-hover", p.surface_hover), color("surface-hover", p.surface_hover), color("text-dim", p.text_dim),
+            color("surface", p.surface), color("text", p.text), color("surface-hover", p.surface_hover), color("surface", p.surface), color("text", p.text),
+            color("text-dim", p.text_dim), color("primary", p.primary),
+        ));
+    css.push_str(&format!(
+        "{scope} .knot-command-palette .command-item.selected {{ background:{};color:{}; }}",
+        color("primary", p.primary),
+        color("on-primary", p.on_primary),
+    ));
+    if authored {
+        let syntax = tinct::derive_syntax_palette_with(seeds, mode);
+        for role in tinct::SyntaxRole::ALL {
+            css.push_str(&format!(
+                "{scope} .{} {{ color:var(--tabard-syntax-{}, {}); }}",
+                cambium::role_class(role),
+                role.name(),
+                rgb(syntax.role(role))
+            ));
+        }
+    } else {
+        for rule in cambium::syntax_css_with(seeds, mode) {
+            css.push_str(&format!("{scope} {rule}"));
+        }
+    }
+    css.push_str(&format!(
+        "{} {{ outline:2px solid {};outline-offset:2px; }}",
+        focus_selector(scope),
+        color("primary", p.primary),
+    ));
+    css
+}
+
+pub(crate) fn graph_color(
+    palette: &tinct::Palette,
+    state: &mere_view::NodeState,
+) -> sprigging::ColorF {
+    let color = match state {
+        mere_view::NodeState::Available => palette.primary,
+        mere_view::NodeState::Unavailable => palette.text_dim,
+        mere_view::NodeState::Open => palette.success,
+        mere_view::NodeState::Dirty => palette.danger,
+    };
+    sprigging::ColorF::new(
+        color.r as f32 / 255.0,
+        color.g as f32 / 255.0,
+        color.b as f32 / 255.0,
+        1.0,
+    )
 }

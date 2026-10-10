@@ -277,6 +277,7 @@ mod tests {
     fn changed() -> Appearance {
         Appearance {
             dark: true,
+            theme_choice: None,
             highlight: false,
             font_size: 19,
             source_face: crate::appearance::SourceFace::SystemMonospace,

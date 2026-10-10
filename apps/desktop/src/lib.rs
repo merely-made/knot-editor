@@ -23,6 +23,7 @@ mod recovery_runtime;
 pub mod scenario;
 pub mod scroll_site;
 pub mod status;
+pub mod theme_session;
 pub mod workspace;
 
 use cambium::{
@@ -39,10 +40,21 @@ use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 
 pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
     let mut hooks = inert_hooks();
-    hooks.frame = Box::new(workspace::graph_frame);
-    hooks.after_dispatch = Box::new(workspace::after_dispatch);
+    let mut previews = theme_session::PreviewBindings::default();
+    hooks.frame = Box::new(move |ctx| {
+        theme_session::update_stylesheet(ctx);
+        previews.frame(ctx)
+    });
+    hooks.after_dispatch = Box::new(move |ctx| {
+        theme_session::after_dispatch(ctx);
+        theme_session::update_stylesheet(ctx);
+    });
     hooks.after_wake = Box::new(workspace::after_wake);
-    hooks.close_request = Box::new(|ctx, request| workspace::close_request(ctx.runner, request));
+    hooks.close_request = Box::new(|ctx, request| {
+        let disposition = theme_session::close_request(ctx, request);
+        theme_session::update_stylesheet(ctx);
+        disposition
+    });
     hooks.focused_text = Box::new(workspace::focused_text);
     hooks.key_intercept = Box::new(workspace::key_intercept);
     hooks
@@ -52,7 +64,8 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
 /// rules dress it.
 pub fn desktop_sheet() -> String {
     format!(
-        "{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{COMMAND_MENU_BAR_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{GRAPH_CANVAS_SWATCH_CSS}{}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
+        "{}{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{COMMAND_MENU_BAR_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{GRAPH_CANVAS_SWATCH_CSS}{}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
+        cambium::TITLE_BAR_CSS,
         mere_view::MERE_VIEW_CSS,
         appearance::appearance_css(),
         document_folding::CSS,
@@ -141,14 +154,16 @@ pub fn run_desktop_with_targets(
             state.set_capture_limit(capture_max_bytes);
             state.set_readings_root(readings_root.clone());
             state.set_preferences_path(preferences_path.clone());
+            theme_session::load_library(&mut state);
             state.set_recovery_path(recovery_path, wake.clone());
             state.set_retention_targets(targets, wake.clone());
             state.set_composition_targets(composition_targets, wake.clone());
             state.open_behind(behind, &failures);
+            let sheet = theme_session::stylesheet(&state);
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: desktop_sheet(),
+                sheet,
                 fonts: fonts::bundled_fonts(),
                 images: Vec::new(),
             }

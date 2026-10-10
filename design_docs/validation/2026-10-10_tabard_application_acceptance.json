@@ -1,0 +1,133 @@
+{
+  "status": "qualified native macOS application adoption",
+  "mere": "7019f07d36a9da8c1a3edbbcbabad606e9cb3278",
+  "genet": "7422e90613f9017e5bb790e3acb48f61776b2eda",
+  "native_renderer": "491c376cf2b01fc11132cf8f86419dec114ae032",
+  "cpu": {
+    "passed": 338,
+    "failed": 0,
+    "baseline_ignored": 1,
+    "log": "/tmp/knot-tabard-header-final-gates.log"
+  },
+  "source_fixture_sha256": "55750ca64366fa50f7ea77d60c731b27ac6948a5b752cb4796fddf8dd99df34c",
+  "accepted_runs": [
+    {
+      "lane": "fresh-01",
+      "source_directory": "/Users/markik/Code/tabard-app-receipts/2026-10-10/knot/fresh-01",
+      "dependency_mere": "11236fd4f8da9b7e2ce3712b4f036fbf676b1c8d",
+      "binary_sha256": "9ab2781c64cb56118b478efc03fc1c5ba163f11285055d32f13d9345193099c4",
+      "scenario_sha256": "aa771e4d6bbddc530af971da0f52f89abb8f83fb0f15a41e385384ac1f282b4b",
+      "receipt_sha256": "f2d02c9fc08e30f70e27828dc261377f08198ef603e6b439c89dd616c4614a5d",
+      "presented_frames": 57,
+      "captures": 7,
+      "blank_captures": 0,
+      "all_images_reviewed": true,
+      "images": {
+        "appearance.png": "5946c5e99d35ae9af2847533c07b5df51252dcac376ca0f5977401f8895240fc",
+        "applied-writing.png": "e68f800bc467209e748e9b88afdec65288c0df61f17ac9fb1d62115a71ac190b",
+        "saved-copy.png": "c18f299b07d5a5ff4cfacf94ec3f9b3edff2920e59fb2886e6e0e3c16cb99081",
+        "workshop.png": "e0d8381d482546386d573462932b1f19f81c50b866a96ef142bf2b2672235ec6",
+        "writing-dark.png": "f8ec389ff2370459d94ec8c02ee30d1afa5c35cdebfeec53c3d5a2d00f45c3ca",
+        "writing-hc-dark.png": "74e7781132942c2a23975db89836494c426340801df0345b4e6d2e8f5cef4c18",
+        "writing-hc-light.png": "1bd7baaf06a843b4fccae422c9619a2bc33c98fb04fcbbf9b8a63ec361723c4a"
+      }
+    },
+    {
+      "lane": "reopen-01",
+      "source_directory": "/Users/markik/Code/tabard-app-receipts/2026-10-10/knot/reopen-01",
+      "dependency_mere": "11236fd4f8da9b7e2ce3712b4f036fbf676b1c8d",
+      "binary_sha256": "9ab2781c64cb56118b478efc03fc1c5ba163f11285055d32f13d9345193099c4",
+      "scenario_sha256": "986ea00c2f9677f6f90fc156648af43b3252d6ce504f0aa860ee85fadc3a6919",
+      "receipt_sha256": "7984a09520a7d0d045f1e5f6d8e0cc25b2d93272b7336685462197fddb8a502e",
+      "presented_frames": 12,
+      "captures": 2,
+      "blank_captures": 0,
+      "all_images_reviewed": true,
+      "images": {
+        "reopened-appearance-choice.png": "2b0e78cf0f17e3787380596ea5348ac8e8223dd86bede53fb8fdc8bdceeed963",
+        "reopened-hc-dark.png": "d9331c0c8b5fc79a7e2709542ed17e19f09a348f6e1e2ad017c25751ecb9a7e8"
+      }
+    },
+    {
+      "lane": "authored-01",
+      "source_directory": "/Users/markik/Code/tabard-app-receipts/2026-10-10/knot/authored-01",
+      "dependency_mere": "11236fd4f8da9b7e2ce3712b4f036fbf676b1c8d",
+      "binary_sha256": "9ab2781c64cb56118b478efc03fc1c5ba163f11285055d32f13d9345193099c4",
+      "scenario_sha256": "bf74b8618c4218e800775dd298c56ac9ebb1773f7fdd1de65ff889bbc18bb32b",
+      "receipt_sha256": "d42bd738ab972bbdfe78fae9a8a02234af46a5aa26d1c03c5c2aa4db97b38e7b",
+      "presented_frames": 18,
+      "captures": 2,
+      "blank_captures": 0,
+      "all_images_reviewed": true,
+      "images": {
+        "authored-roles.png": "2568c7da23d2abcae5cb3771134d3f2d113aa58052ea613d06e1e92bd01ea8fd",
+        "role-baseline.png": "ade1664fa2a7bb078652d86e5c28d13695fc73568e386864233ca37f206c99b6"
+      }
+    },
+    {
+      "lane": "authored-reopen-01",
+      "source_directory": "/Users/markik/Code/tabard-app-receipts/2026-10-10/knot/authored-reopen-01",
+      "dependency_mere": "11236fd4f8da9b7e2ce3712b4f036fbf676b1c8d",
+      "binary_sha256": "9ab2781c64cb56118b478efc03fc1c5ba163f11285055d32f13d9345193099c4",
+      "scenario_sha256": "e1d9158e46ee41cf5e90e08b678dba098d455437da3f7bcb46dd6a55589eb8ff",
+      "receipt_sha256": "a842cba91825229e19afb2d59056c786f3f64ad0bbeb8a71c064fed26a58c3de",
+      "presented_frames": 6,
+      "captures": 1,
+      "blank_captures": 0,
+      "all_images_reviewed": true,
+      "images": {
+        "reopened-authored-roles.png": "cae5b8b2ee3240a20b1342eb42ff02cfffd1a22681bd5234ed73b1eaf6855f44"
+      }
+    },
+    {
+      "lane": "header-7019-01",
+      "source_directory": "/Users/markik/Code/tabard-app-receipts/2026-10-10/knot/header-7019-01",
+      "dependency_mere": "7019f07d36a9da8c1a3edbbcbabad606e9cb3278",
+      "binary_sha256": "60f1f79565cabdfd69fc5d1488b8405c16f9e9910beb3cc6b4698afcb12bcd46",
+      "scenario_sha256": "647f9d1ece0e38999c14480d0a6561625f8435539b0a0f169217748abe397c59",
+      "receipt_sha256": "4c885527a0788514f34a59f0aa8d998124a364e50b9dc4683e5e899a7d2629d4",
+      "presented_frames": 62,
+      "captures": 7,
+      "blank_captures": 0,
+      "all_images_reviewed": true,
+      "images": {
+        "appearance.png": "a3271a76118f90fedf7bb57cc45140cde318cdb3d4ac4329027d17791a06d760",
+        "applied-writing.png": "4eeecebe2be86fd7a947efea504272cba95de905765ffeff1a57ef3ce5a3667d",
+        "saved-copy.png": "91b86070c9c58fa2a36f338ee16efb9e3d7f55e5c7fa1c3a8ec63ec2c48ba55b",
+        "workshop.png": "0416935a3a8295e14b6d41764f542640773b02afff291d5c7c70adccec39a17a",
+        "writing-dark.png": "296b9f34b701c531261e4da22df256c53b503429ae0f6362758327ec1ee70338",
+        "writing-hc-dark.png": "426699f8d9ebcd00e672718ea3a3516a2012ed365f9bc59d1d9cb6daf767d773",
+        "writing-hc-light.png": "bf07aaa591e049ede50d82935bf2cad24d33605938b7359f1f7c9c83f078dedb"
+      }
+    },
+    {
+      "lane": "header-reopen-7019-01",
+      "source_directory": "/Users/markik/Code/tabard-app-receipts/2026-10-10/knot/header-reopen-7019-01",
+      "dependency_mere": "7019f07d36a9da8c1a3edbbcbabad606e9cb3278",
+      "binary_sha256": "60f1f79565cabdfd69fc5d1488b8405c16f9e9910beb3cc6b4698afcb12bcd46",
+      "scenario_sha256": "b985d16285fd6da3f3059ce176f0fb2f8c0146fba84249ab92c8586add70587b",
+      "receipt_sha256": "24a5aae126ac19ab27b6df5a3bce458cf2514d6e3b7e2baf416b4bdb07af537d",
+      "presented_frames": 18,
+      "captures": 2,
+      "blank_captures": 0,
+      "all_images_reviewed": true,
+      "images": {
+        "reopened-appearance-choice.png": "e2cf50104d9c7f9bf849fe090f002dc647b6ffe0fe13cc4d4134ad58b43c7b79",
+        "reopened-hc-dark.png": "ba12501558006934bc0ee655e6a08e938afa001db2f951455f984399a66301c4"
+      }
+    }
+  ],
+  "presented_frames": 173,
+  "captures": 21,
+  "blank_captures": 0,
+  "rejected_pre_repair_receipts": [
+    "narrow-03",
+    "narrow-reopen-03"
+  ],
+  "review_correction": "No missing paint was independently verified. Pixel-region hashes refuted earlier review claims; original PNGs unchanged. Only420px title/action overlap required shared CSS repair.",
+  "unverified_platforms_and_lanes": [
+    "Windows/Linux native presentation",
+    "live screen reader/IME",
+    "native export chooser interaction"
+  ]
+}

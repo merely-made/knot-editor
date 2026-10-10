@@ -14,6 +14,22 @@ click role:button Enable bundled CMUdict
 click role:button Perfect rhyme
 click role:button Read selected sounds
 click role:button Use sound relationship recipe
+click role:button Show recipe arrangement controls
+click role:textbox @id=knot-recipe-option-input-columns
+input-text 0
+click role:button Apply recipe option: columns
+assert text needs a positive whole number
+assert snap recipe_columns == default
+click role:textbox @id=knot-recipe-option-input-columns
+input-text 2
+click role:button Apply recipe option: columns
+assert snap recipe_columns == 2
+capture recipe-options-authored
+click role:button Undo recipe edit
+assert snap recipe_columns == default
+click role:button Redo recipe edit
+assert snap recipe_columns == 2
+click role:button Hide recipe arrangement controls
 click role:button Show relationship scene
 settle 4
 click .knot-recipe-scene-status
@@ -42,6 +58,7 @@ capture relationship-scene-retained-authored
 click role:button Retain relationship recipe
 settle 30
 assert text Confirmed 2 retained items
+assert snap recipe_edits_retained == true
 assert text bytes 8–13
 assert snap dirty == false
 capture relationship-scene-retained-confirmed

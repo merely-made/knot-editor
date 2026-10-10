@@ -287,6 +287,14 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         click(&mut host, "Perfect rhyme");
         click(&mut host, "Read selected sounds");
         click(&mut host, "Use sound relationship recipe");
+        click(&mut host, "Show recipe arrangement controls");
+        assert!(host.click_on(
+            &Selector::role("textbox").with_attr("id", "knot-recipe-option-input-columns")
+        ));
+        host.key_char("2");
+        host.after_dispatch();
+        click(&mut host, "Apply recipe option: columns");
+        click(&mut host, "Hide recipe arrangement controls");
         click(&mut host, "Increase recipe spacing");
         click(&mut host, "Relationship category: sound.perfect_rhyme");
         click(&mut host, "night · token-6-11");
@@ -307,6 +315,18 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         let item = retained[0].item.clone();
         assert_eq!(item.kind, knot_composition::ItemKind::ProjectionRecipe);
         let material = item.projection_recipe.as_ref().unwrap();
+        assert_eq!(
+            material
+                .snapshot
+                .recipe
+                .definition
+                .arrangement
+                .options
+                .get("columns")
+                .map(String::as_str),
+            Some("2")
+        );
+        assert!(panel_text(&host).contains("Recipe edits retained"));
         assert_eq!(material.snapshot.recipe.definition.arrangement.spacing, 24);
         assert_eq!(
             material.snapshot.recipe.relationship_kind.as_deref(),
@@ -361,6 +381,8 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
     assert!(panel_text(&host).contains("Static overview"));
     assert!(panel_text(&host).contains("pan 0.10, 0.00 · zoom 1.25"));
     assert!(panel_text(&host).contains("Show scene camera controls"));
+    assert!(panel_text(&host).contains("Show recipe arrangement controls"));
+    assert!(panel_text(&host).contains("Recipe edits retained"));
     assert!(panel_text(&host).contains("Show scene category controls"));
     click(&mut host, "Show scene category controls");
     assert!(panel_text(&host).contains("Show scene background category: sound.perfect_rhyme"));

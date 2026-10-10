@@ -1,0 +1,14 @@
+# Copy tabard_role_library.json to an isolated KNOT_THEME_LIBRARY before launch.
+assert snap theme_library_available == true
+assert snap dirty == false
+capture role-baseline
+click role:button Appearance
+settle 1
+click role:button Authored role fixture
+settle 1
+click role:button Mode: Dark
+settle 2
+assert snap theme_id == user:role-fixture
+assert snap theme_mode == dark
+assert snap dirty == false
+capture authored-roles

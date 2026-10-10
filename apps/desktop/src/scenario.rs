@@ -77,6 +77,8 @@ impl mesquite::Product for KnotLane {
         _captures: usize,
         _: f32,
     ) -> ProbeSnapshot {
+        let (arrangement, columns, retained) =
+            ctx.runner.state().composition.recipe_scenario_fields();
         ctx.runner
             .state()
             .scenario_snapshot()
@@ -88,6 +90,9 @@ impl mesquite::Product for KnotLane {
                 "graph_visible",
                 graph_is_presented(ctx.runner.state()).to_string(),
             )
+            .with_field("recipe_arrangement", arrangement)
+            .with_field("recipe_columns", columns)
+            .with_field("recipe_edits_retained", retained.to_string())
     }
 
     fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {

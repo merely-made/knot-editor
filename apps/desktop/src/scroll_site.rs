@@ -2704,9 +2704,9 @@ pub fn preview(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> De
 pub const CSS: &str = r#"
 .knot-workspace { overflow:auto; }
 .knot-native-site-mode .knot-source-wrapper { flex:1 1 auto; width:100%; }
-.knot-native-site-mode .knot-document-body [role=textbox][aria-multiline=true] { display:block; width:auto; min-width:0; min-height:260px; }
-.knot-scroll-site input,.knot-scroll-site [role=textbox] { min-height:32px; box-sizing:border-box; }
-.knot-scroll-fields [role=textbox][aria-multiline=true] { white-space:pre-wrap; min-height:80px; padding:8px; border:1px solid; background:transparent; color:inherit; }
+.knot-native-site-mode .knot-document-body textarea, .knot-native-site-mode .knot-document-body [role="textbox"][aria-multiline="true"] { display:block; width:auto; min-width:0; min-height:260px; }
+.knot-scroll-site input, .knot-scroll-site [role="textbox"] { min-height:32px; box-sizing:border-box; }
+.knot-scroll-fields textarea, .knot-scroll-fields [role="textbox"][aria-multiline="true"] { white-space:pre-wrap; min-height:80px; padding:8px; border:1px solid; background:transparent; color:inherit; }
 .knot-scroll-site { padding: 8px; border-bottom: 1px solid #888; flex-shrink: 0; }
 .knot-scroll-controls, .knot-scroll-pages, .knot-site-format-picker { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .knot-scroll-fields { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2716,7 +2716,7 @@ pub const CSS: &str = r#"
 .knot-submit { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .knot-metadata { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-width: 0; }
 .knot-spartan-body { display: flex; flex: 1 0 100%; flex-direction: column; min-width: 0; }
-.knot-spartan-body [role=textbox][aria-multiline=true] { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
+.knot-spartan-body textarea, .knot-spartan-body [role="textbox"][aria-multiline="true"] { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
 .knot-submission-review { max-width: 100%; margin-top: 8px; }
 .knot-submission-review pre { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
@@ -2738,9 +2738,10 @@ pub const CSS: &str = r#"
 .knot-scroll-link { text-decoration: underline; }
 .knot-micron-fold { display: block; width: 100%; text-align: left; }
 .knot-micron-heading-controls { display:flex; align-items:baseline; gap:4px; }
-#knot-scroll-folder [role=textbox] { width: 350px; }
-#knot-scroll-port [role=textbox] { width: 70px; }
-@media (max-width:700px) { #knot-scroll-folder [role=textbox] { width:220px; } }
+#knot-scroll-folder input, #knot-scroll-folder [role="textbox"] { width: 350px; }
+.knot-site-port input, .knot-site-port [role="textbox"] { width: 70px; }
+.knot-site-port [role="textbox"] { min-height: 1.2em; }
+@media (max-width:700px) { #knot-scroll-folder input, #knot-scroll-folder [role="textbox"] { width:220px; } }
 "#;
 
 #[cfg(test)]
@@ -3193,9 +3194,14 @@ mod tests {
                 .into_iter()
                 .next()
                 .expect("the target field");
-            input_node(&dom, label).expect("the target input")
+            let field = input_node(&dom, label).expect("the target textbox");
+            assert!(
+                is_cambium_textbox(&dom, field),
+                "the submit target is an app-owned textbox"
+            );
+            field
         };
-        let (x, y, width, height) = host.painted_rect(field).expect("the target input paints");
+        let (x, y, width, height) = host.painted_rect(field).expect("the target textbox paints");
         host.click_at(x + width / 2.0, y + height / 2.0);
         host.key_injected("spartan://one.test/");
         assert!(target(&host).contains("spartan://one.test/"));
@@ -3599,9 +3605,19 @@ mod tests {
             let dom = host.runner().dom();
             let dom = dom.borrow();
             let label = class_nodes(&dom, dom.document(), "knot-site-port")[0];
-            input_node(&dom, label).expect("the port input")
+            let field = input_node(&dom, label).expect("the port textbox");
+            assert!(
+                is_cambium_textbox(&dom, field),
+                "the port control is an app-owned textbox"
+            );
+            field
         };
-        let (x, y, width, height) = host.visible_rect(field).expect("the port input shows");
+        let (x, y, width, height) = host.visible_rect(field).unwrap_or_else(|| {
+            panic!(
+                "the port textbox should be visible; painted rect: {:?}",
+                host.painted_rect(field)
+            )
+        });
         host.click_at(x + width / 2.0, y + height / 2.0);
         host.key_injected("8123");
         assert_eq!(host.state().scroll.site_port(site).unwrap().text(), "8123");
@@ -3703,11 +3719,16 @@ mod tests {
             let dom = dom.borrow();
             let labels = class_nodes(&dom, dom.document(), "knot-submission-target");
             assert_eq!(labels.len(), 1, "one Submit tile");
-            input_node(&dom, labels[0]).expect("the target input")
+            let field = input_node(&dom, labels[0]).expect("the target textbox");
+            assert!(
+                is_cambium_textbox(&dom, field),
+                "the pinned Submit target is an app-owned textbox"
+            );
+            field
         };
         // A click at the field's start puts the caret there, ahead of the
         // text already in it.
-        let (x, y, _, height) = host.visible_rect(field).expect("the target input shows");
+        let (x, y, _, height) = host.visible_rect(field).expect("the target textbox shows");
         host.click_at(x + 1.0, y + height / 2.0);
         host.key_injected("spartan://");
         let state = host.state();
@@ -4923,8 +4944,8 @@ mod tests {
         );
         host.layout_at(1100.0, 730.0);
         assert!(host.click_on(&Selector::role("button").containing("Appearance")));
-        // A text input to Tab to that leaves the frame's layout alone: the
-        // Site popover's folder field.
+        // A single-line textbox to Tab to that leaves the frame's layout
+        // alone: the Site popover's folder field.
         host.update(|state| state.site_popover_event(PopoverEvent::Toggle));
         host.relayout();
 
@@ -5097,7 +5118,16 @@ mod tests {
         dom: &genet_scripted_dom::ScriptedDom,
         node: genet_scripted_dom::NodeId,
     ) -> Option<genet_scripted_dom::NodeId> {
-        if crate::workspace::is_multiline_field(dom, node) {
+        let native_textarea = dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "textarea");
+        let app_textarea = is_cambium_textbox(dom, node)
+            && dom.attribute(
+                node,
+                &Namespace::from(""),
+                &LocalName::from("aria-multiline"),
+            ) == Some("true");
+        if native_textarea || app_textarea {
             return Some(node);
         }
         dom.dom_children(node)
@@ -5108,11 +5138,34 @@ mod tests {
         dom: &genet_scripted_dom::ScriptedDom,
         node: genet_scripted_dom::NodeId,
     ) -> Option<genet_scripted_dom::NodeId> {
-        if crate::workspace::is_single_line_field(dom, node) {
+        let native_input = dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "input");
+        let app_text_input = is_cambium_textbox(dom, node)
+            && dom.attribute(
+                node,
+                &Namespace::from(""),
+                &LocalName::from("aria-multiline"),
+            ) != Some("true");
+        if native_input || app_text_input {
             return Some(node);
         }
         dom.dom_children(node)
             .find_map(|child| input_node(dom, child))
+    }
+
+    fn is_cambium_textbox(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> bool {
+        dom.attribute(node, &Namespace::from(""), &LocalName::from("role")) == Some("textbox")
+            && dom
+                .attribute(
+                    node,
+                    &Namespace::from(""),
+                    &LocalName::from("data-cambium-text-value"),
+                )
+                .is_some()
     }
 
     fn text_content(
@@ -5205,7 +5258,21 @@ mod tests {
             let dom = host.runner().dom();
             let dom = dom.borrow();
             let body = class_nodes(&dom, dom.document(), "knot-spartan-body")[0];
-            textarea_node(&dom, body).unwrap()
+            let field = textarea_node(&dom, body).unwrap();
+            assert!(
+                is_cambium_textbox(&dom, field),
+                "the Spartan body is an app-owned textbox"
+            );
+            assert_eq!(
+                dom.attribute(
+                    field,
+                    &Namespace::from(""),
+                    &LocalName::from("aria-multiline"),
+                ),
+                Some("true"),
+                "the Spartan body preserves multiline semantics"
+            );
+            field
         };
         let (x, y, _, _) = host.painted_rect(textarea).unwrap();
         host.click_at(x + 1.0, y + 24.0);

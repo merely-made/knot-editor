@@ -6,6 +6,18 @@ click role:button Synthetic acceptance mere
 settle 30
 assert text Confirmed 2 retained items
 click role:button Open retained relationship recipe
+assert snap recipe_columns == 2
+assert snap recipe_edits_retained == true
+assert text Show recipe arrangement controls
+click role:button Show recipe arrangement controls
+click role:button Use default for recipe option: columns
+assert snap recipe_columns == default
+assert snap recipe_edits_retained == false
+click role:button Undo recipe edit
+assert snap recipe_columns == 2
+assert snap recipe_edits_retained == true
+capture recipe-options-reopened
+click role:button Hide recipe arrangement controls
 settle 4
 assert text Static overview
 assert text Show scene category controls

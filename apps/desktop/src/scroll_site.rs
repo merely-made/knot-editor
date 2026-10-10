@@ -2704,9 +2704,9 @@ pub fn preview(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> De
 pub const CSS: &str = r#"
 .knot-workspace { overflow:auto; }
 .knot-native-site-mode .knot-source-wrapper { flex:1 1 auto; width:100%; }
-.knot-native-site-mode .knot-document-body textarea { display:block; width:auto; min-width:0; min-height:260px; }
-.knot-scroll-site input { min-height:32px; box-sizing:border-box; }
-.knot-scroll-fields textarea { white-space:pre-wrap; min-height:80px; padding:8px; border:1px solid; background:transparent; color:inherit; }
+.knot-native-site-mode .knot-document-body [role=textbox][aria-multiline=true] { display:block; width:auto; min-width:0; min-height:260px; }
+.knot-scroll-site input,.knot-scroll-site [role=textbox] { min-height:32px; box-sizing:border-box; }
+.knot-scroll-fields [role=textbox][aria-multiline=true] { white-space:pre-wrap; min-height:80px; padding:8px; border:1px solid; background:transparent; color:inherit; }
 .knot-scroll-site { padding: 8px; border-bottom: 1px solid #888; flex-shrink: 0; }
 .knot-scroll-controls, .knot-scroll-pages, .knot-site-format-picker { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .knot-scroll-fields { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -2716,7 +2716,7 @@ pub const CSS: &str = r#"
 .knot-submit { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .knot-metadata { display: flex; flex-direction: column; gap: 8px; padding: 12px; min-width: 0; }
 .knot-spartan-body { display: flex; flex: 1 0 100%; flex-direction: column; min-width: 0; }
-.knot-spartan-body textarea { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
+.knot-spartan-body [role=textbox][aria-multiline=true] { display: block; box-sizing: border-box; width: 100%; min-width: 0; min-height: 120px; max-height: 180px; overflow: auto; padding: 8px; border: 1px solid; background: transparent; color: inherit; white-space: pre-wrap; }
 .knot-submission-review { max-width: 100%; margin-top: 8px; }
 .knot-submission-review pre { box-sizing: border-box; width: 100%; max-height: 220px; overflow: auto; white-space: pre-wrap; }
 .knot-submission-status { display: block; min-height: 1.2em; margin-top: 4px; }
@@ -2738,9 +2738,9 @@ pub const CSS: &str = r#"
 .knot-scroll-link { text-decoration: underline; }
 .knot-micron-fold { display: block; width: 100%; text-align: left; }
 .knot-micron-heading-controls { display:flex; align-items:baseline; gap:4px; }
-#knot-scroll-folder input { width: 350px; }
-#knot-scroll-port input { width: 70px; }
-@media (max-width:700px) { #knot-scroll-folder input { width:220px; } }
+#knot-scroll-folder [role=textbox] { width: 350px; }
+#knot-scroll-port [role=textbox] { width: 70px; }
+@media (max-width:700px) { #knot-scroll-folder [role=textbox] { width:220px; } }
 "#;
 
 #[cfg(test)]
@@ -5097,10 +5097,7 @@ mod tests {
         dom: &genet_scripted_dom::ScriptedDom,
         node: genet_scripted_dom::NodeId,
     ) -> Option<genet_scripted_dom::NodeId> {
-        if dom
-            .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "textarea")
-        {
+        if crate::workspace::is_multiline_field(dom, node) {
             return Some(node);
         }
         dom.dom_children(node)
@@ -5111,10 +5108,7 @@ mod tests {
         dom: &genet_scripted_dom::ScriptedDom,
         node: genet_scripted_dom::NodeId,
     ) -> Option<genet_scripted_dom::NodeId> {
-        if dom
-            .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "input")
-        {
+        if crate::workspace::is_single_line_field(dom, node) {
             return Some(node);
         }
         dom.dom_children(node)

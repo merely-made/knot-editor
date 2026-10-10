@@ -1557,6 +1557,8 @@ impl KnotEndpoint {
             scene,
             presentation,
             cache_policy: CachePolicy::default(),
+            #[cfg(feature = "mere-snapshot-coverage-v1")]
+            coverage: None,
         };
         self.last_announced = Some(snapshot.scene.revision);
         self.snapshot = Some(snapshot.clone());
@@ -1691,6 +1693,8 @@ impl KnotEndpoint {
             scene,
             presentation,
             cache_policy: CachePolicy::default(),
+            #[cfg(feature = "mere-snapshot-coverage-v1")]
+            coverage: None,
         };
         self.rosette_resources.insert(session.clone(), resources);
         self.rosette_last_announced
@@ -1716,6 +1720,8 @@ impl KnotEndpoint {
             scene,
             presentation: PresentationManifest::default(),
             cache_policy: CachePolicy::default(),
+            #[cfg(feature = "mere-snapshot-coverage-v1")]
+            coverage: None,
         };
         self.rosette_resources
             .insert(session.clone(), BTreeMap::new());

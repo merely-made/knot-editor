@@ -38,7 +38,7 @@ pub const CSS: &str = concat!(
     ".knot-composition .knot-recipe-measure { position:absolute; left:0; top:0; visibility:hidden; white-space:nowrap; font-weight:600; }",
     ".knot-composition .knot-recipe-measure::after { content:attr(data-knot-recipe-measure); }",
     ".knot-composition .knot-composition-tabs { flex-direction:row; flex-wrap:wrap; }",
-    ".knot-composition textarea { min-height:5em; width:100%; box-sizing:border-box; padding:8px; border:1px solid currentColor; background:transparent; overflow:auto; }",
+    ".knot-composition [role=textbox][aria-multiline=true] { min-height:5em; width:100%; box-sizing:border-box; padding:8px; border:1px solid currentColor; background:transparent; overflow:auto; }",
     ".knot-readings { min-width:0; box-sizing:border-box; display:flex; flex-direction:column; ",
     "gap:8px; }",
     ".knot-readings-header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; }",

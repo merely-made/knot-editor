@@ -4321,6 +4321,23 @@ fn outline_body(state: &DesktopState, key: DocKey) -> DesktopView {
     Box::new(el("div", (error, rows)).attr("class", "knot-outline"))
 }
 
+/// Cambium's app-owned fields are `div[role=textbox]` since mere r44 (native
+/// `input`/`textarea` now carry Genet's form-control state); `aria-multiline`
+/// marks the editors. A native `input` (the password field) still counts as a
+/// single-line field.
+pub(crate) fn is_multiline_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    let attr = |name: &str| dom.attribute(node, &Namespace::from(""), &LocalName::from(name));
+    attr("role") == Some("textbox") && attr("aria-multiline") == Some("true")
+}
+
+pub(crate) fn is_single_line_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    let attr = |name: &str| dom.attribute(node, &Namespace::from(""), &LocalName::from(name));
+    (attr("role") == Some("textbox") && attr("aria-multiline") != Some("true"))
+        || dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "input")
+}
+
 fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool {
     let namespace = Namespace::from("");
     let local = LocalName::from("id");
@@ -4378,9 +4395,8 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     let focused = runner.focus()?;
     let dom = runner.dom();
     let dom_ref = dom.borrow();
-    let name = LayoutDom::element_name(&*dom_ref, focused)?;
-    let is_text_control = name.local.as_ref() == "textarea" || name.local.as_ref() == "input";
-    let is_document_textarea = name.local.as_ref() == "textarea";
+    let is_text_control = is_single_line_field(&*dom_ref, focused) || is_multiline_field(&*dom_ref, focused);
+    let is_document_textarea = is_multiline_field(&*dom_ref, focused);
     if !is_text_control {
         return None;
     }
@@ -4477,8 +4493,7 @@ pub(crate) fn source_is_focused(runner: &DesktopRunner) -> bool {
     };
     let dom = runner.dom();
     let dom = dom.borrow();
-    LayoutDom::element_name(&*dom, focused).is_some_and(|name| name.local.as_ref() == "textarea")
-        && document_key_of(&*dom, focused).is_some()
+    is_multiline_field(&*dom, focused) && document_key_of(&*dom, focused).is_some()
 }
 
 pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
@@ -4678,8 +4693,7 @@ fn focus_pending_source(
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
         let target = ctx.runner.focusables().into_iter().find(|node| {
-            LayoutDom::element_name(&*dom_ref, *node)
-                .is_some_and(|name| name.local.as_ref() == "textarea")
+            is_multiline_field(&*dom_ref, *node)
                 && ancestor_has_class(&*dom_ref, *node, "knot-document-body")
                 && document_key_of(&*dom_ref, *node) == focused_key
         });
@@ -4725,8 +4739,7 @@ fn focus_path_field(
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
         ctx.runner.focusables().into_iter().find(|node| {
-            LayoutDom::element_name(&*dom_ref, *node)
-                .is_some_and(|name| name.local.as_ref() == "input")
+            is_single_line_field(&*dom_ref, *node)
                 && ancestor_has_id(&*dom_ref, *node, id)
         })
     };
@@ -4827,7 +4840,7 @@ fn focus_command_palette(
         let target = ctx.runner.focusables().into_iter().find(|node| {
             let dom = ctx.runner.dom();
             let dom = dom.borrow();
-            LayoutDom::element_name(&*dom, *node).is_some_and(|name| name.local.as_ref() == "input")
+            is_single_line_field(&*dom, *node)
                 && ancestor_has_id(&*dom, *node, "knot-command-query")
         });
         if let Some(target) = target {
@@ -4877,8 +4890,7 @@ fn focus_command_menu(
             focusables.into_iter().find(|node| {
                 let dom = ctx.runner.dom();
                 let dom = dom.borrow();
-                LayoutDom::element_name(&*dom, *node)
-                    .is_some_and(|name| name.local.as_ref() == "textarea")
+                is_multiline_field(&*dom, *node)
                     && document_key_of(&*dom, *node) == ctx.runner.state().focused_key()
             })
         });
@@ -5149,7 +5161,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-command-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; z-index:199; background:#0004; }",
     ".knot-command-palette { position:fixed; top:58px; left:0; right:0; margin:0 auto; z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; box-sizing:border-box; overflow:visible; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
     ".knot-command-query { display:flex; flex-direction:column; gap:4px; }",
-    ".knot-command-query input { width:100%; box-sizing:border-box; }",
+    ".knot-command-query [role=textbox] { width:100%; box-sizing:border-box; }",
     ".knot-command-palette .command-surface { display:flex; flex-direction:column; min-height:0; outline:none; }",
     ".knot-command-palette .command-items { display:flex; flex-direction:column; max-height:56vh; overflow:auto; }",
     ".knot-command-palette .command-item { display:flex; align-items:center; gap:8px; min-height:28px; padding:5px 8px; border-radius:4px; }",
@@ -5164,10 +5176,10 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
-    ".knot-path-field input { min-width:280px; flex:1; }",
+    ".knot-path-field [role=textbox] { min-width:280px; flex:1; }",
     ".knot-path-popover { display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; box-sizing:border-box; }",
     ".knot-path-popover .knot-path-field { min-width:0; }",
-    ".knot-path-popover .knot-path-field input { min-width:0; }",
+    ".knot-path-popover .knot-path-field [role=textbox] { min-width:0; }",
     ".knot-reading { display:flex; flex-direction:column; gap:8px; padding:8px 12px; min-width:0; }",
     ".knot-reading-header { display:flex; align-items:center; gap:6px; min-width:0; padding-right:1px; box-sizing:border-box; }",
     ".knot-reading-title { font-weight:600; white-space:nowrap; }",
@@ -5233,7 +5245,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; padding:16px; border:1px solid; box-sizing:border-box; }",
     ".knot-document { flex:1; min-width:0; }",
-    ".knot-document-body textarea { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
+    ".knot-document-body [role=textbox] { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
     ".knot-outline { display:flex; flex-direction:column; min-width:0; }",
     ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
     ".knot-outline-row { display:block; width:100%; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
@@ -5249,7 +5261,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
-    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field input { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
+    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field [role=textbox] { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
     "@media (max-height:320px) { .knot-workspace { gap:4px; padding-top:4px; } .knot-workspace-toolbar { flex:none; } .knot-workspace > .status-bar { padding-top:2px; padding-bottom:2px; min-height:24px; } .knot-frame .frisket-content { padding-top:4px; padding-bottom:4px; } .knot-writing-area { padding-top:4px; padding-bottom:4px; } .knot-appearance-panel { padding:4px; max-height:20vh; } .knot-workspace > [id=knot-link-form], .knot-confirm { max-height:25vh; overflow:auto; min-height:0; flex:none; } }",
 );
 
@@ -6242,14 +6254,22 @@ mod tests {
         dom: &genet_scripted_dom::ScriptedDom,
         node: genet_scripted_dom::NodeId,
     ) -> Option<genet_scripted_dom::NodeId> {
-        if dom
-            .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "input")
-        {
+        if is_single_line_field(dom, node) {
             return Some(node);
         }
         dom.dom_children(node)
             .find_map(|child| input_node(dom, child))
+    }
+
+    fn textarea_node(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if is_multiline_field(dom, node) {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| textarea_node(dom, child))
     }
 
     fn named_node(
@@ -6308,7 +6328,7 @@ mod tests {
                     .expect("the document body");
                 (
                     body,
-                    named_node(&dom, body, "textarea").expect("the editor"),
+                    textarea_node(&dom, body).expect("the editor"),
                 )
             };
             let (column_x, _, column_width, _) = host.painted_rect(body).expect("column layout");
@@ -7767,7 +7787,7 @@ mod tests {
                 &second_key.0.to_string(),
             )
             .expect("second tile");
-            named_node(&dom, tile, "textarea").expect("second editor")
+            textarea_node(&dom, tile).expect("second editor")
         };
         let (x, y, width, height) = host.painted_rect(editor).expect("editor layout");
         host.click_at(x + width / 2.0, y + height / 2.0);
@@ -7961,7 +7981,7 @@ mod tests {
         let textarea = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            named_node(&dom, dom.document(), "textarea").expect("document textarea")
+            textarea_node(&dom, dom.document()).expect("document textarea")
         };
         assert_eq!(host.focus(), Some(textarea));
 
@@ -7984,7 +8004,7 @@ mod tests {
         let textarea = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            named_node(&dom, dom.document(), "textarea").expect("document textarea")
+            textarea_node(&dom, dom.document()).expect("document textarea")
         };
         assert_eq!(host.focus(), Some(textarea));
         host.key_injected("!");

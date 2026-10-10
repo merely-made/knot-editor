@@ -6,34 +6,144 @@
 
 //! Startup-unlocked personal Knot authority.
 //!
-//! This is the production seam between pandect's Personae wallet and
-//! Knot's sealed, signed document store. Callers name a data root and persona;
-//! recovered epoch bytes and every derived key stay inside Knot.
+//! This is the production seam between djinn's custody route and Knot's
+//! sealed, signed document store. Knot never opens a wallet or a vault
+//! (dramatis repo plan, D5): djinn derives the persona vault's keys from the
+//! persona epoch and releases only those ([`PersonalVaultKeys`], D11). With
+//! djinn absent or Locked the persona is pending; Knot holds no fallback key
+//! and writes nothing (D12).
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+use graphshell::native::app_admission::AppId;
+use graphshell::native::custody::{EpochKeyRequest, ReleasedEpochKey};
+use graphshell::native::custody_client::{
+    BlockingCustodyClient, CustodyClient, CustodyClientError,
+};
 use p2panda_core::SigningKey;
-use pandect::wallet_store;
 use personae::{Ed25519Keypair, PersonaId};
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroizing;
 
 use crate::{
     KnotEndpoint, KnotPublishSource, KnotResidentSource, KnotSyncEvent, KnotSyncFileStore,
     KnotVault, KnotWriteGrant, VaultDocument,
 };
 
-const VAULT_KEY_CONTEXT: &str = "mere.knot.persona-vault.root.v1";
-const SIGNING_KEY_CONTEXT: &str = "mere.knot.persona-vault.writer.v1";
+/// The epoch derivation of a persona's Knot vault key. djinn's release
+/// policy names it.
+pub const VAULT_KEY_CONTEXT: &str = "mere.knot.persona-vault.root.v1";
+/// The epoch derivation of a Knot writer: device-bound for the writer this
+/// device authors with, unbound for the legacy writer, of which only the
+/// public key is released.
+pub const SIGNING_KEY_CONTEXT: &str = "mere.knot.persona-vault.writer.v1";
+/// The application Knot calls djinn as.
+pub const KNOT_APP_ID: &str = "knot-editor";
 const SPACE_ID_CONTEXT: &str = "mere.knot.persona-vault.space.v1";
 const KNOT_VAULT_DIR: &str = "vault";
 const KNOT_SYNC_FILE: &str = "knot/sync.redb";
 
-struct StartupPersonalKeys {
+/// The keys one persona's Knot vault runs on, as djinn released them.
+///
+/// - the vault key, the same on every device of the persona;
+/// - this device's writer seed, mixed with its device root, so two devices
+///   are two writers and two nodes;
+/// - the public key of the pre-device-scoped writer, admitted so operations
+///   written before the device derivation existed still fold.
+pub struct PersonalVaultKeys {
     vault_key: Zeroizing<[u8; 32]>,
     signing_seed: Zeroizing<[u8; 32]>,
     legacy_writer: [u8; 32],
+}
+
+impl PersonalVaultKeys {
+    /// What Knot asks djinn to derive, in order.
+    pub fn requests() -> Vec<EpochKeyRequest> {
+        vec![
+            EpochKeyRequest::secret(VAULT_KEY_CONTEXT, false),
+            EpochKeyRequest::secret(SIGNING_KEY_CONTEXT, true),
+            EpochKeyRequest::public(SIGNING_KEY_CONTEXT, false),
+        ]
+    }
+
+    /// Take the keys out of a release answering [`Self::requests`].
+    pub fn from_released(keys: &[ReleasedEpochKey]) -> Result<Self, String> {
+        let requests = Self::requests();
+        let [vault, signing, legacy] = [&requests[0], &requests[1], &requests[2]];
+        let find = |request: &EpochKeyRequest| {
+            keys.iter()
+                .find(|key| key.request == *request)
+                .map(|key| key.key)
+                .ok_or_else(|| format!("djinn's release lacks {}", request.context))
+        };
+        Ok(Self {
+            vault_key: Zeroizing::new(find(vault)?),
+            signing_seed: Zeroizing::new(find(signing)?),
+            legacy_writer: find(legacy)?,
+        })
+    }
+
+    /// Ask djinn for `persona`'s keys, blocking. `device_label` lets djinn
+    /// mint this device's identity if it has none; absent, a device with no
+    /// identity is refused. Never call this from inside a tokio runtime.
+    pub fn from_djinn(persona: PersonaId, device_label: Option<&str>) -> Result<Self, String> {
+        let mut client =
+            BlockingCustodyClient::open(AppId::new(KNOT_APP_ID)).map_err(custody_error)?;
+        let keys = client
+            .release_epoch_keys(
+                *persona.as_uuid(),
+                device_label.map(str::to_owned),
+                Self::requests(),
+            )
+            .map_err(custody_error)?;
+        Self::from_released(&keys)
+    }
+
+    /// [`Self::from_djinn`], from async code.
+    pub async fn from_djinn_async(
+        persona: PersonaId,
+        device_label: Option<&str>,
+    ) -> Result<Self, String> {
+        let mut client = CustodyClient::open(AppId::new(KNOT_APP_ID))
+            .await
+            .map_err(custody_error)?;
+        let keys = client
+            .release_epoch_keys(
+                *persona.as_uuid(),
+                device_label.map(str::to_owned),
+                Self::requests(),
+            )
+            .await
+            .map_err(custody_error)?;
+        Self::from_released(&keys)
+    }
+
+    /// This device's writer key, and so also its transport node id: what the
+    /// other devices must admit before its operations will fold. Deriving it
+    /// opens no Knot store, so pairing tools run beside a resident.
+    pub fn writer(&self) -> [u8; 32] {
+        *SigningKey::from_bytes(&self.signing_seed)
+            .verifying_key()
+            .as_bytes()
+    }
+
+    fn writers(&self, admitted: impl IntoIterator<Item = [u8; 32]>) -> Vec<[u8; 32]> {
+        let mut writers = vec![self.writer(), self.legacy_writer];
+        writers.extend(admitted);
+        writers.sort_unstable();
+        writers.dedup();
+        writers
+    }
+}
+
+/// A custody failure as Knot reports it: pending when djinn is absent or
+/// Locked (D12), a failure otherwise.
+fn custody_error(error: CustodyClientError) -> String {
+    match error.is_pending() {
+        true => format!("the Knot persona is pending until djinn is running and unlocked: {error}"),
+        false => format!("djinn did not release the Knot persona's keys: {error}"),
+    }
 }
 
 /// Unlocked authority held only long enough to seed or launch one endpoint.
@@ -46,23 +156,21 @@ pub struct StartupUnlockedPersonalVault {
 impl StartupUnlockedPersonalVault {
     /// Attach an explicitly named existing personal mere without creating an
     /// identity/store, migrating documents, or starting network replication.
-    /// Personae's configured startup-unlock policy still applies. Another
-    /// resident owning the operation store is an error, never a second owner.
-    pub fn open_existing(data_root: impl AsRef<Path>, persona: PersonaId) -> Result<Self, String> {
+    /// The store is checked before djinn is asked, so a missing mere costs no
+    /// release. Another resident owning the operation store is an error,
+    /// never a second owner.
+    pub fn open_existing(
+        data_root: impl AsRef<Path>,
+        persona: PersonaId,
+        keys: impl FnOnce() -> Result<PersonalVaultKeys, String>,
+    ) -> Result<Self, String> {
         let data_root = data_root.as_ref();
         let vault_root = persona_vault_root(data_root, persona);
         let store_path = vault_root.join(KNOT_SYNC_FILE);
         if !store_path.is_file() {
             return Err("the selected persona has no existing Knot mere operation store".into());
         }
-        let mut device = wallet_store::load_local_device_identity(data_root)
-            .map_err(|error| format!("could not unlock existing device identity: {error}"))?
-            .ok_or("no existing device identity; configure Personae before attaching a mere")?;
-        let device_root = *SigningKey::from_bytes(&device.device_seed)
-            .verifying_key()
-            .as_bytes();
-        device.device_seed.zeroize();
-        let keys = unlock_personal_keys(data_root, persona, device_root)?;
+        let keys = keys()?;
         let settings = crate::KnotSettings::load(&crate::knot_settings_path(data_root, persona))
             .map_err(|error| error.to_string())?;
         let admitted = settings
@@ -71,13 +179,7 @@ impl StartupUnlockedPersonalVault {
             .transpose()
             .map_err(|error| error.to_string())?
             .unwrap_or_default();
-        let writer = *SigningKey::from_bytes(&keys.signing_seed)
-            .verifying_key()
-            .as_bytes();
-        let mut writers = vec![writer, keys.legacy_writer];
-        writers.extend(admitted);
-        writers.sort_unstable();
-        writers.dedup();
+        let writers = keys.writers(admitted);
         let space_id = blake3::derive_key(SPACE_ID_CONTEXT, persona.as_uuid().as_bytes());
         let store = KnotSyncFileStore::open(&store_path, space_id, writers).map_err(|error| {
             format!("could not attach Knot mere; another resident may own it: {error}")
@@ -98,40 +200,33 @@ impl StartupUnlockedPersonalVault {
         })
     }
 
-    /// Recover the current private epoch through the configured startup-unlock
-    /// policy and open this persona's sealed vault plus signed operation store.
+    /// Open this persona's sealed vault plus signed operation store with the
+    /// keys djinn released.
     ///
-    /// `device_root` is this machine's Personae master public key. It is what
-    /// makes the writer identity device-distinct, and carrying the persona
-    /// epoch to a second device is why that matters: the vault key and space
-    /// must be identical across devices so both can decrypt the same space,
-    /// but the writer must not be, because its public half is also the node
-    /// identity. Two devices deriving one writer would be one node on the
-    /// network and one author in a per-author log, and neither works.
+    /// The writer is device-distinct because djinn mixes this machine's
+    /// device root into it, and carrying the persona epoch to a second device
+    /// is why that matters: the vault key and space must be identical across
+    /// devices so both can decrypt the same space, but the writer must not
+    /// be, because its public half is also the node identity. Two devices
+    /// deriving one writer would be one node on the network and one author in
+    /// a per-author log, and neither works.
     ///
     /// `admitted` carries the other devices' writer keys, which is how a
     /// second device's operations pass admission.
     pub fn open(
         data_root: impl AsRef<Path>,
         persona: PersonaId,
-        device_root: [u8; 32],
+        keys: PersonalVaultKeys,
         admitted: impl IntoIterator<Item = [u8; 32]>,
     ) -> Result<Self, String> {
         let data_root = data_root.as_ref();
-        let keys = unlock_personal_keys(data_root, persona, device_root)?;
 
         let vault_root = persona_vault_root(data_root, persona);
         fs::create_dir_all(vault_root.join("knot"))
             .map_err(|error| format!("could not create Knot persona vault: {error}"))?;
         let vault = KnotVault::open(&vault_root, *keys.vault_key)?;
         let space_id = blake3::derive_key(SPACE_ID_CONTEXT, persona.as_uuid().as_bytes());
-        let writer = *SigningKey::from_bytes(&keys.signing_seed)
-            .verifying_key()
-            .as_bytes();
-        let mut writers = vec![writer, keys.legacy_writer];
-        writers.extend(admitted);
-        writers.sort_unstable();
-        writers.dedup();
+        let writers = keys.writers(admitted);
         let store = KnotSyncFileStore::open(vault_root.join(KNOT_SYNC_FILE), space_id, writers)
             .map_err(|error| {
                 format!(
@@ -234,71 +329,6 @@ impl StartupUnlockedPersonalVault {
     }
 }
 
-/// Derive this device's Knot writer identity without opening the Knot vault or
-/// signed-operation store.
-///
-/// Pairing tools may run while the resident owns those files. Personae still
-/// performs the configured startup unlock because the writer is derived from
-/// the current persona epoch, but the management read cannot become a second
-/// Knot store owner.
-pub fn personal_vault_writer(
-    data_root: impl AsRef<Path>,
-    persona: PersonaId,
-    device_root: [u8; 32],
-) -> Result<[u8; 32], String> {
-    let keys = unlock_personal_keys(data_root.as_ref(), persona, device_root)?;
-    Ok(*SigningKey::from_bytes(&keys.signing_seed)
-        .verifying_key()
-        .as_bytes())
-}
-
-fn unlock_personal_keys(
-    data_root: &Path,
-    persona: PersonaId,
-    device_root: [u8; 32],
-) -> Result<StartupPersonalKeys, String> {
-    let mut epoch = wallet_store::load_current_private_epoch(data_root, persona)
-        .map_err(|error| format!("could not load Knot persona epoch: {error}"))?
-        .ok_or_else(|| {
-            "Knot persona vault is locked or has no current private epoch".to_string()
-        })?;
-    let vault_key = Zeroizing::new(blake3::derive_key(VAULT_KEY_CONTEXT, &epoch.epoch_secret));
-    // The pre-device-scoped writer. Admitted, never authored with, so
-    // operations written before this derivation existed still fold rather
-    // than becoming an unreadable log signed by nobody admitted.
-    let legacy_writer = *SigningKey::from_bytes(&blake3::derive_key(
-        SIGNING_KEY_CONTEXT,
-        &epoch.epoch_secret,
-    ))
-    .verifying_key()
-    .as_bytes();
-    let mut material = Zeroizing::new(Vec::with_capacity(64));
-    material.extend_from_slice(&epoch.epoch_secret);
-    material.extend_from_slice(&device_root);
-    let signing_seed = Zeroizing::new(blake3::derive_key(SIGNING_KEY_CONTEXT, &material));
-    epoch.epoch_secret.zeroize();
-    Ok(StartupPersonalKeys {
-        vault_key,
-        signing_seed,
-        legacy_writer,
-    })
-}
-
-/// This machine's public device key, minted once and reused thereafter.
-///
-/// The device component of the writer derivation. It is public on purpose: it
-/// only has to be *distinct* per device, since the secrecy of the writer comes
-/// from the persona epoch it is mixed with. Reusing pandect's local
-/// device identity rather than minting a Knot-private one keeps a device one
-/// device across the whole system.
-pub fn local_device_root(data_root: &Path, label: &str) -> Result<[u8; 32], String> {
-    let identity = wallet_store::ensure_local_device_identity(data_root, label)
-        .map_err(|error| format!("could not open this device's identity: {error}"))?;
-    Ok(*SigningKey::from_bytes(&identity.device_seed)
-        .verifying_key()
-        .as_bytes())
-}
-
 pub fn persona_vault_root(data_root: &Path, persona: PersonaId) -> PathBuf {
     data_root
         .join(pandect::PERSONAS_DIR)
@@ -306,67 +336,99 @@ pub fn persona_vault_root(data_root: &Path, persona: PersonaId) -> PathBuf {
         .join(KNOT_VAULT_DIR)
 }
 
+/// A release built the way djinn derives one, for tests that have no djinn.
+#[cfg(test)]
+pub(crate) fn fixture_keys(epoch: u8, device: u8) -> PersonalVaultKeys {
+    let device_root = *SigningKey::from_bytes(&[device; 32])
+        .verifying_key()
+        .as_bytes();
+    let keys = PersonalVaultKeys::requests()
+        .into_iter()
+        .map(|request| {
+            let mut material = vec![epoch; 32];
+            if request.device_bound {
+                material.extend_from_slice(&device_root);
+            }
+            let derived = blake3::derive_key(&request.context, &material);
+            let key = match request.public_only {
+                true => *SigningKey::from_bytes(&derived).verifying_key().as_bytes(),
+                false => derived,
+            };
+            ReleasedEpochKey { request, key }
+        })
+        .collect::<Vec<_>>();
+    PersonalVaultKeys::from_released(&keys).unwrap()
+}
+
 #[cfg(test)]
 mod existing_attachment_tests {
     use super::*;
 
     #[test]
-    fn missing_mere_refuses_before_creating_root_or_identity() {
+    fn missing_mere_refuses_before_asking_djinn_or_creating_root() {
         let temp = tempfile::tempdir().unwrap();
         let root = temp.path().join("absent");
-        assert!(StartupUnlockedPersonalVault::open_existing(&root, PersonaId::new()).is_err());
+        let error = StartupUnlockedPersonalVault::open_existing(&root, PersonaId::new(), || {
+            Err("djinn was asked".into())
+        })
+        .err()
+        .unwrap();
+        assert!(error.contains("no existing Knot mere"), "{error}");
         assert!(!root.exists());
     }
 
     #[test]
-    fn missing_device_identity_does_not_bootstrap_one() {
+    fn a_pending_persona_opens_nothing() {
         let temp = tempfile::tempdir().unwrap();
         let persona = PersonaId::new();
         let store = persona_vault_root(temp.path(), persona).join(KNOT_SYNC_FILE);
         fs::create_dir_all(store.parent().unwrap()).unwrap();
-        fs::write(&store, b"not opened without device authority").unwrap();
-        let error = StartupUnlockedPersonalVault::open_existing(temp.path(), persona)
-            .err()
-            .unwrap();
-        assert!(error.contains("no existing device identity"), "{error}");
-        assert!(!wallet_store::local_device_identity_path(temp.path()).exists());
+        fs::write(&store, b"not opened without released keys").unwrap();
+        let error = StartupUnlockedPersonalVault::open_existing(temp.path(), persona, || {
+            Err("the Knot persona is pending".into())
+        })
+        .err()
+        .unwrap();
+        assert!(error.contains("pending"), "{error}");
         assert_eq!(
             fs::read(store).unwrap(),
-            b"not opened without device authority"
+            b"not opened without released keys"
         );
+    }
+
+    #[test]
+    fn a_release_missing_a_key_is_refused() {
+        let keys = PersonalVaultKeys::requests()
+            .into_iter()
+            .take(2)
+            .map(|request| ReleasedEpochKey {
+                request,
+                key: [3; 32],
+            })
+            .collect::<Vec<_>>();
+        assert!(PersonalVaultKeys::from_released(&keys).is_err());
     }
 }
 
-#[cfg(all(test, windows))]
+#[cfg(test)]
 mod tests {
     use graphshell_endpoint::{ProjectionCatalog, ProjectionSource};
-    use pandect::{DeviceSettings, save_device_settings};
     use tempfile::tempdir;
 
     use super::*;
 
     #[test]
-    fn auto_os_unlock_opens_signed_sealed_persona_truth() {
+    fn released_keys_open_signed_sealed_persona_truth() {
         let root = tempdir().unwrap();
         let persona = PersonaId::new();
-        let settings = DeviceSettings {
-            startup_unlock_mode: personae::StartupUnlockMode::AutoOs,
-            ..Default::default()
-        };
-        save_device_settings(root.path(), &settings).unwrap();
-        wallet_store::ensure_wallet_state(root.path(), persona, "Knot receipt").unwrap();
 
-        let authority = StartupUnlockedPersonalVault::open(
-            root.path(),
-            persona,
-            local_device_root(root.path(), "knot receipt").unwrap(),
-            [],
-        )
-        .unwrap();
+        let authority =
+            StartupUnlockedPersonalVault::open(root.path(), persona, fixture_keys(1, 2), [])
+                .unwrap();
         let duplicate = match StartupUnlockedPersonalVault::open(
             root.path(),
             persona,
-            local_device_root(root.path(), "knot receipt").unwrap(),
+            fixture_keys(1, 2),
             [],
         ) {
             Ok(_) => panic!("a second persona owner must be refused promptly"),
@@ -374,14 +436,14 @@ mod tests {
         };
         assert!(duplicate.contains("another resident may already own this persona"));
         assert_eq!(
-            personal_vault_writer(
-                root.path(),
-                persona,
-                local_device_root(root.path(), "knot receipt").unwrap(),
-            )
-            .unwrap(),
+            fixture_keys(1, 2).writer(),
             authority.writer(),
             "pairing facts derive beside the resident without reopening its stores",
+        );
+        assert_ne!(
+            fixture_keys(1, 3).writer(),
+            authority.writer(),
+            "each device of a persona is its own writer",
         );
         authority
             .author_document(VaultDocument {
@@ -397,15 +459,11 @@ mod tests {
         assert!(!snapshot.scene.tables.items.is_empty());
 
         drop(endpoint);
-        let reopened = StartupUnlockedPersonalVault::open(
-            root.path(),
-            persona,
-            local_device_root(root.path(), "knot receipt").unwrap(),
-            [],
-        )
-        .unwrap()
-        .into_endpoint(KnotWriteGrant::new(4096))
-        .unwrap();
+        let reopened =
+            StartupUnlockedPersonalVault::open(root.path(), persona, fixture_keys(1, 2), [])
+                .unwrap()
+                .into_endpoint(KnotWriteGrant::new(4096))
+                .unwrap();
         drop(reopened);
 
         let clear = b"# Private\n";

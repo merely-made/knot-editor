@@ -141,8 +141,7 @@ fn main() {
             knot_editor::StartupUnlockedPersonalVault::open(
                 PathBuf::from(data_root),
                 persona,
-                knot_editor::local_device_root(Path::new(data_root), "knot")
-                    .expect("Knot could not open this device identity"),
+                persona_keys(persona),
                 [],
             )
             .and_then(|authority| {
@@ -166,8 +165,7 @@ fn main() {
             let mut endpoint = knot_editor::StartupUnlockedPersonalVault::open(
                 PathBuf::from(data_root),
                 persona,
-                knot_editor::local_device_root(Path::new(data_root), "knot")
-                    .expect("Knot could not open this device identity"),
+                persona_keys(persona),
                 [],
             )
             .and_then(|authority| {
@@ -206,8 +204,7 @@ fn main() {
             let mut endpoint = knot_editor::StartupUnlockedPersonalVault::open(
                 PathBuf::from(data_root),
                 persona,
-                knot_editor::local_device_root(Path::new(data_root), "knot")
-                    .expect("Knot could not open this device identity"),
+                persona_keys(persona),
                 [],
             )
             .and_then(|authority| {
@@ -251,8 +248,7 @@ fn main() {
             let mut endpoint = knot_editor::StartupUnlockedPersonalVault::open(
                 PathBuf::from(data_root),
                 persona,
-                knot_editor::local_device_root(Path::new(data_root), "knot")
-                    .expect("Knot could not open this device identity"),
+                persona_keys(persona),
                 [],
             )
             .and_then(|authority| {
@@ -394,6 +390,13 @@ fn communal_fixture_endpoint(
     .expect("could not open communal fixture endpoint");
     endpoint.grant_effects(effects);
     endpoint
+}
+
+/// The persona's keys, released by djinn. A pending persona (djinn absent or
+/// Locked) ends the endpoint before anything opens (D12).
+fn persona_keys(persona: personae::PersonaId) -> knot_editor::PersonalVaultKeys {
+    knot_editor::PersonalVaultKeys::from_djinn(persona, Some("knot"))
+        .expect("Knot could not obtain the persona's keys from djinn")
 }
 
 fn parse_u64(value: &OsStr, label: &str) -> u64 {

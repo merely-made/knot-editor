@@ -30,9 +30,12 @@
 
 use std::path::{Path, PathBuf};
 
+use graphshell::identity::VaultLockView;
+use graphshell::native::app_admission::AppId;
+use graphshell::native::custody_client::CustodyClient;
 use knot_editor::{
-    KnotSettings, KnotSyncHost, KnotSyncHostConfig, KnotSyncSettings, StartupUnlockedPersonalVault,
-    knot_settings_path, local_device_root, personal_vault_writer,
+    KnotSettings, KnotSyncHost, KnotSyncHostConfig, KnotSyncSettings, PersonalVaultKeys,
+    StartupUnlockedPersonalVault, knot_settings_path,
 };
 
 const PAIRING_POLL: std::time::Duration = std::time::Duration::from_secs(5);
@@ -59,7 +62,7 @@ async fn main() {
     };
     // Management verbs edit settings or derive public pairing facts. They do
     // not open Knot's vault or operation store, so they run beside a resident.
-    if let Some(result) = management(&args) {
+    if let Some(result) = management(&args).await {
         match result {
             Ok(message) => {
                 println!("{message}");
@@ -81,14 +84,14 @@ async fn main() {
     }
 }
 
-fn management(args: &Args) -> Option<Result<String, String>> {
+async fn management(args: &Args) -> Option<Result<String, String>> {
     match (&args.pair, &args.unpair, args.pairing_facts) {
         (Some(_), Some(_), _) => Some(Err(
             "--pair-writer and --unpair-writer are mutually exclusive".into(),
         )),
         (Some(writer), None, _) => Some(pair(args, writer, true)),
         (None, Some(writer), _) => Some(pair(args, writer, false)),
-        (None, None, true) => Some(pairing_facts(args)),
+        (None, None, true) => Some(pairing_facts(args).await),
         (None, None, false) => None,
     }
 }
@@ -119,11 +122,12 @@ fn pair(args: &Args, writer: &str, add: bool) -> Result<String, String> {
 
 /// What the persona's other devices need in order to admit and reach this one.
 ///
-/// The writer is epoch-derived, but derivation needs Personae startup unlock,
-/// not a second Knot store owner. This remains usable while the resident runs.
-fn pairing_facts(args: &Args) -> Result<String, String> {
-    let device_root = local_device_root(&args.data_root, &args.label)?;
-    let writer = personal_vault_writer(&args.data_root, args.persona, device_root)?;
+/// The writer is epoch-derived inside djinn, which releases it without a
+/// second Knot store owner. This remains usable while the resident runs.
+async fn pairing_facts(args: &Args) -> Result<String, String> {
+    let writer = PersonalVaultKeys::from_djinn_async(args.persona, Some(&args.label))
+        .await?
+        .writer();
     Ok(format!(
         "writer {}\n\nOn each other device, run:\n  knot_sync_host <data-root> {} --pair-writer {}",
         knot_editor::hex32(&writer),
@@ -148,12 +152,14 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         .into());
     };
 
-    let device_root = local_device_root(&args.data_root, &args.label)?;
     let snapshot = knot_editor::KnotSpaceAuthoritySnapshot::from_personal_settings(&sync)?;
+    // A pending persona (djinn absent or Locked) stops here: no fallback key,
+    // nothing opened (D12).
+    let keys = PersonalVaultKeys::from_djinn_async(args.persona, Some(&args.label)).await?;
     let authority = StartupUnlockedPersonalVault::open(
         &args.data_root,
         args.persona,
-        device_root,
+        keys,
         snapshot.writers(),
     )?;
 
@@ -188,36 +194,62 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
     // Reconcile pairing live. Writer admission and evidence access are shared
     // mutable Personae materializations, while the address-book topic is only
-    // the route used to reach that admitted identity.
-    loop {
-        tokio::time::sleep(PAIRING_POLL).await;
-        let reloaded = match KnotSettings::load(&settings_file) {
-            Ok(settings) => settings,
-            Err(error) => {
-                tracing::warn!(%error, "could not reload knot sync settings");
-                continue;
+    // the route used to reach that admitted identity. A lock in djinn revokes
+    // the released keys, so the host stops with it (D11).
+    let reconcile = async {
+        loop {
+            tokio::time::sleep(PAIRING_POLL).await;
+            let reloaded = match KnotSettings::load(&settings_file) {
+                Ok(settings) => settings,
+                Err(error) => {
+                    tracing::warn!(%error, "could not reload knot sync settings");
+                    continue;
+                }
+            };
+            let Some(sync) = reloaded.sync else { continue };
+            let desired =
+                match knot_editor::KnotSpaceAuthoritySnapshot::from_personal_settings(&sync) {
+                    Ok(snapshot) => snapshot,
+                    Err(error) => {
+                        tracing::warn!(%error, "knot sync settings hold an unusable writer key");
+                        continue;
+                    }
+                };
+            match host.apply_authority(desired).await {
+                Ok(true) => tracing::info!(
+                    revision = %knot_editor::hex32(&host.authority_revision()),
+                    "applied a new Knot space-authority revision"
+                ),
+                Ok(false) => {}
+                Err(error) => {
+                    tracing::warn!(%error, "could not apply Knot space authority");
+                    continue;
+                }
             }
-        };
-        let Some(sync) = reloaded.sync else { continue };
-        let desired = match knot_editor::KnotSpaceAuthoritySnapshot::from_personal_settings(&sync) {
-            Ok(snapshot) => snapshot,
-            Err(error) => {
-                tracing::warn!(%error, "knot sync settings hold an unusable writer key");
-                continue;
-            }
-        };
-        match host.apply_authority(desired).await {
-            Ok(true) => tracing::info!(
-                revision = %knot_editor::hex32(&host.authority_revision()),
-                "applied a new Knot space-authority revision"
-            ),
-            Ok(false) => {}
-            Err(error) => {
-                tracing::warn!(%error, "could not apply Knot space authority");
-                continue;
-            }
+            host.refresh_dial_hints(&settings_file).await;
         }
-        host.refresh_dial_hints(&settings_file).await;
+    };
+    tokio::select! {
+        reason = until_locked() => {
+            Err(format!("dropping the released Knot keys: {reason}").into())
+        }
+        () = reconcile => Ok(()),
+    }
+}
+
+/// Answers once djinn locks, or once it can no longer be asked.
+async fn until_locked() -> String {
+    let mut client = match CustodyClient::open(AppId::new(knot_editor::KNOT_APP_ID)).await {
+        Ok(client) => client,
+        Err(error) => return error.to_string(),
+    };
+    let mut seen = VaultLockView::Unlocked;
+    loop {
+        match client.watch_lock(seen).await {
+            Ok(VaultLockView::Locked) => return "djinn locked the vault".into(),
+            Ok(lock) => seen = lock,
+            Err(error) => return error.to_string(),
+        }
     }
 }
 

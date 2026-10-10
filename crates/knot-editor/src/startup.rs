@@ -491,3 +491,31 @@ mod tests {
         files
     }
 }
+
+#[cfg(test)]
+mod dr_c_receipts {
+    use super::*;
+    #[test]
+    #[ignore = "run mere/scripts/dr_c_receipts.py against the isolated receipt keeper"]
+    fn dr_c_knot_identity_stays_pending() {
+        let mode = std::env::var("DR_C_RECEIPT_MODE").expect("receipt mode");
+        assert!(mode == "absent" || mode == "locked");
+        if mode == "locked" {
+            let mut client = BlockingCustodyClient::open(AppId::new(KNOT_APP_ID)).unwrap();
+            let status = client.status().unwrap();
+            assert_eq!(status.lock, graphshell::identity::VaultLockView::Locked);
+            assert!(status.persona_public_key.is_none());
+            assert!(!client.roster().unwrap().entries.is_empty());
+        }
+        let temp = tempfile::tempdir().unwrap();
+        let persona = PersonaId::new();
+        let root = temp.path().join("must-stay-absent");
+        let result = PersonalVaultKeys::from_djinn(persona, Some("dr-c-receipt"))
+            .and_then(|keys| StartupUnlockedPersonalVault::open(&root, persona, keys, []));
+        assert!(matches!(result, Err(ref error) if error.contains("pending")), "Knot must have no writer or sealing key");
+        assert!(!root.exists(), "Knot must create no vault or operation store while pending");
+        let result = tokio::runtime::Builder::new_current_thread().enable_all().build().unwrap()
+            .block_on(PersonalVaultKeys::from_djinn_async(persona, None));
+        assert!(matches!(result, Err(ref error) if error.contains("pending")), "async bins must also stay pending");
+    }
+}

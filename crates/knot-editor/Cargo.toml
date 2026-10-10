@@ -32,6 +32,8 @@ chartulary.workspace = true
 eidetic = { workspace = true, features = ["json-schema"] }
 fetch.workspace = true
 fleece.workspace = true
+# The custody client: Knot reaches its persona keys by calling djinn (dramatis DR-C).
+graphshell.workspace = true
 graphshell-endpoint = { workspace = true, features = ["stdio"] }
 chirograph.workspace = true
 inker.workspace = true
@@ -95,13 +97,12 @@ zeroize = { version = "1", features = ["derive"] }
 scenomise.workspace = true
 scenograph.workspace = true
 gemot.workspace = true
-graphshell.workspace = true
 graphshell-endpoint = { workspace = true, features = ["local"] }
 rcgen = "0.14"
 taproot = { workspace = true }
 tempfile = "3"
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
-transport.workspace = true
+transport = { workspace = true, features = ["test-identity"] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = [

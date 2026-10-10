@@ -10,13 +10,17 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphshell::identity::VaultProtectionView;
+use graphshell::identity::{
+    AgentListenerView, CarryView, IdentitySurfaceSnapshot, VaultLockView, VaultProtectionView,
+    VaultView,
+};
 use graphshell::native::app_admission::{AllowedAppRoutes, AppId, AppRouteGrants, AppRouteId};
 use graphshell::native::app_broker::{AppEndpointCatalog, serve_app_broker};
 use graphshell::native::app_client::AppBrokerClient;
 use graphshell::native::endpoint_catalog::{ResidentEndpointCatalog, ResidentEndpointRoute};
-use graphshell::native::personae_host::PersonaeHost;
-use personae::{Ed25519Keypair, IdentityVault, InMemoryStorage, Profile, ProfileId};
+use graphshell::native::local_session::DoorIdentity;
+use graphshell::native::resident_identity::ResidentIdentity;
+use personae::{IdentityError, InMemoryProvider, RetainedKeys};
 
 #[cfg(not(windows))]
 struct SocketPath(std::path::PathBuf);
@@ -28,17 +32,39 @@ impl Drop for SocketPath {
     }
 }
 
-fn resident_host() -> Arc<PersonaeHost<InMemoryStorage>> {
-    let profile = Profile::new(
-        ProfileId("default".into()),
-        "Default",
-        Ed25519Keypair::from_seed([0xA1; 32]),
-    );
-    Arc::new(PersonaeHost::new(
-        IdentityVault::with_profile(InMemoryStorage::new(), profile),
-        None,
-        VaultProtectionView::Ephemeral,
-    ))
+/// A resident identity with fixed door keys and no custody route: the route
+/// under test is Knot's, and only djinn links the real keeper (dramatis D4).
+struct FixtureResident(InMemoryProvider);
+
+impl DoorIdentity for FixtureResident {
+    fn door_keys(&self) -> Result<Arc<RetainedKeys>, IdentityError> {
+        self.0.door_keys()
+    }
+}
+
+impl ResidentIdentity for FixtureResident {
+    fn snapshot(&self) -> std::io::Result<IdentitySurfaceSnapshot> {
+        Ok(IdentitySurfaceSnapshot {
+            vault: VaultView {
+                protection: VaultProtectionView::Ephemeral,
+                lock: VaultLockView::Unlocked,
+                agent: AgentListenerView::StandaloneRetained,
+            },
+            profiles: Vec::new(),
+            ssh_keys: Vec::new(),
+            carry: CarryView::default(),
+            pending_signing: Vec::new(),
+            signing_history: Vec::new(),
+        })
+    }
+
+    fn apply_intent(&self, _intent: &str, _payload: &[u8]) -> Result<(), String> {
+        Err("the fixture resident takes no identity intents".into())
+    }
+}
+
+fn resident_host() -> Arc<FixtureResident> {
+    Arc::new(FixtureResident(InMemoryProvider::from_seed([0xA1; 32])))
 }
 
 #[tokio::test(flavor = "multi_thread")]

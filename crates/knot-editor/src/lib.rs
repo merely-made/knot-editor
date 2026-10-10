@@ -132,7 +132,8 @@ pub use settings::{
     KnotSettings, KnotSettingsError, KnotSyncSettings, hex32, knot_settings_path, parse_hex32,
 };
 pub use startup::{
-    StartupUnlockedPersonalVault, local_device_root, persona_vault_root, personal_vault_writer,
+    KNOT_APP_ID, PersonalVaultKeys, SIGNING_KEY_CONTEXT, StartupUnlockedPersonalVault,
+    VAULT_KEY_CONTEXT, persona_vault_root,
 };
 pub use sync::{
     KNOT_COMMONS_ENCRYPTION_PROFILE, KnotAssertedTime, KnotAutomaticTextMerge,

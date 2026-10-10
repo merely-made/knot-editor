@@ -151,7 +151,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
                 } else {
                     format!("{shown}: {error}")
                 });
-            },
+            }
         }
     }
     if opened.is_empty() && !failures.is_empty() {
@@ -238,8 +238,12 @@ fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, Strin
         return Ok(vec![]);
     };
     let persona = personae::PersonaId::from_uuid(options.persona);
+    // Keys come from djinn; with djinn absent or Locked the mere is pending
+    // and nothing attaches (dramatis D12). No device identity is minted here.
     let authority =
-        knot_editor::StartupUnlockedPersonalVault::open_existing(&options.root, persona)?;
+        knot_editor::StartupUnlockedPersonalVault::open_existing(&options.root, persona, || {
+            knot_editor::PersonalVaultKeys::from_djinn(persona, None)
+        })?;
     let resident = authority.into_resident_source()?;
     let port = resident
         .composition_retention(knot_editor::CompositionGrant::new(

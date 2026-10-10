@@ -17,6 +17,10 @@ path = "src/bin/knot_sync_host.rs"
 
 [features]
 default = []
+# Embedders using Chirograph's optional snapshot coverage field enable this.
+# Keep off for the pinned standalone Mere contract, which has no such field.
+# Knot reports no coverage metadata; this only selects the construction contract.
+mere-snapshot-coverage-v1 = []
 # Search embedders beyond the lexical default. Off by default so an ordinary
 # build stays on esp's serde-only tree: no burn, no tokenizers. A writer still
 # has to supply the model directory; these only compile the provider in.

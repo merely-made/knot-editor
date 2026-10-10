@@ -274,6 +274,27 @@ fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, Strin
 mod tests {
     use super::*;
     #[test]
+    #[cfg(feature = "mere-retention")]
+    #[ignore = "run mere/scripts/dr_c_receipts.py against the isolated receipt keeper"]
+    fn dr_c_knot_desktop_identity_stays_pending() {
+        let mode = std::env::var("DR_C_RECEIPT_MODE").expect("receipt mode");
+        assert!(mode == "absent" || mode == "locked");
+        let root = tempfile::tempdir().unwrap();
+        let persona = uuid::Uuid::new_v4();
+        let store = knot_editor::persona_vault_root(root.path(), personae::PersonaId::from_uuid(persona))
+            .join("knot/sync.redb");
+        std::fs::create_dir_all(store.parent().unwrap()).unwrap();
+        std::fs::write(&store, b"opaque existing operations").unwrap();
+        let document = root.path().join("essay.djot");
+        std::fs::write(&document, b"An already-public document.").unwrap();
+        let attachment = attach_mere(Some(MereOptions { root: root.path().to_path_buf(), persona }));
+        assert!(matches!(attachment, Err(ref error) if error.contains("pending")),
+            "desktop must attach no retention authority or fallback key");
+        assert_eq!(std::fs::read(store).unwrap(), b"opaque existing operations");
+        assert_eq!(std::fs::read(document).unwrap(), b"An already-public document.");
+        assert!(!knot_editor::knot_settings_path(root.path(), personae::PersonaId::from_uuid(persona)).exists());
+    }
+    #[test]
     fn mere_attachment_requires_explicit_paired_options() {
         let id = "00000000-0000-0000-0000-000000000042";
         assert!(select_document(["knot", "--mere-root", "data"].map(OsString::from)).is_err());

@@ -450,17 +450,21 @@ fn swatch_relation_visible(
 }
 
 fn dispatch_control(state: &mut DesktopState, action: SceneAction) {
-    let Some(material) = state.composition.recipe.material.as_mut() else {
+    let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
     };
-    state.composition.notice = Some(match apply_action(material, action) {
-        Ok(_) => "Scene presentation updated; retain deliberately to save this version.".into(),
+    let mut candidate = material.clone();
+    state.composition.notice = Some(match apply_action(&mut candidate, action) {
+        Ok(_) => {
+            super::install_edit(state, candidate);
+            "Scene presentation updated; retain deliberately to save this version.".into()
+        },
         Err(error) => error,
     });
 }
 
 fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
-    let Some(material) = state.composition.recipe.material.as_mut() else {
+    let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
     };
     let card = state
@@ -471,11 +475,14 @@ fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
         .map_or(VALIDATION_CARD, |measured| measured.card);
     let compiled = ProjectionCompiler::new(ItemSizes { card })
         .compile_relationship_snapshot(&material.snapshot, &material.dataset);
+    let mut candidate = material.clone();
     let result = compiled
         .map_err(|error| format!("{error:?}"))
-        .and_then(|compiled| apply_canvas_event(material, &compiled, event));
-    if let Err(error) = result {
-        state.composition.notice = Some(error);
+        .and_then(|compiled| apply_canvas_event(&mut candidate, &compiled, event));
+    match result {
+        Ok(true) => super::install_edit(state, candidate),
+        Ok(false) => {},
+        Err(error) => state.composition.notice = Some(error),
     }
 }
 

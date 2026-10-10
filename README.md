@@ -204,10 +204,28 @@ container's opening line, replaces the remainder with a labelled marker, and
 offers Collapse/Expand controls. Choose **Edit source** to return explicitly
 to the ordinary styled textarea; fold state never changes source, dirty state,
 undo history, or saves. Folding is available for Djot and legacy Knot only.
-Appearance controls switch between Tinct light and dark palettes, source
-highlighting, 12–24 px type, compact or relaxed spacing, and narrow or wide
-writing areas. These preferences last for the app session and survive document
-changes. Highlighting decorates editable Djot and legacy Knot source through
+Appearance keeps Knot's existing Tinct colors as its default and offers saved
+Tabard themes in light, dark, high contrast light, and high contrast dark modes.
+Choose **Appearance → Edit themes…** to open the shared Tabard workshop in the
+same window. Save a user copy to the library, then choose **Apply to Knot** to
+persist that theme and mode in Knot's preferences. Previewing or saving a theme
+does not apply it to your document. **Back to Knot** asks about pending theme
+edits; closing the application also retains Knot's unsaved-document confirmation.
+Authored mode CSS is appended after Knot's semantic rules. Graph nodes use the
+selected derived palette, or the clearly labelled Knot fallback when arbitrary
+CSS supplies no typed graph colors.
+
+The shared authored library is `mere/tabard/themes.json` under the operating
+system's local data directory. `KNOT_THEME_LIBRARY` overrides that path for an
+isolated profile or native acceptance run. An unreadable library leaves the
+saved app choice intact, shows an error, and disables authoring until **Reload
+theme library** succeeds; it is never replaced with an empty library. Failed
+saved-theme preference writes leave the selected appearance unchanged.
+
+Source highlighting, 12–24 px type, IBM Plex Mono or system monospace, compact
+or relaxed spacing, and narrow through full writing measures remain separate
+writing preferences. Their values persist in Knot's existing preferences file
+and survive theme selection and document changes. Highlighting decorates editable Djot and legacy Knot source through
 Cambium's existing text input; read-only, Markdown, and JSON views remain plain.
 Embedded hosts opt into the `highlight` feature and
 `knot_document_view_with_highlighting`, and supply their own syntax stylesheet.

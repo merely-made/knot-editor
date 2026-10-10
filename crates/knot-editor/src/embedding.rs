@@ -433,8 +433,14 @@ fn load_model(
         KnotEmbeddingProvider::BertCpu => esp::embed::bert::load_cpu(&weights.path)
             .map_err(|error| model_load(provider, weights, error)),
         #[cfg(feature = "embed-bert-wgpu")]
-        KnotEmbeddingProvider::BertWgpu => esp::embed::bert::load_wgpu(&weights.path)
-            .map_err(|error| model_load(provider, weights, error)),
+        // Knot's standalone search embedder has no renderer device to share.
+        // Boot its explicitly selected adapter; renderer hosts should pass
+        // their already registered device through their own provider seam.
+        KnotEmbeddingProvider::BertWgpu => esp::embed::bert::load_wgpu(
+            &weights.path,
+            esp::embed::bert::Device::wgpu(esp::embed::bert::DeviceKind::DiscreteGpu(0)),
+        )
+        .map_err(|error| model_load(provider, weights, error)),
         other => Err(match other.required_feature() {
             Some(feature) => KnotSearchError::ProviderUnavailable {
                 provider: other,

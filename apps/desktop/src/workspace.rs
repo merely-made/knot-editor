@@ -325,6 +325,7 @@ pub struct DesktopState {
     /// never a save target.
     placeholder: DocumentEntry,
     pub appearance: Appearance,
+    pub theme_session: crate::theme_session::ThemeSession,
     /// Local surface thresholds; never part of a document or sync settings.
     pub collapse: CollapsePreferences,
     pub presentation: workbench::WorkbenchPresentation,
@@ -427,6 +428,7 @@ impl DesktopState {
             command_chrome: CommandChrome::default(),
             placeholder: DocumentEntry::new(KnotDocumentSession::read_only(SCRATCH_ADDRESS, "")),
             appearance: Appearance::default(),
+            theme_session: crate::theme_session::ThemeSession::default(),
             collapse: CollapsePreferences::default(),
             presentation: workbench::WorkbenchPresentation::default(),
             viewport: (1100.0, 700.0),
@@ -559,6 +561,10 @@ impl DesktopState {
         self.window = window;
     }
 
+    pub(crate) fn window_commands(&self) -> WindowCommands {
+        self.window.clone()
+    }
+
     /// Force a platform command layout in a headless acceptance test.
     pub fn set_command_chrome(&mut self, chrome: CommandChrome) {
         self.command_chrome = chrome;
@@ -662,7 +668,11 @@ impl DesktopState {
         self.retention_error = None;
     }
 
-    pub fn set_composition_targets(&mut self, targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>, wake: HostWake) {
+    pub fn set_composition_targets(
+        &mut self,
+        targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>,
+        wake: HostWake,
+    ) {
         self.composition.set_targets(targets, wake);
     }
 
@@ -898,6 +908,26 @@ impl DesktopState {
             .max()
             .unwrap_or(0);
         taproot::ProbeSnapshot::default()
+            .with_field(
+                "theme_workshop_open",
+                self.theme_session.workshop_open.to_string(),
+            )
+            .with_field(
+                "theme_library_available",
+                self.theme_session.workshop.is_some().to_string(),
+            )
+            .with_field(
+                "theme_id",
+                self.theme_session.resolve(&self.appearance).theme.id,
+            )
+            .with_field(
+                "theme_mode",
+                self.theme_session.resolve(&self.appearance).mode.as_key(),
+            )
+            .with_field(
+                "theme_notice",
+                self.theme_session.notice.clone().unwrap_or_default(),
+            )
             .with_field("document", snapshot.display_label)
             .with_field("format", format!("{:?}", snapshot.format))
             .with_field(
@@ -1971,12 +2001,64 @@ impl DesktopState {
 
     /// Every appearance control goes through here, so each change is saved.
     pub(crate) fn update_appearance(&mut self, change: impl FnOnce(&mut Appearance)) {
+        let previous = self.appearance.clone();
         change(&mut self.appearance);
-        let Some(store) = self.preferences.as_mut() else {
-            return;
-        };
-        if let Err(error) = store.save_appearance(&self.appearance) {
-            self.message = Some(format!("Appearance not saved: {error}"));
+        let clears_theme =
+            previous.theme_choice.is_some() && self.appearance.theme_choice.is_none();
+        if let Some(store) = self.preferences.as_mut() {
+            if let Err(error) = store.save_appearance(&self.appearance) {
+                if clears_theme {
+                    self.appearance = previous;
+                }
+                self.message = Some(format!("Appearance not saved: {error}"));
+                return;
+            }
+        }
+        if clears_theme {
+            self.theme_session.request_stylesheet_update();
+        }
+    }
+
+    /// Persist an explicit saved Tabard choice before changing visible appearance.
+    pub fn select_theme_choice(
+        &mut self,
+        choice: Result<tabard::theme::choice::ThemeChoice, String>,
+    ) {
+        let result = choice.and_then(|choice| {
+            let choice = self
+                .theme_session
+                .choice(&choice.theme_id, choice.theme_mode)?;
+            let mut candidate = self.appearance.clone();
+            candidate.dark = choice
+                .theme_mode
+                .as_ref()
+                .is_some_and(tabard::theme::registry::Mode::dark);
+            candidate.theme_choice = Some(choice);
+            if let Some(store) = &mut self.preferences {
+                store.save_appearance(&candidate)?;
+            }
+            self.appearance = candidate;
+            self.theme_session.record_applied_choice(&self.appearance);
+            Ok(())
+        });
+        self.theme_session.notice = Some(match result {
+            Ok(()) => "Saved theme applied to Knot.".into(),
+            Err(error) => format!("Appearance was not changed: {error}"),
+        });
+    }
+
+    fn theme_graph_palette(&self) -> tinct::Palette {
+        let resolved = self.theme_session.resolve(&self.appearance);
+        match resolved.presentation {
+            tabard::ThemePresentation::Derived(mode) => mode.palette,
+            // Graph paint is typed data. Arbitrary CSS has no claimed palette.
+            tabard::ThemePresentation::AuthoredStylesheet(_) => tinct::derive_palette_with(
+                &crate::appearance::seeds(resolved.mode.dark()),
+                tinct::ModeProfile {
+                    dark: resolved.mode.dark(),
+                    high_contrast: resolved.mode.high_contrast(),
+                },
+            ),
         }
     }
 
@@ -3185,6 +3267,9 @@ fn recovery_detail(state: &DesktopState) -> DesktopView {
 }
 
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
+    if state.theme_session.workshop_open {
+        return crate::theme_session::workshop_screen(state);
+    }
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
         let hard_wrap_note: DesktopView = if appearance.follow_hard_wrap
@@ -3255,11 +3340,17 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         "div",
                         (
                             button("Light", |state: &mut DesktopState, _| {
-                                state.update_appearance(|appearance| appearance.dark = false);
+                                state.update_appearance(|appearance| {
+                                    appearance.dark = false;
+                                    appearance.theme_choice = None;
+                                });
                             })
                             .attr("aria-pressed", (!appearance.dark).to_string()),
                             button("Dark", |state: &mut DesktopState, _| {
-                                state.update_appearance(|appearance| appearance.dark = true);
+                                state.update_appearance(|appearance| {
+                                    appearance.dark = true;
+                                    appearance.theme_choice = None;
+                                });
                             })
                             .attr("aria-pressed", appearance.dark.to_string()),
                             button("Highlight", |state: &mut DesktopState, _| {
@@ -3271,6 +3362,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         ),
                     )
                     .attr("class", "knot-appearance-row"),
+                    crate::theme_session::appearance_controls(state),
                     el(
                         "div",
                         (
@@ -3989,14 +4081,11 @@ fn command_menu_bar_view(state: &DesktopState) -> DesktopView {
 
 fn client_titlebar(state: &DesktopState) -> DesktopView {
     let title = state.document().snapshot().display_label;
-    Box::new(
+    let actions: DesktopView = Box::new(
         el(
-            "header",
+            "div",
             (
                 command_menu_bar_view(state),
-                span(title)
-                    .attr("class", "knot-client-titlebar-title")
-                    .attr("aria-label", "Document title"),
                 command_button(state, commands::SAVE, "Save"),
                 if state.command_menu_compact {
                     Box::new(el("div", ())) as DesktopView
@@ -4033,17 +4122,30 @@ fn client_titlebar(state: &DesktopState) -> DesktopView {
                         "Hide Readings",
                     )
                 },
-                button("−", |state: &mut DesktopState, _| state.window.minimize())
-                    .attr("aria-label", "Minimize window")
-                    .attr("class", "knot-client-caption"),
-                button("□", |state: &mut DesktopState, _| {
-                    state.window.toggle_maximize()
-                })
-                .attr("aria-label", "Maximize window")
-                .attr("class", "knot-client-caption"),
-                button("×", |state: &mut DesktopState, _| state.window.close())
-                    .attr("aria-label", "Close window")
-                    .attr("class", "knot-client-caption"),
+            ),
+        )
+        .attr("class", "knot-titlebar-actions"),
+    );
+    let captions = cambium_genet_winit_host::window_caption_controls(
+        &state.window,
+        &crate::theme_session::caption_labels(),
+    );
+    Box::new(
+        el(
+            "div",
+            cambium::title_bar(
+                Box::new(
+                    span("K")
+                        .attr("class", "knot-titlebar-mark")
+                        .attr("aria-label", "Knot"),
+                ),
+                Box::new(
+                    span(title)
+                        .attr("class", "knot-client-titlebar-title")
+                        .attr("aria-label", "Document title"),
+                ),
+                actions,
+                captions,
             ),
         )
         .attr("class", "knot-client-titlebar")
@@ -4321,23 +4423,6 @@ fn outline_body(state: &DesktopState, key: DocKey) -> DesktopView {
     Box::new(el("div", (error, rows)).attr("class", "knot-outline"))
 }
 
-/// Cambium's app-owned fields are `div[role=textbox]` since mere r44 (native
-/// `input`/`textarea` now carry Genet's form-control state); `aria-multiline`
-/// marks the editors. A native `input` (the password field) still counts as a
-/// single-line field.
-pub(crate) fn is_multiline_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
-    let attr = |name: &str| dom.attribute(node, &Namespace::from(""), &LocalName::from(name));
-    attr("role") == Some("textbox") && attr("aria-multiline") == Some("true")
-}
-
-pub(crate) fn is_single_line_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
-    let attr = |name: &str| dom.attribute(node, &Namespace::from(""), &LocalName::from(name));
-    (attr("role") == Some("textbox") && attr("aria-multiline") != Some("true"))
-        || dom
-            .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "input")
-}
-
 fn ancestor_has_id<D: LayoutDom>(dom: &D, focused: D::NodeId, id: &str) -> bool {
     let namespace = Namespace::from("");
     let local = LocalName::from("id");
@@ -4380,6 +4465,39 @@ fn document_key_of<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<DocKey> {
     None
 }
 
+/// Cambium's editable application fields are focusable divs, not native
+/// textarea elements. Their committed buffer is exposed on this marker; the
+/// role alone also appears on host wrappers and is not enough to identify the
+/// focused editing node.
+fn is_cambium_textbox<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    let namespace = Namespace::from("");
+    dom.attribute(node, &namespace, &LocalName::from("role"))
+        .is_some_and(|role| role.eq_ignore_ascii_case("textbox"))
+        && dom
+            .attribute(
+                node,
+                &namespace,
+                &LocalName::from("data-cambium-text-value"),
+            )
+            .is_some()
+}
+
+fn is_text_control<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    LayoutDom::element_name(dom, node)
+        .is_some_and(|name| matches!(name.local.as_ref(), "input" | "textarea"))
+        || is_cambium_textbox(dom, node)
+}
+
+/// Whether `node` is the active document's editable Cambium text field (or a
+/// legacy textarea while a surface is transitioning between host versions).
+fn is_source_text_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
+    let is_legacy_textarea =
+        LayoutDom::element_name(dom, node).is_some_and(|name| name.local.as_ref() == "textarea");
+    (is_legacy_textarea || is_cambium_textbox(dom, node))
+        && ancestor_has_class(dom, node, "knot-document-body")
+        && document_key_of(dom, node).is_some()
+}
+
 fn ancestor_has_class<D: LayoutDom>(dom: &D, focused: D::NodeId, class: &str) -> bool {
     let mut node = Some(focused);
     while let Some(current) = node {
@@ -4395,10 +4513,41 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     let focused = runner.focus()?;
     let dom = runner.dom();
     let dom_ref = dom.borrow();
-    let is_text_control = is_single_line_field(&*dom_ref, focused) || is_multiline_field(&*dom_ref, focused);
-    let is_document_textarea = is_multiline_field(&*dom_ref, focused);
+    let is_text_control = is_text_control(&*dom_ref, focused);
+    let is_document_text_field = is_source_text_field(&*dom_ref, focused);
     if !is_text_control {
         return None;
+    }
+    if runner.state().theme_session.workshop_open {
+        let key = ancestor_attribute(&*dom_ref, focused, "data-field")?;
+        runner
+            .state()
+            .theme_session
+            .workshop
+            .as_ref()?
+            .text_field(&key)?;
+        let get_key = key.clone();
+        return Some(FocusedTextSlot {
+            node: focused,
+            get: Box::new(move |state| {
+                state
+                    .theme_session
+                    .workshop
+                    .as_ref()
+                    .expect("focused workshop")
+                    .text_field(&get_key)
+                    .expect("known field")
+            }),
+            get_mut: Box::new(move |state| {
+                state
+                    .theme_session
+                    .workshop
+                    .as_mut()
+                    .expect("focused workshop")
+                    .text_field_mut(&key)
+                    .expect("known field")
+            }),
+        });
     }
     let folder = ancestor_has_id(&*dom_ref, focused, "knot-scroll-folder");
     let port = ancestor_has_class(&*dom_ref, focused, "knot-site-port")
@@ -4463,7 +4612,7 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
             get_mut: Box::new(|state| &mut state.save_as_path),
         });
     }
-    if is_document_textarea {
+    if is_document_text_field {
         let key = document.or_else(|| runner.state().focused_key())?;
         if runner.state().surface_for(key).snapshot().write_posture
             == knot_document::KnotDocumentWritePostureV1::ReadOnly
@@ -4493,10 +4642,13 @@ pub(crate) fn source_is_focused(runner: &DesktopRunner) -> bool {
     };
     let dom = runner.dom();
     let dom = dom.borrow();
-    is_multiline_field(&*dom, focused) && document_key_of(&*dom, focused).is_some()
+    is_source_text_field(&*dom, focused)
 }
 
 pub fn key_intercept(runner: &mut DesktopRunner, press: &KeyPress) -> bool {
+    if runner.state().theme_session.workshop_open {
+        return false;
+    }
     if runner.state().link_form.is_some()
         && matches!(
             press.key,
@@ -4609,7 +4761,7 @@ pub fn close_request(runner: &mut DesktopRunner, request: CloseRequest) -> Close
 
 /// Complete an outline activation after the click has rebuilt the retained
 /// tree. The click target itself is a button, so focus must be returned to the
-/// existing document textarea before the next key or IME event is routed.
+/// existing document text field before the next key or IME event is routed.
 pub fn after_dispatch(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
@@ -4693,18 +4845,23 @@ fn focus_pending_source(
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
         let target = ctx.runner.focusables().into_iter().find(|node| {
-            is_multiline_field(&*dom_ref, *node)
-                && ancestor_has_class(&*dom_ref, *node, "knot-document-body")
+            is_source_text_field(&*dom_ref, *node)
                 && document_key_of(&*dom_ref, *node) == focused_key
         });
-        let workspace = target.and_then(|mut node| loop {
-            if dom_ref
-                .attribute(node, &Namespace::from(""), &LocalName::from("class"))
-                .is_some_and(|class| class.split_whitespace().any(|class| class == "knot-workspace"))
-            {
-                return Some(node);
+        let workspace = target.and_then(|mut node| {
+            loop {
+                if dom_ref
+                    .attribute(node, &Namespace::from(""), &LocalName::from("class"))
+                    .is_some_and(|class| {
+                        class
+                            .split_whitespace()
+                            .any(|class| class == "knot-workspace")
+                    })
+                {
+                    return Some(node);
+                }
+                node = dom_ref.parent(node)?;
             }
-            node = dom_ref.parent(node)?;
         });
         (target, workspace)
     };
@@ -4738,10 +4895,10 @@ fn focus_path_field(
     let target = {
         let dom = ctx.runner.dom();
         let dom_ref = dom.borrow();
-        ctx.runner.focusables().into_iter().find(|node| {
-            is_single_line_field(&*dom_ref, *node)
-                && ancestor_has_id(&*dom_ref, *node, id)
-        })
+        ctx.runner
+            .focusables()
+            .into_iter()
+            .find(|node| is_text_control(&*dom_ref, *node) && ancestor_has_id(&*dom_ref, *node, id))
     };
     if let Some(target) = target {
         ctx.runner.set_focus(Some(target));
@@ -4840,8 +4997,7 @@ fn focus_command_palette(
         let target = ctx.runner.focusables().into_iter().find(|node| {
             let dom = ctx.runner.dom();
             let dom = dom.borrow();
-            is_single_line_field(&*dom, *node)
-                && ancestor_has_id(&*dom, *node, "knot-command-query")
+            is_text_control(&*dom, *node) && ancestor_has_id(&*dom, *node, "knot-command-query")
         });
         if let Some(target) = target {
             ctx.runner.set_focus(Some(target));
@@ -4890,7 +5046,7 @@ fn focus_command_menu(
             focusables.into_iter().find(|node| {
                 let dom = ctx.runner.dom();
                 let dom = dom.borrow();
-                is_multiline_field(&*dom, *node)
+                is_source_text_field(&*dom, *node)
                     && document_key_of(&*dom, *node) == ctx.runner.state().focused_key()
             })
         });
@@ -5008,6 +5164,7 @@ fn graph_tile_frame(
         let state = ctx.runner.state();
         let open = state.graph_open_nodes();
         let model = state.graph.model(&open);
+        let palette = state.theme_graph_palette();
         mere_view::MereView {
             model: &model,
             state: &state.graph.view,
@@ -5015,7 +5172,7 @@ fn graph_tile_frame(
             width: state.graph.size.0,
             height: state.graph.size.1,
         }
-        .paint_leaf(|kind| state.appearance.graph_color(kind))
+        .paint_leaf(|kind| crate::appearance::graph_color(&palette, kind))
     };
     ctx.leaves.insert(crate::graph::LEAF_KEY, Box::new(leaf));
     chrome_changed || focus_changed || current != size
@@ -5149,19 +5306,22 @@ fn update_collapse_layout(
 }
 
 pub const DESKTOP_CSS: &str = concat!(
+    // Empty app-owned buffers need a block height to remain visible/clickable.
+    ".knot-workspace [role=\"textbox\"][data-cambium-text-value] { min-height:1.2em; }",
+    ".knot-workspace [role=\"textbox\"][data-cambium-text-value]:not([aria-multiline=\"true\"]) { padding:4px 6px; border:1px solid; border-radius:4px; box-sizing:border-box; background:transparent; color:inherit; }",
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px 20px 0; height:100vh; box-sizing:border-box; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
     ".knot-command-entry { display:flex; align-items:center; gap:8px; }",
     ".knot-client-titlebar { --app-region:drag; display:flex; align-items:center; gap:8px; min-height:36px; margin:-20px -20px 0; padding:0 8px; border-bottom:1px solid; box-sizing:border-box; }",
     ".knot-client-titlebar-title { --app-region:drag; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; }",
     ".knot-client-titlebar button { --app-region:no-drag; flex:none; }",
-    ".knot-client-titlebar .knot-client-caption { width:30px; min-width:30px; padding:4px; box-sizing:border-box; }",
+    ".knot-client-titlebar [data-window-action] { width:30px; min-width:30px; padding:4px; box-sizing:border-box; }",
     ".knot-client-titlebar .command-menu-bar { --app-region:no-drag; flex:none; }",
     ".knot-client-command-popovers { position:relative; height:0; width:0; overflow:visible; }",
     ".knot-command-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; z-index:199; background:#0004; }",
     ".knot-command-palette { position:fixed; top:58px; left:0; right:0; margin:0 auto; z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; box-sizing:border-box; overflow:visible; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
     ".knot-command-query { display:flex; flex-direction:column; gap:4px; }",
-    ".knot-command-query [role=textbox] { width:100%; box-sizing:border-box; }",
+    ".knot-command-query [role=\"textbox\"][data-cambium-text-value] { width:100%; box-sizing:border-box; }",
     ".knot-command-palette .command-surface { display:flex; flex-direction:column; min-height:0; outline:none; }",
     ".knot-command-palette .command-items { display:flex; flex-direction:column; max-height:56vh; overflow:auto; }",
     ".knot-command-palette .command-item { display:flex; align-items:center; gap:8px; min-height:28px; padding:5px 8px; border-radius:4px; }",
@@ -5176,10 +5336,10 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
     ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
-    ".knot-path-field [role=textbox] { min-width:280px; flex:1; }",
+    ".knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:280px; flex:1; }",
     ".knot-path-popover { display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; box-sizing:border-box; }",
     ".knot-path-popover .knot-path-field { min-width:0; }",
-    ".knot-path-popover .knot-path-field [role=textbox] { min-width:0; }",
+    ".knot-path-popover .knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:0; }",
     ".knot-reading { display:flex; flex-direction:column; gap:8px; padding:8px 12px; min-width:0; }",
     ".knot-reading-header { display:flex; align-items:center; gap:6px; min-width:0; padding-right:1px; box-sizing:border-box; }",
     ".knot-reading-title { font-weight:600; white-space:nowrap; }",
@@ -5245,7 +5405,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-document-tile { display:flex; flex-direction:column; gap:12px; }",
     ".knot-writing-area { display:flex; align-items:flex-start; gap:12px; padding:16px; border:1px solid; box-sizing:border-box; }",
     ".knot-document { flex:1; min-width:0; }",
-    ".knot-document-body [role=textbox] { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
+    ".knot-document-body [role=\"textbox\"][data-cambium-text-value] { display:block; width:100%; min-height:360px; line-height:1.5; box-sizing:border-box; }",
     ".knot-outline { display:flex; flex-direction:column; min-width:0; }",
     ".knot-outline-rows { display:flex; flex-direction:column; gap:2px; margin-top:8px; }",
     ".knot-outline-row { display:block; width:100%; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }",
@@ -5261,7 +5421,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-comparison-versions { display:flex; flex-wrap:wrap; gap:12px; }",
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
-    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field [role=textbox] { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
+    "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
     "@media (max-height:320px) { .knot-workspace { gap:4px; padding-top:4px; } .knot-workspace-toolbar { flex:none; } .knot-workspace > .status-bar { padding-top:2px; padding-bottom:2px; min-height:24px; } .knot-frame .frisket-content { padding-top:4px; padding-bottom:4px; } .knot-writing-area { padding-top:4px; padding-bottom:4px; } .knot-appearance-panel { padding:4px; max-height:20vh; } .knot-workspace > [id=knot-link-form], .knot-confirm { max-height:25vh; overflow:auto; min-height:0; flex:none; } }",
 );
 
@@ -5278,7 +5438,11 @@ mod tests {
     #[test]
     fn short_zoomed_viewport_keeps_source_status_and_drawer_inside_the_window() {
         let assert_chrome = |host: &DesktopHarness| {
-            assert_eq!(host.viewport_scroll(), (0.0, 0.0), "workspace must not scroll");
+            assert_eq!(
+                host.viewport_scroll(),
+                (0.0, 0.0),
+                "workspace must not scroll"
+            );
             for class in ["knot-workspace-toolbar", "status-bar"] {
                 let nodes = host.with_dom(|dom| dom.all_with_class(dom.document(), class));
                 let (x, y, w, h) = host.painted_rect(nodes[0]).unwrap();
@@ -5356,8 +5520,10 @@ mod tests {
         );
         assert_eq!(host.state().document().snapshot(), before);
         assert_eq!(host.state().docs.workspace().tiled(), &canonical);
-        let heading = Selector::role("button")
-            .with_attr("aria-label", "Select source heading: Field notes on the estuary");
+        let heading = Selector::role("button").with_attr(
+            "aria-label",
+            "Select source heading: Field notes on the estuary",
+        );
         let scroll_before = host.element_scroll_total();
         assert!(host.click_on(&heading), "preview heading must be reachable");
         host.after_dispatch();
@@ -5366,7 +5532,9 @@ mod tests {
             host.relayout();
         }
         let heading_nodes = host.with_dom(|dom| taproot::matching(dom, &heading));
-        let (x, y, w, h) = host.visible_rect(heading_nodes[0]).expect("visible preview heading");
+        let (x, y, w, h) = host
+            .visible_rect(heading_nodes[0])
+            .expect("visible preview heading");
         assert!(
             x >= 0.0 && x + w <= 320.5 && y >= 0.0 && y + h <= 175.5 && h >= 24.0,
             "preview heading unreadable after scrolling: ({x},{y},{w},{h})"
@@ -5376,9 +5544,7 @@ mod tests {
         assert_eq!(host.state().document().snapshot().text, before.text);
         assert_eq!(host.state().docs.workspace().tiled(), &canonical);
         let selected = host.state().document().snapshot();
-        assert!(host.click_on(
-            &Selector::role("button").with_attr("class", "frisket-panel-close")
-        ));
+        assert!(host.click_on(&Selector::role("button").with_attr("class", "frisket-panel-close")));
         host.after_dispatch();
         for _ in 0..4 {
             host.prepare_frame();
@@ -5390,7 +5556,10 @@ mod tests {
             host.relayout();
         }
         assert!(host.state().presentation.stacks.iter().all(|stack| {
-            !stack.collapsed.as_ref().is_some_and(|collapsed| collapsed.open)
+            !stack
+                .collapsed
+                .as_ref()
+                .is_some_and(|collapsed| collapsed.open)
         }));
         assert!(source_is_focused(host.runner()));
         assert_chrome(&host);
@@ -5402,7 +5571,10 @@ mod tests {
         });
         let (_, y, w, h) = host.visible_rect(source[0]).unwrap();
         assert!(y >= 0.0 && y + h <= 175.5 && w > 100.0 && h >= 24.0);
-        assert!(host.element_scroll_total() > 0.0, "nested source scroll is retained");
+        assert!(
+            host.element_scroll_total() > 0.0,
+            "nested source scroll is retained"
+        );
         assert_eq!(host.state().document().snapshot(), selected);
     }
 
@@ -6254,22 +6426,15 @@ mod tests {
         dom: &genet_scripted_dom::ScriptedDom,
         node: genet_scripted_dom::NodeId,
     ) -> Option<genet_scripted_dom::NodeId> {
-        if is_single_line_field(dom, node) {
+        if dom
+            .element_name(node)
+            .is_some_and(|name| name.local.as_ref() == "input")
+            || is_cambium_textbox(dom, node)
+        {
             return Some(node);
         }
         dom.dom_children(node)
             .find_map(|child| input_node(dom, child))
-    }
-
-    fn textarea_node(
-        dom: &genet_scripted_dom::ScriptedDom,
-        node: genet_scripted_dom::NodeId,
-    ) -> Option<genet_scripted_dom::NodeId> {
-        if is_multiline_field(dom, node) {
-            return Some(node);
-        }
-        dom.dom_children(node)
-            .find_map(|child| textarea_node(dom, child))
     }
 
     fn named_node(
@@ -6285,6 +6450,22 @@ mod tests {
         }
         dom.dom_children(node)
             .find_map(|child| named_node(dom, child, name))
+    }
+
+    /// Find the actual Cambium editing node, not the role-bearing document
+    /// wrapper around it.
+    fn cambium_text_field(
+        dom: &genet_scripted_dom::ScriptedDom,
+        node: genet_scripted_dom::NodeId,
+    ) -> Option<genet_scripted_dom::NodeId> {
+        if dom
+            .attributes(node)
+            .any(|attribute| attribute.name.local.as_ref() == "data-cambium-text-value")
+        {
+            return Some(node);
+        }
+        dom.dom_children(node)
+            .find_map(|child| cambium_text_field(dom, child))
     }
 
     fn attr_node(
@@ -6326,10 +6507,7 @@ mod tests {
                 let dom = dom.borrow();
                 let body = class_node(&dom, dom.document(), "knot-document-body")
                     .expect("the document body");
-                (
-                    body,
-                    textarea_node(&dom, body).expect("the editor"),
-                )
+                (body, cambium_text_field(&dom, body).expect("the editor"))
             };
             let (column_x, _, column_width, _) = host.painted_rect(body).expect("column layout");
             let (x, _, editor_width, _) = host.painted_rect(editor).expect("editor layout");
@@ -7787,7 +7965,7 @@ mod tests {
                 &second_key.0.to_string(),
             )
             .expect("second tile");
-            textarea_node(&dom, tile).expect("second editor")
+            cambium_text_field(&dom, tile).expect("second editor")
         };
         let (x, y, width, height) = host.painted_rect(editor).expect("editor layout");
         host.click_at(x + width / 2.0, y + height / 2.0);
@@ -7978,12 +8156,12 @@ mod tests {
             host.state().document().snapshot().selection.focus.byte,
             item.end
         );
-        let textarea = {
+        let text_field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            textarea_node(&dom, dom.document()).expect("document textarea")
+            cambium_text_field(&dom, dom.document()).expect("document text field")
         };
-        assert_eq!(host.focus(), Some(textarea));
+        assert_eq!(host.focus(), Some(text_field));
 
         assert!(host.click_on(&Selector::role("button").with_attr("id", "knot-site")));
         let folder_input = {
@@ -8001,12 +8179,12 @@ mod tests {
         assert!(host.click_on(&Selector::role("button").containing("Second heading")));
         assert!(!host.state().scroll.popover.open);
         assert!(host.click_on(&Selector::role("button").containing("Second heading")));
-        let textarea = {
+        let text_field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
-            textarea_node(&dom, dom.document()).expect("document textarea")
+            cambium_text_field(&dom, dom.document()).expect("document text field")
         };
-        assert_eq!(host.focus(), Some(textarea));
+        assert_eq!(host.focus(), Some(text_field));
         host.key_injected("!");
         assert_eq!(host.state().scroll.folder.text(), "");
         assert_eq!(host.state().document().snapshot().text, "# Café\n\n!");

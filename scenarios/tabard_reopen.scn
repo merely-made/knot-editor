@@ -1,0 +1,10 @@
+# Fresh process with the same isolated APPDATA and KNOT_THEME_LIBRARY profile.
+assert snap theme_library_available == true
+assert snap theme_id == theme:copy-1
+assert snap theme_mode == hc_dark
+assert snap theme_workshop_open == false
+assert snap dirty == false
+capture reopened-hc-dark
+click role:button Appearance
+settle 2
+capture reopened-appearance-choice

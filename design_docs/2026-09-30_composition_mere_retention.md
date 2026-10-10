@@ -492,6 +492,181 @@ Acceptance SHA-256: `3e3b613d4c9d9da801dac1e203ba35555bb6c1a1f7918b5414e67c97f35
 No cross-platform native, human assistive-technology, signing/release or inferred
 background qualification is claimed by this macOS fixture matrix.
 
+### Shared editorial adoption (2026-10-08)
+
+Feature target: author arrangements from shared declarations with bounded
+session undo, while retaining new versions deliberately in Knot's own mere.
+
+The coherent dependency family advances to Mere `b555eaed6` and Genet
+`e84f9c7f`. These published contracts include the Scenograph E1–E5 foundation,
+the G2 channel registry and G4a portable dynamics core. Adopting the pin does
+not adopt live dynamics: G4b's host binding and running compositions on reopen
+remain separate. Knot's standalone search embedder adapts ESP's `load_wgpu`
+call by explicitly choosing its standalone device; it has no renderer-device
+sharing seam and makes no claim to share one. No models are downloaded.
+
+This family also changes the editing-field representation: Cambium's actual
+buffer is a focusable app-owned `div` with `role="textbox"` and
+`data-cambium-text-value`, not a browser `input` or `textarea`. Knot's document,
+save/path, source-focus and small-web controls must discover and style that
+buffer rather than a host wrapper. Compatibility qualification keeps the
+existing Unicode, caret, Tab-focus, document/site isolation and saved-byte
+assertions; native acceptance below includes ordinary source selection too.
+
+`Show recipe arrangement controls` reveals a bounded family picker and rows
+from `Family::options`, with declared kinds and resolved defaults from the
+current measured card. Defaults and measured-default explanations are separate
+text rather than placeholder-only content. Family and option changes require
+explicit Apply; blank or Use default removes an override. Invalid drafts stay
+editable, while the accepted material and history are unchanged. Switching a
+family clears its old option map; the shared compiler can refuse a family whose
+requirements this copied dataset does not satisfy. This first host has the
+built-in catalog, not a custom solver installation UI.
+
+`Undo recipe edit` and `Redo recipe edit` use Cambium's `edit-history` leaf
+contract, with 64 authored snapshots. Each entry keeps the recipe and scene
+presentation, not another copy of the input dataset and anchors. Spacing,
+relationship-category lenses and scene presentation actions join the same
+history. Navigation and disclosure expansion do not record authoring edits.
+Restoration preserves the current occurrence selection and clears an explanation
+excluded by the restored relationship category. Every candidate validates
+before install or stack movement. A new binding, explicit rebind or retained
+reopen starts a fresh history; undo cannot cross a copied-source boundary.
+
+The editor's retained marker changes only on a confirmed collection projection
+matching the exact current material, not on submitting a request. Delayed
+confirmation of an older recipe cannot mark newer edits retained. Undo to the
+confirmed position restores the marker. This is session editing history, not
+journal undo, and never overwrites a retained item or changes source bytes.
+Reopened retained material starts clean with no prior session undo stack.
+Arrangement-control disclosure and draft values are session-only; accepted
+options ride in the existing immutable relationship recipe material.
+
+Initial qualification status (preserved checkpoint): implemented and locally
+qualified on committed runtime
+`aa8a59d94d7acc2f1925c405118b21e413a2092e`; publication is held for the
+layout-performance decision below. Source commits are `f39a63a7` (shared editor
+and history), `341d5ca9` (field-contract compatibility) and `aa8a59d9` (visible
+single-line field affordance). No shared-stack source was changed.
+
+- Automated: the locked/offline all-target workspace gate reports 615 passing
+  checks, zero failed, two ignored and one filtered large Micron redraw test.
+  That exact unchanged test separately passes on the same final runtime in
+  190.66 seconds. Focused recipe tests pass 37; excluded standalone document
+  default and engine+highlight pass 45/61, each with one ignored. Core and optional
+  wgpu embedder checks and desktop/instrument builds pass. Focused results overlap
+  the workspace count and are not additional unique tests.
+- Native: macOS wide 1100×900 and compact 420×900 save/fresh-process reopen all
+  report `RESULT ok`, five captures per run (2548/2494/2553/2496 frames).
+  All 20 final PNGs are reviewed: fields and measured defaults are visible,
+  columns 0 is refused, 2 is applied, undo/redo works, confirmed encrypted
+  retention survives fresh reopen, and Use default can be undone to the retained
+  position. Foreground/category/camera assertions and source navigation remain.
+  Both source fixtures compare byte-exact after reopen; all four apps exited.
+- Initial wide captures exposed empty fields without visible editing boundaries.
+  The host's field styling now provides minimum height, padding and a border;
+  the initial captures/authority/log/instrument remain preserved, separate from
+  the final matrix. Existing scene label collision can suppress one nearby label;
+  textual occurrence and source controls remain available.
+- Performance hold: the unchanged 400-line Micron first-layout/redraw fixture
+  passes, but earlier and final repeats take 243.40 and 190.66 seconds. Samples
+  and a read-only source audit identify repeated cluster-boundary owner/style
+  scans in Livery; current published Genet `6cb2284a` has the same path. These
+  debug observations are not a controlled old-pin regression comparison or a
+  release benchmark. A bounded upstream repair and owner coordination remain a
+  separate scope decision; the test was not reduced or its assertions removed.
+
+Evidence and exact commands:
+`/Users/markik/Code/testing/knot-editor/editorial-20261008.9rqdPX/README.md`;
+initial failure logs, final gates, scripts, paint lists, captures and
+`performance-blocker.md` are preserved there. Final desktop SHA-256:
+`f5848ddfddcc8935d5166714dd9ff0203359e3b8367991afddb98c7da979b865`.
+Acceptance instrument SHA-256:
+`3d74d23a21c6cbbbc1a66d91b1c2d645395986e0cf64f9b2aedaa61577dd89ef`.
+This synthetic signed/encrypted fixture does not establish personal-wallet native,
+human assistive-technology, cross-platform native, signing/release, inferred
+ambient neighborhoods or G4b live dynamics qualification.
+
+### Boundary-lookup continuation (2026-10-08)
+
+The user authorized the bounded shared-stack repair after the preceding
+publication hold. Genet now publishes `15713014e2e23b887360471552f75f60684f5384`
+over current-main baseline `6cb2284a`: repeated retained-paragraph cluster owner,
+boundary style, finite break-flag and atomic-marker queries use indexes. The
+original scan functions remain test-only semantic oracles. Wrapping policy,
+Parley, source/caret assertions and the exact 400-line Micron fixture are
+unchanged. No speculative source-span interval index is included.
+
+Mere's coherent adoption is published at
+`227062a92e0698621c488251590dba3437d780e7`. All 38 current Genet rows across
+root, Graphshell web and Distillery probe move together; optional Mere→Knot
+identity-seed pins remain under ruling 58. Its locked Cambium library gate
+passes 251, Mesquite library passes 19, and Rootstock's no-default-features /
+image-decode check passes. These are not Graphshell headed/browser gates.
+
+Knot committed runtime `ec46d0ac0f474f6129b5b0e4fcd6e4b8a534689d` advances every
+current Mere declaration, including the desktop's direct Apparatus/Tinct rows
+and CubeCL runtime patch, plus standalone document declarations. The root lock
+resolves 65 Mere packages at `227062a92` and 22 Genet packages at `15713014`,
+with no second source revision or path override from either repository. No
+product source or fixture assertion changes accompany this repin.
+
+- Portable workspace gate: `TMPDIR=/tmp cargo test --workspace --all-targets
+  --locked` passes 616, zero failed, two existing ignores and zero filtered,
+  including the unchanged large Micron test and all four Collapse integration
+  tests. The 42 target result lines are the count authority; focused repeats
+  overlap rather than add to this total.
+- Portable exact-test repeat: the same unchanged 400-line fixture passes in
+  9.82 seconds on the published Git-pinned family (85.00 seconds command time,
+  including a narrower-graph rebuild). The speed improvement therefore survives
+  ordinary dependency resolution without the disposable path configuration.
+- Remaining automated gates pass: workspace all-target check, optional
+  `knot-editor/embed-bert-wgpu` library check, desktop/instrument build, and
+  standalone document default 45 / engine+highlight 61 tests (one existing
+  ignore each). The separate ignored document lock is regenerated before the
+  final locked gates; its original locked refusal is retained, not overwritten.
+- Diagnostic comparison before the portable repin: unchanged Knot `1eacea2`
+  passes the exact large test in 384.58 seconds with the original locked Git
+  family and 7.87 seconds with the repair's disposable local overrides. Baseline
+  sampling places the delay in repeated owner/style scans. Other builds were
+  active: this is debug diagnostic evidence, not a controlled release benchmark
+  or proof of an old-pin regression. The override config is not shipped.
+- Upstream residual: Genet's complete Livery gate passes 650 with three failures
+  and seven ignores. The two float failures and one table-glyph failure reproduce
+  on its untouched current-main base; no assertion is loosened or failure hidden.
+  New oracle/RTL/ligature/comparison-bound tests and the no-default feature check
+  pass. Knot's consumer gate does not imply a wholly green Genet suite.
+- Native: macOS wide 1100×900 and compact 420×900 save and fresh-process
+  reopen each report `RESULT ok`, five captures per run
+  (2548/2494/2553/2496 frames). All 20 final PNGs are reviewed: option field
+  boundaries/defaults, columns 2, retained-state text, strata/category controls,
+  usable pan rows, restored camera and exact-source controls are present across
+  the matrix. Columns 0 is refused, undo/redo and Use default remain guarded,
+  and encrypted retention survives reopen without carrying old session history.
+  Both source fixtures compare byte-exact; all four apps exited and the native
+  foreground lease was released to the coordinated owner chats.
+- Existing visual residuals remain: canvas label collision can suppress a nearby
+  label, and long occurrence-button labels can clip at compact width. The latter
+  is reproduced in the prior committed-family capture, not a repin regression;
+  full selected-source text and accessible targets remain available.
+
+Qualification is complete for this bounded committed-runtime slice; the
+layout-performance publication hold is closed. Earlier implementation and
+field-affordance commits are carried with this coherent repin, not replaced.
+Exact desktop SHA-256:
+`4329a46dfeadc65528235c003133ceddab95f81ba8cbb40eaee4b9fbed549d70`.
+Acceptance instrument SHA-256:
+`a6ab72521cca060f40a283b9824c7b0d67e59c80a4f8cacea5d4363bdfa81b44`.
+The separate cohort is
+`/Users/markik/Code/testing/knot-editor/boundary-family-20261008.knV7Gq/README.md`.
+The shared repair and preserved baseline evidence are in
+`/Users/markik/Code/testing/genet-boundary-20261008.R85RvP/README.md`.
+Earlier editorial qualification remains preserved above; later success must
+not silently replace the initial affordance failures or performance evidence.
+This marked synthetic-authority macOS matrix is not personal-wallet, human
+assistive-technology, cross-platform native, signing/release, inferred ambient
+neighborhood or G4b live-execution qualification.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

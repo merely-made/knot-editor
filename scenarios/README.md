@@ -124,3 +124,42 @@ family. The new committed-runtime wide/compact save and fresh-process reopen
 matrix also has 20 reviewed captures and byte-exact source fixtures. This remains
 static-scene and marked synthetic-authority acceptance, not G4b live execution
 or personal-wallet qualification.
+
+`tabard_authoring.scn` uses `field_notes.djot` with fresh `APPDATA` and
+`KNOT_THEME_LIBRARY` paths. It opens the shared editor, refuses unsaved Apply,
+saves and explicitly applies a user copy, then returns to unchanged writing.
+Captures cover the appearance picker, full workshop, saved copy and applied
+writing. Theme application and source bytes are also covered by the mounted
+`tabard_appearance` tests; PNG review remains the native visual authority.
+The library path must be disposable: this scenario intentionally saves a theme.
+
+For macOS, the shared LaunchServices launcher accepts the Knot binary and lane
+without replacing the renderer. Supply a fresh output directory and both profile
+overrides, for example from a Mere checkout containing that launcher:
+
+```sh
+python3 scripts/run_macos_scenario.py \
+  --binary /absolute/knot/target/debug/knot --prefix KNOT \
+  --scenario /absolute/knot/scenarios/tabard_authoring.scn \
+  --output /tmp/knot-tabard-receipt \
+  --env APPDATA=/tmp/knot-tabard-profile \
+  --env KNOT_THEME_LIBRARY=/tmp/knot-tabard-profile/themes.json \
+  -- /absolute/knot/scenarios/fixtures/field_notes.djot
+```
+
+The authoring lane then selects Dark, High contrast light and High contrast
+dark, capturing each writing presentation. Run `tabard_reopen.scn` in a fresh
+process with the same isolated profile to verify the last saved mode returns.
+For authored role sheets, copy `fixtures/tabard_role_library.json` into a new
+profile's `KNOT_THEME_LIBRARY`, run `tabard_authored_roles.scn`, then
+`tabard_authored_reopen.scn` against that profile. The role fixture changes the
+writing surface to `#123456` and body text to `#f1f2f3` using shared Tabard
+properties; the mounted regression checks resolved live product paints as well
+as preserved CSS authority and a fresh host reopen.
+
+At 420 × 900 logical pixels, run `tabard_authoring_narrow.scn` and
+`tabard_reopen_narrow.scn` with `KNOT_TEST_WIDTH=420` and
+`KNOT_TEST_HEIGHT=900`. These lanes follow the existing compact
+Menu → View → Appearance path using stable command identities and retain
+the wide authoring/reopen assertions. Use a fresh profile for authoring,
+then that same profile in a fresh process for reopening.

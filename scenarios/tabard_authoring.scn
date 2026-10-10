@@ -1,0 +1,42 @@
+# Run with a fresh APPDATA profile and KNOT_THEME_LIBRARY; no real user files.
+assert snap format == Djot
+assert snap dirty == false
+assert snap theme_library_available == true
+assert snap theme_workshop_open == false
+click role:button Appearance
+settle 1
+capture appearance
+click role:button Edit themes…
+settle 2
+assert snap theme_workshop_open == true
+assert snap dirty == false
+capture workshop
+click role:button Apply to Knot
+settle 1
+assert snap theme_id == knot:default
+click role:button Save theme
+settle 1
+click role:button Apply to Knot
+settle 1
+assert snap theme_id == theme:copy-1
+assert snap theme_mode == light
+assert snap dirty == false
+capture saved-copy
+click role:button Back to Knot
+settle 2
+assert snap theme_workshop_open == false
+assert snap dirty == false
+capture applied-writing
+click role:button Mode: Dark
+settle 2
+assert snap theme_mode == dark
+capture writing-dark
+click role:button Mode: High contrast light
+settle 2
+assert snap theme_mode == hc_light
+capture writing-hc-light
+click role:button Mode: High contrast dark
+settle 2
+assert snap theme_mode == hc_dark
+assert snap dirty == false
+capture writing-hc-dark

@@ -1,0 +1,6 @@
+# Fresh process with the same isolated authored-role library and app profile.
+assert snap theme_id == user:role-fixture
+assert snap theme_mode == dark
+assert snap theme_workshop_open == false
+assert snap dirty == false
+capture reopened-authored-roles

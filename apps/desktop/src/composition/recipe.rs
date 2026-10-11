@@ -77,6 +77,12 @@ pub(super) struct RecipeState {
     pub(super) camera_controls_expanded: bool,
     /// Category controls are session UI; authored exclusions live in material.
     pub(super) background_controls_expanded: bool,
+    /// A pointer gesture previews placement without creating retained edits.
+    /// Its final release records one undo step, never one per pointer move.
+    pub(super) scene_drag: Option<scene::SceneDrag>,
+    pub(super) placement_controls_expanded: bool,
+    /// Read-only projection refreshed after validated imports and edits.
+    pub(super) scene_positions: BTreeMap<String, [f32; 2]>,
     /// The card for the label set last measured; drawing waits for it.
     pub(super) measured: Option<MeasuredCard>,
     /// How many measurements this session took.
@@ -380,6 +386,14 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
     })();
     match result {
         Ok(material) => {
+            state.composition.recipe.scene_drag = None;
+            state.composition.recipe.scene_positions = match material.scene_positions() {
+                Ok(positions) => positions,
+                Err(error) => {
+                    state.composition.notice = Some(format!("Scene placement refused: {error}"));
+                    return;
+                },
+            };
             state.composition.recipe.history.reset(&material, false);
             state.composition.recipe.material = Some(material);
             editor::reset_controls(&mut state.composition.recipe);
@@ -391,8 +405,10 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
 }
 
 pub(super) fn reopen(state: &mut DesktopState, material: ProjectionRecipeMaterial) {
-    match material.validate() {
-        Ok(()) => {
+    state.composition.recipe.scene_drag = None;
+    match material.scene_positions() {
+        Ok(positions) => {
+            state.composition.recipe.scene_positions = positions;
             state.composition.recipe.history.reset(&material, true);
             state.composition.recipe.material = Some(material);
             editor::reset_controls(&mut state.composition.recipe);
@@ -416,11 +432,20 @@ fn edit(state: &mut DesktopState, spacing_delta: i32) {
 
 /// Validate a complete candidate before recording or installing an authored edit.
 fn install_edit(state: &mut DesktopState, candidate: ProjectionRecipeMaterial) {
+    let positions = match candidate.scene_positions() {
+        Ok(positions) => positions,
+        Err(error) => {
+            state.composition.notice = Some(format!("Scene edit refused: {error}"));
+            return;
+        },
+    };
     let recipe = &mut state.composition.recipe;
+    recipe.scene_drag = None;
     if let Some(before) = recipe.material.as_ref() {
         recipe.history.record(before, &candidate);
     }
     recipe.material = Some(candidate);
+    recipe.scene_positions = positions;
 }
 
 pub(super) fn commit_arrangement(
@@ -457,6 +482,7 @@ pub(super) fn commit_arrangement(
 
 fn step_history(state: &mut DesktopState, redo: bool) {
     let recipe = &mut state.composition.recipe;
+    recipe.scene_drag = None;
     let Some(current) = recipe.material.as_ref() else {
         return;
     };
@@ -467,6 +493,13 @@ fn step_history(state: &mut DesktopState, redo: bool) {
     };
     match result {
         Ok(Some(material)) => {
+            recipe.scene_positions = match material.scene_positions() {
+                Ok(positions) => positions,
+                Err(error) => {
+                    state.composition.notice = Some(format!("Recipe history refused: {error}"));
+                    return;
+                },
+            };
             recipe.material = Some(material);
             editor::reset_controls(recipe);
             state.composition.notice = Some("Recipe edit history restored; retained versions and source documents are unchanged.".into());
@@ -620,6 +653,7 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                                 }
                             },
                         )
+                        .attr("class", "knot-recipe-occurrence-button")
                         .attr("aria-pressed", selected.to_string())
                         .attr(
                             "style",
@@ -768,20 +802,30 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                 &compiled,
                 state.composition.recipe.camera_controls_expanded,
                 state.composition.recipe.background_controls_expanded,
+                state.composition.recipe.placement_controls_expanded,
+                state.composition.recipe.scene_drag.as_ref(),
+                &state.composition.recipe.scene_positions,
             ),
             el(
                 "div",
-                el("div", (Keyed::new(occurrence_buttons), Keyed::new(probes))).attr(
-                    "style",
-                    format!(
-                        "position:relative;height:{}px;width:{}px;",
-                        // Exactly the cards' height (Mere burn plan 13.46, "Fit
-                        // the scene's bounds"); a compiled recipe has two or more.
-                        projection.scene.bounds.size.h,
-                        projection.scene.bounds.size.w.max(180.0)
-                    ),
+                (
+                    span("Occurrence controls")
+                        .attr("class", "knot-recipe-occurrence-compact-label"),
+                    el("div", (Keyed::new(occurrence_buttons), Keyed::new(probes)))
+                        .attr("class", "knot-recipe-occurrence-layout")
+                        .attr(
+                            "style",
+                            format!(
+                                "position:relative;height:{}px;width:{}px;",
+                                // Exactly the cards' height (Mere burn plan 13.46, "Fit
+                                // the scene's bounds"); a compiled recipe has two or more.
+                                projection.scene.bounds.size.h,
+                                projection.scene.bounds.size.w.max(180.0)
+                            ),
+                        ),
                 ),
             )
+            .attr("class", "knot-recipe-occurrence-viewport")
             .attr("style", "overflow:auto;max-width:100%;max-height:450px;"),
             el("div", Keyed::new(relations)),
             explanation.map(|text| span(text).attr("class", "knot-recipe-explanation")),
@@ -1393,6 +1437,149 @@ mod tests {
             )
             .attr("class", "knot-workspace knot-theme-light"),
         )
+    }
+
+    fn compact_occurrence_controls_view(_: &DesktopState) -> DesktopView {
+        let controls: Vec<(String, DesktopView)> = CONTROL_LABELS
+            .iter()
+            .enumerate()
+            .map(|(index, label)| {
+                (
+                    index.to_string(),
+                    Box::new(
+                        el::<_, DesktopState, ()>("button", label.to_string())
+                            .attr("class", "knot-recipe-occurrence-button")
+                            .attr("data-control", index.to_string())
+                            .attr(
+                                "style",
+                                format!(
+                                    "position:absolute;left:{}px;top:{}px;width:520px;height:32px;",
+                                    index * 24,
+                                    index * 48
+                                ),
+                            ),
+                    ) as DesktopView,
+                )
+            })
+            .collect();
+        Box::new(
+            el(
+                "div",
+                el(
+                    "section",
+                    el(
+                        "div",
+                        (
+                            span("Occurrence controls")
+                                .attr("class", "knot-recipe-occurrence-compact-label"),
+                            el("div", Keyed::new(controls))
+                                .attr("class", "knot-recipe-occurrence-layout")
+                                .attr("style", "position:relative;height:220px;width:800px;"),
+                        ),
+                    )
+                    .attr("class", "knot-recipe-occurrence-viewport")
+                    .attr("style", "overflow:auto;max-width:100%;max-height:450px;"),
+                )
+                .attr("class", "knot-composition"),
+            )
+            .attr("class", "knot-workspace knot-theme-light"),
+        )
+    }
+
+    #[test]
+    fn compact_occurrence_controls_keep_full_labels_inside_the_flow_list() {
+        use cambium_genet_winit_host::{Harness, Init, WindowCommands, inert_hooks};
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("note.djot");
+        std::fs::write(&path, "# Note\n").unwrap();
+        let state = DesktopState::with_path(
+            knot_document::KnotDocumentSession::open(&path).unwrap(),
+            WindowCommands::new(),
+            Some(path.clone()),
+        );
+        let mut host = Harness::with_hooks(
+            Init {
+                state,
+                logic: compact_occurrence_controls_view as fn(&DesktopState) -> DesktopView,
+                sheet: crate::desktop_sheet(),
+                fonts: crate::fonts::bundled_fonts(),
+                images: Vec::new(),
+            },
+            inert_hooks(),
+        );
+        host.layout_at(420.0, 900.0);
+        let (viewport, caption, controls) = host.with_dom(|dom| {
+            fn walk(
+                dom: &genet_scripted_dom::ScriptedDom,
+                node: genet_scripted_dom::NodeId,
+                viewport: &mut Option<genet_scripted_dom::NodeId>,
+                caption: &mut Option<genet_scripted_dom::NodeId>,
+                controls: &mut Vec<(usize, genet_scripted_dom::NodeId, String)>,
+            ) {
+                fn full_text(
+                    dom: &genet_scripted_dom::ScriptedDom,
+                    node: genet_scripted_dom::NodeId,
+                ) -> String {
+                    let mut text = dom.text(node).unwrap_or_default().to_owned();
+                    for child in dom.dom_children(node) {
+                        text.push_str(&full_text(dom, child));
+                    }
+                    text
+                }
+                match dom.attribute(node, &Namespace::from(""), &LocalName::from("class")) {
+                    Some("knot-recipe-occurrence-viewport") => *viewport = Some(node),
+                    Some("knot-recipe-occurrence-compact-label") => *caption = Some(node),
+                    _ => {},
+                }
+                if let Some(index) = dom
+                    .attribute(node, &Namespace::from(""), &LocalName::from("data-control"))
+                    .and_then(|value| value.parse().ok())
+                {
+                    controls.push((index, node, full_text(dom, node)));
+                }
+                for child in dom.dom_children(node) {
+                    walk(dom, child, viewport, caption, controls);
+                }
+            }
+            let mut viewport = None;
+            let mut caption = None;
+            let mut controls = Vec::new();
+            walk(
+                dom,
+                dom.document(),
+                &mut viewport,
+                &mut caption,
+                &mut controls,
+            );
+            (viewport.unwrap(), caption.unwrap(), controls)
+        });
+        let (viewport_x, _, viewport_width, _) = host.painted_rect(viewport).unwrap();
+        let (_, _, _, caption_height) = host.painted_rect(caption).unwrap();
+        assert!(caption_height > 0.0, "compact list has a visible label");
+        assert_eq!(controls.len(), CONTROL_LABELS.len());
+        let mut rects = controls
+            .into_iter()
+            .map(|(index, node, label)| {
+                assert_eq!(
+                    label, CONTROL_LABELS[index],
+                    "complete control name remains"
+                );
+                let (x, y, width, height) = host.painted_rect(node).unwrap();
+                assert!(width > 0.0 && height > 0.0, "control is laid out");
+                assert!(
+                    x >= viewport_x - 1.0 && x + width <= viewport_x + viewport_width + 1.0,
+                    "control fits compact width"
+                );
+                (y, height)
+            })
+            .collect::<Vec<_>>();
+        rects.sort_by(|left, right| left.0.total_cmp(&right.0));
+        for pair in rects.windows(2) {
+            assert!(
+                pair[1].0 >= pair[0].0 + pair[0].1,
+                "controls flow without overlap"
+            );
+        }
     }
 
     #[test]

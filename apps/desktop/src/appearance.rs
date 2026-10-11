@@ -205,6 +205,7 @@ pub fn appearance_css() -> String {
     let mut css = String::from(
         ".knot-workspace { min-height:100vh;box-sizing:border-box;font-family:system-ui,sans-serif;font-size:13px; } \
          .knot-workspace button,.knot-workspace input { font:inherit;padding:6px 10px;border:1px solid;border-radius:4px; } \
+         .knot-workspace .knot-recipe-occurrence-button { white-space:nowrap;overflow:visible; } \
          .knot-workspace .knot-document-body textarea,.knot-workspace .knot-document-body [data-cambium-text-value] { font-family:inherit;font-size:inherit;line-height:inherit;padding:0;border:none;box-sizing:border-box;width:100%;min-width:0;min-height:240px; } \
          .knot-document-body { line-height:inherit; } \
          .knot-workspace .knot-document-read-only { padding:0;border:none;box-sizing:border-box; } \

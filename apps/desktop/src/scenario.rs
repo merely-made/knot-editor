@@ -79,6 +79,7 @@ impl mesquite::Product for KnotLane {
     ) -> ProbeSnapshot {
         let (arrangement, columns, retained) =
             ctx.runner.state().composition.recipe_scenario_fields();
+        let (positions, steps, position) = ctx.runner.state().composition.scene_scenario_fields();
         ctx.runner
             .state()
             .scenario_snapshot()
@@ -93,6 +94,9 @@ impl mesquite::Product for KnotLane {
             .with_field("recipe_arrangement", arrangement)
             .with_field("recipe_columns", columns)
             .with_field("recipe_edits_retained", retained.to_string())
+            .with_field("scene_authored_positions", positions.to_string())
+            .with_field("scene_placement_steps", steps.to_string())
+            .with_field("scene_selected_position", position)
     }
 
     fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
@@ -151,10 +155,17 @@ fn graph_capture_projection(
     })
 }
 
-/// Fixed categories and numeric/boolean facts only. Unlike the general scenario
-/// snapshot, this never clones document text, paths, labels, messages or errors.
+/// Fixed categories, numeric/boolean facts and an opaque placement digest only.
+/// Unlike the general snapshot, this never copies source text or labels.
 fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, String> {
+    let (positions, steps, _) = state.composition.scene_scenario_fields();
     [
+        ("scene_authored_positions", positions.to_string()),
+        ("scene_placement_steps", steps.to_string()),
+        (
+            "scene_positions_blake3",
+            state.composition.scene_positions_digest(),
+        ),
         ("document_count", state.docs.len().to_string()),
         ("reading_count", state.docs.readings().count().to_string()),
         ("graph_visible", graph_is_presented(state).to_string()),

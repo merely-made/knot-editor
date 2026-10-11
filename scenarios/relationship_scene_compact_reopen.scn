@@ -21,7 +21,12 @@ assert snap recipe_edits_retained == true
 capture recipe-options-reopened
 click role:button Hide recipe arrangement controls
 settle 4
-assert text Static overview
+assert text Authored overview
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+click role:button Show scene placement controls
+capture scene-placement-reopened-compact
+click role:button Hide scene placement controls
 assert text Show scene category controls
 click role:button Show scene category controls
 assert text Show scene background category: sound.perfect_rhyme

@@ -300,6 +300,27 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         click(&mut host, "night · token-6-11");
         assert!(panel_text(&host).contains("bytes 6–11"));
         click(&mut host, "Show relationship scene");
+        click(&mut host, "Show scene placement controls");
+        click(&mut host, "Move selected occurrence right");
+        assert!(panel_text(&host).contains("Authored scene positions: 1"));
+        click(&mut host, "Undo recipe edit");
+        assert!(panel_text(&host).contains("Authored scene positions: 0"));
+        click(&mut host, "Redo recipe edit");
+        assert!(panel_text(&host).contains("Authored scene positions: 1"));
+        click(&mut host, "Hide scene placement controls");
+        let node = Selector::class("graph-canvas-swatch-node").with_attr("data-key", "token-6-11");
+        assert!(host.click_on(&node));
+        host.after_dispatch();
+        host.relayout();
+        let (x, y) = host.resolve(&node).expect("painted occurrence drag target");
+        host.press_at(x, y);
+        host.after_dispatch();
+        assert!(host.pointer_capture().is_some());
+        host.move_to(x + 20.0, y + 10.0);
+        host.after_dispatch();
+        host.release_at(x + 20.0, y + 10.0);
+        host.after_dispatch();
+        assert!(host.pointer_capture().is_none());
         click(&mut host, "Hide scene background");
         click(&mut host, "Show scene category controls");
         click(
@@ -340,7 +361,15 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         let presentation = material.presentation.as_ref().unwrap();
         assert!(presentation.overview_visible);
         assert!(!presentation.background_visible);
-        assert_eq!(presentation.version, 2);
+        assert_eq!(presentation.version, 3);
+        assert_eq!(material.scene_positions().unwrap().len(), 1);
+        assert_eq!(presentation.placement_trace.as_ref().unwrap().len(), 2);
+        assert!(
+            material
+                .scene_positions()
+                .unwrap()
+                .contains_key("token-6-11")
+        );
         assert_eq!(
             presentation.hidden_background_categories,
             ["sound.perfect_rhyme".to_owned()].into()
@@ -378,7 +407,8 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
     assert!(panel_text(&host).contains("spacing 24"));
     assert!(panel_text(&host).contains("bytes 6–11"));
     let items = port.list(port.target()).unwrap();
-    assert!(panel_text(&host).contains("Static overview"));
+    assert!(panel_text(&host).contains("Authored overview"));
+    assert!(panel_text(&host).contains("Authored scene positions: 1"));
     assert!(panel_text(&host).contains("pan 0.10, 0.00 · zoom 1.25"));
     assert!(panel_text(&host).contains("Show scene camera controls"));
     assert!(panel_text(&host).contains("Show recipe arrangement controls"));

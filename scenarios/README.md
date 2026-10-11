@@ -116,6 +116,13 @@ arrangement controls, reject columns 0 without replacing the recipe, apply colum
 columns 2 and a confirmed retained marker, removes the override through Use default,
 and undoes to the retained position. Both widths capture expanded option controls.
 Scene and arrangement disclosures reopen collapsed; session undo does not persist.
+The October 11 authored-placement continuation extends retained save/reopen
+scenarios with keyboard placement, undo/redo, authored-position/trace-step
+assertions, and a placement-controls capture at each width. Presentation v3
+retains a shared source-bound scene trace; full source bytes must still remain
+unchanged. Native qualification of this newer family is separate from the
+historical October 8 receipt below, and remains pending until recorded.
+
 The October 8 committed-runtime native qualification covers five captures per
 save/reopen process at each width (20 final captures); the composition retention
 plan preserves the initial local receipts and layout-performance hold, then

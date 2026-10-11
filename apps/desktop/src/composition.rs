@@ -385,6 +385,36 @@ impl CompositionState {
             .unwrap_or_else(|| "default".into());
         (arrangement, columns, !self.recipe.history.is_dirty())
     }
+
+    pub(crate) fn scene_scenario_fields(&self) -> (usize, usize, String) {
+        let Some(material) = self.recipe.material.as_ref() else {
+            return (0, 0, "none".into());
+        };
+        let positions = &self.recipe.scene_positions;
+        let steps = material
+            .presentation
+            .as_ref()
+            .and_then(|p| p.placement_trace.as_ref())
+            .map_or(0, |trace| trace.len());
+        let selected = material
+            .snapshot
+            .selected_occurrence
+            .as_ref()
+            .and_then(|id| positions.get(id))
+            .map_or_else(|| "compiled".into(), |p| format!("{:.2},{:.2}", p[0], p[1]));
+        (positions.len(), steps, selected)
+    }
+
+    pub(crate) fn scene_positions_digest(&self) -> String {
+        let mut hash = blake3::Hasher::new();
+        for (id, position) in &self.recipe.scene_positions {
+            hash.update(&(id.len() as u64).to_le_bytes());
+            hash.update(id.as_bytes());
+            hash.update(&position[0].to_bits().to_le_bytes());
+            hash.update(&position[1].to_bits().to_le_bytes());
+        }
+        hash.finalize().to_hex().to_string()
+    }
 }
 
 fn lookup(state: &mut DesktopState) {

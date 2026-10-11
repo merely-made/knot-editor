@@ -20,7 +20,7 @@ settle 4
 click role:button Use sound relationship recipe
 click role:button Show relationship scene
 settle 4
-assert text Static overview
+assert text Authored overview
 capture relationship-scene-compact-bound
 click .graph-canvas-swatch-node @data-key=token-8-13
 click role:button Promote selected occurrence

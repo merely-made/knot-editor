@@ -3642,7 +3642,7 @@ name = "dramatis"
 version = "0.0.2"
 source = "git+https://github.com/merely-made/dramatis.git?rev=c1d620764315b4c750fcffea30b8c898b8bb73bc#c1d620764315b4c750fcffea30b8c898b8bb73bc"
 dependencies = [
- "personae",
+ "personae 0.2.1",
  "serde",
  "serde_json",
  "uuid",
@@ -4620,7 +4620,7 @@ name = "gemot"
 version = "0.1.1"
 source = "git+https://github.com/merely-made/mere.git?rev=e95326dc08446a9256d3e340c63e571684afe697#e95326dc08446a9256d3e340c63e571684afe697"
 dependencies = [
- "insigne",
+ "insigne 0.0.1",
  "mere-proofs",
  "mien",
  "mooting",
@@ -4629,7 +4629,7 @@ dependencies = [
  "p2panda-core",
  "p2panda-encryption",
  "p2panda-store",
- "personae",
+ "personae 0.2.1",
  "redb 2.6.4",
  "serde",
  "servitor",
@@ -5071,13 +5071,13 @@ dependencies = [
  "getrandom 0.3.4",
  "graphshell-client",
  "graphshell-endpoint",
- "insigne",
+ "insigne 0.0.1",
  "mere",
  "mere-transport",
  "mere-webrtc-carrier",
- "notochord",
+ "notochord 0.1.0",
  "pandect",
- "personae",
+ "personae 0.2.1",
  "rand_core 0.6.4",
  "sceno",
  "scenograph",
@@ -5992,6 +5992,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "insigne"
+version = "0.0.2"
+source = "git+https://github.com/merely-made/dramatis.git?rev=0234e7eea6f2ddf2330a71b9425da01b06ae0391#0234e7eea6f2ddf2330a71b9425da01b06ae0391"
+dependencies = [
+ "blake3",
+ "ed25519-dalek 3.0.0",
+ "serde",
+]
+
+[[package]]
 name = "internment"
 version = "0.8.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6630,7 +6640,7 @@ dependencies = [
  "mesquite",
  "nematic",
  "percent-encoding",
- "personae",
+ "personae 0.3.0",
  "pollster",
  "reference-data",
  "sceno",
@@ -6679,7 +6689,7 @@ dependencies = [
  "graphshell",
  "graphshell-endpoint",
  "inker",
- "insigne",
+ "insigne 0.0.2",
  "jotdown",
  "knot-capture",
  "knot-composition",
@@ -6694,11 +6704,11 @@ dependencies = [
  "muniment",
  "nematic",
  "notify",
- "notochord",
+ "notochord 0.1.1",
  "p2panda-core",
  "p2panda-store",
  "pandect",
- "personae",
+ "personae 0.3.0",
  "pollster",
  "postcard",
  "quinn",
@@ -7484,9 +7494,9 @@ dependencies = [
  "mere-p2panda-net",
  "muniment",
  "n0-future",
- "notochord",
+ "notochord 0.1.0",
  "p2panda-core",
- "personae",
+ "personae 0.2.1",
  "sha2 0.11.0",
  "snow",
  "stickleback",
@@ -7551,11 +7561,11 @@ name = "mien"
 version = "0.0.1"
 source = "git+https://github.com/merely-made/mere.git?rev=e95326dc08446a9256d3e340c63e571684afe697#e95326dc08446a9256d3e340c63e571684afe697"
 dependencies = [
- "insigne",
+ "insigne 0.0.1",
  "muniment",
  "p2panda-core",
  "p2panda-store",
- "personae",
+ "personae 0.2.1",
  "serde",
  "stickleback",
  "thiserror 1.0.69",
@@ -8384,8 +8394,22 @@ version = "0.1.0"
 source = "git+https://github.com/merely-made/dramatis.git?rev=c1d620764315b4c750fcffea30b8c898b8bb73bc#c1d620764315b4c750fcffea30b8c898b8bb73bc"
 dependencies = [
  "blake3",
- "insigne",
- "personae",
+ "insigne 0.0.1",
+ "personae 0.2.1",
+ "postcard",
+ "serde",
+ "thiserror 1.0.69",
+ "tokio",
+]
+
+[[package]]
+name = "notochord"
+version = "0.1.1"
+source = "git+https://github.com/merely-made/dramatis.git?rev=0234e7eea6f2ddf2330a71b9425da01b06ae0391#0234e7eea6f2ddf2330a71b9425da01b06ae0391"
+dependencies = [
+ "blake3",
+ "insigne 0.0.2",
+ "personae 0.3.0",
  "postcard",
  "serde",
  "thiserror 1.0.69",
@@ -9332,13 +9356,13 @@ dependencies = [
  "getrandom 0.3.4",
  "hex",
  "incipit",
- "insigne",
+ "insigne 0.0.1",
  "mere-alembic",
  "mere-forme",
  "mere-kernel",
  "muniment",
- "notochord",
- "personae",
+ "notochord 0.1.0",
+ "personae 0.2.1",
  "serde",
  "serde_json",
  "tabard",
@@ -9543,10 +9567,28 @@ dependencies = [
  "gethostname",
  "getrandom 0.3.4",
  "getrandom 0.4.3",
- "insigne",
+ "insigne 0.0.1",
  "serde",
  "serde_json",
  "ssh-key",
+ "thiserror 1.0.69",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "personae"
+version = "0.3.0"
+source = "git+https://github.com/merely-made/dramatis.git?rev=0234e7eea6f2ddf2330a71b9425da01b06ae0391#0234e7eea6f2ddf2330a71b9425da01b06ae0391"
+dependencies = [
+ "blake3",
+ "chacha20poly1305 0.11.0",
+ "ed25519-dalek 3.0.0",
+ "getrandom 0.3.4",
+ "getrandom 0.4.3",
+ "insigne 0.0.2",
+ "serde",
+ "serde_json",
  "thiserror 1.0.69",
  "uuid",
  "zeroize",
@@ -11566,8 +11608,8 @@ version = "0.0.2"
 source = "git+https://github.com/merely-made/mere.git?rev=e95326dc08446a9256d3e340c63e571684afe697#e95326dc08446a9256d3e340c63e571684afe697"
 dependencies = [
  "chartulary",
- "insigne",
- "personae",
+ "insigne 0.0.1",
+ "personae 0.2.1",
 ]
 
 [[package]]
@@ -12076,7 +12118,7 @@ dependencies = [
  "blake3",
  "futures-util",
  "hex",
- "insigne",
+ "insigne 0.0.1",
  "mere-p2panda-net",
  "mere-proofs",
  "muniment",
@@ -12084,7 +12126,7 @@ dependencies = [
  "p2panda-encryption",
  "p2panda-store",
  "p2panda-sync",
- "personae",
+ "personae 0.2.1",
  "serde",
  "serde_bytes",
  "thiserror 1.0.69",

@@ -41,12 +41,23 @@ use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
     let mut hooks: HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> = inert_hooks();
     let mut previews = theme_session::PreviewBindings::default();
+    // Rootstock clears the current redraw receipt before the pre-frame hook.
+    // Observe its result after-frame instead, retaining only session-local
+    // eligibility for the following attempt. A failed presentation freezes
+    // motion on the next frame and never silently resumes it.
+    let last_presented = std::rc::Rc::new(std::cell::Cell::new(false));
+    let frame_presented = last_presented.clone();
     hooks.frame = Box::new(move |ctx| {
-        if ctx.runner.state().theme_session.workshop_open {
+        if ctx.runner.state().theme_session.workshop_open
+            || (ctx.window.is_some() && !frame_presented.get())
+        {
             crate::composition::pause_hidden_motion(ctx);
         }
         theme_session::update_stylesheet(ctx);
         previews.frame(ctx)
+    });
+    hooks.after_frame = Box::new(move |ctx| {
+        last_presented.set(ctx.presentation.is_some());
     });
     hooks.after_dispatch = Box::new(move |ctx| {
         theme_session::after_dispatch(ctx);
@@ -117,7 +128,11 @@ pub fn run_desktop_with_targets(
             scenario::KnotLane::new(desktop_sheet()),
             cambium_genet_winit_host::read_file,
         )?;
-        hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
+        let mut presentation_result = hooks.after_frame;
+        hooks.after_frame = Box::new(move |ctx| {
+            presentation_result(ctx);
+            lane.after_frame(ctx);
+        });
     }
     run(
         HostOptions {

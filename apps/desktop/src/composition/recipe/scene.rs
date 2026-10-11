@@ -1040,8 +1040,7 @@ pub(super) fn presented(
     ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
     let state = ctx.runner.state();
-    if (ctx.window.is_some() && ctx.presentation.is_none())
-        || state.theme_session.workshop_open
+    if state.theme_session.workshop_open
         || state.composition.section != 4
         || !state
             .composition
@@ -1065,7 +1064,7 @@ pub(super) fn presented(
         let dom = dom_handle.borrow();
         find(&*dom, ctx.runner.root())
     };
-    node.and_then(|node| ctx.painted_rect(node))
+    node.and_then(|node| ctx.visible_rect(node))
         .is_some_and(|(x, y, w, h)| {
             [x, y, w, h].iter().all(|v| v.is_finite())
                 && w > 0.0

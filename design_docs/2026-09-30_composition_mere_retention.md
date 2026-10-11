@@ -768,7 +768,9 @@ serialization. Retain creates an explicit immutable signed/encrypted version in
 Knot's own mere. Named channels, groups, and unsupported body/scene forms remain
 binding refusals, not permission to drop portable input declarations.
 
-Playback uses the shared runner once per eligible host frame. Start/Resume,
+Playback uses the shared runner once per eligible host frame, gated by the
+preceding native presentation result recorded in AfterFrame (the pre-frame
+hook's current presentation receipt is deliberately empty). Start/Resume,
 Pause, Step once, and Restart are explicit session actions. Runtime ticks,
 controller handles, and transient poses never enter `SceneTrace`, undo history,
 retention, or source facts. Fresh reopen always starts paused at the authored
@@ -782,8 +784,8 @@ Motion maps through the original compiled bounds, never its changing runtime
 AABB; positions outside that fixed display plane project to its boundary.
 Active animation refreshes the paint leaf without rebuilding the full semantic
 tree. Canvas placement/activation and motion-recipe/role edits are gated while
-playing. Pause, completion, or refusal reconciles hit targets once. Geometry,
-role, source, or recipe changes discard the disposable controller; visibility,
+playing. Pause, completion, or refusal reconciles hit targets once. Authored
+placement, role, source, or recipe changes discard the disposable controller; visibility,
 camera, and foreground changes preserve its transient pose. Existing authored
 placement gestures remain discrete source-bound edits, not implicit pose baking.
 

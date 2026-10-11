@@ -69,6 +69,8 @@ HEAD is not used as published-current evidence.
 
 Evidence logs are copied here; original diagnostic logs remain under
 `/Users/markik/Code/testing`, prefixed `knot-live-dynamics`.
+Raw command logs retain Cargo's literal whitespace; the directory-local
+attributes exempt only those logs from source whitespace checking.
 
 - [Workspace all-target tests](workspace-test.log): 43 harnesses, **662 passed,
   zero failed, four existing ignored**. This includes source-role identity,

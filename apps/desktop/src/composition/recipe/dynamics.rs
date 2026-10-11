@@ -501,6 +501,76 @@ mod tests {
     }
 
     #[test]
+    fn real_sound_consumer_preserves_occurrences_and_disclosed_edges_change_motion() {
+        let mut material = with_spring_slot();
+        let occurrences = &material.dataset.dataset.occurrences;
+        let pinned = occurrences[0].occurrence_id.clone();
+        let moving = occurrences[1].occurrence_id.clone();
+        assert_eq!(occurrences[0].source, occurrences[1].source);
+        let presentation = material.presentation.get_or_insert_with(Default::default);
+        presentation
+            .motion_roles
+            .insert(pinned.clone(), seiche::Role::Pinned);
+        presentation
+            .motion_roles
+            .insert(moving.clone(), seiche::Role::Seeded);
+        presentation.refresh_version();
+        material.validate().unwrap();
+        let original = material.clone();
+        let mut linked = RuntimeState::default();
+        linked.start(&material, VALIDATION_CARD).unwrap();
+        let initial = linked.positions().clone();
+
+        // The authored Knot recipe requires explained relationships. Remove
+        // only compiled edge input at the shared binding seam as the negative
+        // control, without weakening that source/recipe acceptance contract.
+        let mut bare = validation_compiler()
+            .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+            .unwrap();
+        bare.relationships.clear();
+        bare.projection.scene.relations.clear();
+        let slot = material
+            .snapshot
+            .recipe
+            .definition
+            .dynamics
+            .as_ref()
+            .unwrap();
+        let mut control = RuntimeState::default();
+        control.bind_compiled(&material, bare, slot).unwrap();
+        let mut repeated = RuntimeState::default();
+        repeated.start(&material, VALIDATION_CARD).unwrap();
+        assert_eq!(linked.positions(), control.positions());
+        assert_eq!(
+            linked.positions().len(),
+            material.dataset.dataset.occurrences.len()
+        );
+        for _ in 0..12 {
+            linked.tick_once().unwrap();
+            control.tick_once().unwrap();
+            repeated.tick_once().unwrap();
+        }
+        assert_eq!(linked.positions()[&pinned], initial[&pinned]);
+        assert_ne!(linked.positions()[&moving], initial[&moving]);
+        assert_ne!(
+            linked.controller.as_ref().unwrap().scene().items,
+            control.controller.as_ref().unwrap().scene().items
+        );
+        assert_eq!(
+            linked.controller.as_ref().unwrap().scene(),
+            repeated.controller.as_ref().unwrap().scene()
+        );
+        assert_eq!(
+            linked.controller.as_ref().unwrap().relationship_ids().len(),
+            material.dataset.relationships.len()
+        );
+        assert_eq!(
+            material, original,
+            "motion cannot rewrite copied source or authoring"
+        );
+    }
+
+    #[test]
     fn fixed_plane_inversion_does_not_follow_moving_scene_bounds() {
         let plane = FixedPlane {
             origin: [-10.0, 20.0],

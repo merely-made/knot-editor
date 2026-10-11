@@ -1,0 +1,69 @@
+# Windows app-frame Preview caption; all motion/retention assertions unchanged.
+# Seed explicit portable placement, shared dynamics, and one occurrence role;
+# play only in this process, then retain the authoring state without runtime poses.
+settle 120
+assert snap document == essay.djot
+assert snap dirty == false
+click role:button Preview
+click role:button @aria-label=Select source heading: Night light
+click role:button Hide Preview
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 1 retained items
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+click role:button Use sound relationship recipe
+click role:button Show relationship scene
+settle 4
+click .graph-canvas-swatch-node @data-key=token-8-13
+click role:button Show scene placement controls
+click role:button Move selected occurrence right
+click role:button Move selected occurrence down
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+click role:button Hide scene placement controls
+click role:button Show scene motion authoring controls
+click role:button Set selected motion role: Pinned
+click role:button Use shared spring for 120 fixed frames
+assert snap scene_motion_roles == 1
+assert snap scene_motion_slot == true
+click role:button Hide scene motion authoring controls
+capture scene-motion-authored
+click role:button Start scene motion
+capture scene-motion-started
+settle 12
+assert snap scene_motion_running == true
+assert snap scene_motion_ticks >= 1
+assert snap scene_motion_positions >= 1
+capture scene-motion-running
+click role:button Pause scene motion
+assert snap scene_motion_running == false
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+capture scene-motion-paused
+settle 12
+capture scene-motion-paused-stable
+click role:button Resume scene motion
+click role:button Hide relationship scene
+settle 4
+assert snap scene_motion_running == false
+click role:button Show relationship scene
+settle 4
+assert snap scene_motion_running == false
+capture scene-motion-revealed-paused
+click role:button Retain relationship recipe
+settle 30
+assert text Confirmed 2 retained items
+assert snap recipe_edits_retained == true
+assert snap scene_motion_slot == true
+assert snap scene_motion_roles == 1
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_running == false
+assert snap dirty == false
+assert text bytes 8–13
+capture relationship-live-dynamics-retained

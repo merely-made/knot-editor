@@ -111,7 +111,19 @@ fn action(host: &mut Host, key: &str) {
     host.relayout();
 }
 fn appearance(host: &mut Host) {
-    assert!(host.click_on(&Selector::role("button").containing("Appearance")));
+    let quick = Selector::role("button").containing("Appearance");
+    if host.resolve(&quick).is_some() {
+        assert!(host.click_on(&quick));
+    } else {
+        // The Windows client frame exposes this command in View rather than
+        // the plain row. Keep the actual platform projection under test.
+        assert!(host.click_on(&Selector::role("menuitem").with_attr("data-key", "group.view")));
+        host.after_dispatch();
+        host.relayout();
+        assert!(
+            host.click_on(&Selector::role("menuitem").with_attr("data-key", "view.appearance"))
+        );
+    }
     host.after_dispatch();
     host.relayout();
 }

@@ -14,6 +14,22 @@ use scenograph::DynamicsSlot;
 use scenomise::projection::{CompiledRelationshipProjection, ProjectionCompiler};
 use std::collections::BTreeMap;
 
+/// An explicitly authored shared schedule, not a private rest-policy bypass.
+pub(super) fn bounded_spring_slot() -> Result<DynamicsSlot, String> {
+    use seiche::spec::{DynamicsSpec, Node, Stage, Stop};
+    let spec = DynamicsSpec::new(Node::Schedule {
+        stages: vec![Stage {
+            node: Node::preset("spring.rapier"),
+            stop: Stop::Frames(120),
+            capture: None,
+        }],
+        weight: 1.0,
+        overlays: Vec::new(),
+    });
+    let json = serde_json::to_string(&spec).map_err(|error| error.to_string())?;
+    DynamicsSlot::from_json(scenograph::DYNAMICS_SLOT_VERSION, &json)
+}
+
 /// The compiled scene's original bounds are the fixed physics/display plane.
 /// Dynamic output is always inverted against these bounds, never against the
 /// controller's per-tick bounds (which track the moving bodies).
@@ -695,6 +711,29 @@ mod tests {
             assert_eq!(runtime.ticks(), final_ticks);
             assert_eq!(runtime.positions(), &final_positions);
         }
+    }
+
+    #[test]
+    fn bounded_preview_uses_the_shared_frame_schedule_and_preserves_its_slot() {
+        let mut material = with_spring_slot();
+        let slot = bounded_spring_slot().unwrap();
+        material.snapshot.recipe.definition.dynamics = Some(slot.clone());
+        let original = material.clone();
+        let mut runtime = RuntimeState::default();
+        for tick in 1..=120 {
+            runtime.step_once(&material, VALIDATION_CARD).unwrap();
+            assert_eq!(runtime.ticks(), tick);
+            assert_eq!(runtime.can_resume(), tick < 120);
+        }
+        let positions = runtime.positions().clone();
+        runtime.step_once(&material, VALIDATION_CARD).unwrap();
+        assert_eq!(runtime.ticks(), 120);
+        assert_eq!(runtime.positions(), &positions);
+        assert_eq!(material, original);
+        assert_eq!(
+            material.snapshot.recipe.definition.dynamics.as_ref(),
+            Some(&slot)
+        );
     }
 
     #[test]

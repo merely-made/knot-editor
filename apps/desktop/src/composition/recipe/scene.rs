@@ -52,6 +52,7 @@ enum SceneAction {
     SelectOccurrence(String),
     SelectRelationship(String),
     MotionPreset(Option<String>),
+    MotionBoundedSpring,
     MotionRole(seiche::Role),
     ClearMotionRoles,
 }
@@ -423,6 +424,10 @@ fn apply_action(
             presentation.motion_roles.insert(id, role);
             presentation.refresh_version();
         },
+        SceneAction::MotionBoundedSpring => {
+            candidate.snapshot.recipe.definition.dynamics =
+                Some(super::dynamics::bounded_spring_slot()?);
+        },
         SceneAction::ClearMotionRoles => {
             if let Some(presentation) = &mut candidate.presentation {
                 presentation.motion_roles.clear();
@@ -520,7 +525,7 @@ fn swatch_relation_visible(
 
 fn dispatch_control(state: &mut DesktopState, action: SceneAction) {
     if state.composition.recipe.dynamics.running()
-        && matches!(&action, SceneAction::MotionPreset(_) | SceneAction::MotionRole(_) | SceneAction::ClearMotionRoles)
+        && matches!(&action, SceneAction::MotionPreset(_) | SceneAction::MotionBoundedSpring | SceneAction::MotionRole(_) | SceneAction::ClearMotionRoles)
     {
         state.composition.notice = Some("Pause scene motion before changing its recipe or occurrence roles.".into());
         return;
@@ -732,6 +737,9 @@ pub(super) fn motion_authoring(material: &ProjectionRecipeMaterial) -> DesktopVi
         }),
         button("Use shared charge dynamics", |state: &mut DesktopState, _| {
             dispatch_control(state, SceneAction::MotionPreset(Some("charge.barnes-hut".into())))
+        }),
+        button("Use shared spring for 120 fixed frames", |state: &mut DesktopState, _| {
+            dispatch_control(state, SceneAction::MotionBoundedSpring)
         }),
         button("Disable scene dynamics", |state: &mut DesktopState, _| {
             dispatch_control(state, SceneAction::MotionPreset(None))

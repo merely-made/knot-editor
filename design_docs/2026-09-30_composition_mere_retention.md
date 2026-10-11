@@ -759,7 +759,8 @@ or source-acquisition authority. The legacy relation-free constructor retains
 its refusal behavior. This commit preserves the coordinator's preceding Mere
 adoption of Knot's already-qualified `19b9904` milestone.
 
-Knot opts in through shared spring or charge recipes, with shared Seeded,
+Knot opts in through shared spring or charge recipes, including an explicitly
+authored shared spring schedule of 120 fixed frames, with shared Seeded,
 Anchored, and Pinned roles keyed by copied occurrence ID. Repeated occurrences
 of one source are not deduplicated. The existing opaque `DynamicsSlot` retains
 its original canonical specification; nonempty occurrence-role maps require

@@ -27,7 +27,7 @@ assert snap scene_placement_steps == 2
 click role:button Hide scene placement controls
 click role:button Show scene motion authoring controls
 click role:button Set selected motion role: Pinned
-click role:button Use shared charge dynamics
+click role:button Use shared spring for 120 fixed frames
 assert snap scene_motion_roles == 1
 assert snap scene_motion_slot == true
 click role:button Hide scene motion authoring controls

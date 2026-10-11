@@ -389,7 +389,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                 )
                 .attr("aria-disabled", (!enabled).to_string()),
                 span(if running {
-                    "Shared dynamics running · one fixed tick per presented frame".to_owned()
+                    "Shared dynamics running · fixed-step session playback".to_owned()
                 } else if state.composition.recipe.dynamics.controller.is_some() {
                     format!("Shared dynamics paused · fixed ticks {ticks}")
                 } else if enabled {

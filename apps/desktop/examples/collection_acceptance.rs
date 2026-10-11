@@ -16,9 +16,9 @@ use std::{path::PathBuf, sync::Arc};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args_os().skip(1);
-    let mode = args
-        .next()
-        .ok_or("expected --initialize-test-fixture or --reopen-test-fixture")?;
+    let mode = args.next().ok_or(
+        "expected --initialize-test-fixture, --reopen-test-fixture or --inspect-test-fixture",
+    )?;
     let root = PathBuf::from(
         args.next()
             .ok_or("expected absolute disposable fixture root")?,
@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             root.join("essay.djot"),
             "# Night light\n\nNight light by the river.\n",
         )?;
-    } else if mode == "--reopen-test-fixture" {
+    } else if mode == "--reopen-test-fixture" || mode == "--inspect-test-fixture" {
         if !marker.is_file()
             || !root.join("sync.redb").is_file()
             || !root.join("essay.djot").is_file()
@@ -63,6 +63,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
         resident.composition_retention(CompositionGrant::new(8192, 20))?,
     )?;
+    if mode == "--inspect-test-fixture" {
+        // Read-only object identity for selecting one immutable test version.
+        // This mode is guarded by the same public-fixture marker as reopen.
+        let recipes: Vec<_> = port.list(port.target())?.into_iter().filter_map(|entry| {
+            let material = entry.item.projection_recipe.as_ref()?;
+            Some(serde_json::json!({
+                "item_id": entry.item.id,
+                "authored_positions": material.scene_positions().ok()?.len(),
+                "placement_steps": material.presentation.as_ref()?.placement_trace.as_ref().map_or(0, |trace| trace.len()),
+            }))
+        }).collect();
+        println!("{}", serde_json::to_string_pretty(&recipes)?);
+        return Ok(());
+    }
     let source = root.join("essay.djot");
     let first = KnotDocumentSession::open(&source)?;
     if mode == "--initialize-test-fixture" {

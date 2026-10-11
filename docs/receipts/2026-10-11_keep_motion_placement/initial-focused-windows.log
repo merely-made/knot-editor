@@ -1,0 +1,66 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261011#d8acabc9)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: usage of an `unsafe` block
+   --> crates\knot-document\src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+   Compiling knot-composition v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-composition)
+   Compiling knot-editor v0.0.3 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-editor)
+   Compiling knot-desktop v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\apps\desktop)
+error[E0283]: type annotations needed
+    --> apps\desktop\src\composition\recipe\dynamics.rs:620:14
+     |
+ 620 |             .get_or_insert_with(Default::default())
+     |              ^^^^^^^^^^^^^^^^^^ ------------------ type must be known at this point
+     |              |
+     |              cannot infer type of the type parameter `F` declared on the method `get_or_insert_with`
+     |
+     = note: multiple `impl`s satisfying `_: FnOnce()` found in the following crates: `alloc`, `core`:
+             - impl<A, F> FnOnce<A> for &F
+               where A: std::marker::Tuple, F: Fn<A>, F: ?Sized;
+             - impl<A, F> FnOnce<A> for &mut F
+               where A: std::marker::Tuple, F: FnMut<A>, F: ?Sized;
+             - impl<Args, F, A> FnOnce<Args> for Box<F, A>
+               where Args: std::marker::Tuple, F: FnOnce<Args>, A: Allocator, F: ?Sized;
+             - impl<F, Args> FnOnce<Args> for SyncView<F>
+               where F: FnOnce<Args>, Args: std::marker::Tuple;
+             - impl<R, F> FnOnce<()> for AssertUnwindSafe<F>
+               where <F as FnOnce<()>>::Output == R, F: FnOnce();
+note: required by a bound in `std::option::Option::<T>::get_or_insert_with`
+    --> C:\Users\mark_\.rustup\toolchains\1.98.1-x86_64-pc-windows-msvc\lib/rustlib/src/rust\library\core\src\option.rs:1807:12
+     |
+1805 |     pub const fn get_or_insert_with<F>(&mut self, f: F) -> &mut T
+     |                  ------------------ required by a bound in this associated function
+1806 |     where
+1807 |         F: [const] FnOnce() -> T + [const] Destruct,
+     |            ^^^^^^^^^^^^^^^^^^^^^ required by this bound in `Option::<T>::get_or_insert_with`
+help: consider specifying a concrete type for the type parameter `F`
+     |
+ 620 |             .get_or_insert_with::</* Type */>(Default::default())
+     |                                ++++++++++++++
+
+warning: unused variable: `store`
+    --> apps\desktop\src\recovery.rs:1199:13
+     |
+1199 |         let store = store(&temp);
+     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+For more information about this error, try `rustc --explain E0283`.
+warning: `knot-desktop` (lib test) generated 1 warning
+error: could not compile `knot-desktop` (lib test) due to 1 previous error; 1 warning emitted

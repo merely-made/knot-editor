@@ -255,6 +255,86 @@ fn authored_positions_roundtrip_in_shared_trace_and_keep_zero_as_an_override() {
 }
 
 #[test]
+fn a_complete_preview_pose_keeps_hidden_occurrences_and_preserves_roles_and_source() {
+    let mut material = movable_scene();
+    let presentation = material.presentation.as_mut().unwrap();
+    presentation.background_visible = false;
+    presentation
+        .motion_roles
+        .insert("night:0".into(), seiche::Role::Pinned);
+    presentation.refresh_version();
+    let original = material.clone();
+    let pose = [
+        ("night:0".into(), [0.2, 0.4]),
+        ("light:6".into(), [0.8, 0.7]),
+    ]
+    .into();
+    assert!(
+        material
+            .move_scene_occurrence("light:6", [0.8, 0.7])
+            .is_err()
+    );
+    assert!(material.capture_scene_positions(&pose).unwrap());
+    assert_eq!(material.scene_positions().unwrap(), pose);
+    assert!(!material.capture_scene_positions(&pose).unwrap());
+    assert_eq!(material.dataset, original.dataset);
+    assert_eq!(material.anchors, original.anchors);
+    assert_eq!(material.snapshot, original.snapshot);
+    assert_eq!(
+        material.presentation.as_ref().unwrap().motion_roles,
+        original.presentation.as_ref().unwrap().motion_roles
+    );
+    let decoded: knot_composition::retention::ProjectionRecipeMaterial =
+        serde_json::from_slice(&serde_json::to_vec(&material).unwrap()).unwrap();
+    decoded.validate().unwrap();
+    assert_eq!(decoded.scene_positions().unwrap(), pose);
+}
+
+#[test]
+fn a_preview_pose_is_atomic_for_missing_foreign_nonfinite_and_exhausted_trace_input() {
+    let original = movable_scene();
+    for pose in [
+        [("night:0".into(), [0.2, 0.4])].into(),
+        [
+            ("night:0".into(), [0.2, 0.4]),
+            ("foreign".into(), [0.8, 0.7]),
+        ]
+        .into(),
+        [
+            ("night:0".into(), [0.2, 0.4]),
+            ("light:6".into(), [f32::NAN, 0.7]),
+        ]
+        .into(),
+        [
+            ("night:0".into(), [0.2, 0.4]),
+            ("light:6".into(), [1.1, 0.7]),
+        ]
+        .into(),
+    ] {
+        let mut attempted = original.clone();
+        assert!(attempted.capture_scene_positions(&pose).is_err());
+        assert_eq!(attempted, original);
+    }
+    let mut full = original;
+    for i in 0..255 {
+        full.move_scene_occurrence("night:0", [if i % 2 == 0 { 0.2 } else { 0.4 }, 0.3])
+            .unwrap();
+    }
+    let before = full.clone();
+    assert!(
+        full.capture_scene_positions(
+            &[
+                ("night:0".into(), [0.7, 0.8]),
+                ("light:6".into(), [0.1, 0.2])
+            ]
+            .into()
+        )
+        .is_err()
+    );
+    assert_eq!(full, before, "trace capacity cannot partially keep a pose");
+}
+
+#[test]
 fn scene_placement_refusal_preserves_exact_material() {
     let material = movable_scene();
     for (id, position) in [

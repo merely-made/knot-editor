@@ -1,0 +1,195 @@
+{
+  "schema": "knot.explicit-kept-placement-windows/v1",
+  "base_source": "9790938",
+  "evidence_root": "C:\\Users\\mark_\\Code\\testing\\knot-editor\\relationship-dynamics\\native-windows",
+  "binary": "C:\\t\\cargo-targets\\knot-editor\\debug\\examples\\collection_acceptance.exe",
+  "binary_sha256": "c4c28a202909108716c9b81d102e3e636a9c0e8697cfd218803e5f3931d74a6b",
+  "source_bytes": 41,
+  "source_sha256": "8155c926a5f084c721cdeb968c909b45b74bb4b76f24666b38b9a51d008b0a08",
+  "captures": 6,
+  "tests": [
+    "displayed preview becomes exact authored pose",
+    "one Undo restores all prior placement",
+    "Redo restores exact kept pose",
+    "explicit retention survives fresh reopen",
+    "runtime discarded",
+    "source bytes unchanged",
+    "slot and roles preserved"
+  ],
+  "runs": [
+    {
+      "name": "kept-promotion",
+      "presented_frames": 242,
+      "redraws": 242,
+      "binary_sha256": "05fc2881b13423ce631229c5bd8a77faa8274c2ecbef5840d92a89d304b2f8aa",
+      "source_phase": "keep-runtime",
+      "captures": {
+        "placement-preview-paused": {
+          "width": 2200,
+          "height": 1504,
+          "png_sha256": "ef9afe069a012b40d183b978d3f260b7922201924c9d9fd22115340182250a5a",
+          "fields": {
+            "background_busy": "false",
+            "document_count": "1",
+            "font_size": "16",
+            "graph_visible": "false",
+            "measure": "medium",
+            "reading_count": "1",
+            "relaxed": "true",
+            "scene_authored_positions": "1",
+            "scene_motion_digest": "b330e950fc1935826b78b014a184a9c75dc2a23e527dde7f2bd0191db7eae9af",
+            "scene_motion_positions": "2",
+            "scene_motion_roles": "1",
+            "scene_motion_running": "false",
+            "scene_motion_slot": "true",
+            "scene_motion_ticks": "15",
+            "scene_placement_steps": "2",
+            "scene_positions_blake3": "bbcf4fd6d22650676c04ec8748c24bb1f8c230cb3791dff7b1588a1927610299",
+            "source_bytes": "41",
+            "theme_dark": "false"
+          },
+          "presentation_sequence": 184
+        },
+        "placement-kept": {
+          "width": 2200,
+          "height": 1504,
+          "png_sha256": "8fac4c38f002496c95829258786ea99e40133087b908d324592aed4a8afdb99c",
+          "fields": {
+            "background_busy": "false",
+            "document_count": "1",
+            "font_size": "16",
+            "graph_visible": "false",
+            "measure": "medium",
+            "reading_count": "1",
+            "relaxed": "true",
+            "scene_authored_positions": "2",
+            "scene_motion_digest": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+            "scene_motion_positions": "0",
+            "scene_motion_roles": "1",
+            "scene_motion_running": "false",
+            "scene_motion_slot": "true",
+            "scene_motion_ticks": "0",
+            "scene_placement_steps": "3",
+            "scene_positions_blake3": "b330e950fc1935826b78b014a184a9c75dc2a23e527dde7f2bd0191db7eae9af",
+            "source_bytes": "41",
+            "theme_dark": "false"
+          },
+          "presentation_sequence": 195
+        },
+        "placement-undone": {
+          "width": 2200,
+          "height": 1504,
+          "png_sha256": "5d3dc0fb45f43eef791adb062e09b6bc59daefe405bce3b76bf9eeef6f0687ba",
+          "fields": {
+            "background_busy": "false",
+            "document_count": "1",
+            "font_size": "16",
+            "graph_visible": "false",
+            "measure": "medium",
+            "reading_count": "1",
+            "relaxed": "true",
+            "scene_authored_positions": "1",
+            "scene_motion_digest": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+            "scene_motion_positions": "0",
+            "scene_motion_roles": "1",
+            "scene_motion_running": "false",
+            "scene_motion_slot": "true",
+            "scene_motion_ticks": "0",
+            "scene_placement_steps": "2",
+            "scene_positions_blake3": "bbcf4fd6d22650676c04ec8748c24bb1f8c230cb3791dff7b1588a1927610299",
+            "source_bytes": "41",
+            "theme_dark": "false"
+          },
+          "presentation_sequence": 201
+        },
+        "placement-redone": {
+          "width": 2200,
+          "height": 1504,
+          "png_sha256": "051cde0c274dafe0b6720a1e6d82f9ccec1f913b67657145abb7c0bb6e9a591e",
+          "fields": {
+            "background_busy": "false",
+            "document_count": "1",
+            "font_size": "16",
+            "graph_visible": "false",
+            "measure": "medium",
+            "reading_count": "1",
+            "relaxed": "true",
+            "scene_authored_positions": "2",
+            "scene_motion_digest": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+            "scene_motion_positions": "0",
+            "scene_motion_roles": "1",
+            "scene_motion_running": "false",
+            "scene_motion_slot": "true",
+            "scene_motion_ticks": "0",
+            "scene_placement_steps": "3",
+            "scene_positions_blake3": "b330e950fc1935826b78b014a184a9c75dc2a23e527dde7f2bd0191db7eae9af",
+            "source_bytes": "41",
+            "theme_dark": "false"
+          },
+          "presentation_sequence": 206
+        },
+        "placement-kept-retained": {
+          "width": 2200,
+          "height": 1504,
+          "png_sha256": "12e4adadc45c836f909b05420008d296cdc693def3f8747b672797784f0f8f61",
+          "fields": {
+            "background_busy": "false",
+            "document_count": "1",
+            "font_size": "16",
+            "graph_visible": "false",
+            "measure": "medium",
+            "reading_count": "1",
+            "relaxed": "true",
+            "scene_authored_positions": "2",
+            "scene_motion_digest": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+            "scene_motion_positions": "0",
+            "scene_motion_roles": "1",
+            "scene_motion_running": "false",
+            "scene_motion_slot": "true",
+            "scene_motion_ticks": "0",
+            "scene_placement_steps": "3",
+            "scene_positions_blake3": "b330e950fc1935826b78b014a184a9c75dc2a23e527dde7f2bd0191db7eae9af",
+            "source_bytes": "41",
+            "theme_dark": "false"
+          },
+          "presentation_sequence": 243
+        }
+      }
+    },
+    {
+      "name": "kept-identity-reopen",
+      "presented_frames": 170,
+      "redraws": 170,
+      "binary_sha256": "c4c28a202909108716c9b81d102e3e636a9c0e8697cfd218803e5f3931d74a6b",
+      "source_phase": "immutable-item-selector-and-fixture-inspection",
+      "captures": {
+        "placement-kept-reopened": {
+          "width": 2200,
+          "height": 1504,
+          "png_sha256": "5739ea0984ebc5afb27f804042e1bfc14366037805f3e899242c14ee1f6de454",
+          "fields": {
+            "background_busy": "false",
+            "document_count": "1",
+            "font_size": "16",
+            "graph_visible": "false",
+            "measure": "medium",
+            "reading_count": "1",
+            "relaxed": "true",
+            "scene_authored_positions": "2",
+            "scene_motion_digest": "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262",
+            "scene_motion_positions": "0",
+            "scene_motion_roles": "1",
+            "scene_motion_running": "false",
+            "scene_motion_slot": "true",
+            "scene_motion_ticks": "0",
+            "scene_placement_steps": "3",
+            "scene_positions_blake3": "b330e950fc1935826b78b014a184a9c75dc2a23e527dde7f2bd0191db7eae9af",
+            "source_bytes": "41",
+            "theme_dark": "false"
+          },
+          "presentation_sequence": 171
+        }
+      }
+    }
+  ]
+}

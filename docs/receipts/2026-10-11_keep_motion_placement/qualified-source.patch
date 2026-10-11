@@ -1,0 +1,404 @@
+diff --git a/apps/desktop/examples/collection_acceptance.rs b/apps/desktop/examples/collection_acceptance.rs
+index dd1e952..b817cbf 100644
+--- a/apps/desktop/examples/collection_acceptance.rs
++++ b/apps/desktop/examples/collection_acceptance.rs
+@@ -16,9 +16,9 @@ use std::{path::PathBuf, sync::Arc};
+ 
+ fn main() -> Result<(), Box<dyn std::error::Error>> {
+     let mut args = std::env::args_os().skip(1);
+-    let mode = args
+-        .next()
+-        .ok_or("expected --initialize-test-fixture or --reopen-test-fixture")?;
++    let mode = args.next().ok_or(
++        "expected --initialize-test-fixture, --reopen-test-fixture or --inspect-test-fixture",
++    )?;
+     let root = PathBuf::from(
+         args.next()
+             .ok_or("expected absolute disposable fixture root")?,
+@@ -40,7 +40,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
+             root.join("essay.djot"),
+             "# Night light\n\nNight light by the river.\n",
+         )?;
+-    } else if mode == "--reopen-test-fixture" {
++    } else if mode == "--reopen-test-fixture" || mode == "--inspect-test-fixture" {
+         if !marker.is_file()
+             || !root.join("sync.redb").is_file()
+             || !root.join("essay.djot").is_file()
+@@ -63,6 +63,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
+         },
+         resident.composition_retention(CompositionGrant::new(8192, 20))?,
+     )?;
++    if mode == "--inspect-test-fixture" {
++        // Read-only object identity for selecting one immutable test version.
++        // This mode is guarded by the same public-fixture marker as reopen.
++        let recipes: Vec<_> = port.list(port.target())?.into_iter().filter_map(|entry| {
++            let material = entry.item.projection_recipe.as_ref()?;
++            Some(serde_json::json!({
++                "item_id": entry.item.id,
++                "authored_positions": material.scene_positions().ok()?.len(),
++                "placement_steps": material.presentation.as_ref()?.placement_trace.as_ref().map_or(0, |trace| trace.len()),
++            }))
++        }).collect();
++        println!("{}", serde_json::to_string_pretty(&recipes)?);
++        return Ok(());
++    }
+     let source = root.join("essay.djot");
+     let first = KnotDocumentSession::open(&source)?;
+     if mode == "--initialize-test-fixture" {
+diff --git a/apps/desktop/src/composition.rs b/apps/desktop/src/composition.rs
+index a943fad..6261afd 100644
+--- a/apps/desktop/src/composition.rs
++++ b/apps/desktop/src/composition.rs
+@@ -1343,6 +1343,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
+                                     recipe::reopen(state, saved.clone())
+                                 },
+                             )
++                            .attr("data-item-id", item.id.clone())
+                         }),
+                         button("Return to source", move |state: &mut DesktopState, _| {
+                             let Some(anchor) = anchor.as_ref() else {
+diff --git a/apps/desktop/src/composition/recipe/dynamics.rs b/apps/desktop/src/composition/recipe/dynamics.rs
+index 5226708..f889426 100644
+--- a/apps/desktop/src/composition/recipe/dynamics.rs
++++ b/apps/desktop/src/composition/recipe/dynamics.rs
+@@ -2,8 +2,9 @@
+ // SPDX-License-Identifier: MPL-2.0
+ 
+ //! Session-only playback for the shared relationship-projection dynamics
+-//! adapter. The retained recipe supplies the slot and occurrence roles; this
+-//! module owns neither authored state nor source acquisition.
++//! adapter. The retained recipe supplies the slot and occurrence roles.
++//! Keep placement delegates authored edits to the recipe's history.
++//! This module owns no source acquisition.
+ 
+ use super::*;
+ use cambium::{button, el, span};
+@@ -295,8 +296,40 @@ pub(super) fn enabled(state: &DesktopState) -> bool {
+         .is_some_and(|material| material.snapshot.recipe.definition.dynamics.is_some())
+ }
+ 
+-/// Recipe controls. Durable preset and role edits are supplied by `scene`;
+-/// these actions only control the session-local shared runner.
++/// Explicitly promote a paused or finished pose through the recipe's history.
++pub(super) fn keep_placement(state: &mut DesktopState) {
++    let recipe = &state.composition.recipe;
++    if recipe.dynamics.running() {
++        state.composition.notice = Some("Pause scene motion before keeping placement.".into());
++        return;
++    }
++    if recipe.dynamics.positions().is_empty() {
++        state.composition.notice = Some("Preview scene motion before keeping placement.".into());
++        return;
++    }
++    let Some(mut candidate) = recipe.material.clone() else {
++        return;
++    };
++    match candidate.capture_scene_positions(recipe.dynamics.positions()) {
++        Ok(changed) => {
++            if changed {
++                super::install_edit(state, candidate);
++            }
++            state.composition.recipe.dynamics.reset();
++            state.composition.notice = Some(
++                if changed {
++                    "Placement kept as one recipe edit; retain deliberately to save this version."
++                } else {
++                    "This placement is already authored."
++                }
++                .into(),
++            );
++        },
++        Err(error) => state.composition.notice = Some(format!("Keep placement refused: {error}")),
++    }
++}
++
++/// Session playback controls and the explicit authored-placement action.
+ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+     let running = state.composition.recipe.dynamics.running();
+     let enabled = enabled(state);
+@@ -343,6 +376,14 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                     state.composition.recipe.dynamics.pause();
+                 })
+                 .attr("aria-disabled", (!running).to_string()),
++                button("Keep placement", |state: &mut DesktopState, _| {
++                    keep_placement(state);
++                })
++                .attr(
++                    "aria-disabled",
++                    (running || state.composition.recipe.dynamics.positions().is_empty())
++                        .to_string(),
++                ),
+                 button(
+                     "Step scene motion once",
+                     move |state: &mut DesktopState, _| {
+@@ -570,6 +611,86 @@ mod tests {
+         );
+     }
+ 
++    #[test]
++    fn keeping_a_paused_pose_is_one_undoable_edit_and_running_motion_cannot_be_kept() {
++        let mut material = with_spring_slot();
++        material.snapshot.recipe.definition.dynamics = Some(bounded_spring_slot().unwrap());
++        material
++            .presentation
++            .get_or_insert_with(Default::default)
++            .overview_visible = true;
++        let mut state = DesktopState::with_path(
++            knot_document::KnotDocumentSession::scratch("scratch:keep", "night night light"),
++            cambium_genet_winit_host::WindowCommands::new(),
++            None,
++        );
++        super::super::reopen(&mut state, material.clone());
++        keep_placement(&mut state);
++        assert!(!state.composition.recipe.history.can_undo());
++        state
++            .composition
++            .recipe
++            .dynamics
++            .start(&material, VALIDATION_CARD)
++            .unwrap();
++        for _ in 0..12 {
++            state.composition.recipe.dynamics.tick_once().unwrap();
++        }
++        assert!(state.composition.recipe.dynamics.running());
++        keep_placement(&mut state);
++        assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
++        assert!(!state.composition.recipe.history.can_undo());
++        state.composition.recipe.dynamics.pause();
++        let pose = state.composition.recipe.dynamics.positions().clone();
++        keep_placement(&mut state);
++        let kept = state.composition.recipe.material.clone().unwrap();
++        assert_eq!(kept.scene_positions().unwrap(), pose);
++        assert_eq!(kept.dataset, material.dataset);
++        assert_eq!(kept.anchors, material.anchors);
++        assert_eq!(kept.snapshot, material.snapshot);
++        assert!(state.composition.recipe.history.is_dirty());
++        assert!(state.composition.recipe.dynamics.positions().is_empty());
++        assert_eq!(state.composition.recipe.dynamics.ticks(), 0);
++        super::super::step_history(&mut state, false);
++        assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
++        assert!(
++            !state.composition.recipe.history.can_undo(),
++            "one Undo restores the entire pose"
++        );
++        super::super::step_history(&mut state, true);
++        assert_eq!(state.composition.recipe.material.as_ref(), Some(&kept));
++        super::super::reopen(&mut state, material.clone());
++        state
++            .composition
++            .recipe
++            .dynamics
++            .start(&material, VALIDATION_CARD)
++            .unwrap();
++        for _ in 0..121 {
++            if !state.composition.recipe.dynamics.tick_once().unwrap() {
++                break;
++            }
++        }
++        assert!(!state.composition.recipe.dynamics.running());
++        let finished = state.composition.recipe.dynamics.positions().clone();
++        keep_placement(&mut state);
++        assert_eq!(
++            state
++                .composition
++                .recipe
++                .material
++                .as_ref()
++                .unwrap()
++                .scene_positions()
++                .unwrap(),
++            finished
++        );
++        super::super::step_history(&mut state, false);
++        assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
++        assert_eq!(state.document().snapshot().text, "night night light");
++        assert!(!state.document().snapshot().dirty);
++    }
++
+     #[test]
+     fn fixed_plane_inversion_does_not_follow_moving_scene_bounds() {
+         let plane = FixedPlane {
+diff --git a/crates/knot-composition/src/retention/placement.rs b/crates/knot-composition/src/retention/placement.rs
+index a4aa78c..19bf9fb 100644
+--- a/crates/knot-composition/src/retention/placement.rs
++++ b/crates/knot-composition/src/retention/placement.rs
+@@ -142,6 +142,88 @@ fn positions(
+ }
+ 
+ impl ProjectionRecipeMaterial {
++    /// Explicitly keep the complete displayed pose of this exact copied scene.
++    /// Hidden background occurrences still belong to the pose. Individual
++    /// pointer edits retain their separate visibility guard below. Every trace
++    /// addition succeeds together or this material remains unchanged; the host
++    /// records the complete candidate as one undoable edit.
++    pub fn capture_scene_positions(
++        &mut self,
++        pose: &BTreeMap<String, [f32; 2]>,
++    ) -> Result<bool, CollectionError> {
++        self.validate()?;
++        let (base, mapping) = canonical(self)?;
++        if pose.len() != mapping.len()
++            || pose.keys().any(|id| !mapping.contains_key(id))
++            || !self
++                .presentation
++                .as_ref()
++                .is_some_and(|p| p.overview_visible)
++        {
++            return Err(invalid(
++                "preview pose must cover the exact active occurrence scene",
++            ));
++        }
++        if pose
++            .values()
++            .flatten()
++            .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
++        {
++            return Err(invalid(
++                "recipe scene placement must be finite and within normalized bounds",
++            ));
++        }
++        let presentation = self.presentation.as_ref().expect("active scene");
++        let mut trace = match &presentation.placement_trace {
++            Some(trace) => trace.clone(),
++            None => SceneTrace::new(base)
++                .map_err(|error| invalid(format!("invalid scene placement trace: {error:?}")))?,
++        };
++        let authored = positions(self, &trace)?;
++        let updates: Vec<_> = pose
++            .iter()
++            .filter(|(id, position)| authored.get(*id) != Some(*position))
++            .collect();
++        if updates.is_empty() {
++            return Ok(false);
++        }
++        if trace.len() + updates.len() > MAX_STEPS {
++            return Err(invalid("too many recipe scene placement steps"));
++        }
++        for (id, position) in updates {
++            let index = mapping[id];
++            let head = trace.head();
++            let mut value = head
++                .active_item(index)
++                .expect("canonical occurrence")
++                .clone();
++            value.transform.translate = Vec2::new(position[0], position[1]);
++            let revision = head
++                .revision
++                .0
++                .checked_add(1)
++                .ok_or_else(|| invalid("scene placement revision overflow"))?;
++            trace = trace
++                .appended(TraceStep::diff(
++                    "Keep placement",
++                    SceneDiff {
++                        epoch: head.epoch,
++                        base: head.revision,
++                        revision: Revision(revision),
++                        operations: vec![SceneOp::UpdateItem { index, value }],
++                    },
++                ))
++                .map_err(|error| invalid(format!("scene placement refused: {error:?}")))?;
++        }
++        let mut candidate = self.clone();
++        let presentation = candidate.presentation.as_mut().expect("active scene");
++        presentation.placement_trace = Some(trace);
++        presentation.refresh_version();
++        candidate.validate()?;
++        *self = candidate;
++        Ok(true)
++    }
++
+     /// Return only authored overrides. Untouched occurrences continue using
+     /// the current shared compiler's measured placement.
+     pub fn scene_positions(&self) -> Result<BTreeMap<String, [f32; 2]>, CollectionError> {
+diff --git a/crates/knot-composition/tests/recipes.rs b/crates/knot-composition/tests/recipes.rs
+index 330d60b..86e82f1 100644
+--- a/crates/knot-composition/tests/recipes.rs
++++ b/crates/knot-composition/tests/recipes.rs
+@@ -254,6 +254,86 @@ fn authored_positions_roundtrip_in_shared_trace_and_keep_zero_as_an_override() {
+     assert_eq!(read.scene_positions().unwrap(), positions);
+ }
+ 
++#[test]
++fn a_complete_preview_pose_keeps_hidden_occurrences_and_preserves_roles_and_source() {
++    let mut material = movable_scene();
++    let presentation = material.presentation.as_mut().unwrap();
++    presentation.background_visible = false;
++    presentation
++        .motion_roles
++        .insert("night:0".into(), seiche::Role::Pinned);
++    presentation.refresh_version();
++    let original = material.clone();
++    let pose = [
++        ("night:0".into(), [0.2, 0.4]),
++        ("light:6".into(), [0.8, 0.7]),
++    ]
++    .into();
++    assert!(
++        material
++            .move_scene_occurrence("light:6", [0.8, 0.7])
++            .is_err()
++    );
++    assert!(material.capture_scene_positions(&pose).unwrap());
++    assert_eq!(material.scene_positions().unwrap(), pose);
++    assert!(!material.capture_scene_positions(&pose).unwrap());
++    assert_eq!(material.dataset, original.dataset);
++    assert_eq!(material.anchors, original.anchors);
++    assert_eq!(material.snapshot, original.snapshot);
++    assert_eq!(
++        material.presentation.as_ref().unwrap().motion_roles,
++        original.presentation.as_ref().unwrap().motion_roles
++    );
++    let decoded: knot_composition::retention::ProjectionRecipeMaterial =
++        serde_json::from_slice(&serde_json::to_vec(&material).unwrap()).unwrap();
++    decoded.validate().unwrap();
++    assert_eq!(decoded.scene_positions().unwrap(), pose);
++}
++
++#[test]
++fn a_preview_pose_is_atomic_for_missing_foreign_nonfinite_and_exhausted_trace_input() {
++    let original = movable_scene();
++    for pose in [
++        [("night:0".into(), [0.2, 0.4])].into(),
++        [
++            ("night:0".into(), [0.2, 0.4]),
++            ("foreign".into(), [0.8, 0.7]),
++        ]
++        .into(),
++        [
++            ("night:0".into(), [0.2, 0.4]),
++            ("light:6".into(), [f32::NAN, 0.7]),
++        ]
++        .into(),
++        [
++            ("night:0".into(), [0.2, 0.4]),
++            ("light:6".into(), [1.1, 0.7]),
++        ]
++        .into(),
++    ] {
++        let mut attempted = original.clone();
++        assert!(attempted.capture_scene_positions(&pose).is_err());
++        assert_eq!(attempted, original);
++    }
++    let mut full = original;
++    for i in 0..255 {
++        full.move_scene_occurrence("night:0", [if i % 2 == 0 { 0.2 } else { 0.4 }, 0.3])
++            .unwrap();
++    }
++    let before = full.clone();
++    assert!(
++        full.capture_scene_positions(
++            &[
++                ("night:0".into(), [0.7, 0.8]),
++                ("light:6".into(), [0.1, 0.2])
++            ]
++            .into()
++        )
++        .is_err()
++    );
++    assert_eq!(full, before, "trace capacity cannot partially keep a pose");
++}
++
+ #[test]
+ fn scene_placement_refusal_preserves_exact_material() {
+     let material = movable_scene();

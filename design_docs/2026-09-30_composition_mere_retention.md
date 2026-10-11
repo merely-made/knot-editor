@@ -783,14 +783,24 @@ binding refusals, not permission to drop portable input declarations.
 Playback uses the shared runner once per eligible host frame, gated by the
 preceding native presentation result recorded in AfterFrame (the pre-frame
 hook's current presentation receipt is deliberately empty). Start/Resume,
-Pause, Step once, and Restart are explicit session actions. Runtime ticks,
-controller handles, and transient poses never enter `SceneTrace`, undo history,
-retention, or source facts. Fresh reopen always starts paused at the authored
+Pause, Step once, and Restart are explicit session actions. Runtime ticks and
+controller handles never enter undo, retention or source facts. Poses remain
+transient until explicit Keep placement copies the displayed coordinates into
+authored `SceneTrace` placement as one recipe-history edit. Fresh reopen always starts paused at the authored
 pose, without a runtime controller. Static category filters and foreground
 emphasis change paint, not physics participation: every compiled occurrence
 and disclosed relationship participates. Hidden/unmounted/out-of-viewport
 scenes and Theme Workshop pause without automatic resume. A native surface's
 failed presentation also freezes playback on the next frame.
+
+Mark's subsequent ruling is **Preview; keep placement explicitly**. The
+[Keep placement continuation](../docs/receipts/2026-10-11_keep_motion_placement/README.md)
+adds that action for a paused or finished preview. One Undo restores the whole
+prior placement, Redo restores the kept pose, and Retain still deliberately
+saves that recipe version. Complete-pose validation preserves copied occurrence
+identity, source material, roles and the dynamics slot. Hidden background bodies
+remain part of the exact pose; stale individual pointer edits still require
+visibility. The existing trace limit refuses the entire edit when it cannot fit.
 
 Motion maps through the original compiled bounds, never its changing runtime
 AABB; positions outside that fixed display plane project to its boundary.

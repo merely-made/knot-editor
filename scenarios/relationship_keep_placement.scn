@@ -1,0 +1,47 @@
+# Explicitly promote preview positions as one undoable recipe edit, then retain.
+settle 120
+assert snap document == essay.djot
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 2 retained items
+click role:button Open retained relationship recipe
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+click role:button Start scene motion
+settle 12
+assert snap scene_motion_running == true
+click role:button Pause scene motion
+assert snap scene_authored_positions == 1
+capture placement-preview-paused
+click role:button Keep placement
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+assert snap scene_motion_running == false
+assert snap scene_motion_positions == 0
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_slot == true
+assert snap scene_motion_roles == 1
+assert snap dirty == false
+assert text Placement kept as one recipe edit
+capture placement-kept
+click role:button Undo recipe edit
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_positions == 0
+capture placement-undone
+click role:button Redo recipe edit
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+assert snap scene_motion_positions == 0
+capture placement-redone
+click role:button Retain relationship recipe
+settle 30
+assert text Confirmed 3 retained items
+assert snap recipe_edits_retained == true
+assert snap dirty == false
+capture placement-kept-retained

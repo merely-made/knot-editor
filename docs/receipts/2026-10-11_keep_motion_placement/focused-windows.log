@@ -1,0 +1,51 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261011#d8acabc9)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: usage of an `unsafe` block
+   --> crates\knot-document\src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+   Compiling knot-desktop v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\apps\desktop)
+warning: unused variable: `store`
+    --> apps\desktop\src\recovery.rs:1199:13
+     |
+1199 |         let store = store(&temp);
+     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-desktop` (lib test) generated 1 warning (run `cargo fix --lib -p knot-desktop --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 52.71s
+     Running unittests src\lib.rs (C:\t\cargo-targets\knot-editor\debug\deps\knot_desktop-ad066a143256a99b.exe)
+
+running 14 tests
+test composition::recipe::dynamics::tests::fixed_plane_inversion_does_not_follow_moving_scene_bounds ... ok
+test composition::recipe::dynamics::tests::authored_positions_reject_nonfinite_or_out_of_plane_values ... ok
+test composition::recipe::dynamics::tests::cold_runtime_does_not_advance_and_hidden_motion_stays_paused ... ok
+test composition::recipe::dynamics::tests::shared_slot_and_roles_roundtrip_as_durable_material_not_runtime_state ... ok
+test composition::recipe::dynamics::tests::unknown_shared_channel_refuses_atomically_without_partial_controller ... ok
+test composition::recipe::dynamics::tests::hidden_frame_freezes_real_poses_and_reopening_does_not_resume ... ok
+test composition::recipe::dynamics::tests::single_step_advances_exactly_once_and_never_starts_continuous_playback ... ok
+test composition::recipe::dynamics::tests::frame_advances_one_fixed_tick_without_mutating_retained_material ... ok
+test composition::recipe::dynamics::tests::stepping_a_completed_crowded_pinned_run_preserves_its_final_pose ... ok
+test composition::recipe::dynamics::tests::authored_pinned_center_is_preserved_while_another_occurrence_moves ... ok
+test composition::recipe::dynamics::tests::keeping_a_paused_pose_is_one_undoable_edit_and_running_motion_cannot_be_kept ... ok
+test composition::recipe::dynamics::tests::real_sound_consumer_preserves_occurrences_and_disclosed_edges_change_motion ... ok
+test composition::recipe::dynamics::tests::bounded_preview_uses_the_shared_frame_schedule_and_preserves_its_slot ... ok
+test composition::recipe::dynamics::tests::maximum_occurrence_scene_is_deterministic_and_ticks_only_when_presented ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 303 filtered out; finished in 1.16s
+

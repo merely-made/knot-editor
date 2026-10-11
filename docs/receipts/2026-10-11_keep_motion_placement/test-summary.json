@@ -1,0 +1,9 @@
+{
+  "harnesses": 44,
+  "passed": 662,
+  "failed": 0,
+  "ignored": 6,
+  "command": "cargo test --workspace --all-targets --locked --no-fail-fast -j 2 -- --test-threads=4",
+  "workspace_log_sha256": "f2cbe1651ed5d444d5aa86bb7f6a14744e02bac0c6bf4968380cb03118165335",
+  "qualified_source_patch_sha256": "c632bcb7d6be98fbd77e0c2d26a963ff0ad234fc3bd41c2bcb3133a50f644625"
+}

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Session-only playback for the shared relationship-projection dynamics
-//! adapter. The retained recipe supplies the slot and occurrence roles; this
-//! module owns neither authored state nor source acquisition.
+//! adapter. The retained recipe supplies the slot and occurrence roles.
+//! Keep placement delegates authored edits to the recipe's history.
+//! This module owns no source acquisition.
 
 use super::*;
 use cambium::{button, el, span};
@@ -295,8 +296,40 @@ pub(super) fn enabled(state: &DesktopState) -> bool {
         .is_some_and(|material| material.snapshot.recipe.definition.dynamics.is_some())
 }
 
-/// Recipe controls. Durable preset and role edits are supplied by `scene`;
-/// these actions only control the session-local shared runner.
+/// Explicitly promote a paused or finished pose through the recipe's history.
+pub(super) fn keep_placement(state: &mut DesktopState) {
+    let recipe = &state.composition.recipe;
+    if recipe.dynamics.running() {
+        state.composition.notice = Some("Pause scene motion before keeping placement.".into());
+        return;
+    }
+    if recipe.dynamics.positions().is_empty() {
+        state.composition.notice = Some("Preview scene motion before keeping placement.".into());
+        return;
+    }
+    let Some(mut candidate) = recipe.material.clone() else {
+        return;
+    };
+    match candidate.capture_scene_positions(recipe.dynamics.positions()) {
+        Ok(changed) => {
+            if changed {
+                super::install_edit(state, candidate);
+            }
+            state.composition.recipe.dynamics.reset();
+            state.composition.notice = Some(
+                if changed {
+                    "Placement kept as one recipe edit; retain deliberately to save this version."
+                } else {
+                    "This placement is already authored."
+                }
+                .into(),
+            );
+        },
+        Err(error) => state.composition.notice = Some(format!("Keep placement refused: {error}")),
+    }
+}
+
+/// Session playback controls and the explicit authored-placement action.
 pub(super) fn controls(state: &DesktopState) -> DesktopView {
     let running = state.composition.recipe.dynamics.running();
     let enabled = enabled(state);
@@ -343,6 +376,14 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                     state.composition.recipe.dynamics.pause();
                 })
                 .attr("aria-disabled", (!running).to_string()),
+                button("Keep placement", |state: &mut DesktopState, _| {
+                    keep_placement(state);
+                })
+                .attr(
+                    "aria-disabled",
+                    (running || state.composition.recipe.dynamics.positions().is_empty())
+                        .to_string(),
+                ),
                 button(
                     "Step scene motion once",
                     move |state: &mut DesktopState, _| {
@@ -568,6 +609,86 @@ mod tests {
             material, original,
             "motion cannot rewrite copied source or authoring"
         );
+    }
+
+    #[test]
+    fn keeping_a_paused_pose_is_one_undoable_edit_and_running_motion_cannot_be_kept() {
+        let mut material = with_spring_slot();
+        material.snapshot.recipe.definition.dynamics = Some(bounded_spring_slot().unwrap());
+        material
+            .presentation
+            .get_or_insert_with(Default::default)
+            .overview_visible = true;
+        let mut state = DesktopState::with_path(
+            knot_document::KnotDocumentSession::scratch("scratch:keep", "night night light"),
+            cambium_genet_winit_host::WindowCommands::new(),
+            None,
+        );
+        super::super::reopen(&mut state, material.clone());
+        keep_placement(&mut state);
+        assert!(!state.composition.recipe.history.can_undo());
+        state
+            .composition
+            .recipe
+            .dynamics
+            .start(&material, VALIDATION_CARD)
+            .unwrap();
+        for _ in 0..12 {
+            state.composition.recipe.dynamics.tick_once().unwrap();
+        }
+        assert!(state.composition.recipe.dynamics.running());
+        keep_placement(&mut state);
+        assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
+        assert!(!state.composition.recipe.history.can_undo());
+        state.composition.recipe.dynamics.pause();
+        let pose = state.composition.recipe.dynamics.positions().clone();
+        keep_placement(&mut state);
+        let kept = state.composition.recipe.material.clone().unwrap();
+        assert_eq!(kept.scene_positions().unwrap(), pose);
+        assert_eq!(kept.dataset, material.dataset);
+        assert_eq!(kept.anchors, material.anchors);
+        assert_eq!(kept.snapshot, material.snapshot);
+        assert!(state.composition.recipe.history.is_dirty());
+        assert!(state.composition.recipe.dynamics.positions().is_empty());
+        assert_eq!(state.composition.recipe.dynamics.ticks(), 0);
+        super::super::step_history(&mut state, false);
+        assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
+        assert!(
+            !state.composition.recipe.history.can_undo(),
+            "one Undo restores the entire pose"
+        );
+        super::super::step_history(&mut state, true);
+        assert_eq!(state.composition.recipe.material.as_ref(), Some(&kept));
+        super::super::reopen(&mut state, material.clone());
+        state
+            .composition
+            .recipe
+            .dynamics
+            .start(&material, VALIDATION_CARD)
+            .unwrap();
+        for _ in 0..121 {
+            if !state.composition.recipe.dynamics.tick_once().unwrap() {
+                break;
+            }
+        }
+        assert!(!state.composition.recipe.dynamics.running());
+        let finished = state.composition.recipe.dynamics.positions().clone();
+        keep_placement(&mut state);
+        assert_eq!(
+            state
+                .composition
+                .recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .scene_positions()
+                .unwrap(),
+            finished
+        );
+        super::super::step_history(&mut state, false);
+        assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
+        assert_eq!(state.document().snapshot().text, "night night light");
+        assert!(!state.document().snapshot().dirty);
     }
 
     #[test]

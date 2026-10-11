@@ -1,0 +1,25 @@
+# Fresh process: portable slot, role map, and authored trace return; runtime does not.
+settle 120
+assert snap document == essay.djot
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 2 retained items
+click role:button Open retained relationship recipe
+assert snap recipe_edits_retained == true
+assert snap scene_motion_slot == true
+assert snap scene_motion_roles == 1
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+assert snap dirty == false
+assert text Authored overview
+capture relationship-live-dynamics-reopened
+click role:button Show scene motion authoring controls
+assert text Use shared spring dynamics
+assert text Use shared charge dynamics
+assert text Set selected motion role: Pinned
+capture scene-motion-authoring-reopened

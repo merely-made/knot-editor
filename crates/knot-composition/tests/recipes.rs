@@ -148,7 +148,7 @@ fn scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values() 
 
     let mut invalid = base.clone();
     let mut presentation = RecipeScenePresentation::default();
-    presentation.version = 4;
+    presentation.version = 5;
     invalid.presentation = Some(presentation);
     assert!(invalid.validate().is_err());
 
@@ -243,6 +243,11 @@ fn authored_positions_roundtrip_in_shared_trace_and_keep_zero_as_an_override() {
     let presentation = material.presentation.as_ref().unwrap();
     assert_eq!(presentation.version, 3);
     assert_eq!(presentation.placement_trace.as_ref().unwrap().len(), 2);
+    assert!(
+        !serde_json::to_string(presentation)
+            .unwrap()
+            .contains("motion_roles")
+    );
     let read: knot_composition::retention::ProjectionRecipeMaterial =
         serde_json::from_slice(&serde_json::to_vec(&material).unwrap()).unwrap();
     assert_eq!(read, material);
@@ -447,6 +452,101 @@ fn presentation_v2_bytes_stay_identical_without_placement_trace() {
     let read: RecipeScenePresentation = serde_json::from_slice(bytes).unwrap();
     assert!(read.placement_trace.is_none());
     assert_eq!(serde_json::to_vec(&read).unwrap(), bytes);
+}
+
+#[test]
+fn motion_roles_roundtrip_by_disclosed_occurrence_and_keep_repeated_sources_distinct() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let mut material = support::recipe_material();
+    material.dataset.dataset.occurrences[1].source =
+        material.dataset.dataset.occurrences[0].source.clone();
+    let copied_snapshot = material.snapshot.clone();
+    let copied_dataset = material.dataset.clone();
+    let copied_anchors = material.anchors.clone();
+    let mut presentation = RecipeScenePresentation::default();
+    presentation
+        .motion_roles
+        .insert("night:0".into(), seiche::Role::Anchored);
+    presentation
+        .motion_roles
+        .insert("light:6".into(), seiche::Role::Pinned);
+    presentation.refresh_version();
+    assert_eq!(presentation.version, 4);
+    material.presentation = Some(presentation);
+
+    material.validate().unwrap();
+    assert_eq!(material.snapshot, copied_snapshot);
+    assert_eq!(material.dataset, copied_dataset);
+    assert_eq!(material.anchors, copied_anchors);
+    assert_eq!(
+        material.presentation.as_ref().unwrap().motion_roles["night:0"],
+        seiche::Role::Anchored
+    );
+    assert_eq!(
+        material.presentation.as_ref().unwrap().motion_roles["light:6"],
+        seiche::Role::Pinned
+    );
+
+    let encoded = serde_json::to_vec(&material).unwrap();
+    let decoded: knot_composition::retention::ProjectionRecipeMaterial =
+        serde_json::from_slice(&encoded).unwrap();
+    assert_eq!(decoded, material);
+
+    let mut with_trace = decoded;
+    with_trace.presentation.as_mut().unwrap().overview_visible = true;
+    with_trace
+        .move_scene_occurrence("night:0", [0.2, 0.8])
+        .unwrap();
+    let presentation = with_trace.presentation.as_ref().unwrap();
+    assert_eq!(presentation.version, 4);
+    assert!(presentation.placement_trace.is_some());
+
+    let mut downgraded = with_trace.clone();
+    downgraded.presentation.as_mut().unwrap().version = 3;
+    assert!(downgraded.validate().is_err());
+}
+
+#[test]
+fn motion_roles_reject_unknown_ids_invalid_versions_and_empty_v4() {
+    use knot_composition::retention::RecipeScenePresentation;
+
+    let base = support::recipe_material();
+    for occurrence_id in ["undisclosed", ""] {
+        let mut invalid = base.clone();
+        let mut presentation = RecipeScenePresentation::default();
+        presentation
+            .motion_roles
+            .insert(occurrence_id.into(), seiche::Role::Pinned);
+        presentation.refresh_version();
+        invalid.presentation = Some(presentation);
+        assert!(invalid.validate().is_err(), "accepted {occurrence_id:?}");
+    }
+
+    let mut oversized = base.clone();
+    let mut presentation = RecipeScenePresentation::default();
+    presentation.motion_roles = (0..257)
+        .map(|index| (format!("occurrence-{index}"), seiche::Role::Seeded))
+        .collect();
+    presentation.refresh_version();
+    oversized.presentation = Some(presentation);
+    assert!(oversized.validate().is_err());
+
+    let mut empty_v4 = base.clone();
+    empty_v4.presentation = Some(RecipeScenePresentation {
+        version: 4,
+        ..RecipeScenePresentation::default()
+    });
+    assert!(empty_v4.validate().is_err());
+
+    let mut downgraded = base;
+    let mut presentation = RecipeScenePresentation::default();
+    presentation
+        .motion_roles
+        .insert("night:0".into(), seiche::Role::Pinned);
+    presentation.version = 2;
+    downgraded.presentation = Some(presentation);
+    assert!(downgraded.validate().is_err());
 }
 
 #[test]

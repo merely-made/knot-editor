@@ -233,8 +233,8 @@ impl ProjectionRecipeMaterial {
         let presentation = candidate
             .presentation
             .get_or_insert_with(RecipeScenePresentation::default);
-        presentation.version = 3;
         presentation.placement_trace = Some(next);
+        presentation.refresh_version();
         candidate.validate()?;
         *self = candidate;
         Ok(true)

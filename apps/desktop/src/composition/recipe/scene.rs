@@ -51,6 +51,9 @@ enum SceneAction {
     MoveOccurrence { id: String, position: (f32, f32) },
     SelectOccurrence(String),
     SelectRelationship(String),
+    MotionPreset(Option<String>),
+    MotionRole(seiche::Role),
+    ClearMotionRoles,
 }
 
 fn color_for_layer(layer: &SceneLayer) -> ColorF {
@@ -334,24 +337,14 @@ fn apply_action(
             } else {
                 presentation.hidden_background_categories.insert(kind);
             }
-            presentation.version = if presentation.placement_trace.is_some() {
-                3
-            } else if presentation.hidden_background_categories.is_empty() {
-                1
-            } else {
-                2
-            };
+            presentation.refresh_version();
         },
         SceneAction::ShowAllBackgroundCategories => {
             let presentation = candidate
                 .presentation
                 .get_or_insert_with(RecipeScenePresentation::default);
             presentation.hidden_background_categories.clear();
-            presentation.version = if presentation.placement_trace.is_some() {
-                3
-            } else {
-                1
-            };
+            presentation.refresh_version();
         },
         SceneAction::PromoteSelected => {
             let selected = candidate
@@ -412,6 +405,30 @@ fn apply_action(
             presentation.zoom = 1.0;
         },
         SceneAction::Reset => candidate.presentation = None,
+        SceneAction::MotionPreset(id) => {
+            candidate.snapshot.recipe.definition.dynamics = id
+                .as_deref()
+                .map(pictograph::canvas::dynamics_recipe::preset_slot)
+                .transpose()?;
+        },
+        SceneAction::MotionRole(role) => {
+            let id = candidate
+                .snapshot
+                .selected_occurrence
+                .clone()
+                .ok_or_else(|| "Select an occurrence before assigning a motion role.".to_owned())?;
+            let presentation = candidate
+                .presentation
+                .get_or_insert_with(RecipeScenePresentation::default);
+            presentation.motion_roles.insert(id, role);
+            presentation.refresh_version();
+        },
+        SceneAction::ClearMotionRoles => {
+            if let Some(presentation) = &mut candidate.presentation {
+                presentation.motion_roles.clear();
+                presentation.refresh_version();
+            }
+        },
         SceneAction::MoveOccurrence { id, position } => {
             candidate
                 .move_scene_occurrence(&id, [position.0, position.1])
@@ -502,6 +519,12 @@ fn swatch_relation_visible(
 }
 
 fn dispatch_control(state: &mut DesktopState, action: SceneAction) {
+    if state.composition.recipe.dynamics.running()
+        && matches!(&action, SceneAction::MotionPreset(_) | SceneAction::MotionRole(_) | SceneAction::ClearMotionRoles)
+    {
+        state.composition.notice = Some("Pause scene motion before changing its recipe or occurrence roles.".into());
+        return;
+    }
     let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
     };
@@ -517,6 +540,11 @@ fn dispatch_control(state: &mut DesktopState, action: SceneAction) {
 }
 
 fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
+    if state.composition.recipe.dynamics.running() {
+        state.composition.notice =
+            Some("Pause scene motion before selecting or placing occurrences.".into());
+        return;
+    }
     let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
     };
@@ -623,6 +651,10 @@ fn handle_drag(
 }
 
 fn move_selected(state: &mut DesktopState, dx: f32, dy: f32) {
+    if state.composition.recipe.dynamics.running() {
+        state.composition.notice = Some("Pause scene motion before authoring placement.".into());
+        return;
+    }
     state.composition.recipe.scene_drag = None;
     let Some(material) = state.composition.recipe.material.as_ref() else {
         return;
@@ -668,6 +700,54 @@ fn move_selected(state: &mut DesktopState, dx: f32, dy: f32) {
     );
 }
 
+pub(super) fn motion_authoring(material: &ProjectionRecipeMaterial) -> DesktopView {
+    let role = material
+        .snapshot
+        .selected_occurrence
+        .as_ref()
+        .and_then(|id| material.presentation.as_ref()?.motion_roles.get(id))
+        .copied()
+        .unwrap_or_default();
+    let roles: Vec<(String, DesktopView)> = seiche::Role::ALL
+        .into_iter()
+        .map(|value| {
+            (
+                value.id().to_owned(),
+                Box::new(
+                    button(
+                        format!("Set selected motion role: {}", value.label()),
+                        move |state: &mut DesktopState, _| {
+                            dispatch_control(state, SceneAction::MotionRole(value))
+                        },
+                    )
+                    .attr("aria-pressed", (role == value).to_string()),
+                ) as DesktopView,
+            )
+        })
+        .collect();
+    Box::new(el("div", (
+        span("Motion recipe · opt in; playback and transient poses are never retained."),
+        button("Use shared spring dynamics", |state: &mut DesktopState, _| {
+            dispatch_control(state, SceneAction::MotionPreset(Some("spring.rapier".into())))
+        }),
+        button("Use shared charge dynamics", |state: &mut DesktopState, _| {
+            dispatch_control(state, SceneAction::MotionPreset(Some("charge.barnes-hut".into())))
+        }),
+        button("Disable scene dynamics", |state: &mut DesktopState, _| {
+            dispatch_control(state, SceneAction::MotionPreset(None))
+        }),
+        span("Seeded starts here; Anchored returns here; Pinned stays here. These roles do not change foreground emphasis."),
+        Keyed::new(roles),
+        button("Clear scene motion roles", |state: &mut DesktopState, _| {
+            dispatch_control(state, SceneAction::ClearMotionRoles)
+        }),
+        span(format!("Motion slot: {} · occurrence role overrides: {}",
+            if material.snapshot.recipe.definition.dynamics.is_some() { "authored" } else { "none" },
+            material.presentation.as_ref().map_or(0, |p| p.motion_roles.len()))),
+        span("Background filters change paint, not physics participation. Every compiled occurrence and disclosed relationship participates."),
+    )).attr("class", "knot-recipe-motion-controls"))
+}
+
 pub(super) fn view(
     material: &ProjectionRecipeMaterial,
     compiled: &CompiledRelationshipProjection,
@@ -676,7 +756,16 @@ pub(super) fn view(
     placement_controls_expanded: bool,
     drag: Option<&SceneDrag>,
     authored: &BTreeMap<String, [f32; 2]>,
+    transient: &BTreeMap<String, [f32; 2]>,
+    motion_controls: DesktopView,
+    motion_expanded: bool,
 ) -> DesktopView {
+    let mut display = authored.clone();
+    display.extend(
+        transient
+            .iter()
+            .map(|(id, position)| (id.clone(), *position)),
+    );
     let presentation = material
         .presentation
         .as_ref()
@@ -791,6 +880,14 @@ pub(super) fn view(
                 span(format!("Background categories: {visible_categories} enabled / {} compiled; {shown_occurrences} occurrences shown", categories.len()))
                     .attr("class", "knot-recipe-scene-category-status"),
                 span("Background category filters change presentation only; foreground occurrences stay visible."),
+                el("div", (button(
+                    if motion_expanded { "Hide scene motion authoring controls" } else { "Show scene motion authoring controls" },
+                    move |state: &mut DesktopState, _| {
+                        state.composition.recipe.motion_controls_expanded = !motion_expanded;
+                    },
+                ).attr("aria-expanded", motion_expanded.to_string()),
+                motion_expanded.then(|| motion_authoring(material)),
+                motion_controls,)),
                 el(
                     "div",
                     (
@@ -800,10 +897,10 @@ pub(super) fn view(
                     ),
                 )
                 .attr("class", "knot-recipe-scene-key"),
-                graph_canvas(
-                    &swatch_with_preview(material, compiled, authored, drag),
+                el("div", graph_canvas(
+                    &swatch_with_preview(material, compiled, &display, drag),
                     |state: &mut DesktopState, event| dispatch_canvas(state, event),
-                ),
+                )).attr("id", "knot-recipe-motion-viewport"),
                 button(
                     if placement_controls_expanded { "Hide scene placement controls" } else { "Show scene placement controls" },
                     move |state: &mut DesktopState, _| {
@@ -926,6 +1023,60 @@ pub(super) fn view(
     )
 }
 
+pub(super) fn display_positions(recipe: &RecipeState) -> BTreeMap<String, [f32; 2]> {
+    let mut positions = recipe.scene_positions.clone();
+    positions.extend(
+        recipe
+            .dynamics
+            .positions()
+            .iter()
+            .map(|(id, position)| (id.clone(), *position)),
+    );
+    positions
+}
+
+/// Clock only a mounted, painted, intersecting scene—not a retained tab.
+pub(super) fn presented(
+    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> bool {
+    let state = ctx.runner.state();
+    if (ctx.window.is_some() && ctx.presentation.is_none())
+        || state.theme_session.workshop_open
+        || state.composition.section != 4
+        || !state
+            .composition
+            .recipe
+            .material
+            .as_ref()
+            .is_some_and(|m| m.presentation.as_ref().is_some_and(|p| p.overview_visible))
+    {
+        return false;
+    }
+    fn find<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
+        if dom.attribute(node, &Namespace::from(""), &LocalName::from("id"))
+            == Some("knot-recipe-motion-viewport")
+        {
+            return Some(node);
+        }
+        dom.dom_children(node).find_map(|child| find(dom, child))
+    }
+    let node = {
+        let dom_handle = ctx.runner.dom();
+        let dom = dom_handle.borrow();
+        find(&*dom, ctx.runner.root())
+    };
+    node.and_then(|node| ctx.painted_rect(node))
+        .is_some_and(|(x, y, w, h)| {
+            [x, y, w, h].iter().all(|v| v.is_finite())
+                && w > 0.0
+                && h > 0.0
+                && x < ctx.logical_size.0
+                && y < ctx.logical_size.1
+                && x + w > 0.0
+                && y + h > 0.0
+        })
+}
+
 pub(super) fn refresh_leaf(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
@@ -964,7 +1115,7 @@ pub(super) fn refresh_leaf(
                     swatch_with_preview(
                         material,
                         &compiled,
-                        &state.composition.recipe.scene_positions,
+                        &display_positions(&state.composition.recipe),
                         state.composition.recipe.scene_drag.as_ref(),
                     )
                     .paint_leaf(color_for_layer),

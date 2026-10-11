@@ -11,6 +11,7 @@ description = "Local durable collections of copied composition material and expl
 scenomise.workspace = true
 scenograph.workspace = true
 sceno.workspace = true
+scenotime.workspace = true
 knot-capture.workspace = true
 serde.workspace = true
 serde_json.workspace = true

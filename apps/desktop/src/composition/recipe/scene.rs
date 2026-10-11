@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Knot's compact, editable presentation of a compiled relationship recipe.
-//! Scene truth stays in the copied recipe; this module stores only visibility,
-//! emphasis and camera preferences in Knot's retained composition material.
+//! Scene truth stays in the copied recipe. Authored occurrence placements are
+//! portable scene traces; visibility, emphasis and camera remain host preferences.
 
 use super::*;
 use cambium::{
     GraphCanvasEdge, GraphCanvasEvent, GraphCanvasNode, GraphCanvasRelation, GraphCanvasSubgraph,
-    GraphCanvasSwatch, button, el, graph_canvas, span,
+    GraphCanvasSwatch, PointerPhase, button, el, graph_canvas, span,
 };
 use cambium_genet_winit_host::AppCtx;
 use knot_composition::retention::RecipeScenePresentation;
@@ -22,6 +22,13 @@ const SCENE_LEAF_KEY: u64 = 0x4b4e_4f54_5343_454e;
 const SCENE_WIDTH: u32 = 220;
 const SCENE_HEIGHT: u32 = 200;
 const CAMERA_STEP: f32 = 0.1;
+const PLACEMENT_STEP: f32 = 0.05;
+
+pub(crate) struct SceneDrag {
+    id: String,
+    before: ProjectionRecipeMaterial,
+    preview: Option<(f32, f32)>,
+}
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum SceneLayer {
@@ -41,6 +48,7 @@ enum SceneAction {
     Zoom(f32),
     Fit,
     Reset,
+    MoveOccurrence { id: String, position: (f32, f32) },
     SelectOccurrence(String),
     SelectRelationship(String),
 }
@@ -69,9 +77,24 @@ fn normalized(value: f32, origin: f32, extent: f32) -> f32 {
     ((value - origin) / extent).clamp(0.0, 1.0)
 }
 
+#[cfg(test)]
 fn swatch(
     material: &ProjectionRecipeMaterial,
     compiled: &CompiledRelationshipProjection,
+) -> GraphCanvasSwatch<String, SceneLayer> {
+    swatch_with_preview(
+        material,
+        compiled,
+        &material.scene_positions().unwrap(),
+        None,
+    )
+}
+
+fn swatch_with_preview(
+    material: &ProjectionRecipeMaterial,
+    compiled: &CompiledRelationshipProjection,
+    authored: &BTreeMap<String, [f32; 2]>,
+    drag: Option<&SceneDrag>,
 ) -> GraphCanvasSwatch<String, SceneLayer> {
     let presentation = material
         .presentation
@@ -98,10 +121,19 @@ fn swatch(
         let foot = item.footprint.bounds().unwrap_or_default();
         let x = item.transform.translate.x + foot.origin.x + foot.size.w / 2.0;
         let y = item.transform.translate.y + foot.origin.y + foot.size.h / 2.0;
-        let position = (
+        let default_position = (
             normalized(x, scene.bounds.origin.x, scene.bounds.size.w),
             normalized(y, scene.bounds.origin.y, scene.bounds.size.h),
         );
+        let position = drag
+            .filter(|drag| drag.before == *material && drag.id == occurrence.occurrence_id)
+            .and_then(|drag| drag.preview)
+            .or_else(|| {
+                authored
+                    .get(&occurrence.occurrence_id)
+                    .map(|p| (p[0], p[1]))
+            })
+            .unwrap_or(default_position);
         positions.insert(occurrence.occurrence_id.clone(), position);
         if !visible_occurrences.contains(&occurrence.occurrence_id) {
             continue;
@@ -172,9 +204,10 @@ fn swatch(
     let mut swatch = GraphCanvasSwatch::new(SCENE_LEAF_KEY, graph)
         .with_relations(relations)
         .with_size(SCENE_WIDTH, SCENE_HEIGHT)
-        .with_label("Static relationship scene")
+        .with_label("Authored relationship scene")
         .with_expand(false)
-        .with_node_labels(true);
+        .with_node_labels(true)
+        .with_deferred_drag_rebuild(true);
     swatch.selected = material.snapshot.selected_occurrence.clone();
     swatch.viewport = GraphViewport {
         pan: (presentation.pan_x, presentation.pan_y),
@@ -301,7 +334,9 @@ fn apply_action(
             } else {
                 presentation.hidden_background_categories.insert(kind);
             }
-            presentation.version = if presentation.hidden_background_categories.is_empty() {
+            presentation.version = if presentation.placement_trace.is_some() {
+                3
+            } else if presentation.hidden_background_categories.is_empty() {
                 1
             } else {
                 2
@@ -312,7 +347,11 @@ fn apply_action(
                 .presentation
                 .get_or_insert_with(RecipeScenePresentation::default);
             presentation.hidden_background_categories.clear();
-            presentation.version = 1;
+            presentation.version = if presentation.placement_trace.is_some() {
+                3
+            } else {
+                1
+            };
         },
         SceneAction::PromoteSelected => {
             let selected = candidate
@@ -373,6 +412,11 @@ fn apply_action(
             presentation.zoom = 1.0;
         },
         SceneAction::Reset => candidate.presentation = None,
+        SceneAction::MoveOccurrence { id, position } => {
+            candidate
+                .move_scene_occurrence(&id, [position.0, position.1])
+                .map_err(|error| format!("Scene placement refused: {error}"))?;
+        },
     }
 
     if candidate == *material {
@@ -405,9 +449,17 @@ fn apply_canvas_event(
         },
         GraphCanvasEvent::Pan { delta } => SceneAction::Pan(delta.0, delta.1),
         GraphCanvasEvent::Zoom { factor } => SceneAction::Zoom(factor),
-        // This overview is a static compiled projection. GraphCanvas exposes
-        // drag events, but Knot does not turn them into placement or physics.
-        GraphCanvasEvent::Drag(_) | GraphCanvasEvent::Expand => return Ok(false),
+        GraphCanvasEvent::Drag(drag) => {
+            if drag.phase != PointerPhase::Up || !swatch_node_visible(material, compiled, &drag.id)
+            {
+                return Ok(false);
+            }
+            SceneAction::MoveOccurrence {
+                id: drag.id,
+                position: drag.position,
+            }
+        },
+        GraphCanvasEvent::Expand => return Ok(false),
     };
     apply_action(material, action)
 }
@@ -455,10 +507,11 @@ fn dispatch_control(state: &mut DesktopState, action: SceneAction) {
     };
     let mut candidate = material.clone();
     state.composition.notice = Some(match apply_action(&mut candidate, action) {
-        Ok(_) => {
+        Ok(true) => {
             super::install_edit(state, candidate);
             "Scene presentation updated; retain deliberately to save this version.".into()
         },
+        Ok(false) => "Scene presentation unchanged.".into(),
         Err(error) => error,
     });
 }
@@ -476,6 +529,21 @@ fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
     let compiled = ProjectionCompiler::new(ItemSizes { card })
         .compile_relationship_snapshot(&material.snapshot, &material.dataset);
     let mut candidate = material.clone();
+    if let GraphCanvasEvent::Drag(drag) = event {
+        let result = compiled
+            .map_err(|error| format!("{error:?}"))
+            .and_then(|compiled| handle_drag(&mut state.composition.recipe, &compiled, drag));
+        match result {
+            Ok(Some(candidate)) => super::install_edit(state, candidate),
+            Ok(None) => {},
+            Err(error) => {
+                state.composition.recipe.scene_drag = None;
+                state.composition.notice = Some(error);
+            },
+        }
+        return;
+    }
+    state.composition.recipe.scene_drag = None;
     let result = compiled
         .map_err(|error| format!("{error:?}"))
         .and_then(|compiled| apply_canvas_event(&mut candidate, &compiled, event));
@@ -486,11 +554,128 @@ fn dispatch_canvas(state: &mut DesktopState, event: GraphCanvasEvent<String>) {
     }
 }
 
+fn handle_drag(
+    recipe: &mut RecipeState,
+    compiled: &CompiledRelationshipProjection,
+    drag: cambium::GraphCanvasNodeDrag<String>,
+) -> Result<Option<ProjectionRecipeMaterial>, String> {
+    let Some(material) = recipe.material.as_ref() else {
+        return Ok(None);
+    };
+    if !drag.position.0.is_finite()
+        || !drag.position.1.is_finite()
+        || !(0.0..=1.0).contains(&drag.position.0)
+        || !(0.0..=1.0).contains(&drag.position.1)
+    {
+        recipe.scene_drag = None;
+        return Err("Scene placement requires finite normalized coordinates.".into());
+    }
+    if !material
+        .presentation
+        .as_ref()
+        .is_some_and(|p| p.overview_visible)
+        || !swatch_node_visible(material, compiled, &drag.id)
+    {
+        recipe.scene_drag = None;
+        return Ok(None);
+    }
+    match drag.phase {
+        PointerPhase::Down => {
+            recipe.scene_drag = Some(SceneDrag {
+                id: drag.id,
+                before: material.clone(),
+                preview: None,
+            });
+            Ok(None)
+        },
+        PointerPhase::Move => {
+            if let Some(pending) = recipe
+                .scene_drag
+                .as_mut()
+                .filter(|pending| pending.id == drag.id && pending.before == *material)
+            {
+                pending.preview = Some(drag.position);
+            } else {
+                recipe.scene_drag = None;
+            }
+            Ok(None)
+        },
+        PointerPhase::Up => {
+            let Some(pending) = recipe
+                .scene_drag
+                .take()
+                .filter(|pending| pending.id == drag.id && pending.before == *material)
+            else {
+                return Ok(None);
+            };
+            // A click or abandoned secondary press is not a placement edit.
+            if pending.preview.is_none() {
+                return Ok(None);
+            }
+            let mut candidate = material.clone();
+            if apply_canvas_event(&mut candidate, compiled, GraphCanvasEvent::Drag(drag))? {
+                Ok(Some(candidate))
+            } else {
+                Ok(None)
+            }
+        },
+    }
+}
+
+fn move_selected(state: &mut DesktopState, dx: f32, dy: f32) {
+    state.composition.recipe.scene_drag = None;
+    let Some(material) = state.composition.recipe.material.as_ref() else {
+        return;
+    };
+    let Some(id) = material.snapshot.selected_occurrence.clone() else {
+        state.composition.notice = Some("Select a visible occurrence before moving it.".into());
+        return;
+    };
+    let card = state
+        .composition
+        .recipe
+        .measured
+        .as_ref()
+        .map_or(VALIDATION_CARD, |measured| measured.card);
+    let Ok(compiled) = ProjectionCompiler::new(ItemSizes { card })
+        .compile_relationship_snapshot(&material.snapshot, &material.dataset)
+    else {
+        return;
+    };
+    let Some(node) = swatch_with_preview(
+        material,
+        &compiled,
+        &state.composition.recipe.scene_positions,
+        None,
+    )
+    .graph
+    .nodes
+    .into_iter()
+    .find(|node| node.id == id) else {
+        state.composition.notice =
+            Some("The selected occurrence is hidden; reveal it before moving it.".into());
+        return;
+    };
+    dispatch_control(
+        state,
+        SceneAction::MoveOccurrence {
+            id,
+            position: (
+                (node.position.0 + dx).clamp(0.0, 1.0),
+                (node.position.1 + dy).clamp(0.0, 1.0),
+            ),
+        },
+    );
+}
+
 pub(super) fn view(
     material: &ProjectionRecipeMaterial,
     compiled: &CompiledRelationshipProjection,
     camera_controls_expanded: bool,
     background_controls_expanded: bool,
+    placement_controls_expanded: bool,
+    drag: Option<&SceneDrag>,
+    authored: &BTreeMap<String, [f32; 2]>,
 ) -> DesktopView {
     let presentation = material
         .presentation
@@ -595,7 +780,9 @@ pub(super) fn view(
         Box::new(el(
             "div",
             (
-                span("Static overview; nodes do not move. Pan the canvas or use camera controls."),
+                span("Authored overview; drag an occurrence or use placement controls. Positions are not motion or attention pins."),
+                span(format!("Authored scene positions: {}", authored.len()))
+                    .attr("class", "knot-recipe-scene-placement-status"),
                 span(format!(
                     "Scene strata · {foreground_count} foreground · {background_count} background occurrences · pan {:.2}, {:.2} · zoom {:.2}",
                     presentation.pan_x, presentation.pan_y, presentation.zoom
@@ -614,9 +801,25 @@ pub(super) fn view(
                 )
                 .attr("class", "knot-recipe-scene-key"),
                 graph_canvas(
-                    &swatch(material, compiled),
+                    &swatch_with_preview(material, compiled, authored, drag),
                     |state: &mut DesktopState, event| dispatch_canvas(state, event),
                 ),
+                button(
+                    if placement_controls_expanded { "Hide scene placement controls" } else { "Show scene placement controls" },
+                    move |state: &mut DesktopState, _| {
+                        state.composition.recipe.scene_drag = None;
+                        state.composition.recipe.placement_controls_expanded = !placement_controls_expanded;
+                    },
+                ).attr("aria-expanded", placement_controls_expanded.to_string())
+                 .attr("aria-controls", "knot-recipe-scene-placement-controls"),
+                el("div", placement_controls_expanded.then(|| {
+                    Box::new(el("div", (
+                        button("Move selected occurrence left", |state: &mut DesktopState, _| move_selected(state, -PLACEMENT_STEP, 0.0)),
+                        button("Move selected occurrence right", |state: &mut DesktopState, _| move_selected(state, PLACEMENT_STEP, 0.0)),
+                        button("Move selected occurrence up", |state: &mut DesktopState, _| move_selected(state, 0.0, -PLACEMENT_STEP)),
+                        button("Move selected occurrence down", |state: &mut DesktopState, _| move_selected(state, 0.0, PLACEMENT_STEP)),
+                    ))) as DesktopView
+                })).attr("id", "knot-recipe-scene-placement-controls"),
                 el(
                     "div",
                     (
@@ -726,6 +929,14 @@ pub(super) fn view(
 pub(super) fn refresh_leaf(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
+    // The shared pointer protocol has no Cancel event. Losing capture (focus
+    // loss, removed target, or an uncaptured secondary press) abandons preview.
+    if ctx.runner.pointer_capture().is_none()
+        && ctx.runner.state().composition.recipe.scene_drag.is_some()
+    {
+        ctx.runner
+            .update(|state| state.composition.recipe.scene_drag = None);
+    }
     let leaf = {
         let state = ctx.runner.state();
         state
@@ -749,7 +960,15 @@ pub(super) fn refresh_leaf(
                 let compiled = ProjectionCompiler::new(ItemSizes { card })
                     .compile_relationship_snapshot(&material.snapshot, &material.dataset)
                     .ok()?;
-                Some(swatch(material, &compiled).paint_leaf(color_for_layer))
+                Some(
+                    swatch_with_preview(
+                        material,
+                        &compiled,
+                        &state.composition.recipe.scene_positions,
+                        state.composition.recipe.scene_drag.as_ref(),
+                    )
+                    .paint_leaf(color_for_layer),
+                )
             })
     };
     if let Some(leaf) = leaf {
@@ -845,7 +1064,7 @@ mod tests {
     }
 
     #[test]
-    fn static_drag_event_does_not_change_retained_material() {
+    fn intermediate_drag_event_does_not_change_retained_material() {
         let mut material = material();
         apply_action(&mut material, SceneAction::Overview(true)).unwrap();
         let before = serde_json::to_vec(&material).unwrap();
@@ -859,6 +1078,214 @@ mod tests {
             .unwrap();
         assert!(!apply_canvas_event(&mut material, &compiled, event).unwrap());
         assert_eq!(serde_json::to_vec(&material).unwrap(), before);
+    }
+
+    #[test]
+    fn drag_previews_then_commits_one_undoable_source_preserving_placement() {
+        let mut before = material();
+        apply_action(&mut before, SceneAction::Overview(true)).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&before.snapshot, &before.dataset)
+            .unwrap();
+        let id = "token-6-11".to_owned();
+        let mut recipe = RecipeState::default();
+        recipe.material = Some(before.clone());
+        recipe.history.reset(&before, true);
+        for (phase, position) in [
+            (PointerPhase::Down, (0.2, 0.2)),
+            (PointerPhase::Move, (0.4, 0.5)),
+            (PointerPhase::Move, (0.8, 0.7)),
+        ] {
+            assert!(
+                handle_drag(
+                    &mut recipe,
+                    &compiled,
+                    GraphCanvasNodeDrag {
+                        id: id.clone(),
+                        phase,
+                        position
+                    }
+                )
+                .unwrap()
+                .is_none()
+            );
+        }
+        assert_eq!(recipe.material.as_ref(), Some(&before));
+        assert!(!recipe.history.can_undo());
+        let preview = swatch_with_preview(
+            &before,
+            &compiled,
+            &before.scene_positions().unwrap(),
+            recipe.scene_drag.as_ref(),
+        );
+        assert_eq!(
+            preview
+                .graph
+                .nodes
+                .iter()
+                .find(|node| node.id == id)
+                .unwrap()
+                .position,
+            (0.8, 0.7)
+        );
+        let after = handle_drag(
+            &mut recipe,
+            &compiled,
+            GraphCanvasNodeDrag {
+                id: id.clone(),
+                phase: PointerPhase::Up,
+                position: (0.8, 0.7),
+            },
+        )
+        .unwrap()
+        .unwrap();
+        recipe.history.record(&before, &after);
+        assert_eq!(after.dataset, before.dataset);
+        assert_eq!(after.anchors, before.anchors);
+        assert_eq!(after.snapshot, before.snapshot);
+        assert_eq!(after.scene_positions().unwrap()[&id], [0.8, 0.7]);
+        assert_eq!(
+            after
+                .presentation
+                .as_ref()
+                .unwrap()
+                .placement_trace
+                .as_ref()
+                .unwrap()
+                .len(),
+            1
+        );
+        let restored = recipe.history.undo(&after).unwrap().unwrap();
+        assert_eq!(restored, before);
+        assert!(!recipe.history.can_undo());
+        let redone = recipe.history.redo(&restored).unwrap().unwrap();
+        assert_eq!(redone, after);
+        let graph = swatch(&after, &compiled);
+        assert_eq!(
+            graph
+                .graph
+                .nodes
+                .iter()
+                .find(|node| node.id == id)
+                .unwrap()
+                .position,
+            (0.8, 0.7)
+        );
+        assert!(
+            graph
+                .relations
+                .iter()
+                .any(|relation| relation.route.contains(&(0.8, 0.7)))
+        );
+    }
+
+    #[test]
+    fn stale_hidden_invalid_or_click_only_gestures_cannot_author_placements() {
+        let mut before = material();
+        apply_action(&mut before, SceneAction::Overview(true)).unwrap();
+        let compiled = validation_compiler()
+            .compile_relationship_snapshot(&before.snapshot, &before.dataset)
+            .unwrap();
+        let mut recipe = RecipeState::default();
+        recipe.material = Some(before.clone());
+        let event = |phase, position| GraphCanvasNodeDrag {
+            id: "token-6-11".into(),
+            phase,
+            position,
+        };
+        assert!(
+            handle_drag(
+                &mut recipe,
+                &compiled,
+                event(PointerPhase::Down, (0.4, 0.4))
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert!(
+            handle_drag(&mut recipe, &compiled, event(PointerPhase::Up, (0.4, 0.4)))
+                .unwrap()
+                .is_none()
+        );
+        handle_drag(
+            &mut recipe,
+            &compiled,
+            event(PointerPhase::Down, (0.4, 0.4)),
+        )
+        .unwrap();
+        handle_drag(
+            &mut recipe,
+            &compiled,
+            event(PointerPhase::Move, (0.8, 0.7)),
+        )
+        .unwrap();
+        apply_action(
+            recipe.material.as_mut().unwrap(),
+            SceneAction::Pan(0.1, 0.0),
+        )
+        .unwrap();
+        assert!(
+            handle_drag(&mut recipe, &compiled, event(PointerPhase::Up, (0.8, 0.7)))
+                .unwrap()
+                .is_none()
+        );
+        assert!(
+            recipe
+                .material
+                .as_ref()
+                .unwrap()
+                .scene_positions()
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            handle_drag(
+                &mut recipe,
+                &compiled,
+                event(PointerPhase::Down, (f32::NAN, 0.4))
+            )
+            .is_err()
+        );
+        assert!(recipe.scene_drag.is_none());
+        apply_action(
+            recipe.material.as_mut().unwrap(),
+            SceneAction::Overview(false),
+        )
+        .unwrap();
+        assert!(
+            handle_drag(
+                &mut recipe,
+                &compiled,
+                event(PointerPhase::Down, (0.4, 0.4))
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert!(recipe.scene_drag.is_none());
+    }
+
+    #[test]
+    fn category_and_camera_edits_keep_trace_version_and_positions() {
+        let mut material = material();
+        apply_action(&mut material, SceneAction::Overview(true)).unwrap();
+        material
+            .move_scene_occurrence("token-6-11", [0.8, 0.7])
+            .unwrap();
+        let positions = material.scene_positions().unwrap();
+        let kind = material.dataset.relationships[0].kind.clone();
+        apply_action(
+            &mut material,
+            SceneAction::BackgroundCategory {
+                kind,
+                visible: false,
+            },
+        )
+        .unwrap();
+        assert_eq!(material.presentation.as_ref().unwrap().version, 3);
+        apply_action(&mut material, SceneAction::ShowAllBackgroundCategories).unwrap();
+        apply_action(&mut material, SceneAction::Fit).unwrap();
+        assert_eq!(material.presentation.as_ref().unwrap().version, 3);
+        assert_eq!(material.scene_positions().unwrap(), positions);
     }
 
     #[test]

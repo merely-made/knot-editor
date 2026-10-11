@@ -5,6 +5,8 @@ use knot_capture::{KnotRetainError, KnotRetainTargetV1};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
 
+mod placement;
+
 /// The card validation compiles with. Never drawn: a recipe's accept or refuse
 /// does not depend on its card size, and the desktop draws with the card it
 /// measures from its own font (Mere burn plan 13.46, "Named 164x68 constant").
@@ -33,8 +35,9 @@ pub struct ProjectionRecipeMaterial {
     pub presentation: Option<RecipeScenePresentation>,
 }
 
-/// Host-owned display preferences for a retained scene overview. This stores
-/// only portable visibility and view values, never scene handles or authority.
+/// Host-owned presentation for a retained scene overview. Visibility, camera
+/// and authored occurrence placement remain portable values, never authority
+/// or live renderer handles.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RecipeScenePresentation {
@@ -49,6 +52,10 @@ pub struct RecipeScenePresentation {
     pub pan_x: f32,
     pub pan_y: f32,
     pub zoom: f32,
+    /// Authored normalized occurrence positions. The shared trace stores the
+    /// record; cursor, undo and redo remain the host's editing behavior.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub placement_trace: Option<scenotime::SceneTrace>,
 }
 
 impl Default for RecipeScenePresentation {
@@ -62,6 +69,7 @@ impl Default for RecipeScenePresentation {
             pan_x: 0.0,
             pan_y: 0.0,
             zoom: 1.0,
+            placement_trace: None,
         }
     }
 }
@@ -74,9 +82,12 @@ impl RecipeScenePresentation {
         // Version 1 is the historical shape. Keep it readable and writable
         // when the new field is empty, preserving its serialized bytes. Older
         // readers will reject version 2, so writers must use v2 only when
-        // storing this category filter and should canonicalize an empty set to v1.
-        if !matches!(self.version, 1 | 2)
+        // storing this category filter. Version 3 additionally carries authored
+        // placements; writers choose it only while a placement trace is present.
+        if !matches!(self.version, 1 | 2 | 3)
             || (self.version == 1 && !self.hidden_background_categories.is_empty())
+            || (self.version < 3 && self.placement_trace.is_some())
+            || (self.version == 3 && self.placement_trace.is_none())
         {
             return Err(CollectionError::Invalid(
                 "unsupported recipe scene presentation version".into(),
@@ -159,6 +170,9 @@ impl ProjectionRecipeMaterial {
             })?;
         if let Some(presentation) = &self.presentation {
             presentation.validate(&self.dataset)?;
+            if let Some(trace) = &presentation.placement_trace {
+                placement::validate(self, trace)?;
+            }
         }
         let mut seen = std::collections::HashSet::new();
         for anchor in &self.anchors {

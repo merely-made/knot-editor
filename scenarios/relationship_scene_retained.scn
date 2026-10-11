@@ -44,6 +44,20 @@ click role:button Hide scene background category: sound.perfect_rhyme
 click role:button Hide scene category controls
 assert text Background categories: 0 enabled / 1 compiled; 1 occurrences shown
 click role:button light · token-8-13
+click role:button Show scene placement controls
+click role:button Move selected occurrence left
+click role:button Move selected occurrence down
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+click role:button Undo recipe edit
+assert snap scene_placement_steps == 1
+click role:button Undo recipe edit
+assert snap scene_authored_positions == 0
+click role:button Redo recipe edit
+click role:button Redo recipe edit
+assert snap scene_placement_steps == 2
+capture scene-placement-authored
+click role:button Hide scene placement controls
 click role:button Zoom scene in
 click role:button Show scene camera controls
 settle 4

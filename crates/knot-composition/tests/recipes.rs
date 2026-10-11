@@ -148,9 +148,19 @@ fn scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values() 
 
     let mut invalid = base.clone();
     let mut presentation = RecipeScenePresentation::default();
-    presentation.version = 3;
+    presentation.version = 4;
     invalid.presentation = Some(presentation);
     assert!(invalid.validate().is_err());
+
+    let mut invalid = base.clone();
+    invalid.presentation = Some(RecipeScenePresentation {
+        version: 3,
+        ..Default::default()
+    });
+    assert!(
+        invalid.validate().is_err(),
+        "v3 requires its placement record"
+    );
 
     let mut invalid = base.clone();
     let mut presentation = RecipeScenePresentation::default();
@@ -196,6 +206,247 @@ fn scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values() 
         ..RecipeScenePresentation::default()
     });
     assert!(invalid.validate().is_err());
+}
+
+fn movable_scene() -> knot_composition::retention::ProjectionRecipeMaterial {
+    use knot_composition::retention::RecipeScenePresentation;
+    let mut material = support::recipe_material();
+    material.presentation = Some(RecipeScenePresentation {
+        overview_visible: true,
+        ..RecipeScenePresentation::default()
+    });
+    material
+}
+
+#[test]
+fn authored_positions_roundtrip_in_shared_trace_and_keep_zero_as_an_override() {
+    let mut material = movable_scene();
+    assert!(material.scene_positions().unwrap().is_empty());
+    assert!(
+        material
+            .move_scene_occurrence("night:0", [0.25, 0.75])
+            .unwrap()
+    );
+    assert!(
+        material
+            .move_scene_occurrence("night:0", [0.0, 0.0])
+            .unwrap()
+    );
+    assert!(
+        !material
+            .move_scene_occurrence("night:0", [0.0, 0.0])
+            .unwrap()
+    );
+    let positions = material.scene_positions().unwrap();
+    assert_eq!(positions.len(), 1);
+    assert_eq!(positions["night:0"], [0.0, 0.0]);
+    let presentation = material.presentation.as_ref().unwrap();
+    assert_eq!(presentation.version, 3);
+    assert_eq!(presentation.placement_trace.as_ref().unwrap().len(), 2);
+    let read: knot_composition::retention::ProjectionRecipeMaterial =
+        serde_json::from_slice(&serde_json::to_vec(&material).unwrap()).unwrap();
+    assert_eq!(read, material);
+    assert_eq!(read.scene_positions().unwrap(), positions);
+}
+
+#[test]
+fn scene_placement_refusal_preserves_exact_material() {
+    let material = movable_scene();
+    for (id, position) in [
+        ("missing", [0.5, 0.5]),
+        ("night:0", [f32::NAN, 0.5]),
+        ("night:0", [0.5, f32::INFINITY]),
+        ("night:0", [-0.1, 0.5]),
+        ("night:0", [0.5, 1.1]),
+    ] {
+        let mut candidate = material.clone();
+        assert!(candidate.move_scene_occurrence(id, position).is_err());
+        assert_eq!(candidate, material);
+    }
+    let mut hidden = material.clone();
+    hidden.presentation.as_mut().unwrap().background_visible = false;
+    let before = hidden.clone();
+    assert!(hidden.move_scene_occurrence("night:0", [0.5, 0.5]).is_err());
+    assert_eq!(hidden, before);
+    hidden
+        .presentation
+        .as_mut()
+        .unwrap()
+        .foreground_occurrences
+        .insert("night:0".into());
+    assert!(hidden.move_scene_occurrence("night:0", [0.5, 0.5]).unwrap());
+    let mut filtered = material;
+    let presentation = filtered.presentation.as_mut().unwrap();
+    presentation.version = 2;
+    presentation
+        .hidden_background_categories
+        .insert("perfect_rhyme".into());
+    let before = filtered.clone();
+    assert!(
+        filtered
+            .move_scene_occurrence("night:0", [0.5, 0.5])
+            .is_err()
+    );
+    assert_eq!(filtered, before);
+}
+
+#[test]
+fn authored_positions_survive_recipe_edits_but_refuse_rebound_source_anchors() {
+    let mut material = movable_scene();
+    material
+        .move_scene_occurrence("night:0", [0.2, 0.8])
+        .unwrap();
+    let positions = material.scene_positions().unwrap();
+    material.snapshot.recipe.definition.label = "Changed label".into();
+    material.snapshot.recipe.definition.arrangement.spacing += 1;
+    material.snapshot.selected_occurrence = Some("light:6".into());
+    material.presentation.as_mut().unwrap().zoom = 2.0;
+    assert_eq!(material.scene_positions().unwrap(), positions);
+    material.anchors[0].source =
+        knot_composition::DocumentAnchor::capture("document:poem", "Night light!", 0..5).unwrap();
+    assert!(material.validate().is_err());
+    material.presentation = None;
+    material.validate().unwrap();
+}
+
+#[test]
+fn placement_trace_refuses_shared_scene_edits_outside_occurrence_translation() {
+    use scenotime::{Revision, SceneDiff, SceneOp, TraceStep};
+    let mut material = movable_scene();
+    material
+        .move_scene_occurrence("night:0", [0.2, 0.8])
+        .unwrap();
+    let trace = material
+        .presentation
+        .as_ref()
+        .unwrap()
+        .placement_trace
+        .as_ref()
+        .unwrap()
+        .clone();
+    let head = trace.head();
+    let illegal = trace
+        .appended(TraceStep::diff(
+            "Raise",
+            SceneDiff {
+                epoch: head.epoch,
+                base: head.revision,
+                revision: Revision(head.revision.0 + 1),
+                operations: vec![SceneOp::SetItemLayer {
+                    index: sceno::InstanceId(0),
+                    layer: 1,
+                }],
+            },
+        ))
+        .unwrap();
+    material.presentation.as_mut().unwrap().placement_trace = Some(illegal);
+    assert!(material.validate().is_err());
+    let mut value = head.active_item(sceno::InstanceId(0)).unwrap().clone();
+    value.transform.rotate = 0.2;
+    let rotated = trace
+        .appended(TraceStep::diff(
+            "Rotate",
+            SceneDiff {
+                epoch: head.epoch,
+                base: head.revision,
+                revision: Revision(head.revision.0 + 1),
+                operations: vec![SceneOp::UpdateItem {
+                    index: sceno::InstanceId(0),
+                    value,
+                }],
+            },
+        ))
+        .unwrap();
+    material.presentation.as_mut().unwrap().placement_trace = Some(rotated);
+    assert!(material.validate().is_err());
+}
+
+#[test]
+fn authored_occurrences_keep_distinct_positions_when_they_share_a_source() {
+    let mut material = movable_scene();
+    material.dataset.dataset.occurrences[1].source =
+        material.dataset.dataset.occurrences[0].source.clone();
+    material
+        .move_scene_occurrence("night:0", [0.2, 0.8])
+        .unwrap();
+    material
+        .move_scene_occurrence("light:6", [0.7, 0.1])
+        .unwrap();
+    let positions = material.scene_positions().unwrap();
+    assert_eq!(positions["night:0"], [0.2, 0.8]);
+    assert_eq!(positions["light:6"], [0.7, 0.1]);
+    let base = material
+        .presentation
+        .as_ref()
+        .unwrap()
+        .placement_trace
+        .as_ref()
+        .unwrap()
+        .base();
+    assert_eq!(base.tables.sources.len(), 1);
+    assert_eq!(base.tables.items.len(), 2);
+}
+
+#[test]
+fn placement_trace_refuses_nonfinite_items_annotations_and_excess_steps() {
+    use scenotime::{Revision, SceneDiff, SceneOp, SceneTrace, TraceStep};
+    let mut material = movable_scene();
+    material
+        .move_scene_occurrence("night:0", [0.2, 0.8])
+        .unwrap();
+    let trace = material
+        .presentation
+        .as_ref()
+        .unwrap()
+        .placement_trace
+        .as_ref()
+        .unwrap()
+        .clone();
+    let original = trace.steps()[0].clone();
+    let mut nonfinite = original.clone();
+    let SceneOp::UpdateItem { value, .. } = &mut nonfinite.diff.as_mut().unwrap().operations[0]
+    else {
+        panic!("move operation")
+    };
+    value.transform.translate.x = f32::NAN;
+    // Scenotime validates the structural scene contract; the host owns the
+    // stronger normalized-number boundary.
+    material.presentation.as_mut().unwrap().placement_trace =
+        Some(SceneTrace::from_steps(trace.base().clone(), vec![nonfinite]).unwrap());
+    assert!(material.validate().is_err());
+    let annotated = original
+        .clone()
+        .with_annotation(serde_json::json!({"source":"other"}));
+    material.presentation.as_mut().unwrap().placement_trace =
+        Some(SceneTrace::from_steps(trace.base().clone(), vec![annotated]).unwrap());
+    assert!(material.validate().is_err());
+    let mut steps = Vec::new();
+    for position in 0..257 {
+        let mut step = original.clone();
+        let diff = step.diff.as_mut().unwrap();
+        *diff = SceneDiff {
+            epoch: trace.base().epoch,
+            base: Revision(position),
+            revision: Revision(position + 1),
+            operations: diff.operations.clone(),
+        };
+        steps.push(step);
+    }
+    material.presentation.as_mut().unwrap().placement_trace =
+        Some(SceneTrace::from_steps(trace.base().clone(), steps).unwrap());
+    assert!(material.validate().is_err());
+    material.presentation.as_mut().unwrap().placement_trace =
+        Some(trace.appended(TraceStep::mark("Select")).unwrap());
+    assert!(material.validate().is_err());
+}
+
+#[test]
+fn presentation_v2_bytes_stay_identical_without_placement_trace() {
+    use knot_composition::retention::RecipeScenePresentation;
+    let bytes: &[u8] = br#"{"version":2,"overview_visible":true,"background_visible":true,"hidden_background_categories":["perfect_rhyme"],"foreground_occurrences":[],"pan_x":0.0,"pan_y":0.0,"zoom":1.0}"#;
+    let read: RecipeScenePresentation = serde_json::from_slice(bytes).unwrap();
+    assert!(read.placement_trace.is_none());
+    assert_eq!(serde_json::to_vec(&read).unwrap(), bytes);
 }
 
 #[test]

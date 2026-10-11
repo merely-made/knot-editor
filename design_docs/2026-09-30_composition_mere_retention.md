@@ -667,6 +667,82 @@ This marked synthetic-authority macOS matrix is not personal-wallet, human
 assistive-technology, cross-platform native, signing/release, inferred ambient
 neighborhood or G4b live-execution qualification.
 
+## Authored occurrence placement continuation (2026-10-11)
+
+Status: implementation and the final workspace gate passed (647 passed, zero
+failed, four existing ignored tests); remaining consumer qualification is in
+progress. See the [October 11 receipt](../docs/receipts/2026-10-11_authored_scene/README.md).
+This extends the
+qualified retained static scene; it does not turn the compact reading overview
+into a live physics host or inferred ambient neighborhood.
+
+The frozen consumer family is Mere `0e78fcffb140395a5c0d2f64a4dfda2b81751681`,
+Genet `4bc75583865c2fb862b7acd7fe16dc28eb591042`, Dramatis
+`0234e7eea6f2ddf2330a71b9425da01b06ae0391`, Netrender
+`ef5412d760a978584c8c1801e8a765c51aecd403`, and maintained Vello
+`5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a` (Classic/encoding/shaders 0.11.0,
+wgpu 30.0.1). Root patches and the standalone document lock must resolve that
+same family. Classic remains the shipping renderer; Sparse is not enabled.
+Transport patches use `mere-p2panda-net-0.7.5-upstream-20261011`.
+
+### Retained record and authority
+
+Presentation v3 adds an optional shared `scenotime::SceneTrace`. Its canonical
+unit-coordinate scene contains one instance per occurrence, not one per source.
+The base is bound to the copied dataset and exact source anchors, independently
+of arrangement, measured card size, selection, camera, or foreground/background
+emphasis. Only finite normalized item translations are admitted. Layer, source,
+geometry, appearance, annotations, and arbitrary scene operations are refused.
+The trace is bounded to 256 placement steps and remains inside the existing
+one-MiB material limit. Historical v1/v2 bytes stay unchanged when the new field
+is absent; older readers cannot read v3 placement records.
+
+Untouched occurrences use the shared compiler's current measured placement.
+Touched instances use authored overrides, including an explicit origin `(0,0)`.
+Arrangement/category edits preserve these placements. A changed copied reading
+or source anchor refuses the old trace until explicit scene reset, even if its
+occurrence ID strings survived. No source text, source identity, provider access,
+or mutation capability is gained by dragging a node.
+
+### Editing and acceptance
+
+Pointer moves are session-only previews; release commits one history step.
+Click-only, stale, hidden, and malformed gestures do not author placements.
+Keyboard-accessible placement buttons use the same validated retained path.
+The existing host-owned recipe history handles undo/redo and clears redo on a
+new branch. Explicit Retain creates an immutable signed/encrypted version in
+Knot's own mere; it is not an automatic save or a plaintext capture cache.
+
+Acceptance covers portable trace serialization, forbidden operation/numeric
+refusal, independent repeated-source occurrences, real encrypted store reopen,
+actual host pointer routing, keyboard editing, history, wide/compact presentation,
+fresh-process reopening, and unchanged source fixture bytes. Evidence is kept
+separate from upstream renderer receipts and from personal-custody acceptance.
+Native replay waits for the Woodshed foreground lane to be released.
+
+Wide occurrence controls keep one-line rendering aligned with the measurement
+probe. At viewport widths up to 640px, the same keyed controls instead form a
+full-width wrapping list labeled "Occurrence controls"; their names, callbacks,
+and the graph canvas's authored positions remain unchanged. A 420px headless
+regression checks full names, bounds, and non-overlap. Native captures must still
+qualify the compact presentation. A narrow drawer in a wide viewport remains a
+separate case; this is not a universal label-collision or drawer-layout repair.
+Shared canvas label culling remains an explicit presentation policy; authored
+positions let the reader separate overlapping occurrences without removing
+their full textual controls or accessible names.
+
+### Shared dynamics boundary
+
+G4b1 has landed upstream: the canvas owns `DynamicsSpec`, saved scenes use v4,
+and compositions run on reopen. The older October 8 statement that all G4b was
+waiting is historical. G4b2 picker/runner work and its owner queue remain
+separate. Knot's compact `GraphCanvasSwatch` supplies placement, interaction,
+and paint; it has no `DynamicsSpec` binding. This slice adopts shared scene
+records, not a Knot-private solver. A later live-dynamics host adoption must
+route the shared binding, disclose channels/refusals, and qualify runtime and
+reopen separately. Foreground/background attention, position overrides, motion
+pins/anchors, and Forme layout locks are distinct concepts.
+
 ## Qualification
 
 ### Shared relationship recipe continuation (2026-10-05)

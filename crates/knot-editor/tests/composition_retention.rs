@@ -143,6 +143,16 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
     )
     .with_projection_recipe(recipe_support::recipe_material());
     let mut material = first.projection_recipe.clone().unwrap();
+    material.presentation = Some(knot_composition::retention::RecipeScenePresentation {
+        overview_visible: true,
+        ..Default::default()
+    });
+    material
+        .move_scene_occurrence("night:0", [0.2, 0.7])
+        .unwrap();
+    material
+        .move_scene_occurrence("light:6", [0.8, 0.3])
+        .unwrap();
     material.snapshot.recipe.definition.arrangement.spacing += 8;
     material
         .snapshot

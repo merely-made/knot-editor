@@ -1,8 +1,12 @@
 # Authored occurrence scene qualification — October 11, 2026
 
-Status: implementation and automated workspace gates passed; standalone/build
-gates and native qualification are in progress. Do not treat this interim
-receipt as native acceptance or publication evidence.
+Status: implemented and qualified for this bounded macOS slice. Automated,
+build, rendered native, and fresh-process reopening gates passed. Publication
+is a separate Git operation, not inferred from this receipt.
+
+Runtime source: `a5d817777297ad62c5b65ebcdac77ba034bbbdf2`, based on published
+Knot `4d8b81c5ed8fbe29bac9fc762cb71f161e00c784`. Focused capture-only scenarios
+were committed separately as `509f1bc`; they do not change the runtime binary.
 
 ## Scope
 
@@ -51,19 +55,64 @@ Evidence root: `/Users/markik/Code/testing/knot-editor/authored-scene-20261011.w
   compact regression's recursive text helper. The borrowed-string/owned-string
   error was corrected before the complete final2 pass; no test assertion was
   removed or weakened.
+- `knot-document-default.log`: standalone `cargo test --locked` passed, 45
+  passed, zero failed, one existing ignored test.
+- `knot-document-engine-highlight.log`: standalone
+  `cargo test --locked --features engine,highlight` passed, 61 passed, zero
+  failed, one existing ignored test. These commands use the separate document
+  manifest and its regenerated local ignored lock.
+- `embed-bert-wgpu-check.log`: locked optional inference-feature `cargo check`
+  passed. This is dependency/type qualification, not model-download, inference,
+  GPU-runtime, or inference-driven scene acceptance.
+- `desktop-build.log`: locked `cargo build -p knot-desktop --bin knot --example
+  collection_acceptance` passed. The acceptance binary's SHA-256 is
+  `511b96d40bfb37222cf16a3f7aa9f53bb4e615e7a70ce33904881b5fd4255033`.
 
-## Native matrix (pending)
+## Native matrix
 
-Native execution waits for Woodshed to release the macOS foreground lane.
+Woodshed released the macOS foreground lane before Knot's native execution.
 Acceptance uses only marked disposable fixtures with public deterministic test
 keys, never a personal wallet. The committed retained-scene scenarios require
 one authored position and two trace steps, undo/redo, category/camera persistence,
 retention, fresh-process reopening, and unchanged source text.
 
-Planned runs: 1100×900 seed and fresh reopen; 420×900 seed and fresh reopen.
-Each process should produce six captures. Save/reopen position digests must
-match exactly. Process success, rendered capture review, fresh-process state,
-and publication are separate claims.
+All four save/reopen processes passed. Logical dimensions are below; captures
+are 2× native pixels (2200×1800 or 840×1800).
+
+| Evidence directory | Logical size | Presented frames | Reviewed captures |
+| --- | --- | ---: | ---: |
+| `wide-seed-foreground` | 1100×900 | 286 | 6 |
+| `wide-reopen` | 1100×900 | 221 | 6 |
+| `compact-seed` | 420×900 | 290 | 6 |
+| `compact-reopen` | 420×900 | 223 | 6 |
+| `wide-controls` | 1100×900 | 177 | 2 |
+| `compact-controls` | 420×900 | 179 | 2 |
+
+All 28 full-frame captures were inspected: nonblank rendered surfaces, scene
+positions/strata and restored categories, retained source disclosure, complete
+directional controls, and uncropped compact occurrence rows. Shared canvas label
+culling remains enabled. The first placement captures scroll above the button
+bank, so the two focused controls replays explicitly capture all four directional
+buttons, make two unsaved moves, then undo back to the retained state. They do
+not retain a new version or alter the fixture source.
+
+Every authored save/reopen capture reports one authored position and two trace
+steps with exact position BLAKE3
+`85859bb97d0d638a40da41da176ee56c50ef96ac41493df819da6fd96edd5824`.
+Both focused replays restore that same fingerprint after undo. The final source
+files equal the instrument's expected 41 bytes, SHA-256
+`8155c926a5f084c721cdeb968c909b45b74bb4b76f24666b38b9a51d008b0a08`.
+See [native matrix hashes](native-matrix.json).
+
+The initial `wide-seed` launch failed before presenting any frames: 1385
+unpresented redraws, macOS `Occluded`, and the shared 10-second presentation
+deadline. Its receipt is preserved. Subsequent runs bind the exact temporary
+app through native computer use and invoke its exposed window `Raise` action.
+They pass without assertion changes or renderer deadline changes. Post-raise
+accessibility reads sometimes report that the app/window has already quit;
+successful process receipts and captures establish normal scenario completion.
+This does not qualify unattended background presentation or fix an upstream
+occlusion issue.
 
 ## Remaining limits
 

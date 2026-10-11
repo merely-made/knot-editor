@@ -669,9 +669,12 @@ neighborhood or G4b live-execution qualification.
 
 ## Authored occurrence placement continuation (2026-10-11)
 
-Status: implementation and the final workspace gate passed (647 passed, zero
-failed, four existing ignored tests); remaining consumer qualification is in
-progress. See the [October 11 receipt](../docs/receipts/2026-10-11_authored_scene/README.md).
+Status: implemented and qualified on macOS: final workspace gate 647 passed,
+zero failed, four existing ignored tests; standalone default/engine-highlight
+gates, optional inference-feature check, and native wide/compact save plus
+fresh-process reopen passed. All 28 captures were inspected, including focused
+placement controls and compact occurrence rows. See the
+[October 11 receipt](../docs/receipts/2026-10-11_authored_scene/README.md).
 This extends the
 qualified retained static scene; it does not turn the compact reading overview
 into a live physics host or inferred ambient neighborhood.
@@ -718,13 +721,15 @@ refusal, independent repeated-source occurrences, real encrypted store reopen,
 actual host pointer routing, keyboard editing, history, wide/compact presentation,
 fresh-process reopening, and unchanged source fixture bytes. Evidence is kept
 separate from upstream renderer receipts and from personal-custody acceptance.
-Native replay waits for the Woodshed foreground lane to be released.
+Native replay ran after Woodshed released the foreground lane. The first
+occluded launch's failure is retained; explicit native window Raise enabled the
+six successful processes. Unattended background presentation is not qualified.
 
 Wide occurrence controls keep one-line rendering aligned with the measurement
 probe. At viewport widths up to 640px, the same keyed controls instead form a
 full-width wrapping list labeled "Occurrence controls"; their names, callbacks,
 and the graph canvas's authored positions remain unchanged. A 420px headless
-regression checks full names, bounds, and non-overlap. Native captures must still
+regression checks full names, bounds, and non-overlap. Reviewed native captures
 qualify the compact presentation. A narrow drawer in a wide viewport remains a
 separate case; this is not a universal label-collision or drawer-layout repair.
 Shared canvas label culling remains an explicit presentation policy; authored

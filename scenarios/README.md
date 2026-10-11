@@ -120,8 +120,15 @@ The October 11 authored-placement continuation extends retained save/reopen
 scenarios with keyboard placement, undo/redo, authored-position/trace-step
 assertions, and a placement-controls capture at each width. Presentation v3
 retains a shared source-bound scene trace; full source bytes must still remain
-unchanged. Native qualification of this newer family is separate from the
-historical October 8 receipt below, and remains pending until recorded.
+unchanged. The [October 11 consumer receipt](../docs/receipts/2026-10-11_authored_scene/README.md)
+records six captures per wide/compact save/reopen process plus two focused
+controls/history captures at each width: 28 inspected captures. The focused
+`relationship_scene_placement_controls*.scn` replays use an already retained
+marked fixture, make two unsaved moves, capture the complete directional bank,
+and undo to the retained fingerprint without retaining another version. The
+first occluded launch is preserved separately; qualified runs explicitly Raise
+the isolated native window. This newer family evidence is separate from the
+historical October 8 receipt below.
 
 The October 8 committed-runtime native qualification covers five captures per
 save/reopen process at each width (20 final captures); the composition retention

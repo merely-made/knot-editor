@@ -39,9 +39,12 @@ use std::{path::PathBuf, sync::Arc};
 use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 
 pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
-    let mut hooks = inert_hooks();
+    let mut hooks: HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> = inert_hooks();
     let mut previews = theme_session::PreviewBindings::default();
     hooks.frame = Box::new(move |ctx| {
+        if ctx.runner.state().theme_session.workshop_open {
+            crate::composition::pause_hidden_motion(ctx);
+        }
         theme_session::update_stylesheet(ctx);
         previews.frame(ctx)
     });

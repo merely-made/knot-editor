@@ -3,7 +3,7 @@
 use crate::{CollectionError, CollectionItem, DocumentAnchor};
 use knot_capture::{KnotRetainError, KnotRetainTargetV1};
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 mod placement;
 
@@ -49,6 +49,11 @@ pub struct RecipeScenePresentation {
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub hidden_background_categories: BTreeSet<String>,
     pub foreground_occurrences: BTreeSet<String>,
+    /// Occurrence-specific roles for an eventual live-dynamics host binding.
+    /// The shared enum is persisted directly; this retained value does not
+    /// interpret or execute the dynamics specification.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub motion_roles: BTreeMap<String, seiche::Role>,
     pub pan_x: f32,
     pub pan_y: f32,
     pub zoom: f32,
@@ -66,6 +71,7 @@ impl Default for RecipeScenePresentation {
             background_visible: true,
             hidden_background_categories: BTreeSet::new(),
             foreground_occurrences: BTreeSet::new(),
+            motion_roles: BTreeMap::new(),
             pan_x: 0.0,
             pan_y: 0.0,
             zoom: 1.0,
@@ -75,6 +81,20 @@ impl Default for RecipeScenePresentation {
 }
 
 impl RecipeScenePresentation {
+    /// Select the oldest presentation version that can represent this value.
+    /// Call after changing category filters, placement, or motion roles.
+    pub fn refresh_version(&mut self) {
+        self.version = if !self.motion_roles.is_empty() {
+            4
+        } else if self.placement_trace.is_some() {
+            3
+        } else if !self.hidden_background_categories.is_empty() {
+            2
+        } else {
+            1
+        };
+    }
+
     fn validate(
         &self,
         dataset: &scenomise::projection::RelationshipDataset,
@@ -84,10 +104,14 @@ impl RecipeScenePresentation {
         // readers will reject version 2, so writers must use v2 only when
         // storing this category filter. Version 3 additionally carries authored
         // placements; writers choose it only while a placement trace is present.
-        if !matches!(self.version, 1 | 2 | 3)
+        // Version 4 adds occurrence-specific motion roles and is valid only
+        // when that map is nonempty; a v4 value may or may not carry a trace.
+        if !matches!(self.version, 1 | 2 | 3 | 4)
             || (self.version == 1 && !self.hidden_background_categories.is_empty())
             || (self.version < 3 && self.placement_trace.is_some())
             || (self.version == 3 && self.placement_trace.is_none())
+            || (self.version < 4 && !self.motion_roles.is_empty())
+            || (self.version == 4 && self.motion_roles.is_empty())
         {
             return Err(CollectionError::Invalid(
                 "unsupported recipe scene presentation version".into(),
@@ -121,6 +145,20 @@ impl RecipeScenePresentation {
         {
             return Err(CollectionError::Invalid(
                 "recipe scene foreground occurrence is invalid or undisclosed".into(),
+            ));
+        }
+        if self.motion_roles.len() > 256
+            || self.motion_roles.keys().any(|occurrence_id| {
+                occurrence_id.is_empty()
+                    || !dataset
+                        .dataset
+                        .occurrences
+                        .iter()
+                        .any(|occurrence| occurrence.occurrence_id == *occurrence_id)
+            })
+        {
+            return Err(CollectionError::Invalid(
+                "recipe scene motion role occurrence is invalid or undisclosed".into(),
             ));
         }
         if !self.pan_x.is_finite()

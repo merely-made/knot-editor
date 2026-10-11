@@ -80,7 +80,8 @@ impl mesquite::Product for KnotLane {
         let (arrangement, columns, retained) =
             ctx.runner.state().composition.recipe_scenario_fields();
         let (positions, steps, position) = ctx.runner.state().composition.scene_scenario_fields();
-        ctx.runner
+        let mut snapshot = ctx
+            .runner
             .state()
             .scenario_snapshot()
             .with_field(
@@ -96,7 +97,11 @@ impl mesquite::Product for KnotLane {
             .with_field("recipe_edits_retained", retained.to_string())
             .with_field("scene_authored_positions", positions.to_string())
             .with_field("scene_placement_steps", steps.to_string())
-            .with_field("scene_selected_position", position)
+            .with_field("scene_selected_position", position);
+        for (key, value) in ctx.runner.state().composition.motion_scenario_fields() {
+            snapshot = snapshot.with_field(key, value);
+        }
+        snapshot
     }
 
     fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
@@ -159,7 +164,7 @@ fn graph_capture_projection(
 /// Unlike the general snapshot, this never copies source text or labels.
 fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, String> {
     let (positions, steps, _) = state.composition.scene_scenario_fields();
-    [
+    let mut fields: std::collections::BTreeMap<String, String> = [
         ("scene_authored_positions", positions.to_string()),
         ("scene_placement_steps", steps.to_string()),
         (
@@ -190,7 +195,9 @@ fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, St
     ]
     .into_iter()
     .map(|(key, value)| (key.to_owned(), value))
-    .collect()
+    .collect();
+    fields.extend(state.composition.motion_scenario_fields());
+    fields
 }
 
 #[cfg(test)]

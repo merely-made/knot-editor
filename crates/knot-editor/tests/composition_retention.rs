@@ -153,6 +153,15 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
     material
         .move_scene_occurrence("light:6", [0.8, 0.3])
         .unwrap();
+    // The durable carrier keeps authored roles and even currently-unbound
+    // input declarations. Retention does not execute or silently strip them.
+    material.snapshot.recipe.definition.dynamics = Some(serde_json::from_value(
+        serde_json::json!({"version": 1, "spec": "{\"channels\":{\"future\":\"opaque\"},\"root\":{\"id\":\"spring.rapier\",\"node\":\"preset\"},\"version\":1}"}),
+    ).unwrap());
+    let presentation = material.presentation.as_mut().unwrap();
+    presentation.motion_roles.insert("night:0".into(), serde_json::from_str("\"pinned\"").unwrap());
+    presentation.refresh_version();
+    assert_eq!(presentation.version, 4);
     material.snapshot.recipe.definition.arrangement.spacing += 8;
     material
         .snapshot

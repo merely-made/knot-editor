@@ -27,6 +27,7 @@ use scenomise::projection::{
 };
 use std::collections::{BTreeMap, BTreeSet};
 
+mod dynamics;
 mod editor;
 mod history;
 mod scene;
@@ -81,8 +82,11 @@ pub(super) struct RecipeState {
     /// Its final release records one undo step, never one per pointer move.
     pub(super) scene_drag: Option<scene::SceneDrag>,
     pub(super) placement_controls_expanded: bool,
+    pub(super) motion_controls_expanded: bool,
     /// Read-only projection refreshed after validated imports and edits.
     pub(super) scene_positions: BTreeMap<String, [f32; 2]>,
+    /// Disposable shared controller; neither its clock nor its pose is retained.
+    pub(super) dynamics: dynamics::RuntimeState,
     /// The card for the label set last measured; drawing waits for it.
     pub(super) measured: Option<MeasuredCard>,
     /// How many measurements this session took.
@@ -137,8 +141,16 @@ pub(crate) fn measure_cards(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) -> bool {
     let measuring = measure_cards_inner(ctx);
+    let presented = scene::presented(ctx);
+    let moving = dynamics::frame(ctx, presented);
     scene::refresh_leaf(ctx);
-    measuring
+    measuring || moving
+}
+
+pub(crate) fn pause_hidden_motion(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    dynamics::frame(ctx, false);
 }
 
 fn measure_cards_inner(
@@ -359,6 +371,12 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
             });
             material.snapshot.recipe = finish_draft(draft)?;
             if let Some(presentation) = &previous.presentation {
+                if !presentation.motion_roles.is_empty()
+                    && (previous.dataset != material.dataset
+                        || previous.anchors != material.anchors)
+                {
+                    return Err("Rebinding refused: motion roles belong to different copied source material. Clear motion roles or reset scene presentation before rebinding.".into());
+                }
                 let disclosed_ids: BTreeSet<_> = material
                     .dataset
                     .dataset
@@ -386,6 +404,7 @@ pub(super) fn from_sound(state: &mut DesktopState, key: crate::documents::DocKey
     })();
     match result {
         Ok(material) => {
+            state.composition.recipe.dynamics = dynamics::RuntimeState::default();
             state.composition.recipe.scene_drag = None;
             state.composition.recipe.scene_positions = match material.scene_positions() {
                 Ok(positions) => positions,
@@ -408,6 +427,7 @@ pub(super) fn reopen(state: &mut DesktopState, material: ProjectionRecipeMateria
     state.composition.recipe.scene_drag = None;
     match material.scene_positions() {
         Ok(positions) => {
+            state.composition.recipe.dynamics = dynamics::RuntimeState::default();
             state.composition.recipe.scene_positions = positions;
             state.composition.recipe.history.reset(&material, true);
             state.composition.recipe.material = Some(material);
@@ -442,6 +462,16 @@ fn install_edit(state: &mut DesktopState, candidate: ProjectionRecipeMaterial) {
     let recipe = &mut state.composition.recipe;
     recipe.scene_drag = None;
     if let Some(before) = recipe.material.as_ref() {
+        if before.snapshot.recipe != candidate.snapshot.recipe
+            || before.presentation.as_ref().and_then(|p| p.placement_trace.as_ref())
+                != candidate.presentation.as_ref().and_then(|p| p.placement_trace.as_ref())
+            || before.presentation.as_ref().map(|p| &p.motion_roles)
+                != candidate.presentation.as_ref().map(|p| &p.motion_roles)
+            || before.dataset != candidate.dataset
+            || before.anchors != candidate.anchors
+        {
+            recipe.dynamics = dynamics::RuntimeState::default();
+        }
         recipe.history.record(before, &candidate);
     }
     recipe.material = Some(candidate);
@@ -493,6 +523,7 @@ fn step_history(state: &mut DesktopState, redo: bool) {
     };
     match result {
         Ok(Some(material)) => {
+            recipe.dynamics = dynamics::RuntimeState::default();
             recipe.scene_positions = match material.scene_positions() {
                 Ok(positions) => positions,
                 Err(error) => {
@@ -805,6 +836,9 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                 state.composition.recipe.placement_controls_expanded,
                 state.composition.recipe.scene_drag.as_ref(),
                 &state.composition.recipe.scene_positions,
+                state.composition.recipe.dynamics.positions(),
+                dynamics::controls(state),
+                state.composition.recipe.motion_controls_expanded,
             ),
             el(
                 "div",

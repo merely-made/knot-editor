@@ -742,11 +742,60 @@ G4b1 has landed upstream: the canvas owns `DynamicsSpec`, saved scenes use v4,
 and compositions run on reopen. The older October 8 statement that all G4b was
 waiting is historical. G4b2 picker/runner work and its owner queue remain
 separate. Knot's compact `GraphCanvasSwatch` supplies placement, interaction,
-and paint; it has no `DynamicsSpec` binding. This slice adopts shared scene
-records, not a Knot-private solver. A later live-dynamics host adoption must
-route the shared binding, disclose channels/refusals, and qualify runtime and
-reopen separately. Foreground/background attention, position overrides, motion
-pins/anchors, and Forme layout locks are distinct concepts.
+and paint. The authored-placement slice adopted shared scene records without
+a live binding. The following continuation now adds that binding using the
+shared engine, not a Knot-private solver. Foreground/background attention,
+position overrides, motion pins/anchors, and Forme layout locks remain distinct.
+
+### Shared live-dynamics host continuation (2026-10-11)
+
+Status: implemented; consumer automated and native qualification in progress.
+Mere's published `3a8f38130ba846eb25717c46bd05d12af18bdce8` adds
+`ProjectionDynamics::new_relationship`, carrying the exact compiled occurrence
+mapping, disclosed relationship endpoint pairs, and separate occurrence-role
+overrides into the existing disposable fixed-step controller. The topology is
+private simulation input: it creates no kernel assertions, document mutations,
+or source-acquisition authority. The legacy relation-free constructor retains
+its refusal behavior. This commit preserves the coordinator's preceding Mere
+adoption of Knot's already-qualified `19b9904` milestone.
+
+Knot opts in through shared spring or charge recipes, with shared Seeded,
+Anchored, and Pinned roles keyed by copied occurrence ID. Repeated occurrences
+of one source are not deduplicated. The existing opaque `DynamicsSlot` retains
+its original canonical specification; nonempty occurrence-role maps require
+host presentation v4. Empty maps are omitted, preserving historical v1/v2/v3
+serialization. Retain creates an explicit immutable signed/encrypted version in
+Knot's own mere. Named channels, groups, and unsupported body/scene forms remain
+binding refusals, not permission to drop portable input declarations.
+
+Playback uses the shared runner once per eligible host frame. Start/Resume,
+Pause, Step once, and Restart are explicit session actions. Runtime ticks,
+controller handles, and transient poses never enter `SceneTrace`, undo history,
+retention, or source facts. Fresh reopen always starts paused at the authored
+pose, without a runtime controller. Static category filters and foreground
+emphasis change paint, not physics participation: every compiled occurrence
+and disclosed relationship participates. Hidden/unmounted/out-of-viewport
+scenes and Theme Workshop pause without automatic resume. A native surface's
+failed presentation also freezes playback on the next frame.
+
+Motion maps through the original compiled bounds, never its changing runtime
+AABB; positions outside that fixed display plane project to its boundary.
+Active animation refreshes the paint leaf without rebuilding the full semantic
+tree. Canvas placement/activation and motion-recipe/role edits are gated while
+playing. Pause, completion, or refusal reconciles hit targets once. Geometry,
+role, source, or recipe changes discard the disposable controller; visibility,
+camera, and foreground changes preserve its transient pose. Existing authored
+placement gestures remain discrete source-bound edits, not implicit pose baking.
+
+The shared focused adapter gate passes five tests. Its wider canvas library
+gate has one unchanged arrangement-golden failure (401 passed, one failed,
+18 ignored): topic radial weighted focus 0 reports `1455265069374486353` rather
+than `12098838834426755199`. The exact untouched `8f61cfe52` baseline and the
+rebased adapter reproduce those same values. The golden was not updated.
+Consumer build, runtime tests, reviewed native captures, fresh-process reopen,
+and publication remain separate gates; this statement does not imply personal
+custody, other-platform, inferred ambient-content, or universal dynamics-editor
+acceptance.
 
 ## Qualification
 

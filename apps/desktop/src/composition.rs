@@ -26,6 +26,7 @@ use std::{
 mod recipe;
 
 pub(crate) use recipe::measure_cards as measure_recipe_cards;
+pub(crate) use recipe::pause_hidden_motion;
 
 #[derive(Clone)]
 pub(crate) struct SelectionSnapshot {
@@ -414,6 +415,45 @@ impl CompositionState {
             hash.update(&position[1].to_bits().to_le_bytes());
         }
         hash.finalize().to_hex().to_string()
+    }
+
+    /// Runtime facts never include source text, labels, or mutable authority.
+    pub(crate) fn motion_scenario_fields(&self) -> std::collections::BTreeMap<String, String> {
+        let runtime = &self.recipe.dynamics;
+        let material = self.recipe.material.as_ref();
+        let mut hash = blake3::Hasher::new();
+        for (id, position) in runtime.positions() {
+            hash.update(&(id.len() as u64).to_le_bytes());
+            hash.update(id.as_bytes());
+            for value in position {
+                hash.update(&value.to_bits().to_le_bytes());
+            }
+        }
+        [
+            ("scene_motion_running", runtime.running().to_string()),
+            ("scene_motion_ticks", runtime.ticks().to_string()),
+            (
+                "scene_motion_positions",
+                runtime.positions().len().to_string(),
+            ),
+            ("scene_motion_digest", hash.finalize().to_hex().to_string()),
+            (
+                "scene_motion_roles",
+                material
+                    .and_then(|m| m.presentation.as_ref())
+                    .map_or(0, |p| p.motion_roles.len())
+                    .to_string(),
+            ),
+            (
+                "scene_motion_slot",
+                material
+                    .is_some_and(|m| m.snapshot.recipe.definition.dynamics.is_some())
+                    .to_string(),
+            ),
+        ]
+        .into_iter()
+        .map(|(key, value)| (key.to_owned(), value))
+        .collect()
     }
 }
 
@@ -1907,6 +1947,56 @@ mod tests {
             state.composition.notice
         );
         state
+    }
+
+    #[test]
+    fn shared_motion_is_transient_and_hide_freezes_without_auto_resume() {
+        let mut state = recipe_state("night night light", 0, 17);
+        let mut retained = state.composition.recipe.material.clone().unwrap();
+        retained.snapshot.recipe.definition.dynamics = Some(
+            pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap(),
+        );
+        retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
+            overview_visible: true,
+            ..Default::default()
+        });
+        recipe::reopen(&mut state, retained.clone());
+        let mut host = recipe_harness(state);
+        host.layout_at(1100.0, 2000.0);
+        frame(&mut host);
+        frame(&mut host);
+        let click = |host: &mut RecipeHost, label: &str| {
+            assert!(host.click_on(&Selector::role("button").containing(label)), "{label}");
+            host.after_dispatch();
+        };
+        click(&mut host, "Start scene motion");
+        assert!(host.state().composition.recipe.dynamics.running());
+        for _ in 0..12 { frame(&mut host); }
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 12);
+        assert_eq!(host.state().composition.recipe.material.as_ref(), Some(&retained));
+        assert!(!host.state().composition.recipe.history.is_dirty());
+        click(&mut host, "Show scene placement controls");
+        click(&mut host, "Move selected occurrence left");
+        assert_eq!(host.state().composition.recipe.material.as_ref(), Some(&retained));
+        click(&mut host, "Pause scene motion");
+        let poses = host.state().composition.recipe.dynamics.positions().clone();
+        let ticks = host.state().composition.recipe.dynamics.ticks();
+        for _ in 0..3 { frame(&mut host); }
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), ticks);
+        assert_eq!(host.state().composition.recipe.dynamics.positions(), &poses);
+        click(&mut host, "Resume scene motion");
+        click(&mut host, "Hide relationship scene");
+        frame(&mut host);
+        assert!(!host.state().composition.recipe.dynamics.running());
+        let hidden_ticks = host.state().composition.recipe.dynamics.ticks();
+        let hidden_poses = host.state().composition.recipe.dynamics.positions().clone();
+        click(&mut host, "Show relationship scene");
+        frame(&mut host);
+        assert!(!host.state().composition.recipe.dynamics.running());
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), hidden_ticks);
+        assert_eq!(host.state().composition.recipe.dynamics.positions(), &hidden_poses);
+        assert_eq!(host.state().document().snapshot().text, "night night light");
+        assert!(!host.state().document().snapshot().dirty);
     }
 
     #[test]

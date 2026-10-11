@@ -142,6 +142,88 @@ fn positions(
 }
 
 impl ProjectionRecipeMaterial {
+    /// Explicitly keep the complete displayed pose of this exact copied scene.
+    /// Hidden background occurrences still belong to the pose. Individual
+    /// pointer edits retain their separate visibility guard below. Every trace
+    /// addition succeeds together or this material remains unchanged; the host
+    /// records the complete candidate as one undoable edit.
+    pub fn capture_scene_positions(
+        &mut self,
+        pose: &BTreeMap<String, [f32; 2]>,
+    ) -> Result<bool, CollectionError> {
+        self.validate()?;
+        let (base, mapping) = canonical(self)?;
+        if pose.len() != mapping.len()
+            || pose.keys().any(|id| !mapping.contains_key(id))
+            || !self
+                .presentation
+                .as_ref()
+                .is_some_and(|p| p.overview_visible)
+        {
+            return Err(invalid(
+                "preview pose must cover the exact active occurrence scene",
+            ));
+        }
+        if pose
+            .values()
+            .flatten()
+            .any(|value| !value.is_finite() || !(0.0..=1.0).contains(value))
+        {
+            return Err(invalid(
+                "recipe scene placement must be finite and within normalized bounds",
+            ));
+        }
+        let presentation = self.presentation.as_ref().expect("active scene");
+        let mut trace = match &presentation.placement_trace {
+            Some(trace) => trace.clone(),
+            None => SceneTrace::new(base)
+                .map_err(|error| invalid(format!("invalid scene placement trace: {error:?}")))?,
+        };
+        let authored = positions(self, &trace)?;
+        let updates: Vec<_> = pose
+            .iter()
+            .filter(|(id, position)| authored.get(*id) != Some(*position))
+            .collect();
+        if updates.is_empty() {
+            return Ok(false);
+        }
+        if trace.len() + updates.len() > MAX_STEPS {
+            return Err(invalid("too many recipe scene placement steps"));
+        }
+        for (id, position) in updates {
+            let index = mapping[id];
+            let head = trace.head();
+            let mut value = head
+                .active_item(index)
+                .expect("canonical occurrence")
+                .clone();
+            value.transform.translate = Vec2::new(position[0], position[1]);
+            let revision = head
+                .revision
+                .0
+                .checked_add(1)
+                .ok_or_else(|| invalid("scene placement revision overflow"))?;
+            trace = trace
+                .appended(TraceStep::diff(
+                    "Keep placement",
+                    SceneDiff {
+                        epoch: head.epoch,
+                        base: head.revision,
+                        revision: Revision(revision),
+                        operations: vec![SceneOp::UpdateItem { index, value }],
+                    },
+                ))
+                .map_err(|error| invalid(format!("scene placement refused: {error:?}")))?;
+        }
+        let mut candidate = self.clone();
+        let presentation = candidate.presentation.as_mut().expect("active scene");
+        presentation.placement_trace = Some(trace);
+        presentation.refresh_version();
+        candidate.validate()?;
+        *self = candidate;
+        Ok(true)
+    }
+
     /// Return only authored overrides. Untouched occurrences continue using
     /// the current shared compiler's measured placement.
     pub fn scene_positions(&self) -> Result<BTreeMap<String, [f32; 2]>, CollectionError> {

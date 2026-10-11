@@ -1,0 +1,20 @@
+# Substitute KEPT_ITEM_ID from the marked fixture's read-only inspection.
+# Fresh-process reopen restores that exact immutable version, never a controller.
+settle 120
+assert snap document == essay.djot
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 3 retained items
+click role:button @data-item-id=KEPT_ITEM_ID
+assert snap recipe_edits_retained == true
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+assert snap scene_motion_positions == 0
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_running == false
+assert snap scene_motion_roles == 1
+assert snap scene_motion_slot == true
+assert snap dirty == false
+capture placement-kept-reopened

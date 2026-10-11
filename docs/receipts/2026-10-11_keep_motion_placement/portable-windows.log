@@ -1,0 +1,34 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261011#d8acabc9)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling knot-composition v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\crates\knot-composition)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 15.45s
+     Running tests\recipes.rs (C:\t\cargo-targets\knot-editor\debug\deps\recipes-6d6b6ea47f686522.exe)
+
+running 21 tests
+test presentation_v1_without_background_categories_remains_byte_identical ... ok
+test presentation_v2_bytes_stay_identical_without_placement_trace ... ok
+test presentation_v1_refuses_nonempty_background_categories ... ok
+test presentation_v2_allows_an_empty_background_category_set ... ok
+test legacy_recipe_without_scene_presentation_remains_valid_and_omitted ... ok
+test presentation_v2_roundtrips_exact_disclosed_background_categories ... ok
+test scene_presentation_roundtrips_with_disclosed_occurrences ... ok
+test motion_roles_reject_unknown_ids_invalid_versions_and_empty_v4 ... ok
+test placement_trace_refuses_shared_scene_edits_outside_occurrence_translation ... ok
+test motion_roles_roundtrip_by_disclosed_occurrence_and_keep_repeated_sources_distinct ... ok
+test presentation_rejects_invalid_background_categories ... ok
+test authored_positions_survive_recipe_edits_but_refuse_rebound_source_anchors ... ok
+test validation_outcome_does_not_depend_on_card_size ... ok
+test scene_placement_refusal_preserves_exact_material ... ok
+test scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values ... ok
+test authored_occurrences_keep_distinct_positions_when_they_share_a_source ... ok
+test a_complete_preview_pose_keeps_hidden_occurrences_and_preserves_roles_and_source ... ok
+test authored_positions_roundtrip_in_shared_trace_and_keep_zero_as_an_override ... ok
+test placement_trace_refuses_nonfinite_items_annotations_and_excess_steps ... ok
+test typed_recipe_roundtrips_and_rejects_invalid_associations_and_anchors ... ok
+test a_preview_pose_is_atomic_for_missing_foreign_nonfinite_and_exhausted_trace_input ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.76s
+

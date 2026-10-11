@@ -1343,6 +1343,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                                     recipe::reopen(state, saved.clone())
                                 },
                             )
+                            .attr("data-item-id", item.id.clone())
                         }),
                         button("Return to source", move |state: &mut DesktopState, _| {
                             let Some(anchor) = anchor.as_ref() else {

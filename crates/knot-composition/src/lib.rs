@@ -22,6 +22,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 pub mod retention;
+pub mod selected_export;
 pub mod wordnet_import;
 
 pub const STORE_VERSION: u32 = 1;

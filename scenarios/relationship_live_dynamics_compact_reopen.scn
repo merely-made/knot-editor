@@ -1,0 +1,40 @@
+# Run with the compact viewport. The scenario runner scrolls targets into view;
+# this checks both authoring and session controls remain reachable after reopen.
+settle 120
+assert snap document == essay.djot
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=view.readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 2 retained items
+click role:button Open retained relationship recipe
+assert snap recipe_edits_retained == true
+assert snap scene_motion_slot == true
+assert snap scene_motion_roles == 1
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+assert snap dirty == false
+capture relationship-live-dynamics-compact-reopened
+click role:button Show scene motion authoring controls
+assert text Set selected motion role: Pinned
+capture scene-motion-authoring-compact
+click role:button Hide scene motion authoring controls
+click role:button Start scene motion
+capture scene-motion-started-compact
+settle 12
+assert snap scene_motion_running == true
+assert snap scene_motion_ticks >= 1
+assert snap scene_motion_positions >= 1
+capture scene-motion-running-compact
+click role:button Pause scene motion
+assert snap scene_motion_running == false
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+capture scene-motion-paused-compact
+settle 12
+capture scene-motion-paused-stable-compact

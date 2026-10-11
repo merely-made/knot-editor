@@ -1,0 +1,3 @@
+# Preserve Cargo's literal indentation and trailing blank lines in raw receipts.
+# This exception applies only to command logs in this qualification directory.
+*.log -whitespace

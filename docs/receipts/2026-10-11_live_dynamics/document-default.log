@@ -1,0 +1,140 @@
+    Updating git repository `https://github.com/merely-made/mere.git`
+     Locking 14 packages to latest compatible versions
+      Adding cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding command-menu v0.1.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding edit-history v0.1.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding errand v0.4.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding illume v0.0.2 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding inker v0.1.1 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding tinct v0.1.2 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+      Adding workbench v0.1.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling smallvec v1.16.3
+   Compiling syn v3.0.8
+   Compiling percent-encoding v2.3.2
+   Compiling serde_json v1.0.154
+   Compiling uuid v1.28.0
+   Compiling simdutf8 v0.1.5
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling form_urlencoded v1.2.2
+   Compiling parking_lot_core v0.9.12
+   Compiling kurbo v0.13.1
+   Compiling synstructure v0.14.0
+   Compiling serde_derive v1.0.229
+   Compiling zerovec-derive v0.11.6
+   Compiling displaydoc v0.2.7
+   Compiling bytemuck_derive v1.12.1
+   Compiling parking_lot v0.12.5
+   Compiling peniko v0.6.1
+   Compiling thiserror-impl v2.0.21
+   Compiling zerofrom-derive v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling string_cache v0.9.0
+   Compiling bytemuck v1.25.2
+   Compiling serde v1.0.229
+   Compiling web_atoms v0.2.6
+   Compiling zerofrom v0.1.8
+   Compiling thiserror v2.0.21
+   Compiling markup5ever v0.39.0
+   Compiling html5ever v0.39.0
+   Compiling xml5ever v0.39.0
+   Compiling font-types v0.12.6
+   Compiling read-fonts v0.41.0
+   Compiling euclid v0.22.14
+   Compiling app_units v0.7.8
+   Compiling layout-dom-api v0.1.1 (https://github.com/merely-made/genet.git?rev=4bc75583865c2fb862b7acd7fe16dc28eb591042#4bc75583)
+   Compiling encoding_rs v0.8.42
+   Compiling accesskit v0.24.1
+   Compiling sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling command-menu v0.1.0 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling skrifa v0.44.0
+   Compiling genet-static-dom v0.1.1 (https://github.com/merely-made/genet.git?rev=4bc75583865c2fb862b7acd7fe16dc28eb591042#4bc75583)
+   Compiling guillotiere v0.7.0
+   Compiling genet-paint-types v0.2.0 (https://github.com/merely-made/genet.git?rev=4bc75583865c2fb862b7acd7fe16dc28eb591042#4bc75583)
+   Compiling paint_list_api v0.1.2 (https://github.com/merely-made/netrender.git?rev=ef5412d760a978584c8c1801e8a765c51aecd403#ef5412d7)
+   Compiling yoke v0.8.3
+   Compiling engine-observables-api v0.2.0 (https://github.com/merely-made/genet.git?rev=4bc75583865c2fb862b7acd7fe16dc28eb591042#4bc75583)
+   Compiling vello_encoding v0.11.0 (https://github.com/mark-ik/vello.git?rev=5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a#5862bba2)
+   Compiling netrender-vello v0.11.0 (https://github.com/mark-ik/vello.git?rev=5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a#5862bba2)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling zerovec v0.11.8
+   Compiling zerotrie v0.2.5
+   Compiling tinystr v0.8.4
+   Compiling potential_utf v0.1.6
+   Compiling icu_collections v2.3.0
+   Compiling icu_locale_core v2.3.0
+   Compiling icu_provider v2.3.1
+   Compiling icu_properties v2.3.0
+   Compiling icu_normalizer v2.3.0
+   Compiling idna_adapter v1.2.2
+   Compiling idna v1.1.0
+   Compiling url v2.5.8
+   Compiling genet-scripted-dom v0.1.2 (https://github.com/merely-made/genet.git?rev=4bc75583865c2fb862b7acd7fe16dc28eb591042#4bc75583)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f3813)
+   Compiling knot-document v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-document)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 43.07s
+     Running unittests src/lib.rs (target/debug/deps/knot_document-44d6d52d9aa75966)
+
+running 46 tests
+test document_surface::recovery_candidate_tests::candidate_rejects_invalid_selection_without_panicking ... ok
+test document_surface::recovery_candidate_tests::candidate_keeps_exact_utf8_selection_and_has_no_file_target ... ok
+test document_surface::tests::compare_disk_refuses_scratch_and_reports_missing_or_invalid_files_without_mutation ... ok
+test document_surface::tests::outline_snapshot_large_unicode_and_atom_fixture_receipt ... ignored, manual A2 outline performance and parser-limit receipt
+test document_surface::tests::compare_disk_is_unicode_exact_and_does_not_mutate_a_refusal_or_undo ... ok
+test document_surface::tests::outline_snapshot_uses_committed_unicode_source_and_selects_the_heading_span ... ok
+test document_surface::tests::compare_disk_reads_each_external_edit_freshly ... ok
+test document_surface::tests::compare_disk_reports_an_identity_only_replacement ... ok
+test document_surface::tests::outline_selection_rejects_stale_or_forged_ranges_without_changing_session_state ... ok
+test document_surface::tests::external_edit_or_deletion_refuses_save_until_explicit_reload ... ok
+test document_surface::tests::read_only_scratch_is_an_explicit_immutable_projection ... ok
+test document_surface::tests::file_session_round_trips_edit_save_drop_and_reopen ... ok
+test document_surface::tests::byte_identical_replacement_is_still_an_external_change ... ok
+test document_surface::tests::read_only_session_allows_view_local_outline_selection ... ok
+test document_surface::tests::scratch_save_is_an_explicit_typed_refusal ... ok
+test document_view::tests::note_highlighting_is_limited_to_djot_and_legacy_knot ... ok
+test document_surface::tests::long_valid_filename_supports_save_as_then_atomic_save ... ok
+test document_surface::tests::read_only_file_mode_opens_without_atomic_replace_authority ... ok
+test document_view::tests::read_only_posture_has_explicit_visible_labels ... ok
+test document_surface::tests::file_becoming_read_only_after_open_refuses_save_but_allows_save_as ... ok
+test document_surface::tests::read_only_file_refuses_edit_and_save_without_mutating_document_state ... ok
+test document_view::tests::state_uses_the_session_input_as_the_component_buffer ... ok
+test document_view::tests::read_only_view_has_no_editable_textbox_or_save_button ... ok
+test editor::tests::layout_selection_preserves_byte_affinity ... ok
+test document_view::tests::host_owned_status_leaves_the_row_and_save_to_the_host ... ok
+test hard_wrap::tests::blank_lines_separate_paragraphs_and_short_blocks_do_not_count ... ok
+test document_surface::tests::same_path_save_as_keeps_the_external_change_guard ... ok
+test document_surface::tests::save_as_does_not_clobber_an_existing_target_or_convert_scratch ... ok
+test hard_wrap::tests::block_structure_is_excluded ... ok
+test hard_wrap::tests::non_whitespace_latin1_control_characters_return_none ... ok
+test hard_wrap::tests::matching_fences_and_div_closers_exclude_their_contents ... ok
+test hard_wrap::tests::latin1_columns_and_tabs_use_eight_column_stops ... ok
+test hard_wrap::tests::exactly_half_of_prose_lines_is_not_a_majority ... ok
+test hard_wrap::tests::one_oversized_outlier_does_not_expand_the_wrap_column ... ok
+test hard_wrap::tests::ordinary_soft_wrapped_paragraphs_are_not_inferred ... ok
+test editor::tests::djot_cannot_be_relabelled_as_a_native_protocol_file ... ok
+test hard_wrap::tests::repeated_long_prose_continuations_infer_the_longest_column ... ok
+test hard_wrap::tests::short_or_mismatched_fence_closers_do_not_end_a_fence ... ok
+test hard_wrap::tests::oversized_source_returns_none_before_scanning ... ok
+test hard_wrap::tests::wide_or_combining_unicode_returns_none_instead_of_guessing ... ok
+test document_surface::tests::scratch_save_as_creates_a_new_djot_target_and_retains_undo_history ... ok
+test hard_wrap::tests::small_wrapped_passage_does_not_outvote_single_line_paragraphs ... ok
+test editor::tests::committed_commands_write_back_to_the_native_file ... ok
+test editor::tests::scroll_save_preserves_native_source_and_rejects_implicit_conversion ... ok
+test writer::atomic_tests::failed_replacement_leaves_the_old_document_bytes_intact ... ok
+test editor::tests::gemtext_and_micron_save_exact_source_and_refuse_conversion ... ok
+
+test result: ok. 45 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.12s
+
+   Doc-tests knot_document
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

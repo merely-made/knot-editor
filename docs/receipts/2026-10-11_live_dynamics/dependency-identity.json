@@ -1,0 +1,103 @@
+{
+  "schema": "knot.live-dynamics-dependency-identities/v1",
+  "repositories": {
+    "mere": {
+      "sources": [
+        "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      ],
+      "package_count": 64
+    },
+    "genet": {
+      "sources": [
+        "git+https://github.com/merely-made/genet.git?rev=4bc75583865c2fb862b7acd7fe16dc28eb591042#4bc75583865c2fb862b7acd7fe16dc28eb591042"
+      ],
+      "package_count": 23
+    },
+    "dramatis": {
+      "sources": [
+        "git+https://github.com/merely-made/dramatis.git?rev=0234e7eea6f2ddf2330a71b9425da01b06ae0391#0234e7eea6f2ddf2330a71b9425da01b06ae0391"
+      ],
+      "package_count": 4
+    },
+    "netrender": {
+      "sources": [
+        "git+https://github.com/merely-made/netrender.git?rev=ef5412d760a978584c8c1801e8a765c51aecd403#ef5412d760a978584c8c1801e8a765c51aecd403"
+      ],
+      "package_count": 4
+    }
+  },
+  "contracts": {
+    "pictograph": [
+      {
+        "version": "0.2.0",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "seiche": [
+      {
+        "version": "0.0.6",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "sceno": [
+      {
+        "version": "0.0.4",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "scenomise": [
+      {
+        "version": "0.0.4",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "scenograph": [
+      {
+        "version": "0.0.4",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "scenotime": [
+      {
+        "version": "0.0.4",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "cambium": [
+      {
+        "version": "0.3.3",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "cambium-rootstock": [
+      {
+        "version": "0.1.0",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "cambium-genet-winit-host": [
+      {
+        "version": "0.1.0",
+        "source": "git+https://github.com/merely-made/mere.git?rev=3a8f38130ba846eb25717c46bd05d12af18bdce8#3a8f38130ba846eb25717c46bd05d12af18bdce8"
+      }
+    ],
+    "netrender-vello": [
+      {
+        "version": "0.11.0",
+        "source": "git+https://github.com/mark-ik/vello.git?rev=5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a#5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a"
+      }
+    ],
+    "vello_encoding": [
+      {
+        "version": "0.11.0",
+        "source": "git+https://github.com/mark-ik/vello.git?rev=5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a#5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a"
+      }
+    ],
+    "wgpu": [
+      {
+        "version": "30.0.1",
+        "source": "registry+https://github.com/rust-lang/crates.io-index"
+      }
+    ]
+  }
+}

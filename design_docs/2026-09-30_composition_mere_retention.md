@@ -749,7 +749,11 @@ position overrides, motion pins/anchors, and Forme layout locks remain distinct.
 
 ### Shared live-dynamics host continuation (2026-10-11)
 
-Status: implemented; consumer automated and native qualification in progress.
+Status: implemented and qualified for the bounded macOS host slice. See the
+[live-dynamics receipt](../docs/receipts/2026-10-11_live_dynamics/README.md)
+for exact source, dependency identities, automated gates, native captures,
+fresh-process reopen, and preserved failures. Publication remains a separate
+Git operation.
 Mere's published `3a8f38130ba846eb25717c46bd05d12af18bdce8` adds
 `ProjectionDynamics::new_relationship`, carrying the exact compiled occurrence
 mapping, disclosed relationship endpoint pairs, and separate occurrence-role
@@ -795,8 +799,10 @@ gate has one unchanged arrangement-golden failure (401 passed, one failed,
 18 ignored): topic radial weighted focus 0 reports `1455265069374486353` rather
 than `12098838834426755199`. The exact untouched `8f61cfe52` baseline and the
 rebased adapter reproduce those same values. The golden was not updated.
-Consumer build, runtime tests, reviewed native captures, fresh-process reopen,
-and publication remain separate gates; this statement does not imply personal
+Consumer build and runtime gates pass; three native processes and all 15 final
+reviewed captures establish playback/pause, hidden-scene freeze, retained
+authoring state and fresh-process cold runtime at wide and compact viewports.
+These remain separate from publication; this statement does not imply personal
 custody, other-platform, inferred ambient-content, or universal dynamics-editor
 acceptance.
 

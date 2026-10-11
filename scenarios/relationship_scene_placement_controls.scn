@@ -1,0 +1,23 @@
+settle 120
+assert snap document == essay.djot
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 2 retained items
+click role:button Open retained relationship recipe
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap recipe_edits_retained == true
+click role:button Show scene placement controls
+click role:button Move selected occurrence left
+click role:button Move selected occurrence down
+assert snap scene_placement_steps == 4
+assert snap recipe_edits_retained == false
+capture scene-placement-controls-visible
+click role:button Undo recipe edit
+click role:button Undo recipe edit
+assert snap scene_placement_steps == 2
+assert snap recipe_edits_retained == true
+assert snap dirty == false
+capture scene-placement-history-restored

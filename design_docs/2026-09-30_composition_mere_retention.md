@@ -749,11 +749,18 @@ position overrides, motion pins/anchors, and Forme layout locks remain distinct.
 
 ### Shared live-dynamics host continuation (2026-10-11)
 
-Status: implemented and qualified for the bounded macOS host slice. See the
+Status: published and qualified for the bounded macOS host slice. See the
 [live-dynamics receipt](../docs/receipts/2026-10-11_live_dynamics/README.md)
 for exact source, dependency identities, automated gates, native captures,
 fresh-process reopen, and preserved failures. Publication remains a separate
 Git operation.
+The [Windows consumer review](../docs/receipts/2026-10-11_relationship_consumer_review/README.md)
+adds real disclosed-edge and repeated-occurrence proof, coherent dependency
+identity, and 15 reviewed native captures across seed and fresh-process wide
+and compact reopen. It preserves the published runtime and its session/retained
+state boundary. Its two failed platform-navigation runs remain explicit. This
+is not the original physics coordinator's independent review; Firefox and
+coordinator-owned adoption pins remain open, with F199's broader pause intact.
 Mere's published `3a8f38130ba846eb25717c46bd05d12af18bdce8` adds
 `ProjectionDynamics::new_relationship`, carrying the exact compiled occurrence
 mapping, disclosed relationship endpoint pairs, and separate occurrence-role

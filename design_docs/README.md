@@ -13,8 +13,9 @@ relationships, with foreground protection and session-only category disclosure;
 its qualification is recorded in the same composition plan.
 The October 8 shared editorial slice adopts the declared arrangement controls
 and bounded session undo on a coherent newer dependency family. G2 channels and
-the G4a portable specification have now landed; G4b execution binding remains
-separate from Knot's static scene. The initial `aa8a59d9` qualification and its
+the G4a portable specification have now landed. Knot's subsequent shared
+live-dynamics binding and its macOS/Windows consumer receipts are recorded
+below. The initial `aa8a59d9` qualification and its
 layout-cost hold are preserved. The authorized Genet boundary-lookup repair is
 now adopted through published Mere `227062a92` / Genet `15713014` on committed
 Knot runtime `ec46d0a`: 616 workspace checks with nothing filtered, standalone
@@ -31,7 +32,8 @@ visual residuals; it does not infer live dynamics or release acceptance.
 
 - [Composition readings](2026-09-30_knot_composition_readings.md): opt-in lexical source registry, Mora sound layers, durable collected material, offline WordNet conversion and the backend-neutral reading seam; implementation and acceptance limits are explicit.
 
-- [Authored occurrence placement continuation (October 11)](2026-09-30_composition_mere_retention.md#authored-occurrence-placement-continuation-2026-10-11): shared SceneTrace positions, host-owned drag/keyboard/history, encrypted retention, and compact wrapped occurrence controls on the frozen Mere `0e78fcff` family. [Consumer receipt](../docs/receipts/2026-10-11_authored_scene/README.md): 647 workspace tests and 28 reviewed macOS captures including wide/compact fresh-process reopen. Live dynamics, inferred ambient neighborhoods, personal-custody native acceptance, and unattended background presentation are separate gates.
+- [Authored occurrence placement continuation (October 11)](2026-09-30_composition_mere_retention.md#authored-occurrence-placement-continuation-2026-10-11): shared SceneTrace positions, host-owned drag/keyboard/history, encrypted retention, and compact wrapped occurrence controls on the frozen Mere `0e78fcff` family. [Consumer receipt](../docs/receipts/2026-10-11_authored_scene/README.md): 647 workspace tests and 28 reviewed macOS captures including wide/compact fresh-process reopen. The later live-dynamics qualification is separate below; inferred ambient neighborhoods, personal-custody native acceptance and unattended background presentation remain open.
+- [Shared live dynamics and Windows consumer review (October 11)](2026-09-30_composition_mere_retention.md#shared-live-dynamics-host-continuation-2026-10-11): production `ProjectionDynamics::new_relationship` binding, separate occurrence roles, shared schedule and session controls, with explicit authored/runtime retention boundaries. [macOS receipt](../docs/receipts/2026-10-11_live_dynamics/README.md): 662 workspace tests and 15 reviewed captures. [Windows review](../docs/receipts/2026-10-11_relationship_consumer_review/README.md): real disclosed-edge negative control and 15 reviewed captures including wide/compact fresh-process reopen. Firefox, independent physics review and coordinator-owned adoption remain separate; the shared baseline golden failure and platform visual residuals are preserved.
 - [Predicates, inference readings, scripted readings](2026-09-15_knot_predicates_inference_scripting_plan.md): predicate identity mapping before the first authored relation persists; esp graduation from the lexical provider to embeddings, related-passage readings and suggestions; a rhai reading lane over typed snapshots. All readings, no new authority.
 
 - [Design pass](2026-09-23_knot_design_pass.md): the rulings on the brief's seven layout questions (title-bar menus over one command list, a status bar of authority chips, readings and the navigator as Workbench tiles, readings typed by kind, site tiles, the type and measure rules, measure-keeping collapse), the three arrangement frames, the stylesheet proposal, confirmed layout defects, and a proposed slice order.

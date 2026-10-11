@@ -1,0 +1,3 @@
+# Keep literal Cargo logs and capture-pairing receipts.
+*.log -text -whitespace
+*.done -text -whitespace

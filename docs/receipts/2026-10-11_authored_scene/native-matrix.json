@@ -1,0 +1,23 @@
+{
+  "schema": "knot.authored-scene-native/v1",
+  "runtime_commit": "a5d817777297ad62c5b65ebcdac77ba034bbbdf2",
+  "controls_scenario_commit": "509f1bc",
+  "evidence_root": "/Users/markik/Code/testing/knot-editor/authored-scene-20261011.w0Cma1",
+  "binary_sha256": "511b96d40bfb37222cf16a3f7aa9f53bb4e615e7a70ce33904881b5fd4255033",
+  "retained_positions_blake3": "85859bb97d0d638a40da41da176ee56c50ef96ac41493df819da6fd96edd5824",
+  "source_bytes": 41,
+  "source_sha256": "8155c926a5f084c721cdeb968c909b45b74bb4b76f24666b38b9a51d008b0a08",
+  "captures_reviewed": 28,
+  "runs": [
+    {"directory":"wide-seed-foreground","success":true,"width":1100,"height":900,"captures":6,"presented_frames":286,"scenario_sha256":"cfef63a40e779f40f7afc89536b5d7d2e9ed6c394569b60a7a5b91cfa0fe7eb7","receipt_sha256":"1847720df0825e14e7fc090daca8505ffc1ff13a334af619b0023db08ea9c141"},
+    {"directory":"wide-reopen","success":true,"width":1100,"height":900,"captures":6,"presented_frames":221,"scenario_sha256":"98df695c32d0b726d170027322c09f77cebd9be2fd926d3074066f4608972aa2","receipt_sha256":"b3f4d705bba95c901d00ed6576095703dfe698aa9c8a6ebd0dfbfe296c39822a"},
+    {"directory":"compact-seed","success":true,"width":420,"height":900,"captures":6,"presented_frames":290,"scenario_sha256":"0e4a392202e4297873e9bfddc9ba9b33164253dfb29454607a869d2ea7a4f0ea","receipt_sha256":"c7e7e76a2ef501a0a47acf9e7be8b2da722c1b78f518eea8eccedae030c48210"},
+    {"directory":"compact-reopen","success":true,"width":420,"height":900,"captures":6,"presented_frames":223,"scenario_sha256":"6a6b7579746c75d83d43f04e2553a9bde8e2c4d437a623554b844bf7424da83f","receipt_sha256":"5ed707e6b36d359654104830d423cbc8ab945a28a595b322a6454715ada93d5d"},
+    {"directory":"wide-controls","success":true,"width":1100,"height":900,"captures":2,"presented_frames":177,"scenario_sha256":"85a9d23fb46014535eb91ed56768eea4d59f7e49efc85028a202d4d4dc81d07d","receipt_sha256":"9da116a280c9d715979b9d377ad10734dbde8e343ecba51d173ca4a57f237df2"},
+    {"directory":"compact-controls","success":true,"width":420,"height":900,"captures":2,"presented_frames":179,"scenario_sha256":"038402d04d294cf92936261722e064ddee49b8977b251b90bcdaf83742e0abae","receipt_sha256":"b9067cb943be320a1169287c2ad3e87a1f5eca3bc6c9012074a4e2ae523e5490"}
+  ],
+  "preserved_failure": {"directory":"wide-seed","success":false,"captures":0,"presented_frames":0,"unpresented_redraws":1385,"reason":"macOS occlusion; shared 10000 ms presentation stall deadline"},
+  "personal_custody": false,
+  "live_dynamics": false,
+  "unattended_background_presentation": false
+}

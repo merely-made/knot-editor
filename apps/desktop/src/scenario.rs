@@ -45,7 +45,10 @@ impl mesquite::Product for KnotLane {
             run: self.capture_run.clone()?,
             observe: Box::new(|ctx, _frame| {
                 let state = ctx.runner.state();
-                let fields = capture_fields(state);
+                let mut fields = capture_fields(state);
+                let (painted, visible) = crate::composition::motion_viewport_geometry(ctx);
+                fields.insert("scene_motion_canvas_painted".into(), serde_json::json!(painted).to_string());
+                fields.insert("scene_motion_canvas_visible".into(), serde_json::json!(visible).to_string());
                 let graph = state.graph_capture_facts()?;
                 let graph_visible = graph_is_presented(state);
                 Ok(mesquite::CaptureProjection {

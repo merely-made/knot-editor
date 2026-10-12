@@ -27,6 +27,7 @@ mod recipe;
 
 pub(crate) use recipe::measure_cards as measure_recipe_cards;
 pub(crate) use recipe::pause_hidden_motion;
+pub(crate) use recipe::{motion_viewport_geometry, reveal_motion_preview};
 
 #[derive(Clone)]
 pub(crate) struct SelectionSnapshot {
@@ -1878,6 +1879,7 @@ mod tests {
     fn recipe_harness(state: DesktopState) -> RecipeHost {
         let mut hooks = cambium_genet_winit_host::inert_hooks();
         hooks.frame = Box::new(super::measure_recipe_cards);
+        hooks.after_dispatch = Box::new(super::reveal_motion_preview);
         let mut host = Harness::with_hooks(
             cambium_genet_winit_host::Init {
                 state,
@@ -1998,6 +2000,101 @@ mod tests {
         assert_eq!(host.state().composition.recipe.dynamics.positions(), &hidden_poses);
         assert_eq!(host.state().document().snapshot().text, "night night light");
         assert!(!host.state().document().snapshot().dirty);
+    }
+
+    #[test]
+    fn motion_preview_stays_visible_with_its_controls_at_compact_panel_widths() {
+        let fully_visible = |painted: (f32, f32, f32, f32), visible: Option<(f32, f32, f32, f32)>| {
+            visible.is_some_and(|rect| {
+                (rect.0 - painted.0).abs() < 1.0
+                    && (rect.1 - painted.1).abs() < 1.0
+                    && (rect.2 - painted.2).abs() < 1.0
+                    && (rect.3 - painted.3).abs() < 1.0
+            })
+        };
+        // The desktop sheet contributes 12px on either side. At 256px the
+        // scene gets the compact drawer's 232px content width.
+        for width in [256.0, 260.0, 380.0] {
+            let mut state = recipe_state("night night light", 0, 17);
+            let mut retained = state.composition.recipe.material.clone().unwrap();
+            retained.snapshot.recipe.definition.dynamics =
+                Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+            retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
+                overview_visible: true,
+                ..Default::default()
+            });
+            recipe::reopen(&mut state, retained.clone());
+            let mut host = recipe_harness(state);
+            host.layout_at(width, 600.0);
+            frame(&mut host);
+            frame(&mut host);
+            assert!(host.click_on(&Selector::role("button").containing("Start scene motion")));
+            host.after_dispatch();
+            host.relayout();
+            let canvases =
+                host.with_dom(|dom| taproot::matching(dom, &Selector::class("graph-canvas-swatch")));
+            assert_eq!(canvases.len(), 1);
+            let viewport = canvases[0];
+            let painted = host.painted_rect(viewport).unwrap();
+            let visible = host.visible_rect(viewport);
+            assert!((painted.2 - 222.0).abs() < 1.0, "the 220px camera plus border must not shrink");
+            assert!((painted.3 - 202.0).abs() < 1.0);
+            assert!(
+                fully_visible(painted, visible),
+                "{width}px panel clips the motion preview: painted={painted:?}, visible={visible:?}"
+            );
+            for label in [
+                "Resume scene motion",
+                "Pause scene motion",
+                "Keep placement",
+            ] {
+                let nodes = host.with_dom(|dom| {
+                    taproot::matching(dom, &Selector::role("button").containing(label))
+                });
+                assert_eq!(nodes.len(), 1, "{label}");
+                let painted = host.painted_rect(nodes[0]).unwrap();
+                let visible = host.visible_rect(nodes[0]);
+                assert!(
+                    fully_visible(painted, visible),
+                    "{width}px panel clips {label}: painted={painted:?}, visible={visible:?}"
+                );
+            }
+            println!(
+                "preview_geometry width={width} canvas={painted:?} visible={visible:?} primary_actions=fully_visible"
+            );
+            for _ in 0..3 {
+                frame(&mut host);
+            }
+            assert!(host.state().composition.recipe.dynamics.ticks() > 0);
+            assert!(host.click_on(&Selector::role("button").containing("Pause scene motion")));
+            host.after_dispatch();
+            let ticks = host.state().composition.recipe.dynamics.ticks();
+            let pose = host.state().composition.recipe.dynamics.positions().clone();
+            for _ in 0..3 {
+                frame(&mut host);
+            }
+            assert_eq!(host.state().composition.recipe.dynamics.ticks(), ticks);
+            assert_eq!(host.state().composition.recipe.dynamics.positions(), &pose);
+            assert!(!host.state().composition.recipe.motion_preview_reveal);
+            assert!(host.click_on(&Selector::role("button").containing("Resume scene motion")));
+            host.after_dispatch();
+            assert!(!host.state().composition.recipe.motion_preview_reveal);
+            host.move_to(1.0, 590.0);
+            host.wheel(0.0, 2000.0);
+            assert!(host.visible_rect(viewport).is_none(), "the user can scroll away from the preview");
+            for _ in 0..3 { frame(&mut host); }
+            assert!(!host.state().composition.recipe.dynamics.running());
+            assert!(host.visible_rect(viewport).is_none(), "a consumed reveal must not pull the view back");
+            assert_eq!(host.state().composition.recipe.dynamics.ticks(), ticks);
+            assert_eq!(host.state().composition.recipe.dynamics.positions(), &pose);
+            assert_eq!(
+                host.state().composition.recipe.material.as_ref(),
+                Some(&retained)
+            );
+            assert!(!host.state().composition.recipe.history.is_dirty());
+            assert_eq!(host.state().document().snapshot().text, "night night light");
+            assert!(!host.state().document().snapshot().dirty);
+        }
     }
 
     #[test]

@@ -83,6 +83,8 @@ pub(super) struct RecipeState {
     pub(super) scene_drag: Option<scene::SceneDrag>,
     pub(super) placement_controls_expanded: bool,
     pub(super) motion_controls_expanded: bool,
+    /// One playback action requests a host reveal; ordinary scrolling stays free.
+    pub(super) motion_preview_reveal: bool,
     /// Read-only projection refreshed after validated imports and edits.
     pub(super) scene_positions: BTreeMap<String, [f32; 2]>,
     /// Disposable shared controller; neither its clock nor its pose is retained.
@@ -151,6 +153,18 @@ pub(crate) fn pause_hidden_motion(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
     dynamics::frame(ctx, false);
+}
+
+pub(crate) fn reveal_motion_preview(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    scene::reveal_preview(ctx);
+}
+
+pub(crate) fn motion_viewport_geometry(
+    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> (Option<(f32, f32, f32, f32)>, Option<(f32, f32, f32, f32)>) {
+    scene::viewport_geometry(ctx)
 }
 
 fn measure_cards_inner(

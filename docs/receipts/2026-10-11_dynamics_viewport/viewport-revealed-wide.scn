@@ -1,0 +1,43 @@
+# Substitute 88e3639f-789f-41c8-bb46-d1cd43ff72b5 from the marked fixture's read-only inspection.
+# This fixture already has the note, original recipe and earlier kept version.
+settle 120
+assert snap document == essay.djot
+assert snap dirty == false
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 3 retained items
+click role:button @data-item-id=88e3639f-789f-41c8-bb46-d1cd43ff72b5
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_ticks == 0
+capture viewport-authored
+click role:button Start scene motion
+capture viewport-started
+settle 12
+assert snap scene_motion_running == true
+assert snap scene_motion_ticks >= 1
+capture viewport-running
+click role:button Pause scene motion
+assert snap scene_motion_running == false
+capture viewport-paused
+settle 12
+capture viewport-paused-stable
+click role:button Keep placement
+assert snap scene_motion_positions == 0
+assert snap scene_motion_ticks == 0
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+capture viewport-kept
+click role:button Undo recipe edit
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+capture viewport-undone
+click role:button Redo recipe edit
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+assert snap scene_motion_roles == 1
+assert snap scene_motion_slot == true
+assert snap dirty == false
+capture viewport-redone

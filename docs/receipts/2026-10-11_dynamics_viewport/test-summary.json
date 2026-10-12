@@ -1,0 +1,10 @@
+{
+  "passed": 80,
+  "failed": 0,
+  "ignored": 0,
+  "filtered": 238,
+  "command": "cargo test --locked -p knot-desktop --lib composition:: -j 2 -- --test-threads=4 --nocapture",
+  "composition_log_sha256": "0e63ce13f537935059b83b215ede5aae4d6af0b312275638b5fc3c1771ae8719",
+  "source_patch_sha256": "956799df9c381a14a78119d562aeb76135169dc5b106daeccfe2e193cb8729e9",
+  "native_captures": 16
+}

@@ -1,0 +1,117 @@
+diff --git a/apps/desktop/src/composition/recipe/dynamics.rs b/apps/desktop/src/composition/recipe/dynamics.rs
+index f889426..6d8ee2f 100644
+--- a/apps/desktop/src/composition/recipe/dynamics.rs
++++ b/apps/desktop/src/composition/recipe/dynamics.rs
+@@ -352,7 +352,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+         el(
+             "div",
+             (
+-                button(start_label, move |state: &mut DesktopState, _| {
++                button("Play", move |state: &mut DesktopState, _| {
+                     if state.composition.recipe.dynamics.running() {
+                         return;
+                     }
+@@ -371,21 +371,26 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                         state.composition.notice = Some(error);
+                     }
+                 })
++                .attr("aria-label", start_label)
++                .attr("class", "knot-recipe-dynamics-primary")
+                 .attr("aria-disabled", (!enabled || running).to_string()),
+-                button("Pause scene motion", |state: &mut DesktopState, _| {
++                button("Pause", |state: &mut DesktopState, _| {
+                     state.composition.recipe.dynamics.pause();
+                 })
++                .attr("aria-label", "Pause scene motion")
++                .attr("class", "knot-recipe-dynamics-primary")
+                 .attr("aria-disabled", (!running).to_string()),
+                 button("Keep placement", |state: &mut DesktopState, _| {
+                     keep_placement(state);
+                 })
++                .attr("class", "knot-recipe-dynamics-keep")
+                 .attr(
+                     "aria-disabled",
+                     (running || state.composition.recipe.dynamics.positions().is_empty())
+                         .to_string(),
+                 ),
+                 button(
+-                    "Step scene motion once",
++                    "Step once",
+                     move |state: &mut DesktopState, _| {
+                         if state.composition.recipe.dynamics.running() {
+                             return;
+@@ -407,9 +412,10 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                         }
+                     },
+                 )
++                .attr("aria-label", "Step scene motion once")
+                 .attr("aria-disabled", (!enabled || running).to_string()),
+                 button(
+-                    "Restart scene motion",
++                    "Restart",
+                     move |state: &mut DesktopState, _| {
+                         state.composition.recipe.scene_drag = None;
+                         let result = state
+@@ -428,6 +434,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                         }
+                     },
+                 )
++                .attr("aria-label", "Restart scene motion")
+                 .attr("aria-disabled", (!enabled).to_string()),
+                 span(if running {
+                     "Shared dynamics running · fixed-step session playback".to_owned()
+diff --git a/apps/desktop/src/composition/recipe/scene.rs b/apps/desktop/src/composition/recipe/scene.rs
+index 4a78673..0ac1303 100644
+--- a/apps/desktop/src/composition/recipe/scene.rs
++++ b/apps/desktop/src/composition/recipe/scene.rs
+@@ -877,6 +877,13 @@ pub(super) fn view(
+         Box::new(el(
+             "div",
+             (
++                el("div", (
++                    el("div", graph_canvas(
++                        &swatch_with_preview(material, compiled, &display, drag),
++                        |state: &mut DesktopState, event| dispatch_canvas(state, event),
++                    )).attr("id", "knot-recipe-motion-viewport"),
++                    motion_controls,
++                )),
+                 span("Authored overview; drag an occurrence or use placement controls. Positions are not motion or attention pins."),
+                 span(format!("Authored scene positions: {}", authored.len()))
+                     .attr("class", "knot-recipe-scene-placement-status"),
+@@ -895,7 +902,7 @@ pub(super) fn view(
+                     },
+                 ).attr("aria-expanded", motion_expanded.to_string()),
+                 motion_expanded.then(|| motion_authoring(material)),
+-                motion_controls,)),
++                )),
+                 el(
+                     "div",
+                     (
+@@ -905,10 +912,6 @@ pub(super) fn view(
+                     ),
+                 )
+                 .attr("class", "knot-recipe-scene-key"),
+-                el("div", graph_canvas(
+-                    &swatch_with_preview(material, compiled, &display, drag),
+-                    |state: &mut DesktopState, event| dispatch_canvas(state, event),
+-                )).attr("id", "knot-recipe-motion-viewport"),
+                 button(
+                     if placement_controls_expanded { "Hide scene placement controls" } else { "Show scene placement controls" },
+                     move |state: &mut DesktopState, _| {
+diff --git a/apps/desktop/src/readings.rs b/apps/desktop/src/readings.rs
+index d778d79..a9b509c 100644
+--- a/apps/desktop/src/readings.rs
++++ b/apps/desktop/src/readings.rs
+@@ -32,6 +32,12 @@ pub const CSS: &str = concat!(
+     ".knot-recipe-scene button.graph-canvas-swatch-node:hover, .knot-recipe-scene button.graph-canvas-swatch-relation:hover { background:transparent; }",
+     ".knot-composition .knot-recipe-scene-camera-row, .knot-composition .knot-recipe-scene-pan-controls { flex-direction:row; flex-wrap:wrap; }",
+     ".knot-recipe-scene-camera-row > button, .knot-recipe-scene-pan-controls > button { flex:1 1 96px; min-width:0; }",
++    // Keep the scene above a compact toolbar; explanations and authoring follow.
++    ".knot-composition .knot-recipe-dynamics-controls { flex-direction:row; flex-wrap:wrap; align-items:stretch; }",
++    ".knot-recipe-dynamics-controls > button { flex:1 1 112px; min-width:0; padding:6px 4px; }",
++    ".knot-recipe-dynamics-controls > .knot-recipe-dynamics-primary { flex:1 1 48px; }",
++    ".knot-recipe-dynamics-controls > .knot-recipe-dynamics-keep { flex:2 1 88px; }",
++    ".knot-recipe-dynamics-controls > span { flex-basis:100%; }",
+     // Match the two authored strata colors in the shared canvas, with text as well.
+     ".knot-recipe-scene-key-foreground { color:#db7a33; }",
+     ".knot-recipe-scene-key-background { color:#476b94; }",

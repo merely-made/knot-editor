@@ -1,0 +1,124 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261011#d8acabc9)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: usage of an `unsafe` block
+   --> crates\knot-document\src\writer.rs:248:20
+    |
+248 |       let replaced = unsafe {
+    |  ____________________^
+249 | |         ReplaceFileW(
+250 | |             target_wide.as_ptr(),
+251 | |             temporary_wide.as_ptr(),
+...   |
+257 | |     };
+    | |_____^
+    |
+    = note: requested on the command line with `-W unsafe-code`
+
+warning: `knot-document` (lib) generated 1 warning
+   Compiling knot-desktop v0.0.1 (C:\Users\mark_\Code\repos\knot-editor\apps\desktop)
+warning: unused variable: `store`
+    --> apps\desktop\src\recovery.rs:1199:13
+     |
+1199 |         let store = store(&temp);
+     |             ^^^^^ help: if this is intentional, prefix it with an underscore: `_store`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-desktop` (lib test) generated 1 warning (run `cargo fix --lib -p knot-desktop --tests` to apply 1 suggestion)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.59s
+     Running unittests src\lib.rs (C:\t\cargo-targets\knot-editor\debug\deps\knot_desktop-ad066a143256a99b.exe)
+
+running 80 tests
+test composition::recipe::dynamics::tests::authored_positions_reject_nonfinite_or_out_of_plane_values ... ok
+test composition::recipe::dynamics::tests::cold_runtime_does_not_advance_and_hidden_motion_stays_paused ... ok
+test composition::recipe::dynamics::tests::fixed_plane_inversion_does_not_follow_moving_scene_bounds ... ok
+test composition::recipe::dynamics::tests::hidden_frame_freezes_real_poses_and_reopening_does_not_resume ... ok
+test composition::recipe::dynamics::tests::frame_advances_one_fixed_tick_without_mutating_retained_material ... ok
+test composition::recipe::dynamics::tests::authored_pinned_center_is_preserved_while_another_occurrence_moves ... ok
+test composition::recipe::dynamics::tests::real_sound_consumer_preserves_occurrences_and_disclosed_edges_change_motion ... ok
+test composition::recipe::dynamics::tests::shared_slot_and_roles_roundtrip_as_durable_material_not_runtime_state ... ok
+test composition::recipe::dynamics::tests::single_step_advances_exactly_once_and_never_starts_continuous_playback ... ok
+test composition::recipe::dynamics::tests::stepping_a_completed_crowded_pinned_run_preserves_its_final_pose ... ok
+test composition::recipe::dynamics::tests::unknown_shared_channel_refuses_atomically_without_partial_controller ... ok
+test composition::recipe::editor::tests::choice_rows_preserve_catalog_choice_order ... ok
+test composition::recipe::editor::tests::editor_rows_come_from_every_bounded_catalog_family ... ok
+test composition::recipe::editor::tests::measured_defaults_use_the_current_card_measure ... ok
+test composition::recipe::editor::tests::shared_declaration_explains_invalid_drafts ... ok
+test composition::recipe::dynamics::tests::bounded_preview_uses_the_shared_frame_schedule_and_preserves_its_slot ... ok
+test composition::recipe::history::tests::invalid_undo_candidate_does_not_advance_history ... ok
+test composition::recipe::history::tests::record_rejects_cross_source_changes_and_steps_reject_rebound_material ... ok
+test composition::recipe::history::tests::category_undo_clears_only_a_relationship_selection_excluded_by_restored_category ... ok
+test composition::recipe::history::tests::selection_only_changes_do_not_create_history_steps ... ok
+test composition::recipe::history::tests::stale_retention_receipt_does_not_mark_newer_material_saved ... ok
+test composition::recipe::history::tests::undo_and_redo_restore_authored_state_but_keep_current_data_and_anchors ... ok
+test composition::recipe::scene::tests::background_category_filter_is_presentation_only_and_keeps_foreground_visible ... ok
+test composition::recipe::scene::tests::camera_actions_stay_finite_and_within_persisted_bounds ... ok
+test composition::recipe::scene::tests::canvas_activation_updates_only_typed_recipe_selection ... ok
+test composition::recipe::scene::tests::category_controls_follow_the_global_recipe_category_filter ... ok
+test composition::recipe::scene::tests::category_and_camera_edits_keep_trace_version_and_positions ... ok
+test composition::recipe::scene::tests::first_enable_seeds_foreground_without_changing_recipe_selection ... ok
+test composition::recipe::scene::tests::drag_previews_then_commits_one_undoable_source_preserving_placement ... ok
+test composition::recipe::scene::tests::foreground_edge_survives_category_and_master_background_hides ... ok
+test composition::recipe::scene::tests::hidden_canvas_targets_are_noops_but_fallback_occurrence_selection_remains_available ... ok
+test composition::recipe::scene::tests::intermediate_drag_event_does_not_change_retained_material ... ok
+test composition::recipe::scene::tests::invalid_background_category_action_preserves_material ... ok
+test composition::recipe::scene::tests::isolated_background_occurrences_keep_legacy_visibility_until_filtered ... ok
+test composition::recipe::scene::tests::overview_preserves_distinct_occurrences_and_hides_background_strata ... ok
+test composition::recipe::scene::tests::reset_clears_presentation_without_changing_source_selection ... ok
+test composition::recipe::scene::tests::stale_hidden_invalid_or_click_only_gestures_cannot_author_placements ... ok
+test composition::recipe::tests::actual_sound_recipe_rebinds_to_woodshed_export_without_borrowing_owner_actions ... ok
+test composition::recipe::tests::altered_occurrence_or_unbound_relation_is_refused ... ok
+test composition::recipe::tests::analysis_revision_tracks_layer_and_pronunciation_choices_not_only_document_bytes ... ok
+test composition::recipe::tests::category_edit_filters_disclosure_and_roundtrips_without_changing_sources ... ok
+test composition::recipe::dynamics::tests::keeping_a_paused_pose_is_one_undoable_edit_and_running_motion_cannot_be_kept ... ok
+test composition::recipe::tests::mere_shared_fields_do_not_invent_a_relationship ... ok
+test composition::recipe::tests::repeated_words_keep_distinct_source_occurrences_and_explained_actual_edges ... ok
+test composition::recipe::tests::shared_compiler_preserves_duplicate_source_identity_and_refuses_missing_semantics ... ok
+test composition::recipe::tests::typed_recipe_roundtrip_keeps_exact_selection_and_spacing ... ok
+test composition::recipe::tests::undisclosed_category_refuses_atomically ... ok
+test composition::recipe::tests::compact_occurrence_controls_keep_full_labels_inside_the_flow_list ... ok
+knot: recipe cards not measured after 3 frames; the scene stays hidden until its labels or the window size change
+cards [("Night · token-2-7", Size2 { w: 125.0, h: 31.0 }), ("light · token-8-13", Size2 { w: 124.0, h: 31.0 }), ("the estuary · token-64-75", Size2 { w: 172.0, h: 31.0 }), ("A considerably longer occurrence label · token-120-161", Size2 { w: 343.0, h: 31.0 })]; the rounded probe width alone fits 2 of 4
+test composition::recipe::tests::a_measured_card_holds_its_label_on_one_line_and_a_narrower_one_wraps ... ok
+knot: recipe cards not measured after 3 frames; the scene stays hidden until its labels or the window size change
+test composition::recipe::dynamics::tests::maximum_occurrence_scene_is_deterministic_and_ticks_only_when_presented ... ok
+test composition::tests::configured_storage_is_lazy_and_first_collection_preserves_reading_state ... ok
+test composition::tests::explicit_recipe_rebind_preserves_arrangement_and_refuses_stale_reading ... ok
+test composition::tests::legacy_import_is_explicit_read_only_and_idempotent ... ok
+test composition::tests::a_recipe_below_its_minimum_shows_its_refusal_and_no_scene ... ok
+test composition::tests::malformed_collection_is_not_reset_or_overwritten ... ok
+test composition::tests::malformed_legacy_import_does_not_write_to_authority_or_reset_source ... ok
+test composition::tests::lexical_selection_from_another_document_is_reported_stale ... ok
+test composition::tests::organization_editor_refuses_changed_destination_and_invalid_order_before_submission ... ok
+test composition::tests::organization_worker_preserves_original_and_filters_archived_and_search ... ok
+knot: recipe cards not measured after 3 frames; the scene stays hidden until its labels or the window size change
+test composition::tests::a_probe_that_measures_nothing_keeps_the_scene_hidden ... ok
+preview_geometry width=256 canvas=(12.0, 285.0, 222.0, 202.0) visible=Some((12.0, 285.0, 222.0, 202.0)) primary_actions=fully_visible
+test composition::tests::recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame ... ok
+test composition::tests::background_category_lenses_preserve_disclosure_and_foreground ... ok
+test composition::tests::refresh_preserves_unconfirmed_request_identity_until_same_id_is_confirmed ... ok
+test composition::tests::registry_install_is_disabled_then_explicit_query_works_and_reopens ... ok
+test composition::tests::relation_targets_exact_sense_and_collection_keeps_pack_provenance ... ok
+test composition::tests::revoked_refresh_hides_cached_items_and_preserves_unconfirmed_retry ... ok
+test composition::tests::same_id_from_another_writer_or_payload_does_not_confirm_pending_request ... ok
+preview_geometry width=260 canvas=(12.0, 285.0, 222.0, 202.0) visible=Some((12.0, 285.0, 222.0, 202.0)) primary_actions=fully_visible
+test composition::tests::scene_camera_disclosure_is_session_only_and_removes_pan_targets ... ok
+test composition::tests::recipe_editor_uses_shared_edits_retains_typed_material_and_reopens_selection ... ok
+test composition::tests::scratch_anchor_return_is_refused_without_selecting_another_document ... ok
+test composition::tests::selected_material_reloads_from_port_without_mutating_source ... ok
+preview_geometry width=380 canvas=(12.0, 301.0, 222.0, 202.0) visible=Some((12.0, 301.0, 222.0, 202.0)) primary_actions=fully_visible
+test composition::tests::scene_rebind_preserves_roles_or_refuses_until_explicit_reset ... ok
+test composition::tests::sound_collection_cannot_cross_to_new_focused_document ... ok
+test composition::tests::sound_requires_source_opt_in_and_layers_are_independent ... ok
+test composition::tests::stale_selection_refuses_sound_collection ... ok
+test composition::tests::stale_worker_generation_cannot_replace_current_collection_or_notice ... ok
+test composition::tests::supplied_authority_still_requires_explicit_destination_selection ... ok
+test composition::tests::motion_preview_stays_visible_with_its_controls_at_compact_panel_widths ... ok
+test composition::tests::shared_motion_is_transient_and_hide_freezes_without_auto_resume ... ok
+test composition::tests::recipe_editor_history_refuses_invalid_edits_and_tracks_exact_retention ... ok
+
+test result: ok. 80 passed; 0 failed; 0 ignored; 0 measured; 238 filtered out; finished in 8.09s
+

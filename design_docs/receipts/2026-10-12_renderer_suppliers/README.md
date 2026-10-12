@@ -1,0 +1,5 @@
+# Coherent renderer supplier adoption
+
+Knot root, desktop Mere contract declarations and standalone knot-document now use Mere 7c2794b30870d3fe602c80309aadb0172ff3bd63, Genet 5fc1836936f2d7ce6d103b8081b537e8bd922c1d, Netrender c74b7cb28090c28b1c6d80b08dcdea18aff48d3e and provider 2eae6243881d5b24c984d5ee35dde509ca5db782. Mere's selected supplier commit is acyclic: selected contract packages do not depend on external Knot. The final Mere consumer repin follows this Knot publication.
+
+Root and standalone engine metadata resolve one Genet/Fleece/LayoutDom and renderer source family. Root knot-editor library and standalone knot-document conversion/preview library compile with Git-only suppliers. Standalone document error evidence records an offline uncached registry dependency refusal; its successful gate used the same registry baseline as the checked root Cargo.lock. The document lock is deliberately ignored, and was not force-added. No application, GPU/native or browser acceptance is claimed by these library checks.

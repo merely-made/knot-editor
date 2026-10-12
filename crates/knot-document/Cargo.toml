@@ -25,20 +25,20 @@ engine = [
 
 [dependencies]
 same-file = "1.0.6"
-cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "3a8f38130ba846eb25717c46bd05d12af18bdce8" }
-mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "3a8f38130ba846eb25717c46bd05d12af18bdce8" }
-illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "3a8f38130ba846eb25717c46bd05d12af18bdce8", optional = true }
-inker = { git = "https://github.com/merely-made/mere.git", rev = "3a8f38130ba846eb25717c46bd05d12af18bdce8", optional = true }
-knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "3a8f38130ba846eb25717c46bd05d12af18bdce8", default-features = false }
-nematic = { git = "https://github.com/merely-made/mere.git", rev = "3a8f38130ba846eb25717c46bd05d12af18bdce8", default-features = false, optional = true }
+cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", rev = "7c2794b30870d3fe602c80309aadb0172ff3bd63" }
+mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "7c2794b30870d3fe602c80309aadb0172ff3bd63" }
+illume = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", rev = "7c2794b30870d3fe602c80309aadb0172ff3bd63", optional = true }
+inker = { git = "https://github.com/merely-made/mere.git", rev = "7c2794b30870d3fe602c80309aadb0172ff3bd63", optional = true }
+knot-editor-host = { git = "https://github.com/merely-made/mere.git", rev = "7c2794b30870d3fe602c80309aadb0172ff3bd63", default-features = false }
+nematic = { git = "https://github.com/merely-made/mere.git", rev = "7c2794b30870d3fe602c80309aadb0172ff3bd63", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
-genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "4bc75583865c2fb862b7acd7fe16dc28eb591042" }
-layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "4bc75583865c2fb862b7acd7fe16dc28eb591042" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "5fc1836936f2d7ce6d103b8081b537e8bd922c1d" }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "5fc1836936f2d7ce6d103b8081b537e8bd922c1d" }
 tempfile = "3"
 
 [lints.rust]
@@ -48,10 +48,12 @@ unsafe_code = "warn"
 all = "warn"
 
 [patch.crates-io]
-netrender-vello = { git = "https://github.com/mark-ik/vello.git", rev = "5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a" }
-vello_encoding = { git = "https://github.com/mark-ik/vello.git", rev = "5862bba26c8a9f56f6a5fdc8ea6966b360a5d63a" }
-layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "4bc75583865c2fb862b7acd7fe16dc28eb591042" }
-genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "4bc75583865c2fb862b7acd7fe16dc28eb591042" }
+vello_shaders = { git = "https://github.com/mark-ik/vello", rev = "2eae6243881d5b24c984d5ee35dde509ca5db782" }
+netrender_device = { git = "https://github.com/merely-made/netrender.git", rev = "c74b7cb28090c28b1c6d80b08dcdea18aff48d3e" }
+netrender-vello = { git = "https://github.com/mark-ik/vello", rev = "2eae6243881d5b24c984d5ee35dde509ca5db782" }
+vello_encoding = { git = "https://github.com/mark-ik/vello", rev = "2eae6243881d5b24c984d5ee35dde509ca5db782" }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", rev = "5fc1836936f2d7ce6d103b8081b537e8bd922c1d" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", rev = "5fc1836936f2d7ce6d103b8081b537e8bd922c1d" }
 # No parley/fontique patch rows: as of genet 5ae30cad the forks are published as
 # `genet-parley` and `genet-fontique`, so nothing in genet answers to the name
 # `parley` and a row keyed on it would match no package and fail resolution.

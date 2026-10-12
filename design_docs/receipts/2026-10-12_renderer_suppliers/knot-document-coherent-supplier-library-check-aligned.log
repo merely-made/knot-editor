@@ -1,0 +1,146 @@
+warning: skipping duplicate package `cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/cambium/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/cambium/cambium/Cargo.toml
+
+warning: skipping duplicate package `illume v0.0.2 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/nematic/illume/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/nematic/illume/Cargo.toml
+
+warning: skipping duplicate package `inker v0.1.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/inker/inker/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/inker/inker/Cargo.toml
+
+warning: skipping duplicate package `mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/surface-api/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/system/surface-api/Cargo.toml
+
+warning: skipping duplicate package `nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/nematic/nematic/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/nematic/nematic/Cargo.toml
+
+warning: skipping duplicate package `meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/meristem/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/cambium/meristem/Cargo.toml
+
+warning: skipping duplicate package `sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/scenes/sceno/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/cambium/scenes/sceno/Cargo.toml
+
+warning: skipping duplicate package `sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/sprigging/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/cambium/sprigging/Cargo.toml
+
+warning: skipping duplicate package `tinct v0.1.2 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/tinct/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/cambium/tinct/Cargo.toml
+
+warning: skipping duplicate package `workbench v0.1.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/workbench/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/cambium/workbench/Cargo.toml
+
+warning: skipping duplicate package `errand v0.4.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/errand/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/7c2794b/crates/system/errand/Cargo.toml
+
+warning: patch `netrender_device v0.1.2 (https://github.com/merely-made/netrender.git?rev=c74b7cb28090c28b1c6d80b08dcdea18aff48d3e#c74b7cb2)` was not used in the crate graph
+warning: patch `vello_shaders v0.11.0 (https://github.com/mark-ik/vello?rev=2eae6243881d5b24c984d5ee35dde509ca5db782#2eae6243)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+    Checking smallvec v1.16.2
+    Checking zerofrom v0.1.8
+   Compiling yoke-derive v0.8.4
+   Compiling num-traits v0.2.19
+   Compiling ring v0.17.14
+    Checking yoke v0.8.3
+   Compiling tokio-macros v2.7.2
+    Checking bytes v1.12.1
+    Checking zerovec v0.11.8
+    Checking zerotrie v0.2.5
+    Checking tinystr v0.8.4
+    Checking potential_utf v0.1.6
+    Checking icu_locale_core v2.3.0
+    Checking icu_collections v2.3.0
+    Checking tokio v1.53.2
+    Checking icu_provider v2.3.1
+    Checking icu_normalizer v2.3.0
+    Checking icu_properties v2.3.0
+    Checking idna_adapter v1.2.2
+    Checking idna v1.1.0
+    Checking url v2.5.8
+    Checking parking_lot_core v0.9.12
+    Checking getrandom v0.2.17
+    Checking zeroize v1.9.1
+    Checking rustls-pki-types v1.15.1
+    Checking parking_lot v0.12.5
+    Checking euclid v0.22.14
+    Checking string_cache v0.9.0
+    Checking typenum v1.20.1
+   Compiling rustls v0.23.45
+    Checking bytemuck v1.25.2
+    Checking generic-array v0.14.7
+    Checking web_atoms v0.2.6
+    Checking rustls-webpki v0.103.15
+    Checking arrayvec v0.7.8
+    Checking subtle v2.6.1
+    Checking polycool v0.4.0
+    Checking markup5ever v0.39.0
+    Checking font-types v0.12.6
+    Checking getrandom v0.4.3
+    Checking bitflags v2.13.2
+    Checking time v0.3.55
+    Checking uuid v1.27.0
+    Checking tokio-rustls v0.26.6
+    Checking read-fonts v0.41.0
+    Checking kurbo v0.13.1
+    Checking crypto-common v0.1.7
+    Checking block-buffer v0.10.4
+    Checking base64 v0.22.1
+    Checking peniko v0.6.1
+    Checking guillotiere v0.7.0
+    Checking pem v3.0.6
+    Checking accesskit v0.24.1
+    Checking digest v0.10.7
+    Checking yasna v0.5.2
+    Checking skrifa v0.44.0
+    Checking app_units v0.7.8
+    Checking hashbrown v0.17.1
+    Checking indexmap v2.14.2
+    Checking vello_encoding v0.11.0 (https://github.com/mark-ik/vello?rev=2eae6243881d5b24c984d5ee35dde509ca5db782#2eae6243)
+    Checking sha2 v0.10.9
+    Checking thiserror v2.0.21
+    Checking genet-paint-types v0.2.0 (https://github.com/merely-made/genet.git?rev=5fc1836936f2d7ce6d103b8081b537e8bd922c1d#5fc18369)
+    Checking png v0.18.1
+    Checking rcgen v0.13.2
+    Checking gemini-protocol v0.1.7
+    Checking layout-dom-api v0.1.1 (https://github.com/merely-made/genet.git?rev=5fc1836936f2d7ce6d103b8081b537e8bd922c1d#5fc18369)
+    Checking html5ever v0.39.0
+    Checking xml5ever v0.39.0
+    Checking petgraph v0.8.3
+    Checking genet-static-dom v0.1.1 (https://github.com/merely-made/genet.git?rev=5fc1836936f2d7ce6d103b8081b537e8bd922c1d#5fc18369)
+    Checking netrender-vello v0.11.0 (https://github.com/mark-ik/vello?rev=2eae6243881d5b24c984d5ee35dde509ca5db782#2eae6243)
+    Checking misfin v0.0.4
+    Checking scroll-protocol v0.1.0
+    Checking engine-observables-api v0.2.0 (https://github.com/merely-made/genet.git?rev=5fc1836936f2d7ce6d103b8081b537e8bd922c1d#5fc18369)
+    Checking paint_list_api v0.1.2 (https://github.com/merely-made/netrender.git?rev=c74b7cb28090c28b1c6d80b08dcdea18aff48d3e#c74b7cb2)
+    Checking gopher-protocol v0.2.0
+    Checking finger-protocol v0.1.1
+    Checking guppy-protocol v0.1.1
+    Checking spartan-protocol v0.1.1
+    Checking nex-protocol v0.1.1
+    Checking meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking errand v0.4.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking pulldown-cmark v0.13.4
+    Checking inker v0.1.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking genet-scripted-dom v0.1.2 (https://github.com/merely-made/genet.git?rev=5fc1836936f2d7ce6d103b8081b537e8bd922c1d#5fc18369)
+    Checking logos v0.16.1
+    Checking sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking command-menu v0.1.0 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking illume v0.0.2 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=7c2794b30870d3fe602c80309aadb0172ff3bd63#7c2794b3)
+    Checking knot-document v0.0.1 (/Users/markik/Code/worktrees/knot-renderer-recovery-suppliers/crates/knot-document)
+    Finished `dev` profile [unoptimized] target(s) in 41.21s

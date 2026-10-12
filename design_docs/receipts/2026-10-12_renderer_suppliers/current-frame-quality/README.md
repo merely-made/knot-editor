@@ -1,0 +1,3 @@
+# Final native current-frame completion suppliers
+
+Root and standalone engine library checks passed against Genet 2c7ef73bfa44c07744e0643e3c6f98be3cbd7947 and Mere ef0994bae9a1742d682cc5342ed0f118fa51937a. Genet now observes the current native Classic shader counters before a successful target can escape, under the bounded loss/error-scope guard. The complete supplier families stay singular, with unchanged Netrender c74b7cb28090c28b1c6d80b08dcdea18aff48d3e / provider 2eae6243881d5b24c984d5ee35dde509ca5db782. Earlier phase receipts remain historical evidence. Browser async frame-quality qualification remains separate.

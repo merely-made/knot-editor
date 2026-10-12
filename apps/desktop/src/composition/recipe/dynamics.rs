@@ -98,6 +98,15 @@ pub(in crate::composition) struct RuntimeState {
     ticks: u64,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum PlaybackStatus {
+    Ready,
+    Running,
+    Paused,
+    Finished(seiche::SettleEnd),
+    Refused,
+}
+
 impl RuntimeState {
     pub(in crate::composition) fn running(&self) -> bool {
         self.running
@@ -116,10 +125,70 @@ impl RuntimeState {
         self.refusal.as_deref()
     }
 
+    fn status(&self) -> PlaybackStatus {
+        if self.refusal.is_some() {
+            PlaybackStatus::Refused
+        } else if self.running {
+            PlaybackStatus::Running
+        } else if let Some(end) = self.controller.as_ref().and_then(ProjectionDynamics::end) {
+            PlaybackStatus::Finished(end)
+        } else if self.controller.is_some() {
+            PlaybackStatus::Paused
+        } else {
+            PlaybackStatus::Ready
+        }
+    }
+
+    pub(in crate::composition) fn status_key(&self) -> &'static str {
+        match self.status() {
+            PlaybackStatus::Ready => "ready",
+            PlaybackStatus::Running => "running",
+            PlaybackStatus::Paused => "paused",
+            PlaybackStatus::Finished(seiche::SettleEnd::Rested) => "rested",
+            PlaybackStatus::Finished(seiche::SettleEnd::LawFinished) => "finished",
+            PlaybackStatus::Finished(seiche::SettleEnd::StepLimit) => "step-limit",
+            PlaybackStatus::Refused => "refused",
+        }
+    }
+
+    fn status_label(&self, enabled: bool) -> String {
+        match self.status() {
+            PlaybackStatus::Ready if !enabled => {
+                "Choose a shared dynamics recipe to enable playback.".into()
+            },
+            PlaybackStatus::Ready => "Motion ready · playback is session-only".into(),
+            PlaybackStatus::Running => "Motion running · fixed-step session preview".into(),
+            PlaybackStatus::Paused => format!("Motion paused · {} fixed ticks", self.ticks),
+            PlaybackStatus::Finished(seiche::SettleEnd::Rested) => {
+                format!("Motion at rest · {} fixed ticks", self.ticks)
+            },
+            PlaybackStatus::Finished(seiche::SettleEnd::LawFinished) => {
+                format!("Motion finished · {} fixed ticks", self.ticks)
+            },
+            PlaybackStatus::Finished(seiche::SettleEnd::StepLimit) => {
+                format!("Step limit reached · {} fixed ticks", self.ticks)
+            },
+            PlaybackStatus::Refused => "Motion refused · preview stopped".into(),
+        }
+    }
+
     fn can_resume(&self) -> bool {
-        self.controller
-            .as_ref()
-            .is_some_and(ProjectionDynamics::is_running)
+        matches!(
+            self.status(),
+            PlaybackStatus::Running | PlaybackStatus::Paused
+        )
+    }
+
+    fn can_step(&self) -> bool {
+        matches!(
+            self.status(),
+            PlaybackStatus::Ready | PlaybackStatus::Paused
+        )
+    }
+
+    fn refuse(&mut self, error: String) {
+        self.running = false;
+        self.refusal = Some(error);
     }
 
     /// Discard the controller and all transient poses; called when the recipe
@@ -140,11 +209,7 @@ impl RuntimeState {
         if self.running {
             return Ok(());
         }
-        if self
-            .controller
-            .as_ref()
-            .is_some_and(ProjectionDynamics::is_running)
-        {
+        if self.can_resume() {
             self.running = true;
             self.refusal = None;
             return Ok(());
@@ -161,16 +226,9 @@ impl RuntimeState {
         material: &ProjectionRecipeMaterial,
         card: sceno::Size2,
     ) -> Result<(), String> {
-        if self.running {
-            return Ok(());
-        }
-        if self
-            .controller
-            .as_ref()
-            .is_some_and(|controller| !controller.is_running())
-        {
-            // A completed run stays at its final pose. Only an explicit
-            // Start or Restart re-seeds a finished controller from authored positions.
+        if !self.can_step() {
+            // Finished and refused previews preserve their last valid pose.
+            // Only explicit Play or Restart binds a fresh controller.
             return Ok(());
         }
         if self.controller.is_none() {
@@ -278,8 +336,7 @@ impl RuntimeState {
         match self.tick_once() {
             Ok(running) => running,
             Err(error) => {
-                self.running = false;
-                self.refusal = Some(error);
+                self.refuse(error);
                 false
             },
         }
@@ -340,9 +397,13 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
         .measured
         .as_ref()
         .map_or(VALIDATION_CARD, |measured| measured.card);
-    let (ticks, refusal) = {
+    let (can_step, status_label, refusal) = {
         let runtime = &state.composition.recipe.dynamics;
-        (runtime.ticks(), runtime.refusal().map(str::to_owned))
+        (
+            runtime.can_step(),
+            runtime.status_label(enabled),
+            runtime.refusal().map(str::to_owned),
+        )
     };
     let start_label = if state.composition.recipe.dynamics.can_resume() {
         "Resume scene motion"
@@ -369,7 +430,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                             state.composition.recipe.dynamics.start(material, card)
                         });
                     if let Err(error) = result {
-                        state.composition.recipe.dynamics.refusal = Some(error.clone());
+                        state.composition.recipe.dynamics.refuse(error.clone());
                         state.composition.notice = Some(error);
                     }
                 })
@@ -392,64 +453,51 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                     (running || state.composition.recipe.dynamics.positions().is_empty())
                         .to_string(),
                 ),
-                button(
-                    "Step once",
-                    move |state: &mut DesktopState, _| {
-                        if state.composition.recipe.dynamics.running() {
-                            return;
-                        }
-                        state.composition.recipe.motion_preview_reveal = true;
-                        state.composition.recipe.scene_drag = None;
-                        let result = state
-                            .composition
-                            .recipe
-                            .material
-                            .as_ref()
-                            .ok_or_else(|| "No relationship recipe is open.".to_owned())
-                            .and_then(|material| {
-                                state.composition.recipe.dynamics.step_once(material, card)
-                            });
-                        if let Err(error) = result {
-                            state.composition.recipe.dynamics.running = false;
-                            state.composition.recipe.dynamics.refusal = Some(error.clone());
-                            state.composition.notice = Some(error);
-                        }
-                    },
-                )
+                button("Step once", move |state: &mut DesktopState, _| {
+                    if !state.composition.recipe.dynamics.can_step() {
+                        return;
+                    }
+                    state.composition.recipe.motion_preview_reveal = true;
+                    state.composition.recipe.scene_drag = None;
+                    let result = state
+                        .composition
+                        .recipe
+                        .material
+                        .as_ref()
+                        .ok_or_else(|| "No relationship recipe is open.".to_owned())
+                        .and_then(|material| {
+                            state.composition.recipe.dynamics.step_once(material, card)
+                        });
+                    if let Err(error) = result {
+                        state.composition.recipe.dynamics.refuse(error.clone());
+                        state.composition.notice = Some(error);
+                    }
+                })
                 .attr("aria-label", "Step scene motion once")
-                .attr("aria-disabled", (!enabled || running).to_string()),
-                button(
-                    "Restart",
-                    move |state: &mut DesktopState, _| {
-                        state.composition.recipe.motion_preview_reveal = true;
-                        state.composition.recipe.scene_drag = None;
-                        let result = state
-                            .composition
-                            .recipe
-                            .material
-                            .as_ref()
-                            .ok_or_else(|| "No relationship recipe is open.".to_owned())
-                            .and_then(|material| {
-                                state.composition.recipe.dynamics.restart(material, card)
-                            });
-                        if let Err(error) = result {
-                            state.composition.recipe.dynamics.running = false;
-                            state.composition.recipe.dynamics.refusal = Some(error.clone());
-                            state.composition.notice = Some(error);
-                        }
-                    },
-                )
+                .attr("aria-disabled", (!enabled || !can_step).to_string()),
+                button("Restart", move |state: &mut DesktopState, _| {
+                    state.composition.recipe.motion_preview_reveal = true;
+                    state.composition.recipe.scene_drag = None;
+                    let result = state
+                        .composition
+                        .recipe
+                        .material
+                        .as_ref()
+                        .ok_or_else(|| "No relationship recipe is open.".to_owned())
+                        .and_then(|material| {
+                            state.composition.recipe.dynamics.restart(material, card)
+                        });
+                    if let Err(error) = result {
+                        state.composition.recipe.dynamics.refuse(error.clone());
+                        state.composition.notice = Some(error);
+                    }
+                })
                 .attr("aria-label", "Restart scene motion")
                 .attr("aria-disabled", (!enabled).to_string()),
-                span(if running {
-                    "Shared dynamics running · fixed-step session playback".to_owned()
-                } else if state.composition.recipe.dynamics.controller.is_some() {
-                    format!("Shared dynamics paused · fixed ticks {ticks}")
-                } else if enabled {
-                    "Shared dynamics ready · playback is session-only".to_owned()
-                } else {
-                    "Choose a shared dynamics recipe to enable playback.".to_owned()
-                }),
+                span(status_label)
+                    .attr("id", "knot-recipe-motion-status")
+                    .attr("role", "status")
+                    .attr("aria-live", "polite"),
                 refusal.map(|message| span(message).attr("class", "knot-recipe-dynamics-refusal")),
             ),
         )
@@ -701,6 +749,79 @@ mod tests {
         assert_eq!(state.composition.recipe.material.as_ref(), Some(&material));
         assert_eq!(state.document().snapshot().text, "night night light");
         assert!(!state.document().snapshot().dirty);
+    }
+
+    #[test]
+    fn a_failed_tick_preserves_the_last_valid_pose_and_play_rebinds_from_authored() {
+        let material = with_spring_slot();
+        let original = material.clone();
+        let mut runtime = RuntimeState::default();
+        runtime.start(&material, VALIDATION_CARD).unwrap();
+        let initial = runtime.positions().clone();
+        assert!(runtime.advance_frame(true));
+        let last_valid = runtime.positions().clone();
+        // Lose a required host mapping after binding. The supplier may advance,
+        // but an unvalidated pose must never replace the displayed snapshot.
+        runtime.plane = None;
+        assert!(!runtime.advance_frame(true));
+        assert_eq!(runtime.status_key(), "refused");
+        assert!(
+            runtime
+                .refusal()
+                .unwrap()
+                .contains("no fixed placement plane")
+        );
+        assert_eq!(runtime.ticks(), 1);
+        assert_eq!(runtime.positions(), &last_valid);
+        assert!(!runtime.can_resume());
+        assert!(!runtime.can_step());
+        runtime.step_once(&material, VALIDATION_CARD).unwrap();
+        assert!(!runtime.advance_frame(true));
+        assert_eq!(runtime.ticks(), 1);
+        assert_eq!(runtime.positions(), &last_valid);
+        runtime.start(&material, VALIDATION_CARD).unwrap();
+        assert!(runtime.refusal().is_none());
+        assert_eq!(runtime.status_key(), "running");
+        assert_eq!(runtime.ticks(), 0);
+        assert_eq!(runtime.positions(), &initial);
+        assert!(runtime.advance_frame(true));
+        assert_eq!(runtime.ticks(), 1);
+        assert_eq!(material, original);
+    }
+
+    #[test]
+    fn pinned_preview_reports_the_shared_rest_result_without_reseeding() {
+        let mut material = with_spring_slot();
+        material
+            .presentation
+            .get_or_insert_with(Default::default)
+            .motion_roles = material
+            .dataset
+            .dataset
+            .occurrences
+            .iter()
+            .map(|occurrence| (occurrence.occurrence_id.clone(), seiche::Role::Pinned))
+            .collect();
+        material.presentation.as_mut().unwrap().refresh_version();
+        let mut runtime = RuntimeState::default();
+        runtime.start(&material, VALIDATION_CARD).unwrap();
+        let initial = runtime.positions().clone();
+        for _ in 0..240 {
+            if !runtime.advance_frame(true) {
+                break;
+            }
+        }
+        assert_eq!(
+            runtime.status(),
+            PlaybackStatus::Finished(seiche::SettleEnd::Rested)
+        );
+        assert_eq!(runtime.status_key(), "rested");
+        assert!(runtime.status_label(true).starts_with("Motion at rest"));
+        assert_eq!(runtime.positions(), &initial);
+        let ticks = runtime.ticks();
+        runtime.step_once(&material, VALIDATION_CARD).unwrap();
+        assert_eq!(runtime.ticks(), ticks);
+        assert_eq!(runtime.positions(), &initial);
     }
 
     #[test]

@@ -1,0 +1,53 @@
+# Substitute 88e3639f-789f-41c8-bb46-d1cd43ff72b5 from the marked fixture's read-only inspection.
+settle 120
+assert snap document == essay.djot
+assert snap dirty == false
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+settle 30
+assert text Confirmed 3 retained items
+click role:button @data-item-id=88e3639f-789f-41c8-bb46-d1cd43ff72b5
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+assert snap scene_motion_status == ready
+capture status-ready
+click role:button Start scene motion
+assert snap scene_motion_status == running
+capture status-started
+settle 140
+assert snap scene_motion_status == finished
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 120
+assert text Motion finished
+capture status-finished
+settle 12
+assert snap scene_motion_ticks == 120
+capture status-finished-stable
+click role:button Start scene motion
+assert snap scene_motion_status == running
+assert snap scene_motion_ticks <= 119
+capture status-restarted
+settle 140
+assert snap scene_motion_status == finished
+assert snap scene_motion_ticks == 120
+capture status-refinished
+click role:button Keep placement
+assert snap scene_motion_status == ready
+assert snap scene_motion_positions == 0
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+capture status-kept
+click role:button Undo recipe edit
+assert snap scene_motion_status == ready
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 2
+capture status-undone
+click role:button Redo recipe edit
+assert snap scene_motion_status == ready
+assert snap scene_authored_positions == 2
+assert snap scene_placement_steps >= 3
+assert snap scene_motion_roles == 1
+assert snap scene_motion_slot == true
+assert snap dirty == false
+capture status-redone

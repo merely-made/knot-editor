@@ -432,6 +432,7 @@ impl CompositionState {
         }
         [
             ("scene_motion_running", runtime.running().to_string()),
+            ("scene_motion_status", runtime.status_key().to_owned()),
             ("scene_motion_ticks", runtime.ticks().to_string()),
             (
                 "scene_motion_positions",
@@ -1998,6 +1999,123 @@ mod tests {
         assert!(!host.state().composition.recipe.dynamics.running());
         assert_eq!(host.state().composition.recipe.dynamics.ticks(), hidden_ticks);
         assert_eq!(host.state().composition.recipe.dynamics.positions(), &hidden_poses);
+        assert_eq!(host.state().document().snapshot().text, "night night light");
+        assert!(!host.state().document().snapshot().dirty);
+    }
+
+    #[test]
+    fn finished_motion_discloses_its_end_and_disables_step_until_restarted() {
+        let mut state = recipe_state("night night light", 0, 17);
+        let mut retained = state.composition.recipe.material.clone().unwrap();
+        let spec = seiche::spec::DynamicsSpec::new(seiche::spec::Node::Schedule {
+            stages: vec![seiche::spec::Stage {
+                node: seiche::spec::Node::preset("spring.rapier"),
+                stop: seiche::spec::Stop::Frames(3),
+                capture: None,
+            }],
+            weight: 1.0,
+            overlays: Vec::new(),
+        });
+        retained.snapshot.recipe.definition.dynamics = Some(scenograph::DynamicsSlot::from_json(
+            scenograph::DYNAMICS_SLOT_VERSION, &serde_json::to_string(&spec).unwrap(),
+        ).unwrap());
+        retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
+            overview_visible: true,
+            ..Default::default()
+        });
+        recipe::reopen(&mut state, retained.clone());
+        let mut host = recipe_harness(state);
+        host.layout_at(380.0, 2000.0);
+        frame(&mut host);
+        frame(&mut host);
+        assert!(host.click_on(&Selector::role("button").containing("Start scene motion")));
+        host.after_dispatch();
+        for _ in 0..3 { frame(&mut host); }
+        assert!(!host.state().composition.recipe.dynamics.running());
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 3);
+        assert!(rendered_text(&host).contains("Motion finished · 3 fixed ticks"), "{}", rendered_text(&host));
+        let disabled = |host: &RecipeHost, label: &str| host.with_dom(|dom| {
+            let nodes = taproot::matching(dom, &Selector::role("button").containing(label));
+            assert_eq!(nodes.len(), 1, "{label}");
+            dom.attribute(nodes[0], &layout_dom_api::Namespace::from(""), &layout_dom_api::LocalName::from("aria-disabled"))
+                == Some("true")
+        });
+        assert!(disabled(&host, "Step scene motion once"));
+        assert!(disabled(&host, "Pause scene motion"));
+        assert!(!disabled(&host, "Keep placement"));
+        assert!(!disabled(&host, "Start scene motion"));
+        let final_pose = host.state().composition.recipe.dynamics.positions().clone();
+        let _ = host.click_on(&Selector::role("button").containing("Step scene motion once"));
+        host.after_dispatch();
+        for _ in 0..3 { frame(&mut host); }
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 3);
+        assert_eq!(host.state().composition.recipe.dynamics.positions(), &final_pose);
+        assert!(rendered_text(&host).contains("Motion finished · 3 fixed ticks"));
+        assert!(host.click_on(&Selector::role("button").containing("Start scene motion")));
+        host.after_dispatch();
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 0);
+        assert!(host.state().composition.recipe.dynamics.running());
+        frame(&mut host);
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 1);
+        assert_eq!(host.state().composition.recipe.material.as_ref(), Some(&retained));
+        assert!(!host.state().composition.recipe.history.is_dirty());
+        assert_eq!(host.state().document().snapshot().text, "night night light");
+        assert!(!host.state().document().snapshot().dirty);
+    }
+
+    #[test]
+    fn a_refused_motion_slot_is_disclosed_and_repair_requires_an_explicit_play() {
+        let mut state = recipe_state("night night light", 0, 17);
+        let mut supported = state.composition.recipe.material.clone().unwrap();
+        supported.snapshot.recipe.definition.dynamics =
+            Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+        supported.presentation = Some(knot_composition::retention::RecipeScenePresentation {
+            overview_visible: true,
+            ..Default::default()
+        });
+        let mut refused = supported.clone();
+        let mut spec: serde_json::Value = serde_json::from_str(
+            &refused.snapshot.recipe.definition.dynamics.as_ref().unwrap().spec,
+        ).unwrap();
+        spec["channels"] = serde_json::json!({"mass":"mass.pagerank"});
+        refused.snapshot.recipe.definition.dynamics =
+            Some(scenograph::DynamicsSlot::from_json(1, &spec.to_string()).unwrap());
+        recipe::reopen(&mut state, refused.clone());
+        let mut host = recipe_harness(state);
+        host.layout_at(380.0, 2000.0);
+        frame(&mut host);
+        frame(&mut host);
+        assert!(host.click_on(&Selector::role("button").containing("Start scene motion")));
+        host.after_dispatch();
+        assert!(rendered_text(&host).contains("Motion refused · preview stopped"), "{}", rendered_text(&host));
+        assert!(rendered_text(&host).contains("dynamics.spec.channels"));
+        let fields = host.state().composition.motion_scenario_fields();
+        assert_eq!(fields["scene_motion_status"], "refused");
+        assert_eq!(fields["scene_motion_positions"], "0");
+        assert_eq!(fields["scene_motion_ticks"], "0");
+        for label in ["Step scene motion once", "Pause scene motion", "Keep placement"] {
+            host.with_dom(|dom| {
+                let nodes = taproot::matching(dom, &Selector::role("button").containing(label));
+                assert_eq!(nodes.len(), 1, "{label}");
+                assert_eq!(dom.attribute(nodes[0], &layout_dom_api::Namespace::from(""),
+                    &layout_dom_api::LocalName::from("aria-disabled")), Some("true"));
+            });
+        }
+        assert!(host.click_on(&Selector::role("button").containing("Restart scene motion")));
+        host.after_dispatch();
+        assert_eq!(host.state().composition.motion_scenario_fields()["scene_motion_status"], "refused");
+        assert_eq!(host.state().composition.recipe.material.as_ref(), Some(&refused));
+        assert!(!host.state().composition.recipe.history.is_dirty());
+        host.update(|state| recipe::reopen(state, supported.clone()));
+        frame(&mut host);
+        assert_eq!(host.state().composition.motion_scenario_fields()["scene_motion_status"], "ready");
+        assert!(host.click_on(&Selector::role("button").containing("Start scene motion")));
+        host.after_dispatch();
+        frame(&mut host);
+        assert_eq!(host.state().composition.motion_scenario_fields()["scene_motion_status"], "running");
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 1);
+        assert_eq!(host.state().composition.recipe.material.as_ref(), Some(&supported));
+        assert!(!host.state().composition.recipe.history.is_dirty());
         assert_eq!(host.state().document().snapshot().text, "night night light");
         assert!(!host.state().document().snapshot().dirty);
     }

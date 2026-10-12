@@ -844,6 +844,31 @@ placement, role, source, or recipe changes discard the disposable controller; vi
 camera, and foreground changes preserve its transient pose. Existing authored
 placement gestures remain discrete source-bound edits, not implicit pose baking.
 
+### Dynamics completion and refusal continuation (2026-10-11)
+
+**Status:** implemented and qualified on Windows after `156626f`. The
+[feedback receipt](../docs/receipts/2026-10-11_dynamics_status/README.md) records
+84 focused passing tests and 18 reviewed wide/compact native captures, separately
+from earlier full-workspace receipts. Firefox's private-window retry encountered
+the same Windows browser-policy block; its verification remains parked.
+
+**Findings:** a stopped controller was always labeled paused, even when its
+authored schedule had finished. Step remained available after completion, and
+Play could resume a controller after a runtime refusal. The pinned adapter
+already exposes its end result, so this needs no new shared physics contract.
+
+**Done-conditions and progress:** disclose pause, rest, completion and refusal
+from the existing controller result; guard and semantically disable Step after
+completion/refusal; retain the last valid displayed pose on failed ticks.
+Ordinary pauses resume, while explicit Play rebinds finished/refused runs from
+authored positions. Tests reproduce the previous wrong label and check real
+controller failure/repair without changing source, material or history. Native
+runs finish at the authored 120 ticks, stay frozen, replay deliberately and
+Keep/Undo/Redo the exact final pose. The full camera remains visible through
+playback and completion. Runtime status remains session-only; F202's 60-step
+comparison default, retention authority, pins and F199's broader pause remain
+separate.
+
 The shared focused adapter gate passes five tests. Its wider canvas library
 gate has one unchanged arrangement-golden failure (401 passed, one failed,
 18 ignored): topic radial weighted focus 0 reports `1455265069374486353` rather

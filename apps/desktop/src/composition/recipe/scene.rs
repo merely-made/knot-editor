@@ -877,6 +877,13 @@ pub(super) fn view(
         Box::new(el(
             "div",
             (
+                el("div", (
+                    el("div", graph_canvas(
+                        &swatch_with_preview(material, compiled, &display, drag),
+                        |state: &mut DesktopState, event| dispatch_canvas(state, event),
+                    )).attr("id", "knot-recipe-motion-viewport"),
+                    motion_controls,
+                )).attr("id", "knot-recipe-motion-preview"),
                 span("Authored overview; drag an occurrence or use placement controls. Positions are not motion or attention pins."),
                 span(format!("Authored scene positions: {}", authored.len()))
                     .attr("class", "knot-recipe-scene-placement-status"),
@@ -895,7 +902,7 @@ pub(super) fn view(
                     },
                 ).attr("aria-expanded", motion_expanded.to_string()),
                 motion_expanded.then(|| motion_authoring(material)),
-                motion_controls,)),
+                )),
                 el(
                     "div",
                     (
@@ -905,10 +912,6 @@ pub(super) fn view(
                     ),
                 )
                 .attr("class", "knot-recipe-scene-key"),
-                el("div", graph_canvas(
-                    &swatch_with_preview(material, compiled, &display, drag),
-                    |state: &mut DesktopState, event| dispatch_canvas(state, event),
-                )).attr("id", "knot-recipe-motion-viewport"),
                 button(
                     if placement_controls_expanded { "Hide scene placement controls" } else { "Show scene placement controls" },
                     move |state: &mut DesktopState, _| {
@@ -1043,6 +1046,48 @@ pub(super) fn display_positions(recipe: &RecipeState) -> BTreeMap<String, [f32; 
     positions
 }
 
+fn node_with_id<D: LayoutDom>(dom: &D, node: D::NodeId, id: &str) -> Option<D::NodeId> {
+    if dom.attribute(node, &Namespace::from(""), &LocalName::from("id")) == Some(id) {
+        return Some(node);
+    }
+    dom.dom_children(node).find_map(|child| node_with_id(dom, child, id))
+}
+
+pub(super) fn reveal_preview(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if !ctx.runner.state().composition.recipe.motion_preview_reveal { return; }
+    ctx.runner.update_deferred(|state| state.composition.recipe.motion_preview_reveal = false);
+    if ctx.runner.state().theme_session.workshop_open || ctx.runner.state().composition.section != 4 { return; }
+    let node = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        node_with_id(&*dom, ctx.runner.root(), "knot-recipe-motion-preview")
+    };
+    if let Some(node) = node {
+        ctx.scroll_into_view(node, cambium_genet_winit_host::ScrollAlign::Nearest);
+    }
+}
+
+pub(super) fn viewport_geometry(
+    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) -> (Option<(f32, f32, f32, f32)>, Option<(f32, f32, f32, f32)>) {
+    fn canvas<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
+        if dom.attribute(node, &Namespace::from(""), &LocalName::from("class"))
+            .is_some_and(|classes| classes.split_ascii_whitespace().any(|c| c == "graph-canvas-swatch")) {
+            return Some(node);
+        }
+        dom.dom_children(node).find_map(|child| canvas(dom, child))
+    }
+    let node = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        node_with_id(&*dom, ctx.runner.root(), "knot-recipe-motion-viewport")
+            .and_then(|node| canvas(&*dom, node))
+    };
+    (node.and_then(|node| ctx.painted_rect(node)), node.and_then(|node| ctx.visible_rect(node)))
+}
+
 /// Clock only a mounted, painted, intersecting scene—not a retained tab.
 pub(super) fn presented(
     ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
@@ -1059,18 +1104,10 @@ pub(super) fn presented(
     {
         return false;
     }
-    fn find<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
-        if dom.attribute(node, &Namespace::from(""), &LocalName::from("id"))
-            == Some("knot-recipe-motion-viewport")
-        {
-            return Some(node);
-        }
-        dom.dom_children(node).find_map(|child| find(dom, child))
-    }
     let node = {
         let dom_handle = ctx.runner.dom();
         let dom = dom_handle.borrow();
-        find(&*dom, ctx.runner.root())
+        node_with_id(&*dom, ctx.runner.root(), "knot-recipe-motion-viewport")
     };
     node.and_then(|node| ctx.visible_rect(node))
         .is_some_and(|(x, y, w, h)| {

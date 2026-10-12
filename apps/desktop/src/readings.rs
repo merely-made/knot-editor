@@ -32,6 +32,12 @@ pub const CSS: &str = concat!(
     ".knot-recipe-scene button.graph-canvas-swatch-node:hover, .knot-recipe-scene button.graph-canvas-swatch-relation:hover { background:transparent; }",
     ".knot-composition .knot-recipe-scene-camera-row, .knot-composition .knot-recipe-scene-pan-controls { flex-direction:row; flex-wrap:wrap; }",
     ".knot-recipe-scene-camera-row > button, .knot-recipe-scene-pan-controls > button { flex:1 1 96px; min-width:0; }",
+    // Keep the scene above a compact toolbar; explanations and authoring follow.
+    ".knot-composition .knot-recipe-dynamics-controls { flex-direction:row; flex-wrap:wrap; align-items:stretch; }",
+    ".knot-recipe-dynamics-controls > button { flex:1 1 112px; min-width:0; padding:6px 4px; }",
+    ".knot-recipe-dynamics-controls > .knot-recipe-dynamics-primary { flex:1 1 48px; }",
+    ".knot-recipe-dynamics-controls > .knot-recipe-dynamics-keep { flex:2 1 88px; }",
+    ".knot-recipe-dynamics-controls > span { flex-basis:100%; }",
     // Match the two authored strata colors in the shared canvas, with text as well.
     ".knot-recipe-scene-key-foreground { color:#db7a33; }",
     ".knot-recipe-scene-key-background { color:#476b94; }",

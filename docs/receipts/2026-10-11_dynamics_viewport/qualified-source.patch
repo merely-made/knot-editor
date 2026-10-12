@@ -1,0 +1,388 @@
+diff --git a/apps/desktop/src/composition.rs b/apps/desktop/src/composition.rs
+index 6261afd..f0fc2a3 100644
+--- a/apps/desktop/src/composition.rs
++++ b/apps/desktop/src/composition.rs
+@@ -27,6 +27,7 @@ mod recipe;
+ 
+ pub(crate) use recipe::measure_cards as measure_recipe_cards;
+ pub(crate) use recipe::pause_hidden_motion;
++pub(crate) use recipe::{motion_viewport_geometry, reveal_motion_preview};
+ 
+ #[derive(Clone)]
+ pub(crate) struct SelectionSnapshot {
+@@ -1878,6 +1879,7 @@ mod tests {
+     fn recipe_harness(state: DesktopState) -> RecipeHost {
+         let mut hooks = cambium_genet_winit_host::inert_hooks();
+         hooks.frame = Box::new(super::measure_recipe_cards);
++        hooks.after_dispatch = Box::new(super::reveal_motion_preview);
+         let mut host = Harness::with_hooks(
+             cambium_genet_winit_host::Init {
+                 state,
+@@ -2000,6 +2002,101 @@ mod tests {
+         assert!(!host.state().document().snapshot().dirty);
+     }
+ 
++    #[test]
++    fn motion_preview_stays_visible_with_its_controls_at_compact_panel_widths() {
++        let fully_visible = |painted: (f32, f32, f32, f32), visible: Option<(f32, f32, f32, f32)>| {
++            visible.is_some_and(|rect| {
++                (rect.0 - painted.0).abs() < 1.0
++                    && (rect.1 - painted.1).abs() < 1.0
++                    && (rect.2 - painted.2).abs() < 1.0
++                    && (rect.3 - painted.3).abs() < 1.0
++            })
++        };
++        // The desktop sheet contributes 12px on either side. At 256px the
++        // scene gets the compact drawer's 232px content width.
++        for width in [256.0, 260.0, 380.0] {
++            let mut state = recipe_state("night night light", 0, 17);
++            let mut retained = state.composition.recipe.material.clone().unwrap();
++            retained.snapshot.recipe.definition.dynamics =
++                Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
++            retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
++                overview_visible: true,
++                ..Default::default()
++            });
++            recipe::reopen(&mut state, retained.clone());
++            let mut host = recipe_harness(state);
++            host.layout_at(width, 600.0);
++            frame(&mut host);
++            frame(&mut host);
++            assert!(host.click_on(&Selector::role("button").containing("Start scene motion")));
++            host.after_dispatch();
++            host.relayout();
++            let canvases =
++                host.with_dom(|dom| taproot::matching(dom, &Selector::class("graph-canvas-swatch")));
++            assert_eq!(canvases.len(), 1);
++            let viewport = canvases[0];
++            let painted = host.painted_rect(viewport).unwrap();
++            let visible = host.visible_rect(viewport);
++            assert!((painted.2 - 222.0).abs() < 1.0, "the 220px camera plus border must not shrink");
++            assert!((painted.3 - 202.0).abs() < 1.0);
++            assert!(
++                fully_visible(painted, visible),
++                "{width}px panel clips the motion preview: painted={painted:?}, visible={visible:?}"
++            );
++            for label in [
++                "Resume scene motion",
++                "Pause scene motion",
++                "Keep placement",
++            ] {
++                let nodes = host.with_dom(|dom| {
++                    taproot::matching(dom, &Selector::role("button").containing(label))
++                });
++                assert_eq!(nodes.len(), 1, "{label}");
++                let painted = host.painted_rect(nodes[0]).unwrap();
++                let visible = host.visible_rect(nodes[0]);
++                assert!(
++                    fully_visible(painted, visible),
++                    "{width}px panel clips {label}: painted={painted:?}, visible={visible:?}"
++                );
++            }
++            println!(
++                "preview_geometry width={width} canvas={painted:?} visible={visible:?} primary_actions=fully_visible"
++            );
++            for _ in 0..3 {
++                frame(&mut host);
++            }
++            assert!(host.state().composition.recipe.dynamics.ticks() > 0);
++            assert!(host.click_on(&Selector::role("button").containing("Pause scene motion")));
++            host.after_dispatch();
++            let ticks = host.state().composition.recipe.dynamics.ticks();
++            let pose = host.state().composition.recipe.dynamics.positions().clone();
++            for _ in 0..3 {
++                frame(&mut host);
++            }
++            assert_eq!(host.state().composition.recipe.dynamics.ticks(), ticks);
++            assert_eq!(host.state().composition.recipe.dynamics.positions(), &pose);
++            assert!(!host.state().composition.recipe.motion_preview_reveal);
++            assert!(host.click_on(&Selector::role("button").containing("Resume scene motion")));
++            host.after_dispatch();
++            assert!(!host.state().composition.recipe.motion_preview_reveal);
++            host.move_to(1.0, 590.0);
++            host.wheel(0.0, 2000.0);
++            assert!(host.visible_rect(viewport).is_none(), "the user can scroll away from the preview");
++            for _ in 0..3 { frame(&mut host); }
++            assert!(!host.state().composition.recipe.dynamics.running());
++            assert!(host.visible_rect(viewport).is_none(), "a consumed reveal must not pull the view back");
++            assert_eq!(host.state().composition.recipe.dynamics.ticks(), ticks);
++            assert_eq!(host.state().composition.recipe.dynamics.positions(), &pose);
++            assert_eq!(
++                host.state().composition.recipe.material.as_ref(),
++                Some(&retained)
++            );
++            assert!(!host.state().composition.recipe.history.is_dirty());
++            assert_eq!(host.state().document().snapshot().text, "night night light");
++            assert!(!host.state().document().snapshot().dirty);
++        }
++    }
++
+     #[test]
+     fn recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame() {
+         let mut host = recipe_harness(recipe_state("night night light", 0, 17));
+diff --git a/apps/desktop/src/composition/recipe.rs b/apps/desktop/src/composition/recipe.rs
+index 7e0c431..f71ca8e 100644
+--- a/apps/desktop/src/composition/recipe.rs
++++ b/apps/desktop/src/composition/recipe.rs
+@@ -83,6 +83,8 @@ pub(super) struct RecipeState {
+     pub(super) scene_drag: Option<scene::SceneDrag>,
+     pub(super) placement_controls_expanded: bool,
+     pub(super) motion_controls_expanded: bool,
++    /// One playback action requests a host reveal; ordinary scrolling stays free.
++    pub(super) motion_preview_reveal: bool,
+     /// Read-only projection refreshed after validated imports and edits.
+     pub(super) scene_positions: BTreeMap<String, [f32; 2]>,
+     /// Disposable shared controller; neither its clock nor its pose is retained.
+@@ -153,6 +155,18 @@ pub(crate) fn pause_hidden_motion(
+     dynamics::frame(ctx, false);
+ }
+ 
++pub(crate) fn reveal_motion_preview(
++    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
++) {
++    scene::reveal_preview(ctx);
++}
++
++pub(crate) fn motion_viewport_geometry(
++    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
++) -> (Option<(f32, f32, f32, f32)>, Option<(f32, f32, f32, f32)>) {
++    scene::viewport_geometry(ctx)
++}
++
+ fn measure_cards_inner(
+     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+ ) -> bool {
+diff --git a/apps/desktop/src/composition/recipe/dynamics.rs b/apps/desktop/src/composition/recipe/dynamics.rs
+index f889426..44a6b2f 100644
+--- a/apps/desktop/src/composition/recipe/dynamics.rs
++++ b/apps/desktop/src/composition/recipe/dynamics.rs
+@@ -298,6 +298,7 @@ pub(super) fn enabled(state: &DesktopState) -> bool {
+ 
+ /// Explicitly promote a paused or finished pose through the recipe's history.
+ pub(super) fn keep_placement(state: &mut DesktopState) {
++    state.composition.recipe.motion_preview_reveal = true;
+     let recipe = &state.composition.recipe;
+     if recipe.dynamics.running() {
+         state.composition.notice = Some("Pause scene motion before keeping placement.".into());
+@@ -352,10 +353,11 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+         el(
+             "div",
+             (
+-                button(start_label, move |state: &mut DesktopState, _| {
++                button("Play", move |state: &mut DesktopState, _| {
+                     if state.composition.recipe.dynamics.running() {
+                         return;
+                     }
++                    state.composition.recipe.motion_preview_reveal = true;
+                     state.composition.recipe.scene_drag = None;
+                     let result = state
+                         .composition
+@@ -371,25 +373,32 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                         state.composition.notice = Some(error);
+                     }
+                 })
++                .attr("aria-label", start_label)
++                .attr("class", "knot-recipe-dynamics-primary")
+                 .attr("aria-disabled", (!enabled || running).to_string()),
+-                button("Pause scene motion", |state: &mut DesktopState, _| {
++                button("Pause", |state: &mut DesktopState, _| {
++                    state.composition.recipe.motion_preview_reveal = true;
+                     state.composition.recipe.dynamics.pause();
+                 })
++                .attr("aria-label", "Pause scene motion")
++                .attr("class", "knot-recipe-dynamics-primary")
+                 .attr("aria-disabled", (!running).to_string()),
+                 button("Keep placement", |state: &mut DesktopState, _| {
+                     keep_placement(state);
+                 })
++                .attr("class", "knot-recipe-dynamics-keep")
+                 .attr(
+                     "aria-disabled",
+                     (running || state.composition.recipe.dynamics.positions().is_empty())
+                         .to_string(),
+                 ),
+                 button(
+-                    "Step scene motion once",
++                    "Step once",
+                     move |state: &mut DesktopState, _| {
+                         if state.composition.recipe.dynamics.running() {
+                             return;
+                         }
++                        state.composition.recipe.motion_preview_reveal = true;
+                         state.composition.recipe.scene_drag = None;
+                         let result = state
+                             .composition
+@@ -407,10 +416,12 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                         }
+                     },
+                 )
++                .attr("aria-label", "Step scene motion once")
+                 .attr("aria-disabled", (!enabled || running).to_string()),
+                 button(
+-                    "Restart scene motion",
++                    "Restart",
+                     move |state: &mut DesktopState, _| {
++                        state.composition.recipe.motion_preview_reveal = true;
+                         state.composition.recipe.scene_drag = None;
+                         let result = state
+                             .composition
+@@ -428,6 +439,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
+                         }
+                     },
+                 )
++                .attr("aria-label", "Restart scene motion")
+                 .attr("aria-disabled", (!enabled).to_string()),
+                 span(if running {
+                     "Shared dynamics running · fixed-step session playback".to_owned()
+diff --git a/apps/desktop/src/composition/recipe/scene.rs b/apps/desktop/src/composition/recipe/scene.rs
+index 4a78673..a95d7d5 100644
+--- a/apps/desktop/src/composition/recipe/scene.rs
++++ b/apps/desktop/src/composition/recipe/scene.rs
+@@ -877,6 +877,13 @@ pub(super) fn view(
+         Box::new(el(
+             "div",
+             (
++                el("div", (
++                    el("div", graph_canvas(
++                        &swatch_with_preview(material, compiled, &display, drag),
++                        |state: &mut DesktopState, event| dispatch_canvas(state, event),
++                    )).attr("id", "knot-recipe-motion-viewport"),
++                    motion_controls,
++                )).attr("id", "knot-recipe-motion-preview"),
+                 span("Authored overview; drag an occurrence or use placement controls. Positions are not motion or attention pins."),
+                 span(format!("Authored scene positions: {}", authored.len()))
+                     .attr("class", "knot-recipe-scene-placement-status"),
+@@ -895,7 +902,7 @@ pub(super) fn view(
+                     },
+                 ).attr("aria-expanded", motion_expanded.to_string()),
+                 motion_expanded.then(|| motion_authoring(material)),
+-                motion_controls,)),
++                )),
+                 el(
+                     "div",
+                     (
+@@ -905,10 +912,6 @@ pub(super) fn view(
+                     ),
+                 )
+                 .attr("class", "knot-recipe-scene-key"),
+-                el("div", graph_canvas(
+-                    &swatch_with_preview(material, compiled, &display, drag),
+-                    |state: &mut DesktopState, event| dispatch_canvas(state, event),
+-                )).attr("id", "knot-recipe-motion-viewport"),
+                 button(
+                     if placement_controls_expanded { "Hide scene placement controls" } else { "Show scene placement controls" },
+                     move |state: &mut DesktopState, _| {
+@@ -1043,6 +1046,48 @@ pub(super) fn display_positions(recipe: &RecipeState) -> BTreeMap<String, [f32;
+     positions
+ }
+ 
++fn node_with_id<D: LayoutDom>(dom: &D, node: D::NodeId, id: &str) -> Option<D::NodeId> {
++    if dom.attribute(node, &Namespace::from(""), &LocalName::from("id")) == Some(id) {
++        return Some(node);
++    }
++    dom.dom_children(node).find_map(|child| node_with_id(dom, child, id))
++}
++
++pub(super) fn reveal_preview(
++    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
++) {
++    if !ctx.runner.state().composition.recipe.motion_preview_reveal { return; }
++    ctx.runner.update_deferred(|state| state.composition.recipe.motion_preview_reveal = false);
++    if ctx.runner.state().theme_session.workshop_open || ctx.runner.state().composition.section != 4 { return; }
++    let node = {
++        let dom = ctx.runner.dom();
++        let dom = dom.borrow();
++        node_with_id(&*dom, ctx.runner.root(), "knot-recipe-motion-preview")
++    };
++    if let Some(node) = node {
++        ctx.scroll_into_view(node, cambium_genet_winit_host::ScrollAlign::Nearest);
++    }
++}
++
++pub(super) fn viewport_geometry(
++    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
++) -> (Option<(f32, f32, f32, f32)>, Option<(f32, f32, f32, f32)>) {
++    fn canvas<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
++        if dom.attribute(node, &Namespace::from(""), &LocalName::from("class"))
++            .is_some_and(|classes| classes.split_ascii_whitespace().any(|c| c == "graph-canvas-swatch")) {
++            return Some(node);
++        }
++        dom.dom_children(node).find_map(|child| canvas(dom, child))
++    }
++    let node = {
++        let dom = ctx.runner.dom();
++        let dom = dom.borrow();
++        node_with_id(&*dom, ctx.runner.root(), "knot-recipe-motion-viewport")
++            .and_then(|node| canvas(&*dom, node))
++    };
++    (node.and_then(|node| ctx.painted_rect(node)), node.and_then(|node| ctx.visible_rect(node)))
++}
++
+ /// Clock only a mounted, painted, intersecting scene—not a retained tab.
+ pub(super) fn presented(
+     ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+@@ -1059,18 +1104,10 @@ pub(super) fn presented(
+     {
+         return false;
+     }
+-    fn find<D: LayoutDom>(dom: &D, node: D::NodeId) -> Option<D::NodeId> {
+-        if dom.attribute(node, &Namespace::from(""), &LocalName::from("id"))
+-            == Some("knot-recipe-motion-viewport")
+-        {
+-            return Some(node);
+-        }
+-        dom.dom_children(node).find_map(|child| find(dom, child))
+-    }
+     let node = {
+         let dom_handle = ctx.runner.dom();
+         let dom = dom_handle.borrow();
+-        find(&*dom, ctx.runner.root())
++        node_with_id(&*dom, ctx.runner.root(), "knot-recipe-motion-viewport")
+     };
+     node.and_then(|node| ctx.visible_rect(node))
+         .is_some_and(|(x, y, w, h)| {
+diff --git a/apps/desktop/src/lib.rs b/apps/desktop/src/lib.rs
+index aa709d4..a49facc 100644
+--- a/apps/desktop/src/lib.rs
++++ b/apps/desktop/src/lib.rs
+@@ -62,6 +62,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
+     hooks.after_dispatch = Box::new(move |ctx| {
+         theme_session::after_dispatch(ctx);
+         theme_session::update_stylesheet(ctx);
++        crate::composition::reveal_motion_preview(ctx);
+     });
+     hooks.after_wake = Box::new(workspace::after_wake);
+     hooks.close_request = Box::new(|ctx, request| {
+diff --git a/apps/desktop/src/readings.rs b/apps/desktop/src/readings.rs
+index d778d79..a9b509c 100644
+--- a/apps/desktop/src/readings.rs
++++ b/apps/desktop/src/readings.rs
+@@ -32,6 +32,12 @@ pub const CSS: &str = concat!(
+     ".knot-recipe-scene button.graph-canvas-swatch-node:hover, .knot-recipe-scene button.graph-canvas-swatch-relation:hover { background:transparent; }",
+     ".knot-composition .knot-recipe-scene-camera-row, .knot-composition .knot-recipe-scene-pan-controls { flex-direction:row; flex-wrap:wrap; }",
+     ".knot-recipe-scene-camera-row > button, .knot-recipe-scene-pan-controls > button { flex:1 1 96px; min-width:0; }",
++    // Keep the scene above a compact toolbar; explanations and authoring follow.
++    ".knot-composition .knot-recipe-dynamics-controls { flex-direction:row; flex-wrap:wrap; align-items:stretch; }",
++    ".knot-recipe-dynamics-controls > button { flex:1 1 112px; min-width:0; padding:6px 4px; }",
++    ".knot-recipe-dynamics-controls > .knot-recipe-dynamics-primary { flex:1 1 48px; }",
++    ".knot-recipe-dynamics-controls > .knot-recipe-dynamics-keep { flex:2 1 88px; }",
++    ".knot-recipe-dynamics-controls > span { flex-basis:100%; }",
+     // Match the two authored strata colors in the shared canvas, with text as well.
+     ".knot-recipe-scene-key-foreground { color:#db7a33; }",
+     ".knot-recipe-scene-key-background { color:#476b94; }",
+diff --git a/apps/desktop/src/scenario.rs b/apps/desktop/src/scenario.rs
+index 91bff8c..c30b26b 100644
+--- a/apps/desktop/src/scenario.rs
++++ b/apps/desktop/src/scenario.rs
+@@ -45,7 +45,10 @@ impl mesquite::Product for KnotLane {
+             run: self.capture_run.clone()?,
+             observe: Box::new(|ctx, _frame| {
+                 let state = ctx.runner.state();
+-                let fields = capture_fields(state);
++                let mut fields = capture_fields(state);
++                let (painted, visible) = crate::composition::motion_viewport_geometry(ctx);
++                fields.insert("scene_motion_canvas_painted".into(), serde_json::json!(painted).to_string());
++                fields.insert("scene_motion_canvas_visible".into(), serde_json::json!(visible).to_string());
+                 let graph = state.graph_capture_facts()?;
+                 let graph_visible = graph_is_presented(state);
+                 Ok(mesquite::CaptureProjection {

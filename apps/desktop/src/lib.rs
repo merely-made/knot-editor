@@ -62,6 +62,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
     hooks.after_dispatch = Box::new(move |ctx| {
         theme_session::after_dispatch(ctx);
         theme_session::update_stylesheet(ctx);
+        crate::composition::reveal_motion_preview(ctx);
     });
     hooks.after_wake = Box::new(workspace::after_wake);
     hooks.close_request = Box::new(|ctx, request| {

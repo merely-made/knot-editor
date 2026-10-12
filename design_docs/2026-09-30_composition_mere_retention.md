@@ -802,6 +802,39 @@ identity, source material, roles and the dynamics slot. Hidden background bodies
 remain part of the exact pose; stale individual pointer edits still require
 visibility. The existing trace limit refuses the entire edit when it cannot fit.
 
+### Dynamics viewport continuation (2026-10-11)
+
+**Status:** implemented and qualified on Windows after `63aa695`; Firefox verification is parked at
+Mark's direction while browser control remains blocked. This bounded follow-up
+owns Knot's scene layout, not shared force policy, dependency adoption or the
+broader F199 queue.
+
+**Baseline findings at `63aa695`:** `recipe/scene.rs::presented` already observes
+the canvas viewport through host-owned ancestor clipping. The Readings sheet
+makes composition divs vertical, while the former scene put five motion buttons, authoring controls and
+several explanations before its 220 by 200 logical-pixel canvas. The preceding
+native receipt records partly or wholly offscreen bodies in that arrangement.
+
+**Done-conditions:** keep the canvas above a wrapping motion toolbar and move
+optional authoring/explanation controls below it; the full canvas and main
+playback actions remain visible together after Start at compact panel widths.
+Qualify the actual host geometry at 256, 260 and 380 logical pixels (232 content
+pixels at the smallest size), real motion and
+pause, unchanged authored recipe/source, and native wide/compact captures.
+Keep placement, undo, explicit retention and the existing presentation clock
+guard retain their semantics. The previous layout must fail the geometry
+regression test. Results belong to the new
+[viewport receipt](../docs/receipts/2026-10-11_dynamics_viewport/README.md).
+
+**Progress:** the canvas now precedes compact Play/Pause/Keep controls, with full
+accessible action names preserved. A playback action requests one host-owned
+reveal of the preview/toolbar group; the request is consumed, so ordinary
+scrolling can hide and pause motion without pulling the view back. The final
+focused suite passes 80 tests. Sixteen reviewed wide/compact native captures
+preserve motion, pause and exact Keep/undo/redo semantics. Capture metadata
+proves the complete 222 by 202 camera box, including its border, is visible after
+playback actions. General Windows chrome/layout issues remain outside this slice.
+
 Motion maps through the original compiled bounds, never its changing runtime
 AABB; positions outside that fixed display plane project to its boundary.
 Active animation refreshes the paint leaf without rebuilding the full semantic

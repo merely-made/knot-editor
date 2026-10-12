@@ -298,6 +298,7 @@ pub(super) fn enabled(state: &DesktopState) -> bool {
 
 /// Explicitly promote a paused or finished pose through the recipe's history.
 pub(super) fn keep_placement(state: &mut DesktopState) {
+    state.composition.recipe.motion_preview_reveal = true;
     let recipe = &state.composition.recipe;
     if recipe.dynamics.running() {
         state.composition.notice = Some("Pause scene motion before keeping placement.".into());
@@ -352,10 +353,11 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
         el(
             "div",
             (
-                button(start_label, move |state: &mut DesktopState, _| {
+                button("Play", move |state: &mut DesktopState, _| {
                     if state.composition.recipe.dynamics.running() {
                         return;
                     }
+                    state.composition.recipe.motion_preview_reveal = true;
                     state.composition.recipe.scene_drag = None;
                     let result = state
                         .composition
@@ -371,25 +373,32 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                         state.composition.notice = Some(error);
                     }
                 })
+                .attr("aria-label", start_label)
+                .attr("class", "knot-recipe-dynamics-primary")
                 .attr("aria-disabled", (!enabled || running).to_string()),
-                button("Pause scene motion", |state: &mut DesktopState, _| {
+                button("Pause", |state: &mut DesktopState, _| {
+                    state.composition.recipe.motion_preview_reveal = true;
                     state.composition.recipe.dynamics.pause();
                 })
+                .attr("aria-label", "Pause scene motion")
+                .attr("class", "knot-recipe-dynamics-primary")
                 .attr("aria-disabled", (!running).to_string()),
                 button("Keep placement", |state: &mut DesktopState, _| {
                     keep_placement(state);
                 })
+                .attr("class", "knot-recipe-dynamics-keep")
                 .attr(
                     "aria-disabled",
                     (running || state.composition.recipe.dynamics.positions().is_empty())
                         .to_string(),
                 ),
                 button(
-                    "Step scene motion once",
+                    "Step once",
                     move |state: &mut DesktopState, _| {
                         if state.composition.recipe.dynamics.running() {
                             return;
                         }
+                        state.composition.recipe.motion_preview_reveal = true;
                         state.composition.recipe.scene_drag = None;
                         let result = state
                             .composition
@@ -407,10 +416,12 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                         }
                     },
                 )
+                .attr("aria-label", "Step scene motion once")
                 .attr("aria-disabled", (!enabled || running).to_string()),
                 button(
-                    "Restart scene motion",
+                    "Restart",
                     move |state: &mut DesktopState, _| {
+                        state.composition.recipe.motion_preview_reveal = true;
                         state.composition.recipe.scene_drag = None;
                         let result = state
                             .composition
@@ -428,6 +439,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                         }
                     },
                 )
+                .attr("aria-label", "Restart scene motion")
                 .attr("aria-disabled", (!enabled).to_string()),
                 span(if running {
                     "Shared dynamics running · fixed-step session playback".to_owned()

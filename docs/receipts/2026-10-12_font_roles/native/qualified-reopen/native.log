@@ -1,0 +1,7 @@
+[knot] marked synthetic acceptance fixture: initial presentation grace 60s; restores to 10s on first successful presentation
+[cambium-winit] accessibility Installed, 52 nodes projected
+[knot] first successful presentation observed; initial grace ended, normal 10s presentation timeout restored
+knot: captured font-roles-fresh-process-reopen
+knot: waited 0 frames
+knot: captured font-roles-recipe-fresh-process-reopen
+knot: RESULT ok (35 frames, 2 captures)

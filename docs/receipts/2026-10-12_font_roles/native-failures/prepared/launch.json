@@ -1,0 +1,23 @@
+{
+  "name": "KnotFontsWideQualified",
+  "binary": "/Users/markik/Code/testing/knot-editor/font-roles-20261012/native/font-acceptance-frozen",
+  "output": "/Users/markik/Code/testing/knot-editor/font-roles-20261012/native/qualified-wide",
+  "prefix": "KNOT",
+  "scenario": "/Users/markik/Code/repos/knot-editor/scenarios/font_roles_apply.scn",
+  "args": [
+    "--reopen-test-fixture",
+    "/Users/markik/Code/testing/knot-editor/font-roles-20261012/native/qualified-fixture"
+  ],
+  "env": {
+    "TMPDIR": "/tmp",
+    "KNOT_THEME_LIBRARY": "/Users/markik/Code/testing/knot-editor/font-roles-20261012/native/themes.json",
+    "KNOT_TEST_WIDTH": "1100",
+    "KNOT_TEST_HEIGHT": "1000",
+    "KNOT_CAPTURE_CORRELATION": "1",
+    "CAMBIUM_HOST_FRAME_TRACE": "1"
+  },
+  "app": "/Users/markik/Code/testing/knot-editor/font-roles-20261012/native/qualified-wide/KnotFontsWideQualified.app",
+  "binary_sha256": "24340da3893445480a38782dfc14ef7ba764b689ca75ecde991b5032e03b4802",
+  "scenario_sha256": "fdad680a4c487504084ad6754da208a10b63e039910829bf4f84ffac361f9740",
+  "launch_method": "native control of prepared app bundle"
+}

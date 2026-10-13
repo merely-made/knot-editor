@@ -1,0 +1,2 @@
+# Preserve literal Cargo whitespace only in this directory's command receipts.
+*.log -whitespace

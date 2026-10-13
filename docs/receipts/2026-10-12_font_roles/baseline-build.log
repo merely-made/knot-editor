@@ -1,0 +1,87 @@
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261011#d8acabc9)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling sceno v0.0.4 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling command-menu v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling tinct v0.1.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling muniment v0.1.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling workbench v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-curation v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling edit-history v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling chartulary v0.2.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling numen v0.2.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-forme v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-kernel v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling scenotime v0.0.4 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling scenograph v0.0.4 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling errand v0.4.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling scenomise v0.0.4 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling chirograph v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling tabard v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling armillary v0.1.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling incipit v0.2.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling seiche v0.0.6 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling eidetic v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling cambium-winit v0.3.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-alembic v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-proofs v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling cambium-rootstock v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling stickleback v0.1.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling pandect v0.1.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling knot-file-catalog v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-file-catalog)
+   Compiling luggage v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling esp v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mora-cmudict v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-webrtc-carrier v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling knot-capture v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-capture)
+   Compiling knot-document v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-document)
+   Compiling mere-transport v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling script-rhai v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-fleece v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling graphshell-endpoint v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling graphshell-client v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-cartography v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling document-canvas v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling reference-data v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-page-load v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling pictograph v0.2.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-fetch v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling graphshell v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-document-lanes v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling knot-composition v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-composition)
+   Compiling cambium-winit-a11y v0.3.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling servitor v0.0.2 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling mere-apparatus v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling knot-editor v0.0.3 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-editor)
+   Compiling mesquite v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+warning: unused variable: `path`
+  --> crates/knot-editor/src/directory.rs:53:13
+   |
+53 |     fn read(path: &Path, _metadata: &Metadata) -> io::Result<Self> {
+   |             ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling knot-site v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-site)
+   Compiling cambium-genet-winit-host v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling tabard-workshop v0.0.1 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+warning: `knot-editor` (lib) generated 1 warning (run `cargo fix --lib -p knot-editor` to apply 1 suggestion)
+   Compiling mere-view v0.1.0 (https://github.com/merely-made/mere.git?rev=ef0994bae9a1742d682cc5342ed0f118fa51937a#ef0994ba)
+   Compiling knot-readings v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/crates/knot-readings)
+   Compiling knot-desktop v0.0.1 (/Users/markik/Code/testing/knot-editor/font-native-baseline-dVVFvs/apps/desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `knot-desktop` (example "collection_acceptance") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2m 30s

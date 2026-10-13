@@ -613,6 +613,10 @@ fn handle_drag(
         return Ok(None);
     }
     match drag.phase {
+        PointerPhase::Cancel => {
+            recipe.scene_drag = None;
+            Ok(None)
+        },
         PointerPhase::Down => {
             recipe.scene_drag = Some(SceneDrag {
                 id: drag.id,
@@ -1388,6 +1392,20 @@ mod tests {
             phase,
             position,
         };
+        for phase in [PointerPhase::Down, PointerPhase::Move, PointerPhase::Cancel] {
+            assert!(
+                handle_drag(&mut recipe, &compiled, event(phase, (0.8, 0.7)))
+                    .unwrap()
+                    .is_none()
+            );
+        }
+        assert!(recipe.scene_drag.is_none());
+        assert!(
+            handle_drag(&mut recipe, &compiled, event(PointerPhase::Up, (0.8, 0.7)))
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(recipe.material.as_ref(), Some(&before));
         assert!(
             handle_drag(
                 &mut recipe,

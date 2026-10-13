@@ -4,7 +4,7 @@ Status: source implemented and CPU-qualified. Native qualification remains
 pending; published main is not advanced by this evidence. A review branch may
 carry the source/receipt without claiming a fully qualified consumer milestone.
 
-Runtime source: `4fae1d8bdd94ff67eff97977b24810b37680de3a`, based on published
+Font implementation: `4fae1d8bdd94ff67eff97977b24810b37680de3a`, based on published
 Knot `3af93adda472af2913a5d298f14deb10e85daee2`. Mere is frozen at
 `8568f42fdf57f997274c74e63bd4ee045fe1a2b4`. Genet `2c7ef73`, Netrender
 `c74b7cb`, Classic provider `2eae624`, and Dramatis `0234e7e` stay coherent.
@@ -70,6 +70,32 @@ compact picker scenarios exercise normal controls and local preferences, plus
 separate signed/encrypted recipe retention in Knot's own mere. Foreground/GPU
 work is serialized with Woodshed and Cleromancy.
 
+Runtime `a2128e7d8d7929f5f0df168e2ae033e22f7b38ce` adds an explicitly configured
+initial activation allowance for these marked synthetic scenarios only:
+`KNOT_TEST_INITIAL_PRESENTATION_GRACE_SECS=60`. Exact public-test marker bytes
+and an active scenario are required; values are bounded to 10–60 seconds.
+On the first successful presentation the same lane restores its normal ten-second
+watchdog before processing that frame. Subsequent failures cannot re-arm the
+allowance. Six focused tests cover the boundary, bounds, one-shot transition,
+and callback order. Ordinary and unmarked launches retain ten seconds.
+This qualification procedure does not qualify unattended/default-ten-second
+startup. The original strict-timeout failures below remain recorded separately.
+
+The new runtime's [workspace rerun](workspace-startup.log) passes **687 tests,
+zero failures, four existing ignores**, across the same 45 harnesses. Its locked
+all-target check and desktop/acceptance build pass. Frozen acceptance SHA-256:
+`6ab81ede6eaf88f27c2c0b6ba40f0c00ce2faa1cba93d8b9e0e3dfa5eefb5a26`.
+
+The first activation-grace seed renders 193 presentations and nine nonblank
+captures, restoring ten seconds exactly once. Font Apply, geometry invalidation,
+cold reset and recipe retention assertions pass, but the overall receipt fails:
+the authored typography fixture incorrectly declares library version 1. The
+shared loader correctly requires version 2 and refuses that fixture. The failed
+receipt/profile are preserved externally as `version-one-fixture-failure` and
+`version-one-fixture-profile`; they are not accepted qualification evidence.
+The fixture is corrected to version 2 with a focused library-loading regression;
+the next matrix starts from a fresh marked synthetic profile.
+
 [verify-native.py](verify-native.py) is read-only and verifies successful
 processes, original PNG hashes/dimensions, paired state/presentation records,
 requested fonts, source identity, realized remeasurement/runtime reset,
@@ -113,8 +139,10 @@ strict-scenario activation attempts arrived after the watchdog, sometimes
 returning cached AX or inactive/missing-app errors. Fresh emitted AX followed
 by native action worked on the longer-lived ordinary diagnostic. The last
 warm prepared-bundle experiment still failed. Deadlines, rendering guards,
-feature assertions and supplier source were not changed to turn these into a
-pass. [verify-native.py](verify-native.py) is prepared for the remaining matrix;
+feature assertions and supplier source were not changed in those attempts.
+The later startup-only opt-in above changes only the initial fixture deadline;
+it preserves the post-start watchdog and all feature assertions.
+[verify-native.py](verify-native.py) is prepared for the remaining matrix;
 it has not passed because no accepted native matrix exists yet.
 
 This is not exact-face/glyph-coverage or remote/frozen-font fidelity. Physical

@@ -1,7 +1,8 @@
 # Knot shared font-role adoption
 
-Status: implemented and CPU-qualified at `4fae1d8`; native qualification is
-pending an effective foreground launch. This is not merged into published main.
+Status: font implementation is CPU-qualified at `4fae1d8`; startup-only fixture
+policy is implemented at `a2128e7`. Native qualification remains pending.
+This is not merged into published main.
 
 Baseline: published Knot `3af93adda472af2913a5d298f14deb10e85daee2`.
 Shared source: Mere `8568f42fdf57f997274c74e63bd4ee045fe1a2b4`, with Genet
@@ -92,5 +93,13 @@ An ordinary, non-scenario baseline window renders after native keyboard
 activation; that diagnostic is not font-feature acceptance. No guard or feature
 assertion was weakened. Native picker/save/scene and fresh-process reopening
 remain pending; do not repin other consumers to a falsely qualified milestone.
+
+An explicitly configured initial activation grace now applies only to marked
+synthetic scenarios: `KNOT_TEST_INITIAL_PRESENTATION_GRACE_SECS=60`, capped at
+60 seconds. The same lane restores the normal ten-second presentation timeout
+before admitting its first successful frame; it cannot re-arm. Six pure tests
+cover exact marker bytes, lazy setting reads, bounds and restoration order.
+Default/unmarked startup remains unchanged. This bounded foreground procedure
+does not qualify the original default-ten-second or unattended startup path.
 
 See the [gate and diagnostic receipt](../docs/receipts/2026-10-12_font_roles/README.md).

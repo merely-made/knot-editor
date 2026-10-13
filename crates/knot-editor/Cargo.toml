@@ -2,7 +2,8 @@
 name = "knot-editor"
 version = "0.0.3"
 edition.workspace = true
-rust-version.workspace = true
+
+rust-version = "1.97.1"
 license.workspace = true
 repository.workspace = true
 description = "Files-in-place local-first Djot editor, document authority, and peer sync."

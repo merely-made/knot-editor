@@ -3,7 +3,8 @@ name = "knot-readings"
 version = "0.0.1"
 edition.workspace = true
 license.workspace = true
-rust-version.workspace = true
+
+rust-version = "1.97.1"
 repository.workspace = true
 description = "Sandboxed rhai reading lane over Knot's typed document snapshots."
 

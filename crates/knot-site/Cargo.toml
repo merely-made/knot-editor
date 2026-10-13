@@ -4,7 +4,8 @@
 name = "knot-site"
 version = "0.0.1"
 edition = "2024"
-rust-version = "1.97"
+
+rust-version = "1.97.1"
 license = "MPL-2.0"
 description = "Native small-web site files and explicit loopback publication for Knot"
 
@@ -41,3 +42,6 @@ retinue = ["dep:retinue", "dep:getrandom"]
 name = "nomadnet"
 path = "tests/nomadnet.rs"
 required-features = ["retinue"]
+
+[workspace.package]
+rust-version = "1.97.1"

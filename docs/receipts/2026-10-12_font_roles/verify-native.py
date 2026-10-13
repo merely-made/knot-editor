@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 """Read-only verification of isolated font-role native evidence.
 
-Usage: python3 verify-native.py /absolute/evidence/root /absolute/binary
+Usage: python3 verify-native.py /absolute/evidence/root /absolute/binary SOURCE_SHA
 The verifier checks recorded state and file identity, not visual quality.
 """
 import hashlib
@@ -13,6 +13,7 @@ import struct
 import sys
 
 root, binary = map(Path, sys.argv[1:3])
+runtime = sys.argv[3]
 assert root.is_absolute() and binary.is_absolute()
 sha = lambda data: hashlib.sha256(data).hexdigest()
 fixture = root / "qualified-fixture"
@@ -42,6 +43,9 @@ for name, count, width in (("qualified-wide", 9, 2200),
     assert process["binary_sha256"] == binary_sha
     receipt = (directory / "scenario.done").read_text()
     assert receipt.startswith("RESULT ok\n") and "FAIL:" not in receipt
+    log = (directory / "native.log").read_text()
+    assert "initial presentation grace 60s" in log
+    assert log.count("normal 10s presentation timeout restored") == 1
     current = {}
     for line in receipt.splitlines():
         match = re.fullmatch(r"capture-pairing (\S+) (\{.*\})", line)
@@ -91,7 +95,8 @@ assert int(reset["composition_recipe_measurements"]) > int(before["composition_r
 for name in ("font-roles-fresh-process-reopen", "font-roles-compact-search", "font-roles-compact-staged"):
     assert json.loads(fields(name)["requested_fonts"]) == expected
 assert len({item["fields"]["source_blake3"] for item in captures.values()}) == 1
-print(json.dumps(dict(schema="knot.font-roles-native/v1", runtime="4fae1d8",
+print(json.dumps(dict(schema="knot.font-roles-native/v1", runtime=runtime,
+    startup_policy="marked fixture only: initial 60s, normal 10s after first presentation",
     binary_sha256=binary_sha, source_sha256=sha(source), source_bytes=len(source),
     capture_count=len(captures), presented_frames=sum(run["frames"] for run in runs),
     font_requests=expected, reopen_file_digests=pre, runs=runs), indent=2))

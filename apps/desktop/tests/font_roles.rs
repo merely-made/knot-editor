@@ -603,3 +603,23 @@ fn fonts_only_apply_retains_the_frozen_same_identity_theme_until_theme_apply() {
     assert_ne!(applied.presentation, frozen.presentation);
     assert_eq!(requested(&host), requested_fonts);
 }
+
+#[test]
+fn committed_font_role_library_loads_into_the_theme_workshop() {
+    let library = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../scenarios/fixtures/font_role_library.json");
+    let store = ThemeLibraryStore::load(&library)
+        .expect("the committed font-role fixture must use the supported library version");
+    assert!(store
+        .themes()
+        .iter()
+        .any(|theme| theme.id == "user:role-fixture"));
+
+    let mut session = theme_session::ThemeSession::default();
+    session.load(library);
+    let workshop = session
+        .workshop
+        .as_ref()
+        .expect("the committed fixture should open the theme workshop");
+    assert!(workshop.registry().theme_def("user:role-fixture").is_some());
+}

@@ -158,15 +158,19 @@ impl Appearance {
     }
 
     pub fn preview_style(&self) -> String {
-        self.body_style("'Source Serif 4',serif", self.measure.columns())
+        // Family is supplied by the reading role stylesheet, before authored
+        // CSS. Keeping it out of this inline style gives authored selectors
+        // their ordinary cascade authority without changing writer metrics.
+        self.body_style("", self.measure.columns())
     }
 
     fn body_style(&self, family: &str, columns: Option<usize>) -> String {
         // Direct ch lengths use the host's real font advances. Keep insets
         // outside this box so the measure describes text, not frame padding.
         let max_width = columns.map_or_else(|| "none".to_owned(), |column| format!("{column}ch"));
+        let family = if family.is_empty() { String::new() } else { format!("font-family:{family};") };
         format!(
-            "font-family:{family};font-size:{}px;line-height:{};width:100%;max-width:{max_width};margin-left:auto;margin-right:auto;",
+            "{family}font-size:{}px;line-height:{};width:100%;max-width:{max_width};margin-left:auto;margin-right:auto;",
             self.font_size
                 .clamp(Self::MIN_FONT_SIZE, Self::MAX_FONT_SIZE),
             if self.relaxed { "1.7" } else { "1.35" },

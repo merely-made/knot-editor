@@ -1,0 +1,154 @@
+# Run against a marked collection_acceptance root with font_role_library.json
+# copied to the isolated KNOT_THEME_LIBRARY path. This covers the app-owned
+# preference boundary and its interaction with an independently retained recipe.
+assert snap format == Djot
+assert snap dirty == false
+assert snap source_face == ibm-plex-mono
+click role:button Appearance
+settle 2
+click role:button @data-theme-id=user:role-fixture
+settle 2
+assert snap theme_id == user:role-fixture
+click role:button @data-font-choose=reading
+click role:textbox @data-font-search=true
+input-text IBM Plex Mono
+assert text IBM Plex Mono
+click role:button @data-font-family=IBM Plex Mono
+assert snap font_reading_draft == IBM Plex Mono
+click role:button @data-font-choose=label
+click role:textbox @data-font-search=true
+input-text Source Serif 4
+assert text Source Serif 4
+click role:button @data-font-family=Source Serif 4
+click role:button @data-font-choose=heading
+click role:textbox @data-font-search=true
+input-text Source Serif 4
+assert text Source Serif 4
+click role:button @data-font-family=Source Serif 4
+click role:textbox @data-font-role=code
+input-text Knot Missing Acceptance Face
+assert text Knot Missing Acceptance Face
+capture font-roles-staged
+click role:button @data-action=apply-font-roles
+settle 2
+assert snap font_roles_requested ~ IBM Plex Mono
+assert snap font_roles_requested ~ Source Serif 4
+assert snap font_roles_requested ~ "label":["Source Serif 4"]
+assert snap font_roles_requested ~ "heading":["Source Serif 4"]
+assert snap font_roles_requested ~ Knot Missing Acceptance Face
+assert snap source_face == ibm-plex-mono
+assert snap dirty == false
+assert text unavailable here
+capture font-roles-applied
+
+# Theme and mode selection must carry app-owned font requests forward.
+click role:button @data-theme-mode=dark
+settle 2
+assert snap theme_mode == dark
+assert snap font_roles_requested ~ IBM Plex Mono
+assert snap font_roles_requested ~ Source Serif 4
+capture font-roles-dark
+click role:button Edit themes…
+settle 2
+assert snap theme_workshop_open == true
+click role:button @data-action=apply-to-knot
+settle 2
+assert snap theme_id == user:role-fixture
+assert snap font_roles_requested ~ IBM Plex Mono
+assert snap font_roles_requested ~ Source Serif 4
+assert snap source_face == ibm-plex-mono
+assert snap dirty == false
+capture font-roles-workshop-applied
+click role:button Back to Knot
+settle 2
+click role:button Appearance
+settle 2
+
+# Establish one pinned, explicitly scheduled scene. The next preference change
+# must invalidate its measured cards and drop runtime poses without editing the
+# source or authored placement.
+click role:button Show Preview
+click role:button @aria-label=Select source heading: Night light
+click role:button Hide Preview
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+wait
+assert text Confirmed 1 retained items
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+click role:button Use sound relationship recipe
+click role:button Show relationship scene
+settle 4
+click .graph-canvas-swatch-node @data-key=token-8-13
+click role:button Show scene placement controls
+click role:button Move selected occurrence right
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 1
+assert snap recipe_history_can_undo == true
+assert snap recipe_history_can_redo == false
+assert snap composition_recipe_measurements >= 1
+click role:button Hide scene placement controls
+click role:button Show scene motion authoring controls
+click role:button Set selected motion role: Pinned
+click role:button Use shared spring for 120 fixed frames
+assert snap scene_motion_slot == true
+click role:button Hide scene motion authoring controls
+capture font-roles-scene-before-play
+click role:button Start scene motion
+settle 12
+assert snap scene_motion_running == true
+assert snap scene_motion_ticks >= 1
+assert snap scene_motion_positions >= 1
+assert snap recipe_history_can_undo == true
+assert snap recipe_history_can_redo == false
+capture font-roles-scene-running
+
+# A realized Label family change resets the transient controller while keeping
+# the authored recipe, pinned role and placement trace.
+click role:button Appearance
+click role:button @data-font-choose=label
+click role:textbox @data-font-search=true
+input-text IBM Plex Mono
+assert text IBM Plex Mono
+click role:button @data-font-family=IBM Plex Mono
+click role:button @data-action=apply-font-roles
+settle 6
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+assert snap scene_motion_slot == true
+assert snap scene_motion_roles == 1
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 1
+assert snap recipe_history_can_undo == true
+assert snap recipe_history_can_redo == false
+assert snap composition_recipe_measurements >= 2
+assert snap source_face == ibm-plex-mono
+assert snap dirty == false
+assert snap font_roles_requested ~ IBM Plex Mono
+assert snap font_roles_requested ~ "label":["IBM Plex Mono"]
+capture font-roles-scene-metrics-reset
+click role:button Appearance
+settle 2
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 1
+assert snap recipe_history_can_undo == true
+assert snap recipe_history_can_redo == false
+capture font-roles-scene-cold
+click role:button Retain relationship recipe
+wait
+assert text Confirmed 2 retained items
+assert snap recipe_edits_retained == true
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 1
+assert snap dirty == false
+capture font-roles-recipe-retained

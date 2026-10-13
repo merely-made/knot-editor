@@ -431,6 +431,9 @@ impl CompositionState {
             }
         }
         [
+            ("composition_recipe_measurements", self.recipe.measurements.to_string()),
+            ("recipe_history_can_undo", self.recipe.history.can_undo().to_string()),
+            ("recipe_history_can_redo", self.recipe.history.can_redo().to_string()),
             ("scene_motion_running", runtime.running().to_string()),
             ("scene_motion_status", runtime.status_key().to_owned()),
             ("scene_motion_ticks", runtime.ticks().to_string()),
@@ -2346,6 +2349,278 @@ mod tests {
         frame(&mut host);
         assert_eq!(measurements(&host), 2);
         unchanged_after(&mut host, 2);
+    }
+
+    #[test]
+    fn realized_label_typography_remeasures_and_resets_only_transient_motion() {
+        use tabard::typography::{FontFamily, FontPreferences, FontRole};
+
+        let mut state = recipe_state("night night light", 0, 17);
+        let mut retained = state.composition.recipe.material.clone().unwrap();
+        retained.snapshot.recipe.definition.dynamics =
+            Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+        retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
+            overview_visible: true,
+            ..Default::default()
+        });
+        retained
+            .move_scene_occurrence("token-0-5", [0.2, 0.3])
+            .unwrap();
+        recipe::reopen(&mut state, retained.clone());
+        let fonts = |family: &str| {
+            let mut fonts = FontPreferences::default();
+            fonts
+                .0
+                .insert(FontRole::Label, vec![FontFamily::new(family).unwrap()]);
+            fonts
+        };
+        state.apply_font_preferences(fonts("IBM Plex Mono"));
+        let history = state.composition.recipe.history.clone();
+        let positions = state.composition.recipe.scene_positions.clone();
+        let source = state.document().snapshot();
+        let authored_css = std::rc::Rc::new(std::cell::RefCell::new(String::new()));
+        let extra_css = authored_css.clone();
+        let mut hooks = cambium_genet_winit_host::inert_hooks();
+        hooks.frame = Box::new(super::measure_recipe_cards);
+        hooks.after_dispatch = Box::new(move |ctx| {
+            crate::theme_session::update_stylesheet(ctx);
+            if !extra_css.borrow().is_empty() {
+                *ctx.set_sheet = Some(format!(
+                    "{}{}",
+                    crate::theme_session::stylesheet(ctx.runner.state()),
+                    extra_css.borrow()
+                ));
+            }
+            super::reveal_motion_preview(ctx);
+        });
+        let sheet = crate::theme_session::stylesheet(&state);
+        let mut host = Harness::with_hooks(
+            cambium_genet_winit_host::Init {
+                state,
+                logic: workspace_composition as fn(&DesktopState) -> DesktopView,
+                sheet,
+                fonts: crate::fonts::bundled_fonts(),
+                images: Vec::new(),
+            },
+            hooks,
+        );
+        host.layout_at(1100.0, 2000.0);
+        frame(&mut host);
+        let plex = host
+            .state()
+            .composition
+            .recipe
+            .measured
+            .as_ref()
+            .unwrap()
+            .card;
+        let click = |host: &mut RecipeHost, label: &str| {
+            assert!(
+                host.click_on(&Selector::role("button").containing(label)),
+                "{label}"
+            );
+            host.after_dispatch();
+            host.relayout();
+        };
+        click(&mut host, "Start scene motion");
+        for _ in 0..4 {
+            frame(&mut host);
+        }
+        assert!(host.state().composition.recipe.dynamics.running());
+        assert!(
+            !host
+                .state()
+                .composition
+                .recipe
+                .dynamics
+                .positions()
+                .is_empty()
+        );
+
+        // A color-only mode change keeps the realized geometry and controller.
+        let typography = host.state().composition.recipe.typography.clone();
+        let count = host.state().composition.recipe.measurements;
+        let ticks = host.state().composition.recipe.dynamics.ticks();
+        host.update(|state| {
+            let choice = state.theme_session.choice(
+                crate::theme_session::DEFAULT_THEME,
+                Some(tabard::theme::registry::Mode::Dark),
+            );
+            state.select_theme_choice(choice);
+        });
+        host.after_dispatch();
+        host.relayout();
+        frame(&mut host);
+        assert_eq!(host.state().composition.recipe.typography, typography);
+        assert_eq!(host.state().composition.recipe.measurements, count);
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), ticks + 1);
+        assert!(host.state().composition.recipe.dynamics.running());
+
+        host.update(|state| state.apply_font_preferences(fonts("Source Serif 4")));
+        host.after_dispatch();
+        host.relayout();
+        frame(&mut host);
+        assert_eq!(cards_and_probes(&host).0.len(), 0);
+        assert!(host.state().composition.recipe.measured.is_none());
+        assert!(!host.state().composition.recipe.dynamics.running());
+        assert!(
+            host.state()
+                .composition
+                .recipe
+                .dynamics
+                .positions()
+                .is_empty()
+        );
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 0);
+        frame(&mut host);
+        let serif = host
+            .state()
+            .composition
+            .recipe
+            .measured
+            .as_ref()
+            .unwrap()
+            .card;
+        assert_ne!(
+            serif, plex,
+            "bundled faces have distinct realized label metrics"
+        );
+        assert_eq!(host.state().composition.recipe.measurements, count + 1);
+        let (cards, probes) = cards_and_probes(&host);
+        assert_eq!((cards.len(), probes.len()), (3, 0));
+        for card in cards {
+            assert!(host.computed_value(card, "font-family").unwrap().contains("Source Serif 4"));
+            let (_, _, width, height) = host.painted_rect(card).unwrap();
+            assert_eq!((width, height), (serif.w, serif.h));
+        }
+        assert!(!host.state().composition.recipe.dynamics.running());
+        click(&mut host, "Start scene motion");
+        frame(&mut host);
+        assert_eq!(host.state().composition.recipe.dynamics.ticks(), 1);
+
+        // Authored CSS uses the same label class as both hidden probes, and
+        // changes weight, size and leading in addition to the requested family.
+        *authored_css.borrow_mut() = ".knot-workspace button.knot-recipe-occurrence-button {font-family:'IBM Plex Mono';font-size:24px;font-weight:700;line-height:1.8;}".into();
+        host.after_dispatch();
+        host.relayout();
+        frame(&mut host);
+        assert!(host.state().composition.recipe.measured.is_none());
+        assert!(!host.state().composition.recipe.dynamics.running());
+        assert!(
+            host.state()
+                .composition
+                .recipe
+                .dynamics
+                .positions()
+                .is_empty()
+        );
+        frame(&mut host);
+        let authored = host
+            .state()
+            .composition
+            .recipe
+            .measured
+            .as_ref()
+            .unwrap()
+            .card;
+        assert!(authored.w > serif.w && authored.h > serif.h);
+        let card = cards_and_probes(&host).0[0];
+        assert_eq!(host.computed_value(card, "font-size"), Some("24px".into()));
+        assert_eq!(host.computed_value(card, "font-weight"), Some("700".into()));
+        let typography_labels = host.with_dom(|dom| {
+            fn walk(dom: &ScriptedDom, node: NodeId, out: &mut Vec<NodeId>) {
+                if dom.attribute(node, &layout_dom_api::Namespace::from(""), &layout_dom_api::LocalName::from("data-knot-recipe-typography")).is_some() {
+                    out.push(node);
+                }
+                for child in dom.dom_children(node) { walk(dom, child, out); }
+            }
+            let mut out = Vec::new();
+            walk(dom, dom.document(), &mut out);
+            out
+        });
+        for label in typography_labels {
+            for property in ["font-family", "font-size", "font-weight", "line-height"] {
+                assert_eq!(host.computed_value(label, property), host.computed_value(card, property), "the probe and button share realized {property}");
+            }
+        }
+        assert_eq!(host.state().composition.recipe.history, history);
+
+        click(&mut host, "Hide relationship scene");
+        let hidden_history = host.state().composition.recipe.history.clone();
+        host.update(|state| state.apply_font_preferences(fonts("IBM Plex Mono")));
+        authored_css.borrow_mut().clear();
+        host.after_dispatch();
+        host.relayout();
+        for _ in 0..3 {
+            frame(&mut host);
+        }
+        assert!(!host.state().composition.recipe.dynamics.running());
+        assert_eq!(host.state().composition.recipe.history, hidden_history);
+        click(&mut host, "Show relationship scene");
+        for _ in 0..3 {
+            frame(&mut host);
+        }
+        assert!(!host.state().composition.recipe.dynamics.running());
+        assert!(
+            host.state()
+                .composition
+                .recipe
+                .dynamics
+                .positions()
+                .is_empty()
+        );
+        assert_eq!(
+            host.state().composition.recipe.material.as_ref(),
+            Some(&retained)
+        );
+        assert_eq!(host.state().composition.recipe.scene_positions, positions);
+        assert_eq!(host.state().document().snapshot().text, source.text);
+        assert_eq!(host.state().document().snapshot().dirty, source.dirty);
+    }
+
+    #[test]
+    fn typography_observes_every_imported_label_at_the_shared_admission_limit() {
+        let limit = scenomise::projection::RelationshipCompileLimits::default().max_occurrences;
+        assert_eq!(limit, 256, "Knot uses the shared default admission limit");
+        let mut state = recipe_state("night night light", 0, 17);
+        let mut material = state.composition.recipe.material.clone().unwrap();
+        let occurrence = material.dataset.dataset.occurrences[0].clone();
+        let anchor = material.anchors[0].clone();
+        for index in 3..=limit {
+            let id = format!("token-import-{index}");
+            let mut occurrence = occurrence.clone();
+            occurrence.occurrence_id = id.clone();
+            occurrence.values.insert("occurrence_id".into(), scenomise::projection::ProjectionValue::Text(id.clone()));
+            occurrence.values.insert("order".into(), scenomise::projection::ProjectionValue::Number(index as f64));
+            occurrence.values.insert("label".into(), scenomise::projection::ProjectionValue::Text(if index == limit - 1 { "漢字".into() } else { "night".into() }));
+            material.dataset.dataset.occurrences.push(occurrence);
+            let mut anchor = anchor.clone();
+            anchor.node_id = id;
+            material.anchors.push(anchor);
+        }
+        assert!(material.validate().is_err(), "a 257-occurrence import is refused before rendering");
+        material.dataset.dataset.occurrences.pop();
+        material.anchors.pop();
+        material.validate().unwrap();
+        recipe::reopen(&mut state, material);
+        let mut host = recipe_harness(state);
+        frame(&mut host);
+        let measured = host.state().composition.recipe.measured.as_ref().unwrap();
+        assert_eq!(measured.labels.len(), limit);
+        let observed = host.with_dom(|dom| {
+            fn walk(dom: &ScriptedDom, node: NodeId, out: &mut Vec<String>) {
+                if let Some(label) = dom.attribute(node, &layout_dom_api::Namespace::from(""), &layout_dom_api::LocalName::from("data-knot-recipe-typography")) {
+                    out.push(label.to_owned());
+                }
+                for child in dom.dom_children(node) { walk(dom, child, out); }
+            }
+            let mut labels = Vec::new();
+            walk(dom, dom.document(), &mut labels);
+            labels
+        });
+        assert_eq!(observed, measured.labels, "every measured label remains observed, including later glyph fallback");
+        assert!(observed.iter().any(|label| label == "漢字 · token-import-255"));
+        assert!(!host.prepare_frame(), "unchanged observations do not keep the host awake");
     }
 
     #[test]

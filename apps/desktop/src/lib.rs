@@ -13,6 +13,7 @@ mod document_links;
 pub mod document_preview;
 pub mod documents;
 pub mod fonts;
+pub mod font_roles;
 pub mod graph;
 mod link_workflow;
 pub mod navigator;

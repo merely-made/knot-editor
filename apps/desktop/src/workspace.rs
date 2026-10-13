@@ -928,6 +928,14 @@ impl DesktopState {
                 "theme_notice",
                 self.theme_session.notice.clone().unwrap_or_default(),
             )
+            .with_field("font_roles_requested", serde_json::to_string(
+                &crate::theme_session::appearance_choice(&self.appearance).fonts
+            ).expect("font preferences serialize"))
+            .with_field("font_roles_notice", self.theme_session.font_editor.notice.clone().unwrap_or_default())
+            .with_field("font_reading_draft", self.theme_session.font_editor.field(tabard::typography::FontRole::Reading).text())
+            .with_field("font_roles_diagnostics", crate::font_roles::diagnostics(
+                &crate::theme_session::appearance_choice(&self.appearance).fonts,
+                &self.theme_session.available_fonts).join(" "))
             .with_field("document", snapshot.display_label)
             .with_field("format", format!("{:?}", snapshot.format))
             .with_field(
@@ -1596,6 +1604,7 @@ impl DesktopState {
             return;
         };
         self.appearance = store.preferences().appearance.known.clone();
+        self.theme_session.load_font_preferences(&self.appearance);
         self.collapse = store.preferences().collapse.clone();
         self.graph.layout = store.preferences().graph_layout.clone();
         let open = self.graph_open_nodes();
@@ -2005,6 +2014,14 @@ impl DesktopState {
         change(&mut self.appearance);
         let clears_theme =
             previous.theme_choice.is_some() && self.appearance.theme_choice.is_none();
+        if clears_theme {
+            let fonts = crate::theme_session::appearance_choice(&previous).fonts;
+            if !fonts.is_empty() {
+                let mut choice = crate::theme_session::appearance_choice(&self.appearance);
+                choice.fonts = fonts;
+                self.appearance.theme_choice = Some(choice);
+            }
+        }
         if let Some(store) = self.preferences.as_mut() {
             if let Err(error) = store.save_appearance(&self.appearance) {
                 if clears_theme {
@@ -2025,9 +2042,10 @@ impl DesktopState {
         choice: Result<tabard::theme::choice::ThemeChoice, String>,
     ) {
         let result = choice.and_then(|choice| {
-            let choice = self
+            let mut choice = self
                 .theme_session
                 .choice(&choice.theme_id, choice.theme_mode)?;
+            choice.fonts = crate::theme_session::appearance_choice(&self.appearance).fonts;
             let mut candidate = self.appearance.clone();
             candidate.dark = choice
                 .theme_mode
@@ -2045,6 +2063,38 @@ impl DesktopState {
             Ok(()) => "Saved theme applied to Knot.".into(),
             Err(error) => format!("Appearance was not changed: {error}"),
         });
+    }
+
+    /// Font roles retain the requested theme/mode even if it is unavailable.
+    /// Persist the full candidate before changing presentation or editor baseline.
+    pub fn apply_font_preferences(&mut self, fonts: tabard::typography::FontPreferences) {
+        let presentation = self.theme_session.resolve(&self.appearance);
+        let mut candidate = self.appearance.clone();
+        let mut choice = crate::theme_session::appearance_choice(&candidate);
+        choice.fonts = fonts.clone();
+        candidate.theme_choice = Some(choice);
+        let result = self.preferences.as_mut().map_or(Ok(()), |store| store.save_appearance(&candidate).map(|_| ()));
+        match result {
+            Ok(()) => {
+                self.appearance = candidate;
+                // Explicit application can also come from a host command.
+                // Keep unchanged controlled fields/carets, but reflect newly
+                // applied intent so the next Apply preserves ordered stacks.
+                for role in tabard::typography::FontRole::ALL {
+                    let family = fonts.0.get(&role).and_then(|stack| stack.first())
+                        .map_or("", tabard::typography::FontFamily::name);
+                    if self.theme_session.font_editor.field(role).text() != family {
+                        *self.theme_session.font_editor.field_mut(role) = TextInput::new(family);
+                    }
+                }
+                self.theme_session.font_editor.applied(fonts);
+                self.theme_session.record_font_choice(&self.appearance, presentation);
+                self.theme_session.notice = Some("Font roles applied to Knot.".into());
+            },
+            Err(error) => {
+                self.theme_session.font_editor.notice = Some(format!("Font roles were not applied: {error}"));
+            },
+        }
     }
 
     fn theme_graph_palette(&self) -> tinct::Palette {
@@ -4517,6 +4567,15 @@ pub fn focused_text(runner: &DesktopRunner) -> Option<FocusedTextSlot<DesktopSta
     let is_document_text_field = is_source_text_field(&*dom_ref, focused);
     if !is_text_control {
         return None;
+    }
+    if !runner.state().theme_session.workshop_open {
+        if let Some(field) = tabard_workshop::fonts::focused_font_field(&dom, focused) {
+            return Some(FocusedTextSlot {
+                node: focused,
+                get: Box::new(move |state| state.theme_session.font_editor.text_field(field)),
+                get_mut: Box::new(move |state| state.theme_session.font_editor.text_field_mut(field)),
+            });
+        }
     }
     if runner.state().theme_session.workshop_open {
         let key = ancestor_attribute(&*dom_ref, focused, "data-field")?;

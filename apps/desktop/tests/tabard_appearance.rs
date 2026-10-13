@@ -30,6 +30,9 @@ fn native_appearance_scenarios_use_the_shared_parseable_lane() {
         "tabard_reopen.scn",
         "tabard_authored_roles.scn",
         "tabard_authored_reopen.scn",
+        "font_roles_apply.scn",
+        "font_roles_reopen.scn",
+        "font_roles_compact.scn",
     ] {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../scenarios")

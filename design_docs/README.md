@@ -46,6 +46,7 @@ visual residuals; it does not infer live dynamics or release acceptance.
 - [Document links slice](2026-09-29_knot_document_links_slice.md): source-authored links, bounded backlinks and product-owned source navigation.
 
 - [Typography slice](2026-09-29_knot_typography_slice.md): bundled writer/reader fonts and font-backed measure; its existing platform receipt remains distinct from the combined diagnostics qualification.
+- [Shared font-role adoption](2026-10-12_knot_font_roles.md): optional application family requests, explicit writer precedence, and realized card geometry/dynamics safeguards; qualification in progress.
 
 - [Workspace slice execution](2026-09-23_knot_workspace_slice1_plan.md): multi-document and native design receipts; September 30 combined Commands, typography and diagnostics qualification uses Mere `bd5912fb` and Genet `69a2383b`, with 260 desktop and 63 document tests, nine reviewed native images and restored stale-result control. Worker acceptance and file authority stay in Knot; original and combined cohorts are recorded separately.
 

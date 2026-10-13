@@ -1,0 +1,34 @@
+# Launch a fresh collection_acceptance process with the same disposable root
+# and preferences path after font_roles_apply.scn has completed.
+assert snap format == Djot
+assert snap dirty == false
+assert snap theme_id == user:role-fixture
+assert snap theme_mode == dark
+assert snap source_face == ibm-plex-mono
+assert snap font_roles_requested ~ IBM Plex Mono
+assert snap font_roles_requested ~ Source Serif 4
+assert snap font_roles_requested ~ "heading":["Source Serif 4"]
+assert snap font_roles_requested ~ "label":["IBM Plex Mono"]
+assert snap font_roles_requested ~ Knot Missing Acceptance Face
+assert snap font_roles_diagnostics ~ unavailable here
+capture font-roles-fresh-process-reopen
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+wait
+assert text Confirmed 2 retained items
+click role:button Open retained relationship recipe
+assert snap recipe_edits_retained == true
+assert snap scene_motion_slot == true
+assert snap scene_motion_roles == 1
+assert snap scene_authored_positions == 1
+assert snap scene_placement_steps == 1
+assert snap scene_motion_running == false
+assert snap scene_motion_ticks == 0
+assert snap scene_motion_positions == 0
+assert snap font_roles_requested ~ IBM Plex Mono
+assert snap font_roles_requested ~ "label":["IBM Plex Mono"]
+assert snap font_roles_requested ~ "heading":["Source Serif 4"]
+assert snap source_face == ibm-plex-mono
+assert snap dirty == false
+capture font-roles-recipe-fresh-process-reopen

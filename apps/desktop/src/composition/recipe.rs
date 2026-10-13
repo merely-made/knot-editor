@@ -45,6 +45,17 @@ const CARD_ROUNDING: f32 = 1.0;
 /// The probe attribute: its value is the drawn label, shown only through CSS
 /// generated content so no DOM text or role exists for a scenario to match.
 const MEASURE_ATTR: &str = "data-knot-recipe-measure";
+/// Persistent, role-less labels observe the host's realized typography even
+/// after the temporary measurement probes have gone away. The public host
+/// context exposes geometry, so this fingerprint follows actual font advances
+/// and line boxes, including authored CSS, without depending on sheet epochs.
+/// Observe every drawn label: later glyph fallback can change while earlier
+/// labels retain identical metrics. Recipe admission bounds the copied material;
+/// unchanged observations never request another frame.
+const TYPOGRAPHY_ATTR: &str = "data-knot-recipe-typography";
+
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct RealizedTypography(Vec<(String, f32, f32)>);
 
 /// The card measured for one drawn label set.
 #[derive(Clone, Debug, PartialEq)]
@@ -95,6 +106,7 @@ pub(super) struct RecipeState {
     pub(super) measurements: u32,
     /// The current run of failed measurements, if any.
     pub(super) failed: Option<FailedMeasure>,
+    pub(super) typography: Option<RealizedTypography>,
 }
 
 /// A card for the widest probe: its rounded-up label, the rounding margin and
@@ -126,11 +138,29 @@ fn drawn_labels(projection: &CompiledProjection) -> Vec<String> {
 /// One hidden, role-less probe: the drawn label at the pressed weight, laid out
 /// on one line through `::after { content: attr(...) }` (`readings::CSS`).
 fn probe(label: &str) -> DesktopView {
+    label_probe(label, "knot-recipe-measure", MEASURE_ATTR)
+}
+
+fn typography_probe(label: &str) -> DesktopView {
+    label_probe(label, "knot-recipe-typography", TYPOGRAPHY_ATTR)
+}
+
+fn label_probe(label: &str, class: &str, attr: &str) -> DesktopView {
     Box::new(
-        el::<_, DesktopState, ()>("span", ())
-            .attr("class", "knot-recipe-measure")
-            .attr("aria-hidden", "true")
-            .attr(MEASURE_ATTR, label.to_owned()),
+        // A noninteractive button shell follows the same element/class font
+        // selectors as the drawn control, including authored `button` rules.
+        // Measure its generated child label, excluding the button frame.
+        el::<_, DesktopState, ()>(
+            "button",
+            el("span", ())
+                .attr("class", class.to_owned())
+                .attr("aria-hidden", "true")
+                .attr(attr, label.to_owned()),
+        )
+        .attr("class", "knot-recipe-occurrence-button knot-recipe-probe-shell")
+        .attr("aria-hidden", "true")
+        .attr("role", "presentation")
+        .attr("tabindex", "-1"),
     )
 }
 
@@ -173,23 +203,69 @@ fn measure_cards_inner(
     if ctx.runner.state().composition.recipe.material.is_none() {
         return false;
     }
-    fn probes<D: LayoutDom>(dom: &D, node: D::NodeId, out: &mut Vec<(D::NodeId, String)>) {
-        if let Some(label) =
-            dom.attribute(node, &Namespace::from(""), &LocalName::from(MEASURE_ATTR))
-        {
+    fn probes<D: LayoutDom>(
+        dom: &D,
+        node: D::NodeId,
+        attr: &str,
+        out: &mut Vec<(D::NodeId, String)>,
+    ) {
+        if let Some(label) = dom.attribute(node, &Namespace::from(""), &LocalName::from(attr)) {
             out.push((node, label.to_owned()));
         }
         for child in dom.dom_children(node) {
-            probes(dom, child, out);
+            probes(dom, child, attr, out);
         }
     }
-    let found = {
+    let (found, typography) = {
         let dom = ctx.runner.dom();
         let dom = dom.borrow();
         let mut out = Vec::new();
-        probes(&*dom, ctx.runner.root(), &mut out);
-        out
+        probes(&*dom, ctx.runner.root(), MEASURE_ATTR, &mut out);
+        let mut typography = Vec::new();
+        probes(&*dom, ctx.runner.root(), TYPOGRAPHY_ATTR, &mut typography);
+        (out, typography)
     };
+    let realized = typography
+        .iter()
+        .map(|(node, label)| {
+            ctx.painted_rect(*node)
+                .filter(|&(_, _, width, height)| {
+                    width.is_finite() && height.is_finite() && width > 0.0 && height > 0.0
+                })
+                .map(|(_, _, width, height)| (label.clone(), width, height))
+        })
+        .collect::<Option<Vec<_>>>()
+        .filter(|metrics| !metrics.is_empty())
+        .map(RealizedTypography);
+    if let Some(realized) = realized {
+        let recipe = &ctx.runner.state().composition.recipe;
+        let changed = recipe.typography.as_ref().is_some_and(|old| {
+            old.0
+                .iter()
+                .map(|metric| &metric.0)
+                .eq(realized.0.iter().map(|metric| &metric.0))
+                && old != &realized
+        });
+        if recipe.typography.as_ref() != Some(&realized) {
+            ctx.runner.update(|state| {
+                let recipe = &mut state.composition.recipe;
+                recipe.typography = Some(realized);
+                if changed {
+                    recipe.measured = None;
+                    recipe.failed = None;
+                    // The controller's footprints and fixed plane depend on
+                    // these metrics. Drop its poses before drawing new geometry;
+                    // an explicit playback action must bind a fresh controller.
+                    recipe.dynamics.reset();
+                    recipe.scene_drag = None;
+                    recipe.motion_preview_reveal = false;
+                }
+            });
+        }
+        if changed {
+            return true;
+        }
+    }
     if found.is_empty() {
         return false;
     }
@@ -661,6 +737,10 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
         })
         .collect();
     let labels = drawn_labels(projection);
+    let typography_probes: Vec<(String, DesktopView)> = labels
+        .iter()
+        .map(|label| (label.clone(), typography_probe(label)))
+        .collect();
     let measuring = measured.is_none_or(|measured| measured.labels != labels);
     let probes: Vec<(String, DesktopView)> = if measuring {
         labels
@@ -859,18 +939,25 @@ pub(super) fn view(state: &DesktopState, key: crate::documents::DocKey) -> Deskt
                 (
                     span("Occurrence controls")
                         .attr("class", "knot-recipe-occurrence-compact-label"),
-                    el("div", (Keyed::new(occurrence_buttons), Keyed::new(probes)))
-                        .attr("class", "knot-recipe-occurrence-layout")
-                        .attr(
-                            "style",
-                            format!(
-                                "position:relative;height:{}px;width:{}px;",
-                                // Exactly the cards' height (Mere burn plan 13.46, "Fit
-                                // the scene's bounds"); a compiled recipe has two or more.
-                                projection.scene.bounds.size.h,
-                                projection.scene.bounds.size.w.max(180.0)
-                            ),
+                    el(
+                        "div",
+                        (
+                            Keyed::new(occurrence_buttons),
+                            Keyed::new(probes),
+                            Keyed::new(typography_probes),
                         ),
+                    )
+                    .attr("class", "knot-recipe-occurrence-layout")
+                    .attr(
+                        "style",
+                        format!(
+                            "position:relative;height:{}px;width:{}px;",
+                            // Exactly the cards' height (Mere burn plan 13.46, "Fit
+                            // the scene's bounds"); a compiled recipe has two or more.
+                            projection.scene.bounds.size.h,
+                            projection.scene.bounds.size.w.max(180.0)
+                        ),
+                    ),
                 ),
             )
             .attr("class", "knot-recipe-occurrence-viewport")

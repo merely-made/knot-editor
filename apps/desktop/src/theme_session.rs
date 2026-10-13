@@ -25,7 +25,6 @@ use tabard_workshop::{
 };
 
 pub const DEFAULT_THEME: &str = "knot:default";
-#[derive(Default)]
 pub struct ThemeSession {
     pub workshop: Option<WorkshopState>,
     pub workshop_open: bool,
@@ -34,6 +33,17 @@ pub struct ThemeSession {
     library_path: Option<PathBuf>,
     applied: Option<(ThemeChoice, Presentation)>,
     stylesheet_update: bool,
+    pub font_editor: tabard_workshop::fonts::FontRoleEditor,
+    pub available_fonts: Vec<String>,
+}
+impl Default for ThemeSession {
+    fn default() -> Self {
+        let available_fonts = cambium_genet_winit_host::available_font_families(&crate::fonts::bundled_fonts());
+        let mut font_editor = tabard_workshop::fonts::FontRoleEditor::new(Default::default());
+        font_editor.set_available_families(available_fonts.clone());
+        Self { workshop: None, workshop_open: false, close_app: false, notice: None,
+            library_path: None, applied: None, stylesheet_update: false, font_editor, available_fonts }
+    }
 }
 #[derive(Clone)]
 pub struct Presentation {
@@ -48,6 +58,10 @@ fn default_theme() -> Theme {
     theme
 }
 impl ThemeSession {
+    pub(crate) fn load_font_preferences(&mut self, appearance: &Appearance) {
+        self.font_editor = tabard_workshop::fonts::FontRoleEditor::new(appearance_choice(appearance).fonts);
+        self.font_editor.set_available_families(self.available_fonts.clone());
+    }
     pub(crate) fn request_stylesheet_update(&mut self) {
         self.stylesheet_update = true;
     }
@@ -57,7 +71,8 @@ impl ThemeSession {
         self.applied = None;
         self.library_path = Some(path.clone());
         match WorkshopState::load(&path) {
-            Ok(workshop) => {
+            Ok(mut workshop) => {
+                workshop.set_installed_font_families(self.available_fonts.clone());
                 self.notice = workshop.registry().theme_def(DEFAULT_THEME).map(|_| "A saved theme uses Knot's reserved default identity. The artifact was preserved; choose New copy in Tabard and save that copy before applying it to Knot.".into());
                 self.workshop = Some(workshop);
             },
@@ -165,6 +180,12 @@ impl ThemeSession {
         self.applied = Some((appearance_choice(appearance), presentation));
         self.request_stylesheet_update();
     }
+    /// A family-only application changes the choice cache key, while keeping
+    /// the already applied definition frozen until explicit theme application.
+    pub(crate) fn record_font_choice(&mut self, appearance: &Appearance, presentation: Presentation) {
+        self.applied = Some((appearance_choice(appearance), presentation));
+        self.request_stylesheet_update();
+    }
     pub fn choice(&self, id: &str, mode: Option<Mode>) -> Result<ThemeChoice, String> {
         let theme = if id == DEFAULT_THEME {
             default_theme()
@@ -183,7 +204,7 @@ impl ThemeSession {
     }
 }
 
-fn appearance_choice(appearance: &Appearance) -> ThemeChoice {
+pub(crate) fn appearance_choice(appearance: &Appearance) -> ThemeChoice {
     appearance.theme_choice.clone().unwrap_or_else(|| {
         ThemeChoice::new(
             DEFAULT_THEME,
@@ -219,7 +240,10 @@ pub fn stylesheet(state: &DesktopState) -> String {
         );
     }
     let resolved = state.theme_session.resolve(&state.appearance);
-    let selected = match resolved.presentation {
+    let theme_fonts = resolved.theme.typography.css_custom_properties();
+    let app_fonts = appearance_choice(&state.appearance).fonts.css_custom_properties(
+        &state.theme_session.available_fonts, &crate::font_roles::defaults());
+    let selected = match &resolved.presentation {
         ThemePresentation::Derived(mode) => crate::appearance::selected_palette_css(&mode),
         ThemePresentation::AuthoredStylesheet(rules) => {
             let fallback = default_theme()
@@ -229,13 +253,24 @@ pub fn stylesheet(state: &DesktopState) -> String {
                 ))
                 .expect("canonical Knot fallback");
             format!(
-                "{}\n{}",
+                "{}\n{}\n{}\n{}",
                 crate::appearance::authored_role_css(&fallback),
-                rules.join("\n")
+                theme_fonts,
+                app_fonts,
+                rules.iter().enumerate()
+                    .filter(|(index, rule)| *index != 0 || *rule != &theme_fonts)
+                    .map(|(_, rule)| rule.as_str()).collect::<Vec<_>>().join("\n")
             )
         },
     };
-    format!("{}{}{}", crate::desktop_sheet(), UI_CSS, selected)
+    // Authored presentations already carry their typed declarations first;
+    // exact authored rules follow app preferences. Derived themes use the same
+    // family properties without consuming authored point sizes or leading.
+    let font_properties = if matches!(&resolved.presentation, ThemePresentation::Derived(_)) {
+        format!("{theme_fonts}{app_fonts}")
+    } else { String::new() };
+    format!("{}{}{}{}{}{}", crate::desktop_sheet(), UI_CSS,
+        tabard_workshop::fonts::FONT_ROLE_CSS, crate::font_roles::ROLE_CSS, selected, font_properties)
 }
 
 pub fn appearance_controls(state: &DesktopState) -> DesktopView {
@@ -295,6 +330,16 @@ pub fn appearance_controls(state: &DesktopState) -> DesktopView {
         Box::new(el("div", buttons).attr("class", "knot-theme-options")),
         Box::new(el("div", mode_buttons).attr("class", "knot-theme-options")),
     ];
+    rows.push(Box::new(lens(
+        |editor: &mut tabard_workshop::fonts::FontRoleEditor| tabard_workshop::fonts::font_role_view(editor),
+        |state: &mut DesktopState| &mut state.theme_session.font_editor,
+    )));
+    let fonts = appearance_choice(&state.appearance).fonts;
+    for notice in crate::font_roles::diagnostics(&fonts, &state.theme_session.available_fonts)
+        .into_iter().chain(resolved.theme.typography.missing_families(&state.theme_session.available_fonts)) {
+        rows.push(Box::new(el("p", span(notice)).attr("role", "status")));
+    }
+    rows.push(Box::new(el("p", span("Bundled: IBM Plex Mono and Source Serif 4. Choose… lists the families available here; availability does not guarantee every glyph."))));
     for notice in [
         resolved.notice.as_ref(),
         state.theme_session.notice.as_ref(),
@@ -398,6 +443,11 @@ pub fn after_dispatch_with_exporter(
     ctx: &mut Ctx<'_>,
     mut destination: impl FnMut(&tabard_workshop::ExportArtifact) -> Option<PathBuf>,
 ) {
+    let mut requested = None;
+    ctx.runner.update(|state| requested = state.theme_session.font_editor.take_requested());
+    if let Some(fonts) = requested {
+        ctx.runner.update(|state| state.apply_font_preferences(fonts));
+    }
     let mut export = None;
     let mut close_app = false;
     if ctx.runner.state().theme_session.workshop_open {

@@ -83,6 +83,7 @@ impl mesquite::Product for KnotLane {
         let (arrangement, columns, retained) =
             ctx.runner.state().composition.recipe_scenario_fields();
         let (positions, steps, position) = ctx.runner.state().composition.scene_scenario_fields();
+        let source = ctx.runner.state().document().session().input().text();
         let mut snapshot = ctx
             .runner
             .state()
@@ -100,6 +101,15 @@ impl mesquite::Product for KnotLane {
             .with_field("recipe_edits_retained", retained.to_string())
             .with_field("scene_authored_positions", positions.to_string())
             .with_field("scene_placement_steps", steps.to_string())
+            .with_field(
+                "scene_positions_blake3",
+                ctx.runner.state().composition.scene_positions_digest(),
+            )
+            .with_field("source_bytes", source.len().to_string())
+            .with_field(
+                "source_blake3",
+                blake3::hash(source.as_bytes()).to_hex().to_string(),
+            )
             .with_field("scene_selected_position", position);
         for (key, value) in ctx.runner.state().composition.motion_scenario_fields() {
             snapshot = snapshot.with_field(key, value);
@@ -163,10 +173,48 @@ fn graph_capture_projection(
     })
 }
 
-/// Fixed categories, numeric/boolean facts and an opaque placement digest only.
-/// Unlike the general snapshot, this never copies source text or labels.
+/// Bounded presentation facts plus role requests/drafts and opaque content
+/// digests. Unlike the general snapshot, this never copies source text or labels.
 fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, String> {
     let (positions, steps, _) = state.composition.scene_scenario_fields();
+    let source = state.document().session().input().text();
+    let choice = crate::theme_session::appearance_choice(&state.appearance);
+    let font_roles_json =
+        serde_json::to_string(&choice.fonts).expect("font role preferences serialize");
+    let font_roles_draft: std::collections::BTreeMap<_, _> = tabard::typography::FontRole::ALL
+        .into_iter()
+        .map(|role| {
+            (
+                role.key(),
+                state
+                    .theme_session
+                    .font_editor
+                    .field(role)
+                    .text()
+                    .to_owned(),
+            )
+        })
+        .collect();
+    let font_roles_draft_json =
+        serde_json::to_string(&font_roles_draft).expect("font role draft serializes");
+    let font_roles_diagnostics =
+        crate::font_roles::diagnostics(&choice.fonts, &state.theme_session.available_fonts)
+            .join(" ");
+    let theme_mode = choice.theme_mode.as_ref().map_or_else(
+        || {
+            if state.appearance.dark {
+                "dark"
+            } else {
+                "light"
+            }
+            .to_owned()
+        },
+        |mode| mode.as_key(),
+    );
+    let source_face = match state.appearance.source_face {
+        crate::appearance::SourceFace::IbmPlexMono => "ibm-plex-mono",
+        crate::appearance::SourceFace::SystemMonospace => "system-monospace",
+    };
     let mut fields: std::collections::BTreeMap<String, String> = [
         ("scene_authored_positions", positions.to_string()),
         ("scene_placement_steps", steps.to_string()),
@@ -177,12 +225,25 @@ fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, St
         ("document_count", state.docs.len().to_string()),
         ("reading_count", state.docs.readings().count().to_string()),
         ("graph_visible", graph_is_presented(state).to_string()),
+        ("source_bytes", source.len().to_string()),
         (
-            "source_bytes",
-            state.document().session().input().text().len().to_string(),
+            "source_blake3",
+            blake3::hash(source.as_bytes()).to_hex().to_string(),
         ),
         ("theme_dark", state.appearance.dark.to_string()),
+        ("theme_id", choice.theme_id),
+        ("theme_mode", theme_mode),
         ("font_size", state.appearance.font_size.to_string()),
+        ("source_face", source_face.to_owned()),
+        ("requested_fonts", font_roles_json.clone()),
+        ("font_roles_draft_fields", font_roles_draft_json),
+        ("font_roles_diagnostics", font_roles_diagnostics),
+        (
+            "requested_fonts_blake3",
+            blake3::hash(font_roles_json.as_bytes())
+                .to_hex()
+                .to_string(),
+        ),
         (
             "measure",
             match state.appearance.measure {
@@ -326,9 +387,39 @@ mod tests {
         let fields = capture_fields(&state);
         assert_eq!(fields["source_bytes"], "13");
         assert_eq!(fields["theme_dark"], "false");
+        assert_eq!(fields["theme_id"], crate::theme_session::DEFAULT_THEME);
+        assert_eq!(fields["theme_mode"], "light");
+        assert_eq!(fields["source_face"], "ibm-plex-mono");
+        assert_eq!(fields["requested_fonts"], "{}");
+        let draft: std::collections::BTreeMap<String, String> =
+            serde_json::from_str(&fields["font_roles_draft_fields"]).unwrap();
+        assert_eq!(draft["reading"], "");
+        assert_eq!(fields["font_roles_diagnostics"], "");
+        assert_eq!(
+            fields["requested_fonts_blake3"],
+            blake3::hash(b"{}").to_hex().to_string()
+        );
         assert_eq!(fields["measure"], "medium");
         assert!(!fields.contains_key("wide"));
         assert!(!serde_json::to_string(&fields).unwrap().contains("secret"));
+        let mut choice =
+            tabard::theme::choice::ThemeChoice::new(crate::theme_session::DEFAULT_THEME, None);
+        choice.fonts = tabard::typography::FontPreferences(std::collections::BTreeMap::from([(
+            tabard::typography::FontRole::Reading,
+            vec![tabard::typography::FontFamily::new("IBM Plex Mono").unwrap()],
+        )]));
+        state.appearance.theme_choice = Some(choice);
+        let fields = capture_fields(&state);
+        assert_eq!(
+            fields["requested_fonts"],
+            r#"{"reading":["IBM Plex Mono"]}"#
+        );
+        assert_eq!(
+            fields["requested_fonts_blake3"],
+            blake3::hash(fields["requested_fonts"].as_bytes())
+                .to_hex()
+                .to_string()
+        );
         state.appearance.dark = true;
         state.appearance.measure = crate::appearance::Measure::Full;
         assert_eq!(capture_fields(&state)["theme_dark"], "true");

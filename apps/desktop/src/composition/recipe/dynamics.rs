@@ -396,7 +396,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
         .recipe
         .measured
         .as_ref()
-        .map_or(VALIDATION_CARD, |measured| measured.card);
+        .map(|measured| measured.card);
     let (can_step, status_label, refusal) = {
         let runtime = &state.composition.recipe.dynamics;
         (
@@ -415,6 +415,9 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
             "div",
             (
                 button("Play", move |state: &mut DesktopState, _| {
+                    let Some(card) = card else {
+                        return;
+                    };
                     if state.composition.recipe.dynamics.running() {
                         return;
                     }
@@ -436,7 +439,10 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                 })
                 .attr("aria-label", start_label)
                 .attr("class", "knot-recipe-dynamics-primary")
-                .attr("aria-disabled", (!enabled || running).to_string()),
+                .attr(
+                    "aria-disabled",
+                    (!enabled || running || card.is_none()).to_string(),
+                ),
                 button("Pause", |state: &mut DesktopState, _| {
                     state.composition.recipe.motion_preview_reveal = true;
                     state.composition.recipe.dynamics.pause();
@@ -454,6 +460,9 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                         .to_string(),
                 ),
                 button("Step once", move |state: &mut DesktopState, _| {
+                    let Some(card) = card else {
+                        return;
+                    };
                     if !state.composition.recipe.dynamics.can_step() {
                         return;
                     }
@@ -474,8 +483,14 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                     }
                 })
                 .attr("aria-label", "Step scene motion once")
-                .attr("aria-disabled", (!enabled || !can_step).to_string()),
+                .attr(
+                    "aria-disabled",
+                    (!enabled || !can_step || card.is_none()).to_string(),
+                ),
                 button("Restart", move |state: &mut DesktopState, _| {
+                    let Some(card) = card else {
+                        return;
+                    };
                     state.composition.recipe.motion_preview_reveal = true;
                     state.composition.recipe.scene_drag = None;
                     let result = state
@@ -493,7 +508,7 @@ pub(super) fn controls(state: &DesktopState) -> DesktopView {
                     }
                 })
                 .attr("aria-label", "Restart scene motion")
-                .attr("aria-disabled", (!enabled).to_string()),
+                .attr("aria-disabled", (!enabled || card.is_none()).to_string()),
                 span(status_label)
                     .attr("id", "knot-recipe-motion-status")
                     .attr("role", "status")

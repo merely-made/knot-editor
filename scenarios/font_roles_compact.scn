@@ -1,0 +1,20 @@
+# A 420px layout keeps the app-owned picker reachable through the compact View
+# menu and checks that the search control remains available after the resize.
+resize 420 1000
+settle 3
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=view.appearance
+settle 2
+assert snap appearance_open == true
+click role:button @data-font-choose=reading
+settle 2
+assert text Choose reading font
+click role:textbox @data-font-search=true
+input-text IBM Plex Mono
+assert text IBM Plex Mono
+capture font-roles-compact-search
+click role:button @data-font-family=IBM Plex Mono
+assert snap font_reading_draft == IBM Plex Mono
+assert snap source_face == ibm-plex-mono
+assert snap dirty == false
+capture font-roles-compact-staged

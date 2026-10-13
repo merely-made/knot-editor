@@ -241,7 +241,7 @@ fn appearance_source_and_preview_measures_are_glyph_geometry_at_12_and_24px() {
                     hard_wrap_style,
                 },
                 logic: measure_root as fn(&MeasureApp) -> MeasureChild,
-                sheet: String::new(),
+                sheet: ".preview-box { font-family:var(--tabard-font-reading,'Source Serif 4',serif); }".into(),
                 fonts: bundled_fonts(),
                 images: Vec::new(),
             },

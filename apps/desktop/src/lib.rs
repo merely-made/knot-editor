@@ -22,6 +22,7 @@ pub mod readings;
 pub mod recovery;
 mod recovery_runtime;
 pub mod scenario;
+mod scenario_startup;
 pub mod scroll_site;
 pub mod status;
 pub mod theme_session;
@@ -125,15 +126,41 @@ pub fn run_desktop_with_targets(
     let lane_config = LaneConfig::from_env("KNOT");
     let receipt = lane_config.is_some();
     if let Some(config) = lane_config {
-        let mut lane = mesquite::Lane::from_config(
-            config,
-            scenario::KnotLane::new(desktop_sheet()),
-            cambium_genet_winit_host::read_file,
-        )?;
+        let initial_grace = scenario_startup::initial_presentation_grace(
+            true,
+            launch.first_path.as_deref(),
+            || std::env::var_os(scenario_startup::INITIAL_GRACE_ENV),
+        );
+        if let Some(seconds) = initial_grace {
+            eprintln!(
+                "[knot] marked synthetic acceptance fixture: initial presentation grace {seconds}s; restores to 10s on first successful presentation"
+            );
+        }
+        let initial_timeout = std::time::Duration::from_secs(
+            initial_grace.unwrap_or(scenario_startup::NORMAL_PRESENTATION_TIMEOUT_SECS),
+        );
+        let mut lane = Some(
+            mesquite::Lane::from_config(
+                config,
+                scenario::KnotLane::new(desktop_sheet()),
+                cambium_genet_winit_host::read_file,
+            )?
+            .with_presentation_timeout(initial_timeout),
+        );
+        let mut grace = scenario_startup::PresentationGrace::new(initial_grace);
         let mut presentation_result = hooks.after_frame;
         hooks.after_frame = Box::new(move |ctx| {
             presentation_result(ctx);
-            lane.after_frame(ctx);
+            grace.before_lane_after_frame(ctx.presentation.is_some(), |timeout| {
+                let current = lane.take().expect("acceptance lane is retained");
+                lane = Some(current.with_presentation_timeout(timeout));
+                eprintln!(
+                    "[knot] first successful presentation observed; initial grace ended, normal 10s presentation timeout restored"
+                );
+            });
+            lane.as_mut()
+                .expect("acceptance lane is retained")
+                .after_frame(ctx);
         });
     }
     run(

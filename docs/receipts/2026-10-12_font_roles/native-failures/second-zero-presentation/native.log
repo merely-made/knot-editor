@@ -1,0 +1,3 @@
+[cambium-winit] accessibility Installed, 52 nodes projected
+knot: FAIL: native presentation stalled for 10000 ms (450 redraws, 0 presented frames)
+knot: RESULT fail (0 frames, 0 captures)

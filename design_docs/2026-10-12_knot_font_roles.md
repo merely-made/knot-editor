@@ -1,7 +1,7 @@
 # Knot shared font-role adoption
 
-Status: implementation and qualification in progress. This document does not
-claim native acceptance or publication.
+Status: implemented and CPU-qualified at `4fae1d8`; native qualification is
+pending an effective foreground launch. This is not merged into published main.
 
 Baseline: published Knot `3af93adda472af2913a5d298f14deb10e85daee2`.
 Shared source: Mere `8568f42fdf57f997274c74e63bd4ee045fe1a2b4`, with Genet
@@ -74,3 +74,23 @@ Formal OS accessibility/physical IME, glyph coverage, remote face fidelity,
 other-platform acceptance, and unrelated supplier baseline failures remain
 separate. Final evidence and publication status will be recorded in the
 feature receipt, not inferred from shared supplier qualification.
+
+## October 12 gate
+
+Final locked workspace all-targets: 681 passed, zero failed, four existing
+ignored tests. Standalone document configurations pass 45 default and 61
+engine/highlight tests, each with its existing ignore. Locked desktop all-target
+check and desktop/acceptance builds pass. Mounted tests cover all listed host
+boundaries, including all 256 admitted labels and the last Han-script label.
+
+Native scripts have not reached their first action. Four LaunchServices attempts
+and recorded cold/warm prepared-bundle attempts stall with zero presentations
+and captures at the unchanged ten-second watchdog. The unmodified published
+`3af93ad` baseline behaves the same. Its tracing shows completed raster work
+followed by unavailable backbuffer acquisition, with application/key focus false.
+An ordinary, non-scenario baseline window renders after native keyboard
+activation; that diagnostic is not font-feature acceptance. No guard or feature
+assertion was weakened. Native picker/save/scene and fresh-process reopening
+remain pending; do not repin other consumers to a falsely qualified milestone.
+
+See the [gate and diagnostic receipt](../docs/receipts/2026-10-12_font_roles/README.md).

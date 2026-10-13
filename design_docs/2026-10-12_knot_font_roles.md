@@ -1,8 +1,10 @@
 # Knot shared font-role adoption
 
-Status: font implementation is CPU-qualified at `4fae1d8`; startup-only fixture
-policy is implemented at `a2128e7`. Native qualification remains pending.
-This is not merged into published main.
+Status: implemented and bounded macOS foreground-native qualified. Runtime
+`a2128e7` includes font implementation `4fae1d8`; fixture/test corrections are
+`fcb8f3b` and `f5ecacf`. The feature receipt is the publication checkpoint.
+Default-ten-second/unattended startup and other-platform acceptance remain
+outside this qualification.
 
 Baseline: published Knot `3af93adda472af2913a5d298f14deb10e85daee2`.
 Shared source: Mere `8568f42fdf57f997274c74e63bd4ee045fe1a2b4`, with Genet
@@ -78,13 +80,15 @@ feature receipt, not inferred from shared supplier qualification.
 
 ## October 12 gate
 
-Final locked workspace all-targets: 681 passed, zero failed, four existing
-ignored tests. Standalone document configurations pass 45 default and 61
+Final runtime locked workspace all-targets: 687 passed, zero failed, four existing
+ignored tests. The later final font suite passes eight tests and the full
+scenario-lane suite passes nine, including new fixture loading and 420px menu
+regressions. Standalone document configurations pass 45 default and 61
 engine/highlight tests, each with its existing ignore. Locked desktop all-target
 check and desktop/acceptance builds pass. Mounted tests cover all listed host
 boundaries, including all 256 admitted labels and the last Han-script label.
 
-Native scripts have not reached their first action. Four LaunchServices attempts
+Earlier native scripts did not reach their first action. Four LaunchServices attempts
 and recorded cold/warm prepared-bundle attempts stall with zero presentations
 and captures at the unchanged ten-second watchdog. The unmodified published
 `3af93ad` baseline behaves the same. Its tracing shows completed raster work
@@ -92,7 +96,7 @@ followed by unavailable backbuffer acquisition, with application/key focus false
 An ordinary, non-scenario baseline window renders after native keyboard
 activation; that diagnostic is not font-feature acceptance. No guard or feature
 assertion was weakened. Native picker/save/scene and fresh-process reopening
-remain pending; do not repin other consumers to a falsely qualified milestone.
+were pending at that diagnostic checkpoint; those failures remain recorded.
 
 An explicitly configured initial activation grace now applies only to marked
 synthetic scenarios: `KNOT_TEST_INITIAL_PRESENTATION_GRACE_SECS=60`, capped at
@@ -101,5 +105,17 @@ before admitting its first successful frame; it cannot re-arm. Six pure tests
 cover exact marker bytes, lazy setting reads, bounds and restoration order.
 Default/unmarked startup remains unchanged. This bounded foreground procedure
 does not qualify the original default-ten-second or unattended startup path.
+
+The corrected native matrix now passes in three separate processes: wide seed
+194 presentations/nine captures, fresh wide reopen 35/two, compact picker
+30/two. All thirteen full-frame captures were reviewed. Font Apply, authored
+theme/workshop selection, unavailable request retention, actual card
+remeasurement, stopped transient dynamics and unchanged source/placement are
+qualified. Fresh sealed-mere reopen retains its pinned role, schedule, authored
+position and placement trace while poses/ticks remain cold. Source, preferences
+and theme library hashes remain unchanged after reopen and compact staging.
+The read-only packet verifier passes. Initial fixture-version and compact-menu
+script failures are preserved beside their regression tests and accepted
+retries. Native cleanup is confirmed and the shared GPU reservation released.
 
 See the [gate and diagnostic receipt](../docs/receipts/2026-10-12_font_roles/README.md).

@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "appearance": {
+    "dark": true,
+    "theme-choice": {
+      "theme_id": "user:role-fixture",
+      "theme_mode": "dark",
+      "fonts": {
+        "reading": [
+          "IBM Plex Mono"
+        ],
+        "heading": [
+          "Source Serif 4"
+        ],
+        "label": [
+          "IBM Plex Mono"
+        ],
+        "code": [
+          "Knot Missing Acceptance Face"
+        ]
+      }
+    },
+    "highlight": true,
+    "font-size": 16,
+    "source-face": "ibm-plex-mono",
+    "measure": "medium",
+    "follow-hard-wrap": true,
+    "relaxed": true
+  },
+  "collapse": {
+    "reading-min-width": 280,
+    "rail-width": 28,
+    "menu-below": 700,
+    "drawer-below": 500,
+    "status-below": 700
+  },
+  "graph_layout": "spectral.default",
+  "recovery_days": 30
+}

@@ -1,8 +1,8 @@
 # Knot font roles — October 12, 2026
 
-Status: source implemented and CPU-qualified. Native qualification remains
-pending; published main is not advanced by this evidence. A review branch may
-carry the source/receipt without claiming a fully qualified consumer milestone.
+Status: source and bounded macOS foreground native workflows are qualified.
+This receipt is the consumer publication checkpoint; it does not qualify
+unattended/default-ten-second startup, other platforms, or the entire stack.
 
 Font implementation: `4fae1d8bdd94ff67eff97977b24810b37680de3a`, based on published
 Knot `3af93adda472af2913a5d298f14deb10e85daee2`. Mere is frozen at
@@ -102,7 +102,51 @@ requested fonts, source identity, realized remeasurement/runtime reset,
 unchanged authored positions, cold reopen, and unchanged profile/library bytes.
 It does not substitute for inspecting full-frame images.
 
-### Incomplete foreground gate
+### Accepted foreground matrix
+
+All processes use runtime `a2128e7`, the frozen `6ab81ede…` acceptance binary,
+and explicitly marked public-key fixtures. The runtime source is unchanged by
+the later fixture/test corrections (`fcb8f3b`, `f5ecacf`); its current files are
+recorded in [the source manifest](runtime-source-sha256.txt). The final font
+integration suite passes eight tests and the full scenario-lane suite passes
+nine, including actual 420px Menu → View → Appearance → shared picker control
+routing. Their additions follow the 687-test workspace gate above.
+
+| Fresh process | Presentations | Nonblank captures | Result |
+| --- | ---: | ---: | --- |
+| Wide seed | 194 | 9 | Accepted |
+| Wide retained-data reopen | 35 | 2 | Accepted |
+| 420px compact picker/staging | 30 | 2 | Accepted |
+| Total | 259 | 13 | Accepted |
+
+Original PNGs, process results and paired presentation/state receipts are retained
+under [native](native). All thirteen full-frame images were reviewed by the
+owner; the shared coordinator independently reviewed the wide/reopen matrix.
+The [verification ledger](native/verified-native.json) records binary and PNG
+SHA-256, exact 41-byte source identity, requested font stacks, remeasurement,
+runtime invalidation, and unchanged authored placement. Every process logs the
+one-time initial-60 → normal-10-second restoration, exits normally, and has no
+external timeout. No feature assertion was removed.
+
+Fresh-process reopening restores Reading IBM Plex Mono, Heading Source Serif 4,
+Label IBM Plex Mono and the unavailable Code request, with fallback diagnostics.
+The signed/encrypted recipe in Knot's own mere restores one authored position,
+one placement step, one pinned motion role and its retained schedule. Runtime
+ticks and poses remain zero; no automatic replay occurs. Source, theme library
+and preference bytes are identical after both reopen and compact staging.
+Compact Code and Apply controls are visible in its staged full-frame capture;
+the compact leg intentionally stages only, without applying or saving.
+
+The first compact script omitted the root Menu action and correctly failed.
+Its [failed receipt](native-failures/compact-menu-omission) is preserved; the
+corrected script and 420px in-process regression precede the accepted retry.
+The version-1 fixture failure above is also retained. Default-ten-second
+startup failures below are historical evidence, not accepted matrix members.
+After completion, native inventory and exact executable-path checks confirm no
+owned acceptance process remains. This lane created no Keeper, broker, or
+sleep-prevention process; the GPU reservation was explicitly released.
+
+### Earlier default-timeout and activation diagnostics
 
 External evidence root:
 `/Users/markik/Code/testing/knot-editor/font-roles-20261012/native`.
@@ -112,7 +156,8 @@ Prepared persistent application bundles launched through native control also
 record cold/warm zero-presentation failures. Their failed receipts are preserved
 under [native failures](native-failures). None is counted as accepted evidence.
 No font preferences were applied and no relationship recipe was retained by
-those GUI attempts. Picker/save/reopen and scene acceptance remain unexecuted.
+those original GUI attempts. They did not execute picker/save/reopen or scene
+acceptance; only the later accepted matrix above qualifies those workflows.
 
 A clean detached build of untouched published Knot `3af93ad` with Mere
 `ef0994ba` and the same Genet/Netrender/Classic family reproduces the zero-frame
@@ -142,8 +187,8 @@ warm prepared-bundle experiment still failed. Deadlines, rendering guards,
 feature assertions and supplier source were not changed in those attempts.
 The later startup-only opt-in above changes only the initial fixture deadline;
 it preserves the post-start watchdog and all feature assertions.
-[verify-native.py](verify-native.py) is prepared for the remaining matrix;
-it has not passed because no accepted native matrix exists yet.
+[verify-native.py](verify-native.py) now passes for the accepted matrix above,
+while preserving these failed/default-startup observations separately.
 
 This is not exact-face/glyph-coverage or remote/frozen-font fidelity. Physical
 IME, formal OS accessibility/contrast, other platforms and arbitrary

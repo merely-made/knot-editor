@@ -1,0 +1,14 @@
+[knot] marked synthetic acceptance fixture: initial presentation grace 60s; restores to 10s on first successful presentation
+[cambium-winit] accessibility Installed, 52 nodes projected
+[knot] first successful presentation observed; initial grace ended, normal 10s presentation timeout restored
+knot: FAIL: assert snap appearance_open Eq 'true': got 'false'
+knot: FAIL: assert text 'Choose reading font': not on any surface
+knot: FAIL: assert text 'IBM Plex Mono': not on any surface
+knot: captured font-roles-compact-search
+knot: captured font-roles-compact-staged
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Role("menuitem"), text: None, attr: Some(("data-key", "group.view")) }
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Role("menuitem"), text: None, attr: Some(("data-key", "view.appearance")) }
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Role("button"), text: None, attr: Some(("data-font-choose", "reading")) }
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Role("textbox"), text: None, attr: Some(("data-font-search", "true")) }
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Role("button"), text: None, attr: Some(("data-font-family", "IBM Plex Mono")) }
+knot: RESULT fail (26 frames, 2 captures)

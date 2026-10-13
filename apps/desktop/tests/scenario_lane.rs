@@ -137,6 +137,34 @@ fn compact_relationship_recipe_selects_the_offscreen_occurrence() {
 }
 
 #[test]
+fn compact_font_role_picker_is_reachable_through_the_menu_at_420px() {
+    let root = tempdir().unwrap();
+    let mut state = DesktopState::with_path(
+        KnotDocumentSession::scratch("scratch:font-role-compact", "# Compact font roles\n"),
+        WindowCommands::new(),
+        None,
+    );
+    state.set_preferences_path(Some(root.path().join("preferences.json")));
+    state
+        .theme_session
+        .load(scenario_path("fixtures/font_role_library.json"));
+
+    let sheet = knot_desktop::theme_session::stylesheet(&state);
+    let receipt = run_without_native_capture_at_size_with_chrome_and_sheet(
+        state,
+        "font_roles_compact.scn",
+        &root,
+        420.0,
+        1000.0,
+        1.0,
+        false,
+        knot_desktop::workspace::CommandChrome::ClientTitlebar,
+        sheet,
+    );
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+}
+
+#[test]
 fn relationship_scene_controls_preserve_source_at_wide_compact_and_high_zoom() {
     for (name, width, zoom) in [
         ("relationship_scene.scn", 1100.0, 1.0),
@@ -163,7 +191,7 @@ fn relationship_scene_controls_preserve_source_at_wide_compact_and_high_zoom() {
 }
 
 fn run_without_native_capture_at_size(
-    mut state: DesktopState,
+    state: DesktopState,
     name: &str,
     temp: &tempfile::TempDir,
     width: f32,
@@ -171,7 +199,53 @@ fn run_without_native_capture_at_size(
     zoom: f32,
     check_toolbar: bool,
 ) -> String {
-    state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
+    run_without_native_capture_at_size_with_chrome(
+        state,
+        name,
+        temp,
+        width,
+        height,
+        zoom,
+        check_toolbar,
+        knot_desktop::workspace::CommandChrome::PlainRow,
+    )
+}
+
+fn run_without_native_capture_at_size_with_chrome(
+    state: DesktopState,
+    name: &str,
+    temp: &tempfile::TempDir,
+    width: f32,
+    height: f32,
+    zoom: f32,
+    check_toolbar: bool,
+    chrome: knot_desktop::workspace::CommandChrome,
+) -> String {
+    run_without_native_capture_at_size_with_chrome_and_sheet(
+        state,
+        name,
+        temp,
+        width,
+        height,
+        zoom,
+        check_toolbar,
+        chrome,
+        desktop_sheet(),
+    )
+}
+
+fn run_without_native_capture_at_size_with_chrome_and_sheet(
+    mut state: DesktopState,
+    name: &str,
+    temp: &tempfile::TempDir,
+    width: f32,
+    height: f32,
+    zoom: f32,
+    check_toolbar: bool,
+    chrome: knot_desktop::workspace::CommandChrome,
+    sheet: String,
+) -> String {
+    state.set_command_chrome(chrome);
     let source = std::fs::read_to_string(scenario_path(name)).unwrap();
     let source = source
         .lines()
@@ -188,7 +262,7 @@ fn run_without_native_capture_at_size(
     let receipt = config.receipt_path().unwrap();
     let mut lane = mesquite::Lane::from_config(
         config,
-        KnotLane::new(desktop_sheet()),
+        KnotLane::new(sheet.clone()),
         cambium_genet_winit_host::read_file,
     )
     .unwrap();
@@ -198,7 +272,7 @@ fn run_without_native_capture_at_size(
         Init {
             state,
             logic: desktop_view as Logic,
-            sheet: desktop_sheet(),
+            sheet,
             fonts: if name.contains("compact") {
                 knot_desktop::fonts::bundled_fonts()
             } else {
@@ -216,7 +290,7 @@ fn run_without_native_capture_at_size(
     for _ in 0..1_000 {
         h.layout_at(width, height);
         // Recipe cards are measured in the frame hook, as in the native loop.
-        if name.starts_with("relationship_") {
+        if name.starts_with("relationship_") || name == "font_roles_compact.scn" {
             h.prepare_frame();
             h.relayout();
         }

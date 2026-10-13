@@ -2,6 +2,7 @@
 # menu and checks that the search control remains available after the resize.
 resize 420 1000
 settle 3
+click role:menuitem @data-key=menu
 click role:menuitem @data-key=group.view
 click role:menuitem @data-key=view.appearance
 settle 2

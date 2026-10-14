@@ -1,0 +1,107 @@
+{
+  "scope": "Knot site supplier compatibility branch from qualified font baseline; no new native desktop claim",
+  "base": "8ed49d43f049921d56ab5a0c091a2c37c0970ee7",
+  "murm": "3d9e799fe06d2a58754569b8dc11b2dbc7d506e9",
+  "cargo": "1.99.0",
+  "compiler_and_rustdoc": "1.97.1",
+  "source_manifest_sha256": "f01c1428f426a32cededd6ef4780291aca50ae7378dcbea4af91d47e864c7e1a",
+  "site_lock_sha256": "714169d71c6116f6fca52705fc07474648bc9ddab3f7db3052af382b2dcd90ff",
+  "prior_font_runtime_manifest": {
+    "entries": 152,
+    "unchanged": 151,
+    "changed": [
+      "crates/knot-site/Cargo.toml"
+    ],
+    "no_native_requalification_claim": true
+  },
+  "gates": {
+    "default-test": {
+      "receipt_sha256": "d334529860d9e8cfe82ae0150aa143b55cb5ec0b0eb236da59204c91af14fafc",
+      "log_sha256": "e60bf317e1738a36796d160fc29827d87a95dbcba230106bfa9bd25a2ea1b9c9",
+      "argv": [
+        "env",
+        "TMPDIR=/private/tmp",
+        "RUSTC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustc",
+        "RUSTDOC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustdoc",
+        "cargo",
+        "+1.99.0",
+        "test",
+        "--locked",
+        "-j",
+        "2"
+      ],
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0
+    },
+    "default-check": {
+      "receipt_sha256": "37777a2f91d90a4a8daf43a88c198f354394d7a4f57cd0ae51086f7a44607a35",
+      "log_sha256": "35a4e219481a2fa8648eb102d77df156dccd12f9aee4d71bdb3be2a89e12f389",
+      "argv": [
+        "env",
+        "TMPDIR=/private/tmp",
+        "RUSTC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustc",
+        "RUSTDOC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustdoc",
+        "cargo",
+        "+1.99.0",
+        "check",
+        "--locked",
+        "-j",
+        "2",
+        "--all-targets"
+      ],
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "retinue-test": {
+      "receipt_sha256": "6dae9eba6defa2137eb59cd2f8c7669952286daf0760137119a0405fed72fcb9",
+      "log_sha256": "3405ad6bfb92c4c119ade56c843e32a72e8cbeff7599b3b388d372224ca73fd7",
+      "argv": [
+        "env",
+        "TMPDIR=/private/tmp",
+        "RUSTC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustc",
+        "RUSTDOC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustdoc",
+        "cargo",
+        "+1.99.0",
+        "test",
+        "--locked",
+        "-j",
+        "2",
+        "--features",
+        "retinue"
+      ],
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0
+    },
+    "retinue-check": {
+      "receipt_sha256": "5c02d9bd3428a52b3e18d1eb832039aa1bf8ef1360c571eaba335992c9d9ece5",
+      "log_sha256": "994c875f99c0d9268a98476d5c85d13de9501b3298e777df448f2f04690c469b",
+      "argv": [
+        "env",
+        "TMPDIR=/private/tmp",
+        "RUSTC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustc",
+        "RUSTDOC=/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustdoc",
+        "cargo",
+        "+1.99.0",
+        "check",
+        "--locked",
+        "-j",
+        "2",
+        "--all-targets",
+        "--features",
+        "retinue"
+      ],
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "first_failure": {
+    "receipt": "knot-site-murm3d-msrv-default-test",
+    "cause": "macOS /tmp is a symlink; export rejects symlink ancestors",
+    "preserved_log_sha256": "b58a969705a12e11192355bc10d0b820d406904bd286ee476f687c1c0ff7b7d7",
+    "corrected_temp_root": "/private/tmp"
+  }
+}

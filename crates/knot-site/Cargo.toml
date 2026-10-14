@@ -23,7 +23,7 @@ gemini-protocol = { version = "=0.1.7", features = ["server"] }
 spartan-protocol = "=0.1.1"
 tokio = { version = "1", features = ["rt", "sync", "net", "time", "macros"] }
 blake3 = "1"
-retinue = { git = "https://github.com/merely-made/retinue.git", rev = "b49df894635bac95823284efee6c445885eaf62a", optional = true }
+retinue = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a", optional = true }
 getrandom = { version = "0.2", optional = true }
 tempfile = "3"
 
@@ -58,3 +58,8 @@ rust-version = "1.97.1"
 
 # Root patches are not inherited from the imported Murm suppliers.
 [patch."https://github.com/merely-made/mere.git"]
+
+# Compatibility source keys for immutable suppliers published before the
+# repository rename. Targets and current direct dependencies use Murm.
+[patch."https://github.com/merely-made/retinue.git"]
+retinue = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }

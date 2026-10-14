@@ -117,7 +117,7 @@ seiche = { version = "0.0.6", git = "https://www.github.com/merely-made/mere.git
 script-rhai = { version = "0.0.1", git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 servitor = { version = "0.0.2", git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 stickleback = { version = "0.1.1", git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
-transport = { package = "mere-transport", version = "0.0.2", git = "https://github.com/merely-made/retinue.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
+transport = { package = "mere-transport", version = "0.0.2", git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
 
 # Presentation stack. The platform boundary move put Cambium, Illume, Inker,
 # Nematic and the Knot editor host in Mere; the raw engine contracts stay in
@@ -213,7 +213,7 @@ insigne = { git = "https://github.com/merely-made/dramatis.git", rev = "0234e7ee
 knot-editor-host = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 mere-surface-api = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
-mere-transport = { git = "https://github.com/merely-made/retinue.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
+mere-transport = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
 mora-cmudict = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 reference-data = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
@@ -250,7 +250,7 @@ mere-forme = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7
 mere-kernel = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 mere-page-load = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 mere-view = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
-mere-webrtc-carrier = { git = "https://github.com/merely-made/retinue.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
+mere-webrtc-carrier = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
 meristem = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 mesquite = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 mien = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
@@ -264,3 +264,10 @@ tabard-workshop = { git = "https://www.github.com/merely-made/mere.git", rev = "
 tinct = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 uxtree = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
 workbench = { git = "https://www.github.com/merely-made/mere.git", rev = "0b9b7a9b218579f1f36cc1ab05a51b2a13128f1d" }
+
+# Compatibility source keys for immutable suppliers published before the
+# repository rename. Targets and current direct dependencies use Murm.
+[patch."https://github.com/merely-made/retinue.git"]
+mere-transport = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
+mere-webrtc-carrier = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }
+retinue = { git = "https://github.com/merely-made/murm.git", rev = "b49df894635bac95823284efee6c445885eaf62a" }

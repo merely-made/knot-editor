@@ -7,9 +7,12 @@ use super::RecipeState;
 use crate::workspace::{DesktopState, DesktopView};
 use cambium::{Keyed, TextInput, button, el, lens, select, span, text_field_typed};
 use sceno::Size2;
-use scenograph::options::{OptionDefault, OptionKind, OptionSpec};
+use scenograph::options::{OptionKind, OptionSpec};
+use scenomise::arrangement::{
+    OptionFallback, arrangement_defaults, arrangement_options, option_fallback,
+};
 use scenomise::catalog::{FAMILIES, Family, Measure};
-use std::collections::BTreeMap;
+use scenomise::registry::SolverRegistry;
 
 const FAMILY_LABELS: [&str; 11] = [
     "Spiral",
@@ -70,37 +73,38 @@ fn measure(state: &DesktopState) -> Measure {
     }
 }
 
-fn option_default(spec: &OptionSpec, resolved: &BTreeMap<String, String>) -> String {
-    resolved
-        .get(&spec.key)
-        .cloned()
-        .unwrap_or_else(|| match &spec.default {
-            OptionDefault::Value(value) => value.clone(),
-            OptionDefault::Measured(words) => words.clone(),
-            OptionDefault::Auto => "automatic".into(),
-            OptionDefault::Empty => String::new(),
-        })
+/// Knot's words for what an option falls back to; the facts come from
+/// `scenomise::arrangement::option_fallback`. A resolved value, when the items
+/// are known, is what the row shows.
+fn option_default(spec: &OptionSpec, resolved: Option<&str>) -> String {
+    match option_fallback(spec, resolved) {
+        OptionFallback::Value(value) => value,
+        OptionFallback::Measured { resolved, words } => resolved.unwrap_or(words),
+        OptionFallback::Auto { resolved } => resolved.unwrap_or_else(|| "automatic".into()),
+        OptionFallback::Empty => String::new(),
+    }
 }
 
 fn declared_options(family: Family, measure: &Measure) -> Vec<(OptionSpec, String)> {
-    let resolved = family.clone().resolved_defaults(measure);
-    family
-        .options()
+    let kind = family.id();
+    let resolved = arrangement_defaults(kind, measure.largest, measure.count, measure.spacing);
+    arrangement_options(kind, &SolverRegistry::new())
+        .unwrap_or_default()
         .into_iter()
         .map(|spec| {
-            let default = option_default(&spec, &resolved);
+            let default = option_default(&spec, resolved.get(&spec.key).map(String::as_str));
             (spec, default)
         })
         .collect()
 }
 
 fn default_description(spec: &OptionSpec) -> Option<String> {
-    match &spec.default {
-        OptionDefault::Value(value) => Some(format!("Default: {value}")),
-        OptionDefault::Measured(words) => Some(format!("Measured default: {words}")),
-        OptionDefault::Auto => Some("Default: automatic".into()),
-        OptionDefault::Empty => Some("Default: empty".into()),
-    }
+    Some(match option_fallback(spec, None) {
+        OptionFallback::Value(value) => format!("Default: {value}"),
+        OptionFallback::Measured { words, .. } => format!("Measured default: {words}"),
+        OptionFallback::Auto { .. } => "Default: automatic".into(),
+        OptionFallback::Empty => "Default: empty".into(),
+    })
 }
 
 fn apply_family(state: &mut DesktopState, family: Family) {

@@ -1,0 +1,14 @@
+RESULT ok
+knot overmap live: launched
+waited 0 frames
+waited 0 frames
+captured overmap-live-sessions
+captured overmap-live-archive-controls
+waited 1 frames
+captured overmap-live-after-save
+knot overmap live: done
+capture overmap-live-sessions 2200x1400 digest=0bac7abebf7724f3 file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/ovl/after-final/live-native/overmap-live-sessions.png
+capture overmap-live-archive-controls 2200x1400 digest=bfa15ffe91472827 file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/ovl/after-final/live-native/overmap-live-archive-controls.png
+capture overmap-live-after-save 2200x1400 digest=ea669be973a6fd27 file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/ovl/after-final/live-native/overmap-live-after-save.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 19 frames, 21 redraws, 2 unpresented redraws

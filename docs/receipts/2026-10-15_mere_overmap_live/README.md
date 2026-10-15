@@ -101,3 +101,40 @@ Three follow-ups, each ruled on and handled separately:
    second, linked document (Mere `efc8467ba`) and the receipt names both.
 3. The layer rendered as mere-view's side column, not as an overmap. See
    [the rendering note](../../../design_docs/2026-10-15_knot_overmap_layer_rendering.md).
+
+## The overmap layer, before and after
+
+Both runs use the committed fixture at Mere `392e0ecc0` (binary SHA-256
+`a38df088d955059f592b23c8ad77175846c04f7033e387d0d969d4c0cc40b0c9`), so the
+catalog holds both documents and an opened codicil's session is named apart,
+and the same script and scenarios:
+
+```sh
+TMPDIR=/tmp docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh \
+  <knot> <knot_overmap_live_host> <knot-checkout> <mere-checkout> <new-out> \
+  essay.djot field_notes.djot
+```
+
+- [before](before): Knot `a27911a` (`5f5dc7e4…`), the side column.
+- [after](after): Knot with Mere `392e0ecc0`'s overmap placement
+  (`e428327bd7af2beaa905ad4aa383f9aaa8bc83c36ac3776016b217c82eb98f75`):
+  sessions as container nodes in a band above the catalog, the saved codicil
+  on the session it came from, the Archive shelf with Compose, New session
+  last, and the catalog's two documents and their link below.
+
+| Run | Seed | Reopen | Standalone |
+| --- | --- | --- | --- |
+| before | ok, 19 presentations, 3 captures | ok, 17, 2 | ok, 10, 1 |
+| after | ok, 19, 3 | ok, 16, 2 | ok, 10, 1 |
+
+Each run directory keeps its PNGs (2200×1400), `scenario.done`,
+`process.json`, native log and the fixture's log. The first after-run of
+Knot `8fdc1f7` (not kept) showed two defects, both fixed before the run kept
+here: "Open as session" wrapped inside its archive chip (Mere `392e0ecc0`),
+and Knot's workspace button style drew each catalog relation cell as a grey
+bar (Knot now clears it, as it already did for node targets; the before
+captures still show the bar).
+
+Three earlier attempts on this machine stalled at zero presented frames while
+a system dialog held the foreground; they are not evidence. Every process the
+script started exited; none remained afterwards.

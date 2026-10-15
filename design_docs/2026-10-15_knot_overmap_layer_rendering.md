@@ -1,6 +1,6 @@
 # Rendering the mere overmap as a layer
 
-Status: proposed and implemented (see Checks). Follows
+Status: implemented and natively qualified on macOS (see Checks). Follows
 [the overmap layer contract](2026-10-15_knot_mere_overmap_layer.md).
 
 ## Problem
@@ -90,8 +90,9 @@ None blocks this slice. Options worth a ruling later:
 
 ## Checks (2026-10-15)
 
-Mere `7160353` (mere-view, mere-overmap, Djinn); Knot repins every Mere row
-from `19573b51` to it.
+Mere `7160353` (mere-view, mere-overmap, Djinn) and `392e0ecc0` (archive
+chip controls stay on one line); Knot repins every Mere row from `19573b51`
+to `392e0ecc0`.
 
 - Mere: `cargo test --locked -p mere-view` (20 unit tests, two of them new
   for the overmap: containers, archive placement, requests, band wrapping),
@@ -103,6 +104,12 @@ from `19573b51` to it.
   `cargo test --locked -p knot-desktop --lib --bins --test scenario_lane
   --test font_roles --test typography_fonts` (331 lib tests, including the
   new placement assertion): pass.
-- Native: the receipt
+- Native, macOS foreground: the receipt
   [2026-10-15_mere_overmap_live](../docs/receipts/2026-10-15_mere_overmap_live/README.md)
-  holds the before captures; see it for the after run.
+  holds before (Knot `a27911a`) and after runs on the same fixture: seed,
+  fresh-process reopen and standalone all pass. The after captures show the
+  band, the codicil on its session, the shelf, and the thaw named
+  "Session (from blake3:…)".
+- Knot also clears its workspace button style from the catalog's relation
+  cells, as it already did for node targets: the fixture's linked documents
+  showed each link as a grey bar.

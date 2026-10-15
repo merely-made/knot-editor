@@ -40,8 +40,8 @@ p2panda-encryption = { git = "https://github.com/mark-ik/p2panda.git", tag = "me
 p2panda-store = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 p2panda-stream = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 p2panda-sync = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
-muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "71761a553f57ad43432852fbe8d9b11ee32ca8ac" }
-mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "71761a553f57ad43432852fbe8d9b11ee32ca8ac" }
+muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "0c03dff3d324c53e7738722899804309f95d3087" }
+mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "0c03dff3d324c53e7738722899804309f95d3087" }
 gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "882baeb1b59bbdbb305e475f6675f69af997c4f4" }
 
 [features]

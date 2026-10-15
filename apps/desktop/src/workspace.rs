@@ -766,13 +766,20 @@ impl DesktopState {
             },
             request @ (mere_view::MereViewRequest::Mint
             | mere_view::MereViewRequest::Session(_, _)
-            | mere_view::MereViewRequest::Archive(_)) => {
+            | mere_view::MereViewRequest::Archive(_)
+            | mere_view::MereViewRequest::Merge(_)) => {
                 self.graph.overlay_request(request);
                 let open = self.graph_open_nodes();
                 self.graph.relayout(&open);
             },
             mere_view::MereViewRequest::Host(action) => {
                 self.graph.notice = Some(format!("Knot does not offer the graph action {action}."));
+            },
+            // `MereViewRequest` is becoming `#[non_exhaustive]`: a request a
+            // later mere-view adds is declined with a notice until Knot routes it.
+            #[allow(unreachable_patterns)]
+            _ => {
+                self.graph.notice = Some("Knot does not handle that view request yet.".to_owned());
             },
         }
     }

@@ -1,0 +1,12 @@
+[knot] marked synthetic acceptance fixture: initial presentation grace 60s; restores to 10s on first successful presentation
+[cambium-winit] accessibility Installed, 58 nodes projected
+[knot] first successful presentation observed; initial grace ended, normal 10s presentation timeout restored
+knot: knot overmap live: launched
+knot: waited 0 frames
+knot: waited 0 frames
+knot: captured overmap-live-sessions
+knot: captured overmap-live-archive-controls
+knot: waited 1 frames
+knot: captured overmap-live-after-save
+knot: knot overmap live: done
+knot: RESULT ok (19 frames, 3 captures)

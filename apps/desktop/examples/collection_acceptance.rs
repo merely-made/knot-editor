@@ -98,6 +98,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             sites: Vec::new(),
             failures: Vec::new(),
             recovery_path: None,
+            mere_overlay: None,
         },
         None,
         8192,

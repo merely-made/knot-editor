@@ -115,6 +115,11 @@ pub(crate) struct GraphState {
     receipt_cursor: std::cell::RefCell<Option<Cursor>>,
     running: Option<(u64, Option<RecordRef>)>,
     invalidated: bool,
+    /// The resident mere's overmap layer: its worker, and its last reading.
+    #[cfg(feature = "mere-retention")]
+    overlay: Option<crate::mere_overlay::OverlayLink>,
+    #[cfg(feature = "mere-retention")]
+    overlay_reading: Option<knot_editor::mere_overlay::MereOverlayReading>,
     #[cfg(test)]
     worker_control: Option<WorkerControl>,
 }
@@ -139,6 +144,10 @@ impl Default for GraphState {
             receipt_cursor: Default::default(),
             running: None,
             invalidated: false,
+            #[cfg(feature = "mere-retention")]
+            overlay: None,
+            #[cfg(feature = "mere-retention")]
+            overlay_reading: None,
             #[cfg(test)]
             worker_control: None,
         }
@@ -367,10 +376,80 @@ impl GraphState {
     }
 
     pub fn busy(&self) -> bool {
-        self.receiver.is_some()
+        self.receiver.is_some() || self.overlay_busy()
     }
 
     pub fn drain(&mut self) -> bool {
+        let catalog = self.drain_catalog();
+        self.drain_overlay() || catalog
+    }
+
+    /// Read the resident mere on `mere/<domain>` as the overmap layer.
+    #[cfg(feature = "mere-retention")]
+    pub(crate) fn attach_overlay(&mut self, link: crate::mere_overlay::OverlayLink) {
+        self.overlay = Some(link);
+        self.overlay_reading = None;
+    }
+
+    /// Send a session or archive request to the overmap layer, or decline it
+    /// with the view's notice when no resident mere is attached.
+    pub fn overlay_request(&mut self, request: mere_view::MereViewRequest) {
+        #[cfg(feature = "mere-retention")]
+        if let Some(link) = self.overlay.as_mut() {
+            if let Err(reason) = link.request(request) {
+                self.overlay = None;
+                self.overlay_reading = None;
+                self.notice = Some(reason);
+            }
+            return;
+        }
+        self.notice = Some(declined_without_resident(&request));
+    }
+
+    fn overlay_busy(&self) -> bool {
+        #[cfg(feature = "mere-retention")]
+        if let Some(link) = &self.overlay {
+            return link.busy();
+        }
+        false
+    }
+
+    fn drain_overlay(&mut self) -> bool {
+        #[cfg(feature = "mere-retention")]
+        if let Some(link) = self.overlay.as_mut() {
+            use crate::mere_overlay::OverlayUpdate;
+            let updates = link.drain();
+            let changed = !updates.is_empty();
+            for update in updates {
+                match update {
+                    OverlayUpdate::Reading(reading) => self.overlay_reading = Some(reading),
+                    OverlayUpdate::Declined(reason) => self.notice = Some(reason),
+                    OverlayUpdate::Failed(reason) => {
+                        self.overlay = None;
+                        self.overlay_reading = None;
+                        self.notice = Some(format!("The resident mere is unavailable: {reason}"));
+                        break;
+                    },
+                }
+            }
+            return changed;
+        }
+        false
+    }
+
+    fn apply_overlay(&self, model: &mut MereViewModel) {
+        #[cfg(feature = "mere-retention")]
+        knot_editor::mere_overlay::overlay(model, self.overlay_reading.as_ref());
+        #[cfg(not(feature = "mere-retention"))]
+        {
+            model.hide_graph = false;
+            model.sessions.clear();
+            model.can_mint = false;
+            model.archive = None;
+        }
+    }
+
+    fn drain_catalog(&mut self) -> bool {
         let Some(receiver) = self.receiver.as_ref() else {
             return false;
         };
@@ -578,11 +657,13 @@ impl GraphState {
             };
             format!("Catalog reading {}.{errors}", reading.label)
         });
-        MereViewModel {
+        let mut model = MereViewModel {
             title: "Knot graph".to_owned(),
             status,
             sessions: Vec::new(),
             can_mint: false,
+            hide_graph: false,
+            archive: None,
             graph,
             layout: self.layout.clone(),
             layouts: vec![
@@ -601,7 +682,9 @@ impl GraphState {
                     Some("No catalog is configured; showing open documents.".to_owned())
                 }
             }),
-        }
+        };
+        self.apply_overlay(&mut model);
+        model
     }
 
     pub fn set_size(&mut self, size: (u32, u32), open: &[OpenNode]) -> bool {
@@ -1073,4 +1156,15 @@ mod tests {
         assert!(state.capture_facts().unwrap().installed.is_none());
         assert!(frozen["installed"].is_object());
     }
+}
+
+/// The view's notice for a session or archive request with no resident mere.
+fn declined_without_resident(request: &mere_view::MereViewRequest) -> String {
+    match request {
+        mere_view::MereViewRequest::Archive(_) => {
+            "Archives come from a resident mere; open Knot with Djinn's mere to use them."
+        },
+        _ => "Sessions come from a resident mere; open Knot with Djinn's mere to use them.",
+    }
+    .to_owned()
 }

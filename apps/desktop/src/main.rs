@@ -25,6 +25,10 @@ struct LaunchOptions {
     catalog: Option<CatalogOptions>,
     capture_max_bytes: usize,
     mere: Option<MereOptions>,
+    /// The resident mere's domain whose `mere/<domain>` route shows as the
+    /// overmap layer above the catalog graph. Needs `--mere-root` and
+    /// `--mere-persona`.
+    mere_domain: Option<String>,
 }
 #[derive(Debug, PartialEq, Eq)]
 struct MereOptions {
@@ -41,6 +45,7 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
     let mut positional_only = false;
     let mut mere_root = None;
     let mut mere_persona = None;
+    let mut mere_domain = None;
     while let Some(arg) = args.next() {
         if !positional_only && arg == "--" {
             positional_only = true;
@@ -62,6 +67,19 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
                 if mere_persona.replace(persona).is_some() {
                     return Err("duplicate --mere-persona".into());
                 }
+            }
+        } else if !positional_only && arg == "--mere-domain" {
+            let value = args.next().ok_or("--mere-domain requires a domain")?;
+            let value = value
+                .to_str()
+                .filter(|value| {
+                    !value.is_empty()
+                        && !value.starts_with("--")
+                        && !value.chars().any(char::is_whitespace)
+                })
+                .ok_or("--mere-domain requires a domain without whitespace")?;
+            if mere_domain.replace(value.to_owned()).is_some() {
+                return Err("duplicate --mere-domain".into());
             }
         } else if !positional_only && arg == "--capture-max-bytes" {
             if capture_max_bytes.is_some() {
@@ -127,11 +145,15 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
         (Some(root), Some(persona)) => Some(MereOptions { root, persona }),
         _ => return Err("--mere-root and --mere-persona must be supplied together".into()),
     };
+    if mere_domain.is_some() && mere.is_none() {
+        return Err("--mere-domain requires --mere-root and --mere-persona".into());
+    }
     Ok(LaunchOptions {
         documents,
         catalog,
         capture_max_bytes: capture_max_bytes.unwrap_or(DEFAULT_CAPTURE_MAX_BYTES),
         mere,
+        mere_domain,
     })
 }
 /// Open the named documents in order, the first in front. Every site folder
@@ -175,6 +197,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
         sites,
         failures,
         recovery_path: None,
+        mere_overlay: None,
     })
 }
 fn open_path(path: &Path) -> Result<KnotDocumentSession, String> {
@@ -214,6 +237,7 @@ fn main() {
         std::process::exit(1)
     });
     launch.recovery_path = Some(settings_root.join("recovery"));
+    launch.mere_overlay = options.mere_domain;
     if let Err(error) = run_desktop_with_targets(
         launch,
         catalog,
@@ -333,6 +357,25 @@ mod tests {
         )
         .unwrap();
         assert_eq!(parsed.mere.unwrap().root, PathBuf::from("data"));
+        assert_eq!(parsed.mere_domain, None);
+        assert!(
+            select_document(["knot", "--mere-domain", "divination"].map(OsString::from)).is_err(),
+            "the overmap layer needs the resident mere it belongs to"
+        );
+        let overlaid = select_document(
+            [
+                "knot",
+                "--mere-root",
+                "data",
+                "--mere-persona",
+                id,
+                "--mere-domain",
+                "divination",
+            ]
+            .map(OsString::from),
+        )
+        .unwrap();
+        assert_eq!(overlaid.mere_domain.as_deref(), Some("divination"));
         assert_eq!(parsed.documents, [PathBuf::from("essay.djot")]);
         assert!(attach_mere(None).unwrap().is_empty());
     }
@@ -355,6 +398,7 @@ mod tests {
                 catalog: None,
                 capture_max_bytes: DEFAULT_CAPTURE_MAX_BYTES,
                 mere: None,
+                mere_domain: None,
             }
         );
         assert_eq!(

@@ -21,6 +21,8 @@ mod embedding;
 mod endpoint;
 mod file_revision;
 mod mark;
+#[cfg(feature = "mere-overlay")]
+pub mod mere_overlay;
 mod predicates;
 mod publish;
 mod publish_carrier;

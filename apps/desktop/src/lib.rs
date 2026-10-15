@@ -15,6 +15,8 @@ pub mod documents;
 pub mod fonts;
 pub mod font_roles;
 pub mod graph;
+#[cfg(feature = "mere-retention")]
+mod mere_overlay;
 mod link_workflow;
 pub mod navigator;
 pub mod preferences;
@@ -110,6 +112,10 @@ pub struct DesktopLaunch {
     /// Private local recovery root. None keeps optional embeddings free of
     /// plaintext recovery writes until their host grants that policy.
     pub recovery_path: Option<PathBuf>,
+    /// A resident mere's domain to read as the overmap layer above the
+    /// catalog graph: Djinn's `mere/<domain>` route, as `knot-editor`. None
+    /// leaves the layer empty.
+    pub mere_overlay: Option<String>,
 }
 
 pub fn run_desktop_with_targets(
@@ -186,6 +192,7 @@ pub fn run_desktop_with_targets(
                 sites,
                 failures,
                 recovery_path,
+                mere_overlay,
             } = launch;
             let mut state =
                 DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
@@ -203,6 +210,9 @@ pub fn run_desktop_with_targets(
             state.set_preferences_path(preferences_path.clone());
             theme_session::load_library(&mut state);
             state.set_recovery_path(recovery_path, wake.clone());
+            if let Some(domain) = mere_overlay {
+                state.attach_mere_overlay(domain, wake.clone());
+            }
             state.set_retention_targets(targets, wake.clone());
             state.set_composition_targets(composition_targets, wake.clone());
             state.open_behind(behind, &failures);

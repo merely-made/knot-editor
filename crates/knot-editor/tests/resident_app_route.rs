@@ -10,14 +10,15 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use graphshell::identity::{
+use graphshell_endpoint::door::identity::{
     AgentListenerView, CarryView, IdentitySurfaceSnapshot, VaultLockView, VaultProtectionView,
     VaultView,
 };
-use graphshell::native::app_admission::{AllowedAppRoutes, AppId, AppRouteGrants, AppRouteId};
+use graphshell_endpoint::door::app_admission::{AllowedAppRoutes, AppId, AppRouteGrants, AppRouteId};
 use graphshell::native::app_broker::{AppEndpointCatalog, serve_app_broker};
-use graphshell::native::app_client::AppBrokerClient;
-use graphshell::native::endpoint_catalog::{ResidentEndpointCatalog, ResidentEndpointRoute};
+use graphshell_endpoint::door::app_client::AppBrokerClient;
+use graphshell::native::endpoint_catalog::ResidentEndpointCatalog;
+use graphshell_endpoint::door::route::ResidentEndpointRoute;
 use graphshell::native::local_session::DoorIdentity;
 use graphshell::native::resident_identity::ResidentIdentity;
 use personae::{IdentityError, InMemoryProvider, RetainedKeys};

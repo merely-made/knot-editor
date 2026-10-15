@@ -23,6 +23,10 @@ default = []
 # has to supply the model directory; these only compile the provider in.
 embed-bert = ["esp/bert"]
 embed-bert-wgpu = ["embed-bert", "esp/bert-wgpu"]
+# A resident mere's sessions and archive as an overmap layer above Knot's
+# catalog graph (`mere_overlay`). Off by default so the library Djinn embeds
+# takes no view cone unless it asks.
+mere-overlay = ["dep:mere-overmap", "dep:mere-view"]
 
 [dependencies]
 knot-capture.workspace = true
@@ -33,9 +37,12 @@ chartulary.workspace = true
 eidetic = { workspace = true, features = ["json-schema"] }
 fetch.workspace = true
 fleece.workspace = true
-# The custody client: Knot reaches its persona keys by calling djinn (dramatis DR-C).
-graphshell.workspace = true
-graphshell-endpoint = { workspace = true, features = ["stdio"] }
+# The custody client: Knot reaches its persona keys by calling djinn (dramatis
+# DR-C), through the application door (Mere stack lift plan P1); no
+# `graphshell` in the library.
+graphshell-endpoint = { workspace = true, features = ["door", "stdio"] }
+mere-overmap = { workspace = true, optional = true }
+mere-view = { workspace = true, optional = true }
 chirograph.workspace = true
 inker.workspace = true
 jotdown = "0.10"
@@ -95,6 +102,9 @@ uuid.workspace = true
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
+# The serving half the tests and `k2_peer` stand up: admission, the broker,
+# the endpoint catalog and the projection host.
+graphshell.workspace = true
 scenomise.workspace = true
 scenograph.workspace = true
 gemot.workspace = true

@@ -33,7 +33,8 @@ use graphshell::admission::{CONNECT_ACTION, GRAPHSHELL_DOMAIN, PROJECTION_SERVIC
 use graphshell::carrier::{accept_projection_session, projection_policy};
 use graphshell::client::{ResolvedContent, RetainedEndpointSession};
 use graphshell::lifecycle::SessionAuthority;
-use graphshell::native::endpoint_catalog::{ResidentEndpointCatalog, ResidentEndpointRoute};
+use graphshell::native::endpoint_catalog::ResidentEndpointCatalog;
+use graphshell_endpoint::door::route::ResidentEndpointRoute;
 use graphshell::native::projection_host::ResidentProjectionHost;
 use graphshell::network_carrier::{
     CarrierRuntime, NetworkCarrier, dial_projection_session, projection_binding,

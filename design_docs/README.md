@@ -46,6 +46,7 @@ visual residuals; it does not infer live dynamics or release acceptance.
 - [Document links slice](2026-09-29_knot_document_links_slice.md): source-authored links, bounded backlinks and product-owned source navigation.
 
 - [Typography slice](2026-09-29_knot_typography_slice.md): bundled writer/reader fonts and font-backed measure; its existing platform receipt remains distinct from the combined diagnostics qualification.
+- [Resident mere as an overmap layer (October 15)](2026-10-15_knot_mere_overmap_layer.md): Mark's "catalog, route as overmap" ruling; the catalog stays the graph, Djinn's `mere/<domain>` route adds sessions and archives through the application door as `knot-editor`, and archive requests forward to Djinn. Repins every Mere row to `19573b51` (Mere P1). Knot checks and the Djinn archive round trip pass; native qualification is pending.
 - [Shared font-role adoption](2026-10-12_knot_font_roles.md): optional application family requests, explicit writer precedence, and realized card geometry/dynamics safeguards; CPU-qualified, native foreground qualification pending.
 
 - [Workspace slice execution](2026-09-23_knot_workspace_slice1_plan.md): multi-document and native design receipts; September 30 combined Commands, typography and diagnostics qualification uses Mere `bd5912fb` and Genet `69a2383b`, with 260 desktop and 63 document tests, nine reviewed native images and restored stale-result control. Worker acceptance and file authority stay in Knot; original and combined cohorts are recorded separately.

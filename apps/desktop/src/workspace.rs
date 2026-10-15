@@ -764,9 +764,12 @@ impl DesktopState {
                     self.graph.notice = Some(format!("Layout preference was not saved: {error}"));
                 }
             },
-            mere_view::MereViewRequest::Mint | mere_view::MereViewRequest::Session(_, _) => {
-                self.graph.notice =
-                    Some("Knot does not offer reservoir session changes here.".to_owned());
+            request @ (mere_view::MereViewRequest::Mint
+            | mere_view::MereViewRequest::Session(_, _)
+            | mere_view::MereViewRequest::Archive(_)) => {
+                self.graph.overlay_request(request);
+                let open = self.graph_open_nodes();
+                self.graph.relayout(&open);
             },
             mere_view::MereViewRequest::Host(action) => {
                 self.graph.notice = Some(format!("Knot does not offer the graph action {action}."));
@@ -1627,6 +1630,21 @@ impl DesktopState {
 
     /// Opt in a standalone host to local document recovery. Embeddings that
     /// never call this make no plaintext recovery writes.
+    /// Read Djinn's `mere/<domain>` route as the overmap layer above the
+    /// catalog graph. Builds without `mere-retention` have no layer and
+    /// decline session and archive requests.
+    pub fn attach_mere_overlay(&mut self, domain: String, wake: HostWake) {
+        #[cfg(feature = "mere-retention")]
+        self.graph
+            .attach_overlay(crate::mere_overlay::OverlayLink::spawn(domain, Some(wake)));
+        #[cfg(not(feature = "mere-retention"))]
+        {
+            let _ = (domain, wake);
+            self.graph.notice =
+                Some("This build lacks mere-retention; the resident mere is not shown.".into());
+        }
+    }
+
     pub fn set_recovery_path(&mut self, path: Option<PathBuf>, wake: HostWake) {
         self.recovery = None;
         self.recovery_error = None;

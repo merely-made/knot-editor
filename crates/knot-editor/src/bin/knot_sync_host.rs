@@ -30,9 +30,9 @@
 
 use std::path::{Path, PathBuf};
 
-use graphshell::identity::VaultLockView;
-use graphshell::native::app_admission::AppId;
-use graphshell::native::custody_client::CustodyClient;
+use graphshell_endpoint::door::identity::VaultLockView;
+use graphshell_endpoint::door::app_admission::AppId;
+use graphshell_endpoint::door::custody_client::CustodyClient;
 use knot_editor::{
     KnotSettings, KnotSyncHost, KnotSyncHostConfig, KnotSyncSettings, PersonalVaultKeys,
     StartupUnlockedPersonalVault, knot_settings_path,

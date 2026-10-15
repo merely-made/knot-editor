@@ -5,7 +5,7 @@
 //! The retained copied dataset and its source anchors stay with the current
 //! material, rather than being duplicated into each history entry.
 
-use edit_history::History;
+use backstep::History;
 use knot_composition::retention::{ProjectionRecipeMaterial, RecipeScenePresentation};
 use scenograph::relationship::RelationshipSnapshot;
 

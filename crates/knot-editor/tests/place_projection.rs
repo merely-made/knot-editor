@@ -29,17 +29,17 @@ use chirograph::{
     CapabilityProfile, IntentResult, PresentationCapability, ProjectionSession, ResumeRequest,
     SaveTextV1, SessionStatus,
 };
-use graphshell::admission::{CONNECT_ACTION, GRAPHSHELL_DOMAIN, PROJECTION_SERVICE, open_session};
-use graphshell::carrier::{accept_projection_session, projection_policy};
+use graphshell_host::admission::{CONNECT_ACTION, GRAPHSHELL_DOMAIN, PROJECTION_SERVICE, open_session};
+use graphshell_host::carrier::{accept_projection_session, projection_policy};
 use graphshell::client::{ResolvedContent, RetainedEndpointSession};
-use graphshell::lifecycle::SessionAuthority;
-use graphshell::native::endpoint_catalog::ResidentEndpointCatalog;
+use graphshell_host::lifecycle::SessionAuthority;
+use graphshell_host::endpoint_catalog::ResidentEndpointCatalog;
 use graphshell_endpoint::door::route::ResidentEndpointRoute;
-use graphshell::native::projection_host::ResidentProjectionHost;
-use graphshell::network_carrier::{
+use graphshell_host::projection_host::ResidentProjectionHost;
+use graphshell_host::network_carrier::{
     CarrierRuntime, NetworkCarrier, dial_projection_session, projection_binding,
 };
-use graphshell::session_notices::serve_admitted_session_notifying;
+use graphshell_host::session_notices::serve_admitted_session_notifying;
 use graphshell_endpoint::ResumableProjectionSource;
 use insigne::delegation::{
     CapabilityScope, DelegationCertificate, DelegationParent, SignedDelegationCertificate,

@@ -17,7 +17,7 @@ use graphshell_endpoint::door::identity::{
 use graphshell_endpoint::door::app_admission::{AllowedAppRoutes, AppId, AppRouteGrants, AppRouteId};
 use graphshell::native::app_broker::{AppEndpointCatalog, serve_app_broker};
 use graphshell_endpoint::door::app_client::AppBrokerClient;
-use graphshell::native::endpoint_catalog::ResidentEndpointCatalog;
+use graphshell_host::endpoint_catalog::ResidentEndpointCatalog;
 use graphshell_endpoint::door::route::ResidentEndpointRoute;
 use graphshell::native::local_session::DoorIdentity;
 use graphshell::native::resident_identity::ResidentIdentity;

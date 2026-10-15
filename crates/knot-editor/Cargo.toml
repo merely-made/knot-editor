@@ -102,8 +102,12 @@ uuid.workspace = true
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-# The serving half the tests and `k2_peer` stand up: admission, the broker,
-# the endpoint catalog and the projection host.
+# The serving half the tests and `k2_peer` stand up: admission, the endpoint
+# catalog, the session loop and the projection host (Mere's `graphshell-host`,
+# stack lift plan P4). `graphshell` stays for `resident_app_route`, which runs
+# the app broker and names the resident identity traits; both are still the
+# port's until P5.
+graphshell-host = { workspace = true, features = ["native"] }
 graphshell.workspace = true
 scenomise.workspace = true
 scenograph.workspace = true

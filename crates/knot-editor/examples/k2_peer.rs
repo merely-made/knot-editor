@@ -50,13 +50,13 @@ use chirograph::{
     CapabilityProfile, IntentResult, PresentationCapability, ProjectionSession, SaveTextV1,
     SessionStatus,
 };
-use graphshell::admission::{CONNECT_ACTION, GRAPHSHELL_DOMAIN, PROJECTION_SERVICE, open_session};
-use graphshell::carrier::projection_policy;
+use graphshell_host::admission::{CONNECT_ACTION, GRAPHSHELL_DOMAIN, PROJECTION_SERVICE, open_session};
+use graphshell_host::carrier::projection_policy;
 use graphshell::client::{ResolvedContent, RetainedEndpointSession};
-use graphshell::native::endpoint_catalog::ResidentEndpointCatalog;
+use graphshell_host::endpoint_catalog::ResidentEndpointCatalog;
 use graphshell_endpoint::door::route::ResidentEndpointRoute;
-use graphshell::native::projection_host::ResidentProjectionHost;
-use graphshell::network_carrier::{
+use graphshell_host::projection_host::ResidentProjectionHost;
+use graphshell_host::network_carrier::{
     CarrierRuntime, NetworkCarrier, dial_projection_session, projection_binding,
 };
 use insigne::delegation::{
@@ -169,7 +169,7 @@ async fn hold(
         return Err(format!("{} is not a directory", root.display()));
     }
     let carrier = P2pandaTransport::builder_from_seed(seed)
-        .alpns(vec![graphshell::carrier::projection_alpn()])
+        .alpns(vec![graphshell_host::carrier::projection_alpn()])
         .mdns(MdnsDiscoveryMode::Active)
         .bind()
         .await
@@ -256,7 +256,7 @@ async fn visit(
     source: PeerSource,
 ) -> Result<(), String> {
     let carrier = P2pandaTransport::builder_from_seed(seed)
-        .alpns(vec![graphshell::carrier::projection_alpn()])
+        .alpns(vec![graphshell_host::carrier::projection_alpn()])
         .mdns(MdnsDiscoveryMode::Active)
         .bind()
         .await

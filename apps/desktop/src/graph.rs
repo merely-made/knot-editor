@@ -664,9 +664,10 @@ impl GraphState {
             can_mint: false,
             hide_graph: false,
             archive: None,
-            // A resident mere's sessions show as the overmap layer above the
-            // catalog, never as the catalog's own sessions.
-            placement: SessionPlacement::Overmap,
+            // A resident mere's sessions show as the overmap tier on the
+            // catalog's own canvas, one level up from its documents, never as
+            // the catalog's own sessions (Mark, 2026-10-15).
+            placement: SessionPlacement::Tier,
             graph,
             layout: self.layout.clone(),
             layouts: vec![
@@ -896,10 +897,10 @@ mod tests {
     }
 
     #[test]
-    fn a_resident_meres_sessions_show_as_the_overmap_above_the_catalog() {
+    fn a_resident_meres_sessions_show_as_the_overmap_tier_above_the_catalog() {
         let state = GraphState::default();
         let model = state.model(&[]);
-        assert_eq!(model.placement, SessionPlacement::Overmap);
+        assert_eq!(model.placement, SessionPlacement::Tier);
         assert!(!model.hide_graph, "the catalog stays the graph");
         assert!(
             model.sessions.is_empty() && model.archive.is_none(),

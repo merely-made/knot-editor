@@ -1,6 +1,8 @@
 # Rendering the mere overmap as a layer
 
-Status: implemented and natively qualified on macOS (see Checks). Follows
+Status: implemented and natively qualified on macOS (see Checks). Superseded
+in rendering by the in-graph tier (Addendum, 2026-10-15 later); the band
+stays a mere-view option. Follows
 [the overmap layer contract](2026-10-15_knot_mere_overmap_layer.md).
 
 ## Problem
@@ -113,3 +115,48 @@ to `392e0ecc0`.
 - Knot also clears its workspace button style from the catalog's relation
   cells, as it already did for node targets: the fixture's linked documents
   showed each link as a grey bar.
+
+## Addendum, 2026-10-15: the overmap as an in-graph tier
+
+Mark ruled after the band landed: sessions and codicils become **nodes on the
+graph canvas**, in an overmap tier one level up from the catalog, and each
+node kind gets its own widget. His rulings on the follow-up options, the same
+day:
+
+- **Tier, not band.** `SessionPlacement::Tier` (Mere `ec5279784`,
+  `89aa14a36`). The catalog's canvas keeps the whole graph area. A tier across
+  its top holds a node per session, the shown one marked (emphasis, bold
+  label, `aria-current`), and a node per codicil, joined to the session it was
+  saved from by a dotted `saved-from` relation. The catalog is laid out below
+  the tier.
+- **A session node opens in place into its card**: Switch to, Fork, Trash or
+  Restore, Save to archive, and its codicils as chips. The card is the node's
+  footprint on the canvas (`GraphCanvasSwatch::with_node_footprint`), so the
+  codicils' routes end at its border. One card is open at a time. The **tier
+  grows** to hold it, and Knot lays the catalog out again below on every view
+  event. Close or Escape closes it and returns focus to the node.
+- **Codicils and archive chips use a hover-peek, click-pin popover**
+  (Cambium's `detail_popover_panel` over `overlay_surface`): Open as session,
+  Select for composition, Compose. Escape or an outside click dismisses it.
+- **New session and Compose** are tier-level controls at the right end;
+  Compose is in every archive popover too.
+- **"+N"**: past three codicils on a session (or the shelf), they collapse
+  into one "+N" node that opens the card, whose chips pin each popover.
+- **Archive shelf**: codicils no live session holds hang off an "Archive"
+  node by an `on-shelf` relation; it opens into a card with Compose.
+- **Node kinds**: the paint leaf's palette takes `MereNodeKind`. Knot paints
+  catalog documents by state as before, sessions in the palette's secondary,
+  codicils, "+N" and the shelf in tertiary, and a trashed session dimmed.
+  Cards and popover panels take the surface colours of Knot's other panels.
+- **Naming** (Mere `a0ffffea2`): a fork names its parent, `Session (fork of
+  Session)`, nesting for a fork of a fork; a fork of a thaw drops the doubled
+  "from", `Session (fork of Session (from blake3:f612a))`; a picked-off part
+  (Turnstone's tear-out) is `Session (picked from Evening reading)`. Branches,
+  which merge back, wait on the merge-in design (Mere
+  `design_docs/mere_docs/technical_architecture/2026-10-15_session_merge_in_note.md`).
+
+The scenarios now open the shown session's card by its node
+(`@aria-label=Session Session, shown here`) before Save, and open a codicil's
+popover by its node (`@data-node-kind=archive`) before Open as session. The
+step controls keep their aria-labels and `data-step` tokens. The reopen
+scenario also forks the thaw and checks its name.

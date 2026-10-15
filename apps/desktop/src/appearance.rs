@@ -377,7 +377,7 @@ fn palette_css(
             "{scope} {{ background:{};color:{}; }} \
              {scope} button,{scope} input,{scope} [role=\"textbox\"][data-cambium-text-value] {{ background:{};color:{};border-color:{}; }} \
              {scope} button:hover {{ background:{}; }} \
-             {scope} .knot-writing-area,{scope} .knot-document-body textarea,{scope} .knot-document-body [data-cambium-text-value],{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail,{scope} .status-overflow-content {{ background:{};color:{};border-color:{}; }} \
+             {scope} .knot-writing-area,{scope} .knot-document-body textarea,{scope} .knot-document-body [data-cambium-text-value],{scope} .knot-document-read-only,{scope} .knot-path-popover,{scope} .knot-command-palette,{scope} .knot-folded-source,{scope} .knot-status-detail,{scope} .status-overflow-content,{scope} .mere-view-card,{scope} .mere-view-popover-layer .overlay-surface-panel {{ background:{};color:{};border-color:{}; }} \
              {scope} .status-bar {{ border-color:{}; }} \
              {scope} .knot-catalog-error,{scope} .knot-review-error,{scope} .knot-retention-error,{scope} .knot-outline-error,{scope} .knot-preferences-error,{scope} .status-chip[data-severity=warning] {{ color:{}; }} \
              {scope} .status-chip[data-severity=refused] {{ color:{};border-color:{}; }} \
@@ -425,15 +425,25 @@ fn palette_css(
     css
 }
 
+/// A graph node's paint by kind: catalog documents by state, and the
+/// resident mere's sessions and archives in the overmap tier apart from them
+/// (sessions secondary, archives and the shelf tertiary, a trashed session
+/// dimmed). Each node's label carries its kind and state in words as well.
 pub(crate) fn graph_color(
     palette: &tinct::Palette,
-    state: &mere_view::NodeState,
+    kind: &mere_view::MereNodeKind,
 ) -> sprigging::ColorF {
-    let color = match state {
-        mere_view::NodeState::Available => palette.primary,
-        mere_view::NodeState::Unavailable => palette.text_dim,
-        mere_view::NodeState::Open => palette.success,
-        mere_view::NodeState::Dirty => palette.danger,
+    use mere_view::{MereNodeKind, NodeState};
+    let color = match kind {
+        MereNodeKind::Graph(NodeState::Available) => palette.primary,
+        MereNodeKind::Graph(NodeState::Unavailable) => palette.text_dim,
+        MereNodeKind::Graph(NodeState::Open) => palette.success,
+        MereNodeKind::Graph(NodeState::Dirty) => palette.danger,
+        MereNodeKind::Session { trashed: true, .. } => palette.text_dim,
+        MereNodeKind::Session { .. } => palette.secondary,
+        MereNodeKind::Archive { .. } | MereNodeKind::Shelf | MereNodeKind::More => {
+            palette.tertiary
+        },
     };
     sprigging::ColorF::new(
         color.r as f32 / 255.0,

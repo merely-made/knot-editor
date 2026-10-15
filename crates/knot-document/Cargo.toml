@@ -26,12 +26,12 @@ engine = [
 
 [dependencies]
 same-file = "1.0.6"
-cambium = { version = "0.3.3", git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-mere-surface-api = { version = "0.1.0", git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-illume = { version = "0.0.2", git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1", optional = true }
-inker = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1", optional = true }
-knot-editor-host = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1", default-features = false }
-nematic = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1", default-features = false, optional = true }
+cambium = { version = "0.3.3", git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+mere-surface-api = { version = "0.1.0", git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+illume = { version = "0.0.2", git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920", optional = true }
+inker = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920", optional = true }
+knot-editor-host = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920", default-features = false }
+nematic = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]
@@ -57,8 +57,8 @@ p2panda-encryption = { git = "https://github.com/mark-ik/p2panda.git", tag = "me
 p2panda-store = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 p2panda-stream = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 p2panda-sync = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
-muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
+muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
 vello_shaders = { git = "https://github.com/mark-ik/vello", rev = "276b46648c08f3d2062e70559afa999842e1873c" }
 netrender_device = { git = "https://www.github.com/merely-made/netrender.git", rev = "f4f9c0d87e6a6030b61075a45118055dfe6a12df" }
 netrender-vello = { git = "https://github.com/mark-ik/vello", rev = "276b46648c08f3d2062e70559afa999842e1873c" }
@@ -76,20 +76,20 @@ rust-version = "1.97.1"
 
 # Root patches are not inherited from the imported Murm suppliers.
 [patch."https://github.com/merely-made/mere.git"]
-cambium = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-illume = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-inker = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-knot-editor-host = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-mere-surface-api = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-nematic = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-sceno = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-command-menu = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-edit-history = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-errand = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-meristem = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-sprigging = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-tinct = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
-workbench = { git = "https://www.github.com/merely-made/mere.git", rev = "19573b513d3809290973a0342b530091e8ca7ba1" }
+cambium = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+illume = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+inker = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+knot-editor-host = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+mere-surface-api = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+nematic = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+sceno = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+command-menu = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+edit-history = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+errand = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+meristem = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+sprigging = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+tinct = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
+workbench = { git = "https://www.github.com/merely-made/mere.git", rev = "7160353160b6befcd92b2e86d2282c16cf91f920" }
 
 # Mere's netrender bridge, repeated because root patches are not inherited:
 # Genet names netrender through the plain GitHub URL, Mere's crates through

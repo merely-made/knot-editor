@@ -12,7 +12,7 @@ use knot_file_catalog::{KnotFileCatalogAvailability, KnotFileCatalogSnapshot, Kn
 use knot_readings::ReadingInput;
 use mere_view::{
     GraphModel, HostAction, MereViewModel, MereViewState, NodeEntry, NodeState, Provenance,
-    RelationEntry, StatusNote, ViewStatus,
+    RelationEntry, SessionPlacement, StatusNote, ViewStatus,
 };
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
@@ -664,6 +664,9 @@ impl GraphState {
             can_mint: false,
             hide_graph: false,
             archive: None,
+            // A resident mere's sessions show as the overmap layer above the
+            // catalog, never as the catalog's own sessions.
+            placement: SessionPlacement::Overmap,
             graph,
             layout: self.layout.clone(),
             layouts: vec![
@@ -890,6 +893,18 @@ mod tests {
         assert!(model.notice.as_deref().unwrap().contains("No catalog"));
         state.relayout(&open);
         assert!(state.view.position("open:7").is_some());
+    }
+
+    #[test]
+    fn a_resident_meres_sessions_show_as_the_overmap_above_the_catalog() {
+        let state = GraphState::default();
+        let model = state.model(&[]);
+        assert_eq!(model.placement, SessionPlacement::Overmap);
+        assert!(!model.hide_graph, "the catalog stays the graph");
+        assert!(
+            model.sessions.is_empty() && model.archive.is_none(),
+            "without a resident there is no layer"
+        );
     }
 
     #[test]

@@ -1,0 +1,13 @@
+RESULT fail
+knot overmap reopen: launched
+waited 0 frames
+waited 0 frames
+captured overmap-reopen-codicil-read-back
+waited 0 frames
+captured overmap-reopen-after-open
+knot overmap reopen: done
+capture overmap-reopen-codicil-read-back 2200x1400 digest=5ae7fdbd8737196e file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/knot-overmap-live/run/live-native-reopen/overmap-reopen-codicil-read-back.png
+capture overmap-reopen-after-open 2200x1400 digest=2787ec47c1fdd62a file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/knot-overmap-live/run/live-native-reopen/overmap-reopen-after-open.png
+frames: 2 captured, 0 blank, 2 distinct digests
+presentation: 13 frames, 14 redraws, 1 unpresented redraws
+FAIL: no current DOM target for Selector { surface: None, matcher: Role("button"), text: Some("Open as session"), attr: None }

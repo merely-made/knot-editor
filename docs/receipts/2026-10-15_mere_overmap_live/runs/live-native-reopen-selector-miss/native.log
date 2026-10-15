@@ -1,0 +1,12 @@
+[knot] marked synthetic acceptance fixture: initial presentation grace 60s; restores to 10s on first successful presentation
+[cambium-winit] accessibility Installed, 56 nodes projected
+[knot] first successful presentation observed; initial grace ended, normal 10s presentation timeout restored
+knot: knot overmap reopen: launched
+knot: waited 0 frames
+knot: waited 0 frames
+knot: captured overmap-reopen-codicil-read-back
+knot: waited 0 frames
+knot: captured overmap-reopen-after-open
+knot: knot overmap reopen: done
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Role("button"), text: Some("Open as session"), attr: None }
+knot: RESULT fail (13 frames, 2 captures)

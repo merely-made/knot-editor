@@ -138,3 +138,33 @@ captures still show the bar).
 Three earlier attempts on this machine stalled at zero presented frames while
 a system dialog held the foreground; they are not evidence. Every process the
 script started exited; none remained afterwards.
+
+## The overmap as an in-graph tier, before and after (October 15, later)
+
+Mark ruled the overmap into the catalog's own canvas (see the rendering note's
+addendum). Same script, same fixture source, macOS foreground, `TMPDIR=/tmp`;
+the fixture host was built at Mere `2222917f3` (SHA-256
+`be08873765f8b7ad0f01d454076a255c27193e410919bfd03842a9757a920b80`) for both.
+
+- [tier-before](tier-before): Knot `601f99b` (`a530e326…`), the band of
+  framed cards above the catalog.
+- [tier-after](tier-after): Knot on Mere `2222917f3` (`f8da7223…`): sessions
+  and the saved codicil as nodes in a tier on the catalog's canvas, the shown
+  session marked; the session's card opened in place, growing the tier with
+  the catalog laid out again below; the codicil's popover with Open as
+  session, Select and Compose; New session and Compose as tier controls; after
+  Open, the thaw "Session (from blake3:…)" shown here, and after its card's
+  Fork, a fifth session named "(fork of Session (from blake3:…))".
+
+| Run | Seed | Reopen | Standalone |
+| --- | --- | --- | --- |
+| tier-before | ok, 3 captures | ok, 2 | ok, 1 |
+| tier-after | ok, 3 | ok, 3 | ok, 1 |
+
+The first after-run (Knot on Mere `86effe47f`, not kept) failed its new fork
+step: Open as session left the codicil's popover pinned, so the click on the
+new session only dismissed it. Mere `2222917f3` closes the popover on Open,
+stops a node with an open card from also drawing its label past the card's
+edge, and stops the hidden side column rendering duplicate controls. Earlier
+attempts while the screen was locked presented no frames and are not
+evidence. Every process the script started exited.

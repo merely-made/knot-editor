@@ -1,0 +1,12 @@
+RESULT ok
+knot overmap reopen: launched
+waited 0 frames
+waited 0 frames
+captured overmap-reopen-codicil-read-back
+waited 2 frames
+captured overmap-reopen-after-open
+knot overmap reopen: done
+capture overmap-reopen-codicil-read-back 2200x1400 digest=cad5b078a9a9ff8a file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/captures/knot-before-601f99b/live-native-reopen/overmap-reopen-codicil-read-back.png
+capture overmap-reopen-after-open 2200x1400 digest=e22953a2a1f3dccb file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/captures/knot-before-601f99b/live-native-reopen/overmap-reopen-after-open.png
+frames: 2 captured, 0 blank, 2 distinct digests
+presentation: 17 frames, 19 redraws, 2 unpresented redraws

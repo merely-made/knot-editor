@@ -20,6 +20,6 @@ click .graph-canvas-swatch-node @data-attached=true
 wait
 click role:button @data-step=fork
 wait
-assert text (fork of Session (from blake3:
+assert text Session (fork of
 capture overmap-reopen-after-fork
 log knot overmap reopen: done

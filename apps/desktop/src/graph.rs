@@ -668,6 +668,8 @@ impl GraphState {
             // catalog's own canvas, one level up from its documents, never as
             // the catalog's own sessions (Mark, 2026-10-15).
             placement: SessionPlacement::Tier,
+            // Mere's default: three codicils on a session before "+N".
+            max_archive_nodes: None,
             graph,
             layout: self.layout.clone(),
             layouts: vec![

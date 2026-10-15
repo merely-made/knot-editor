@@ -1,0 +1,9 @@
+RESULT ok
+knot overmap standalone: launched
+waited 0 frames
+waited 0 frames
+captured overmap-standalone-graph-no-layer
+knot overmap standalone: done
+capture overmap-standalone-graph-no-layer 2200x1400 digest=2679c6a86abcda39 file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/captures/knot-after-2222917f3/standalone/overmap-standalone-graph-no-layer.png
+frames: 1 captured, 0 blank, 1 distinct digests
+presentation: 10 frames, 12 redraws, 2 unpresented redraws

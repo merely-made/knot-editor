@@ -4303,10 +4303,11 @@ fn graph_view(state: &DesktopState) -> DesktopView {
             mere_view::mere_view(
                 view,
                 |state: &mut DesktopState, event| {
-                    state.graph.view.apply(event);
                     // An opened or closed tier card changes the catalog's area.
                     let open = state.graph_open_nodes();
-                    state.graph.relayout(&open);
+                    let model = state.graph.model(&open);
+                    let (width, height) = state.graph.size;
+                    state.graph.view.apply_and_lay_out(event, &model, width, height);
                 },
                 |state: &mut DesktopState, request| state.carry_graph_request(request),
             ),

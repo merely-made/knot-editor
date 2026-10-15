@@ -1,0 +1,19 @@
+# Knot with --mere-root/--mere-persona/--mere-domain divination against a
+# disposable public-test-key Djinn fixture (3 sessions, empty archive).
+log knot overmap live: launched
+wait
+assert snap document_count == 1
+click role:button Graph
+wait
+assert snap graph_open == true
+assert text Catalog reading
+assert text Evening reading
+assert text Draft spread
+capture overmap-live-sessions
+assert text Save to archive
+capture overmap-live-archive-controls
+click role:button @aria-label=Save Session to archive
+wait
+assert text Open as session
+capture overmap-live-after-save
+log knot overmap live: done

@@ -1,0 +1,15 @@
+# Fresh Knot process against the same fixture: the saved codicil is read back
+# from Djinn, then opened as a session through the archive's Open control.
+log knot overmap reopen: launched
+wait
+click role:button Graph
+wait
+assert snap graph_open == true
+assert text Evening reading
+assert text Open as session
+capture overmap-reopen-codicil-read-back
+click role:button @data-step=open-archive
+wait
+assert snap graph_open == true
+capture overmap-reopen-after-open
+log knot overmap reopen: done

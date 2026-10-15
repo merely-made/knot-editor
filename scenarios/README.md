@@ -177,3 +177,10 @@ At 420 × 900 logical pixels, run `tabard_authoring_narrow.scn` and
 Menu → View → Appearance path using stable command identities and retain
 the wide authoring/reopen assertions. Use a fresh profile for authoring,
 then that same profile in a fresh process for reopening.
+
+The mere overmap scenarios (`overmap_live.scn`, `overmap_live_reopen.scn`,
+`overmap_standalone.scn`) need a live Djinn resident: Mere's
+`knot_overmap_live_host` example serves a disposable public-test-key fixture.
+`docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh` starts it,
+runs the three scenarios in order (seed, fresh-process reopen, standalone
+after the fixture stops) and stops every process it started.

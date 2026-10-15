@@ -1,8 +1,9 @@
 # Knot with --mere-root/--mere-persona/--mere-domain divination against a
-# disposable public-test-key Djinn fixture (3 sessions, empty archive).
+# disposable public-test-key Djinn fixture (3 sessions, empty archive), with
+# both of the fixture's documents open and so catalogued.
 log knot overmap live: launched
 wait
-assert snap document_count == 1
+assert snap document_count == 2
 click role:button Graph
 wait
 assert snap graph_open == true

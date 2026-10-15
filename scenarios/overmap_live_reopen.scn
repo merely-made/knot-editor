@@ -11,5 +11,6 @@ capture overmap-reopen-codicil-read-back
 click role:button @data-step=open-archive
 wait
 assert snap graph_open == true
+assert text Session (from blake3:
 capture overmap-reopen-after-open
 log knot overmap reopen: done

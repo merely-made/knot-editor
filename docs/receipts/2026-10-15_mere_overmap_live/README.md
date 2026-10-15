@@ -32,7 +32,7 @@ cargo build --locked -p knot-desktop --bin knot                       # Knot
 cargo build --locked -p djinn --example knot_overmap_live_host       # Mere
 TMPDIR=/tmp docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh \
   <knot> <knot_overmap_live_host> <knot-checkout> <mere-checkout> <new-out> \
-  essay.djot
+  essay.djot field_notes.djot
 ```
 
 It starts the fixture on a fresh `/tmp/kov-*.sock`, then runs three Knot
@@ -44,7 +44,7 @@ processes through Mere's `scripts/run_macos_scenario.py` (LaunchServices,
    `GRAPHSHELL_APP_ENDPOINT=<endpoint>` and
    `--catalog-root <root> --catalog <out>/live-catalog.redb
    --mere-root <root>/shared --mere-persona 00000000-0000-0000-6b6e-6f7420261015
-   --mere-domain divination <root>/essay.djot`;
+   --mere-domain divination <root>/essay.djot <root>/field_notes.djot`;
 2. [`overmap_live_reopen.scn`](../../../scenarios/overmap_live_reopen.scn), a
    fresh process with the same profile, catalog and arguments;
 3. after the fixture stops,
@@ -52,7 +52,7 @@ processes through Mere's `scripts/run_macos_scenario.py` (LaunchServices,
    `--mere-*` options, a new profile and catalog.
 
 The run kept here was driven by hand in the same shape, with the catalog root
-in a separate marked `docs/` folder. The reopen scenario then clicked the
+in a separate marked `docs/` folder and only `essay.djot` named. The reopen scenario then clicked the
 codicil by its full accessible name (`Open Codicil blake3:f612a as session`);
 a codicil's id includes its save time, so the committed scenario selects the
 Open control by `@data-step=open-archive` instead.

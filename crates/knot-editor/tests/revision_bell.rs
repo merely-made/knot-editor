@@ -11,7 +11,7 @@ use chirograph::{
     CapabilityProfile, CarrierRequestBody, CarrierResponseBody, IntentResult,
     PresentationCapability, ResumeReply, ResumeRequest, SaveTextV1,
 };
-use graphshell::client::ResolvedContent;
+use graphshell_client::ResolvedContent;
 use graphshell::sessions::spawn_endpoint_session;
 use graphshell_endpoint::stdio::StdioCarrier;
 use tempfile::tempdir;

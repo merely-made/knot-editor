@@ -664,6 +664,8 @@ impl GraphState {
             can_mint: false,
             hide_graph: false,
             archive: None,
+            // A pending merge is the resident mere's; the overlay sets it.
+            merge: None,
             // A resident mere's sessions show as the overmap tier on the
             // catalog's own canvas, one level up from its documents, never as
             // the catalog's own sessions (Mark, 2026-10-15).
@@ -1181,6 +1183,9 @@ fn declined_without_resident(request: &mere_view::MereViewRequest) -> String {
     match request {
         mere_view::MereViewRequest::Archive(_) => {
             "Archives come from a resident mere; open Knot with Djinn's mere to use them."
+        },
+        mere_view::MereViewRequest::Merge(_) => {
+            "Merges come from a resident mere; open Knot with Djinn's mere to use them."
         },
         _ => "Sessions come from a resident mere; open Knot with Djinn's mere to use them.",
     }

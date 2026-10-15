@@ -31,7 +31,7 @@ use chirograph::{
 };
 use graphshell_host::admission::{CONNECT_ACTION, GRAPHSHELL_DOMAIN, PROJECTION_SERVICE, open_session};
 use graphshell_host::carrier::{accept_projection_session, projection_policy};
-use graphshell::client::{ResolvedContent, RetainedEndpointSession};
+use graphshell_client::{ResolvedContent, RetainedEndpointSession};
 use graphshell_host::lifecycle::SessionAuthority;
 use graphshell_host::endpoint_catalog::ResidentEndpointCatalog;
 use graphshell_endpoint::door::route::ResidentEndpointRoute;

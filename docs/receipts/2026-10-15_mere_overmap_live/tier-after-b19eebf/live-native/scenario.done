@@ -1,0 +1,17 @@
+RESULT fail
+knot overmap live: launched
+waited 0 frames
+waited 0 frames
+captured overmap-live-sessions
+waited 0 frames
+captured overmap-live-card-fork-branch
+waited 1 frames
+waited 0 frames
+captured overmap-live-after-save
+knot overmap live: done
+capture overmap-live-sessions 2200x1400 digest=244b2df4d6df48cd file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/captures/knot-after-b19eebf/live-native/overmap-live-sessions.png
+capture overmap-live-card-fork-branch 2200x1400 digest=a3030c7cc1ca3778 file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/captures/knot-after-b19eebf/live-native/overmap-live-card-fork-branch.png
+capture overmap-live-after-save 2200x1400 digest=e1b4713de9d47567 file=/private/tmp/claude-502/-Users-markik-Code/7f680b23-94c4-4f8a-81d0-d97606708ded/scratchpad/captures/knot-after-b19eebf/live-native/overmap-live-after-save.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 25 frames, 242 redraws, 217 unpresented redraws
+FAIL: native presentation stalled for 10000 ms (242 redraws, 25 presented frames)

@@ -3,7 +3,7 @@
 # both of the fixture's documents open and so catalogued. The sessions are
 # nodes in the overmap tier on the catalog's canvas; the shown session's node
 # opens in place into its card, and a saved codicil is an archive node whose
-# popover holds Open as session.
+# popover holds Open as session. The card offers Branch beside Fork.
 log knot overmap live: launched
 wait
 assert snap document_count == 2
@@ -19,7 +19,8 @@ capture overmap-live-sessions
 click .graph-canvas-swatch-node @aria-label=Session Session, shown here
 wait
 assert text Save to archive
-capture overmap-live-archive-controls
+assert text Branch
+capture overmap-live-card-fork-branch
 click role:button @aria-label=Save Session to archive
 wait
 click .graph-canvas-swatch-node @data-node-kind=archive

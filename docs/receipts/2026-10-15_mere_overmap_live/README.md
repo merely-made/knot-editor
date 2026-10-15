@@ -168,3 +168,27 @@ stops a node with an open card from also drawing its label past the card's
 edge, and stops the hidden side column rendering duplicate controls. Earlier
 attempts while the screen was locked presented no frames and are not
 evidence. Every process the script started exited.
+
+## Re-capture on Knot b19eebf (October 15, later still)
+
+Knot `b19eebf` on Mere `0c03dff3d` (P5 and merge-in, with Mere `dfbf6f97c`'s
+centred button text and middle-cut labels); binary SHA-256 `77cb75e4…`,
+fixture host built at Mere `0c03dff3d` (`0f73d9dc…`). Same script, macOS
+foreground, `TMPDIR=/tmp`. [tier-after-b19eebf](tier-after-b19eebf) holds:
+
+- `overmap-live-card-fork-branch.png` (new): the shown session's card offers
+  Branch beside Fork, with Trash and Save to archive; button text is centred.
+- the existing seed, reopen and standalone captures; after the thaw's Fork the
+  fork's label is cut in the middle ("Session (fork of … blake3:…))"), so the
+  reopen scenario now asserts `Session (fork of`.
+
+Every step and assertion of all three scenarios passed in this run (seed 3
+captures, reopen 3, standalone 1). The seed process is marked `RESULT fail`
+only because the presentation watchdog tripped after its last step, as it
+closed (25 frames presented, then 10 s without one); reopen and standalone, in
+the same run, are `RESULT ok`. Around it the lane was unstable: other attempts
+stalled at zero presented frames with the screen unlocked, and are not kept.
+
+A pending-merge card was not captured: it shows only for a merge with
+conflicts, and the fixture resident cannot make a conflicting edit on a branch
+(it seeds three sessions and an empty archive, and edits nothing).

@@ -370,6 +370,9 @@ pub struct DesktopState {
     pub(crate) readings: Vec<ReadingScript>,
     pub(crate) readings_load_notes: Vec<String>,
     pub(crate) composition: crate::composition::CompositionState,
+    /// Authenticated personal Knot relation history, adapted for the shared
+    /// opened-link view. Layout/history selection is transient window state.
+    pub(crate) knot_relations: Option<crate::knot_relations::KnotRelationView>,
     /// The script each Readings tile has chosen, by name, so a refresh that
     /// adds or drops a file cannot silently arm a different reading.
     pub(crate) reading_scripts: HashMap<workbench::TileId, String>,
@@ -469,6 +472,7 @@ impl DesktopState {
             readings_root: None,
             readings: Vec::new(),
             composition: crate::composition::CompositionState::default(),
+            knot_relations: None,
             readings_load_notes: Vec::new(),
             reading_scripts: HashMap::new(),
             window,
@@ -488,6 +492,24 @@ impl DesktopState {
         }
         state.sync_catalog();
         state
+    }
+
+    /// Attach one read-only, already authenticated relation projection to this
+    /// desktop session. The projection confers no mutation capability.
+    pub fn set_knot_relation_view(
+        &mut self,
+        view: Option<crate::knot_relations::KnotRelationView>,
+    ) {
+        self.knot_relations = view;
+    }
+
+    pub(crate) fn set_knot_relation_layout(
+        &mut self,
+        layout: scenograph::link::OpenedLinkLayout,
+    ) {
+        if let Some(view) = &mut self.knot_relations {
+            view.layout = layout;
+        }
     }
 
     /// Hold the site at `folder` in the site panel, returning its index

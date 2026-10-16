@@ -6,6 +6,16 @@ implementation to Codex and kept Claude for design. Every decision below is
 Mark's and is ruled; do not re-decide one. If a task needs a decision that
 isn't written here, stop and ask Mark with concrete options.
 
+**2026-10-16 continuation:** the signed optional-retraction projection supplier is
+published at `0020a50e6`, and Mere's authenticated intake is P2-qualified. The
+Mere P3 Chartulary/shared Graphshell slice is published at `ee324e517`.
+Knot's receiving Readings consumer is now in progress under the existing
+[composition readings plan](2026-09-30_knot_composition_readings.md). It uses a
+real signed personal relation projection through the shared opened-link swatch,
+with native and encrypted reopen checks still to run. The older snapshot and
+receipts below remain historical evidence. This continuation changes Knot's
+root lock only; independently released roots keep their own qualification.
+
 ## 1. Where Knot stands
 
 Knot `main` is `90ae0c2` (receipt-only), on code `b19eebf`.

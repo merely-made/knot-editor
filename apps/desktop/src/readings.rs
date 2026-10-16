@@ -66,7 +66,14 @@ pub const CSS: &str = concat!(
     ".knot-readings-error { color:crimson; }",
     ".knot-readings-note { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; ",
     "user-select:text; }",
-    ".knot-personal-opened-links { display:flex; flex-direction:column; gap:8px; min-width:0; }",
+    ".knot-personal-opened-links { display:flex; flex-direction:column; gap:8px; width:100%; max-width:100%; min-width:0; box-sizing:border-box; overflow-wrap:anywhere; }",
+    ".knot-personal-opened-links .opened-link-swatch, .knot-personal-opened-links .detail { width:100%; max-width:100%; min-width:0; box-sizing:border-box; }",
+    ".knot-personal-opened-links .detail-row { display:flex; flex-wrap:wrap; align-items:baseline; gap:0 6px; max-width:100%; min-width:0; }",
+    ".knot-personal-opened-links .detail-key { flex:none; }",
+    ".knot-personal-opened-links .detail-value { flex:1 1 140px; max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; }",
+    // The shared Timeline row sets nowrap/hidden inline for compact hosts. Knot's
+    // narrow Readings pane needs exact long authored values to wrap instead.
+    ".knot-personal-opened-links .opened-link-timeline-row > :first-child { max-width:100%; min-width:0; white-space:normal !important; overflow:visible !important; overflow-wrap:anywhere; }",
     ".knot-link-history-controls { display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; }",
 );
 

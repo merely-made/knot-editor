@@ -2284,6 +2284,7 @@ fn fold_relations(
                 let retraction = KnotRelationRetractionV1 {
                     operation: operation_id,
                     author,
+                    withdrawn_at_ms: asserted_at_ms,
                 };
                 match state.location {
                     RelationLocation::Valid(index) => {

@@ -537,3 +537,30 @@ reference and a shared suggestion sink, so they land last.
   `crates/graph/linked-data/src/vocab.rs` (the CiTO alignment table),
   `crates/graph/graph-kernel/src/graph/edge_data.rs`, `crates/intel/esp`,
   `design_docs/intel_docs/technical_architecture/2026-08-09_feature_target_matrix.md`.
+
+
+## Mere link-model P2 projection continuation, 2026-10-15
+
+**Status:** supplier implementation and bounded checks complete on baseline
+`d2cb090`. The Mere link model's
+semantic lifecycle requires Knot's retained retractions to disclose their
+recorded time. `KnotRelationRetractionV1` appends optional `withdrawn_at_ms`,
+lifted directly from the validated signed retraction header. Unknown stays
+unknown; clocks never order the fold. The signed operation schema is unchanged,
+and absent projection times are omitted so older checkpoint bytes and digests
+remain stable.
+
+The supplier control authors real timed and untimed signed retractions in a
+`KnotSyncFileStore`, compares replay with checkpoint contents, and drops/reopens
+the store. Existing legacy checkpoint byte/digest controls cover missing fields.
+The consumer adapter belongs to Djinn in Mere: endpoint admission is by exact
+document id/head, and importing a reading does not grant mutation rights in
+Knot. That integration's owner, phase status and receipts remain in
+`mere/design_docs/mere_docs/implementation_strategy/2026-10-15_link_model_plan.md`.
+Desktop authoring and automatic resident synchronization are separate work.
+
+Checks: locked/offline `knot-editor --lib` passes 150 tests with one existing
+ignored probe; `authored_relations` passes four tests and `file_relations`
+passes one. The latter use actual signed operations, sealed file-store replay,
+checkpoint equality and store reopening. Scoped rustfmt and diff checks pass.
+Mere intake qualification follows separately; no desktop UI change is claimed.

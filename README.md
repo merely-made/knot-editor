@@ -243,7 +243,9 @@ features already available in the standalone application.
 
 The library's first connected-writing model retains signed assertions between
 captured vault document revisions, including optional source passages, predicates,
-and author-only retraction history. These records remain separate from document
+and author-only retraction history. Assertion and retraction projections retain
+their optional author-signed record times; missing times stay unknown. These
+records remain separate from document
 replacement and from graph presentation. Hosts must supply admitted document ids
 for filtered relation reads. The desktop does not yet expose link authoring;
 graph views remain planned work.

@@ -67,7 +67,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let writer = identity.master_public_key().to_bytes();
     let mut vault = KnotVault::open(root.join("vault"), [0x72; 32])?;
     let mut store = KnotSyncFileStore::open(root.join("sync.redb"), [0x73; 32], [writer])?;
-    let source = root.join("essay.djot");
     if opened_link_fixture && mode == "--initialize-opened-link-fixture" {
         let essay_text = "# Night light\nNight light by the river.\n";
         let source_text = "# River notes\nThe river keeps the dusk.\n";

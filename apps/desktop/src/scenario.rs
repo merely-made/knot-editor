@@ -111,6 +111,9 @@ impl mesquite::Product for KnotLane {
                 blake3::hash(source.as_bytes()).to_hex().to_string(),
             )
             .with_field("scene_selected_position", position);
+        for (key, value) in ctx.runner.state().catalog_fold_facts() {
+            snapshot = snapshot.with_field(key, value);
+        }
         for (key, value) in ctx.runner.state().composition.motion_scenario_fields() {
             snapshot = snapshot.with_field(key, value);
         }
@@ -260,6 +263,7 @@ fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, St
     .into_iter()
     .map(|(key, value)| (key.to_owned(), value))
     .collect();
+    fields.extend(state.catalog_fold_facts().into_iter().map(|(key,value)|(key.to_owned(),value)));
     fields.extend(state.composition.motion_scenario_fields());
     fields
 }

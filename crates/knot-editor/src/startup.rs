@@ -268,6 +268,14 @@ impl StartupUnlockedPersonalVault {
         &self.store
     }
 
+    /// Read the authenticated personal projection while this startup authority
+    /// still holds the matching vault. This is read-only and does not expose a
+    /// second mutation or synchronization handle to the desktop.
+    pub fn relation_projection(&self) -> Result<crate::KnotDocumentProjection, String> {
+        pollster::block_on(self.store.projection(&self.vault))
+            .map_err(|error| format!("could not read Knot relation projection: {error}"))
+    }
+
     /// The seed this device signs and binds its transport with, lent: a copy
     /// taken into async code would outlive the unlock (Mere vault lock ruling 49).
     pub fn signing_seed(&self) -> &[u8; 32] {

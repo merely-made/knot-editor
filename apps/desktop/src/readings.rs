@@ -66,6 +66,8 @@ pub const CSS: &str = concat!(
     ".knot-readings-error { color:crimson; }",
     ".knot-readings-note { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; ",
     "user-select:text; }",
+    ".knot-personal-opened-links { display:flex; flex-direction:column; gap:8px; min-width:0; }",
+    ".knot-link-history-controls { display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; }",
 );
 
 /// The first eight hex digits of a hash, the panel's short form throughout.
@@ -219,9 +221,7 @@ pub(crate) fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -
             ),
         )
     });
-    // Relations are supplied by a relation authority the desktop does not hold
-    // yet, so say that rather than showing an honest-looking zero.
-    let relations = span("No space attached: relations() is empty in this window.");
+    let relations = crate::knot_relations::view(state);
     Box::new(
         el(
             "section",

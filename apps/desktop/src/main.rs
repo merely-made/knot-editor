@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Thin standalone host for the reusable Knot document surface.
-use knot_desktop::{DesktopLaunch, run_desktop_with_targets, workspace};
+use knot_desktop::{DesktopLaunch, run_desktop_with_targets_and_relations, workspace};
 
 use knot_document::KnotDocumentSession;
 use knot_file_catalog::KnotFileCatalog;
@@ -213,7 +213,7 @@ fn main() {
         eprintln!("knot: {error}");
         std::process::exit(1)
     });
-    let composition_targets = attach_mere(options.mere).unwrap_or_else(|error| {
+    let mere_attachment = attach_mere(options.mere).unwrap_or_else(|error| {
         eprintln!("knot: mere attachment refused: {error}");
         std::process::exit(1)
     });
@@ -238,15 +238,16 @@ fn main() {
     });
     launch.recovery_path = Some(settings_root.join("recovery"));
     launch.mere_overlay = options.mere_domain;
-    if let Err(error) = run_desktop_with_targets(
+    if let Err(error) = run_desktop_with_targets_and_relations(
         launch,
         catalog,
         options.capture_max_bytes,
         Some(settings_root.join("readings")),
         Some(settings_root.join(knot_desktop::preferences::PREFERENCES_FILE)),
         vec![],
-        composition_targets,
+        mere_attachment.composition_targets,
         titan_submission_error,
+        mere_attachment.relation_view,
     ) {
         eprintln!("knot: host failed: {error}");
         std::process::exit(1);
@@ -256,10 +257,18 @@ fn main() {
 type CompositionTargets =
     Vec<std::sync::Arc<dyn knot_composition::retention::CompositionRetainPort>>;
 
+struct MereAttachment {
+    composition_targets: CompositionTargets,
+    relation_view: Option<knot_desktop::knot_relations::KnotRelationView>,
+}
+
 #[cfg(feature = "mere-retention")]
-fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, String> {
+fn attach_mere(options: Option<MereOptions>) -> Result<MereAttachment, String> {
     let Some(options) = options else {
-        return Ok(vec![]);
+        return Ok(MereAttachment {
+            composition_targets: vec![],
+            relation_view: None,
+        });
     };
     let persona = personae::PersonaId::from_uuid(options.persona);
     // Keys come from djinn; with djinn absent or Locked the mere is pending
@@ -268,6 +277,11 @@ fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, Strin
         knot_editor::StartupUnlockedPersonalVault::open_existing(&options.root, persona, || {
             knot_editor::PersonalVaultKeys::from_djinn(persona, None)
         })?;
+    let relation_projection = authority.relation_projection()?;
+    let relation_view = knot_desktop::knot_relations::KnotRelationView::from_projection(
+        &relation_projection,
+        authority.store().space_id(),
+    )?;
     let resident = authority.into_resident_source()?;
     let port = resident
         .composition_retention(knot_editor::CompositionGrant::new(
@@ -283,15 +297,21 @@ fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, Strin
         port,
     )
     .map_err(|error| error.to_string())?;
-    Ok(vec![std::sync::Arc::new(bound)])
+    Ok(MereAttachment {
+        composition_targets: vec![std::sync::Arc::new(bound)],
+        relation_view: Some(relation_view),
+    })
 }
 
 #[cfg(not(feature = "mere-retention"))]
-fn attach_mere(options: Option<MereOptions>) -> Result<CompositionTargets, String> {
+fn attach_mere(options: Option<MereOptions>) -> Result<MereAttachment, String> {
     if options.is_some() {
         Err("this build lacks mere-retention; rebuild with --features mere-retention".into())
     } else {
-        Ok(vec![])
+        Ok(MereAttachment {
+            composition_targets: vec![],
+            relation_view: None,
+        })
     }
 }
 #[cfg(test)]
@@ -377,7 +397,9 @@ mod tests {
         .unwrap();
         assert_eq!(overlaid.mere_domain.as_deref(), Some("divination"));
         assert_eq!(parsed.documents, [PathBuf::from("essay.djot")]);
-        assert!(attach_mere(None).unwrap().is_empty());
+        let attachment = attach_mere(None).unwrap();
+        assert!(attachment.composition_targets.is_empty());
+        assert!(attachment.relation_view.is_none());
     }
     use cambium_genet_winit_host::Init;
     use cambium_genet_winit_host::{CloseRequest, Harness, KeyPress, Modifiers, NamedKey};

@@ -9,6 +9,33 @@ Status: first implementation slice, with model/integration checks and a scoped
 native sound-and-collection capture. This is not a complete third-party plugin
 system or acceptance of every reference workflow and viewport.
 
+## Personal relation reading (2026-10-16)
+
+**Status: in progress, awaiting consumer qualification.** Mere's link-model P3
+supplier is published at `ee324e517`. Knot starts at `0020a50e6`; its root lock
+advances that supplier while preserving the qualified Genet, Dramatis and
+Netrender revisions. The phase contract lives in
+`mere/design_docs/mere_docs/technical_architecture/2026-10-15_link_model.md`.
+
+The existing authenticated personal-vault startup path now lends its validated
+relation projection to Readings before handing the owner to resident composition.
+This is a read-only snapshot, separate from extracted document hyperlinks and
+remote Mere overlay relationships. Only valid history visible through admitted
+documents is adapted, preserving full signed operation, signer and space IDs,
+direction, predicate, qualification/evidence and optional source clocks. Knot
+does not yet expose an immutable public projection revision; the shared view
+reports that absence explicitly.
+
+Readings uses the same link-scoped Cambium List/Timeline component as Graphshell,
+with held/history and transient layout controls. It offers no source mutation
+actions and does not initialize a store when no personal authority is attached.
+The proof uses actual signed Knot operations, a checkpointed store and encrypted
+vault reopen rather than a fabricated graph fixture. Focused adapter/scenario
+controls, the affected desktop gate, reviewed native captures and a separate
+fresh-process reopen are required before this receiving-host gate is qualified.
+Automatic relation refresh after startup, authoring UI, renderer release and
+physical-peer acceptance are outside this slice.
+
 ## Ownership and opt-in behavior
 
 The three reading surfaces share a selection but do not share authority:

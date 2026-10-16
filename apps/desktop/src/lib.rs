@@ -15,6 +15,7 @@ pub mod documents;
 pub mod fonts;
 pub mod font_roles;
 pub mod graph;
+pub mod knot_relations;
 #[cfg(feature = "mere-retention")]
 mod mere_overlay;
 mod link_workflow;
@@ -128,6 +129,32 @@ pub fn run_desktop_with_targets(
     composition_targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>,
     titan_submission_error: Option<String>,
 ) -> Result<(), String> {
+    run_desktop_with_targets_and_relations(
+        launch,
+        catalog,
+        capture_max_bytes,
+        readings_root,
+        preferences_path,
+        targets,
+        composition_targets,
+        titan_submission_error,
+        None,
+    )
+}
+
+/// Desktop entrypoint that additionally receives an already authenticated,
+/// read-only personal relation projection adapted for the opened-link view.
+pub fn run_desktop_with_targets_and_relations(
+    launch: DesktopLaunch,
+    catalog: Option<KnotFileCatalog>,
+    capture_max_bytes: usize,
+    readings_root: Option<PathBuf>,
+    preferences_path: Option<PathBuf>,
+    targets: Vec<Arc<dyn KnotRetainPort>>,
+    composition_targets: Vec<Arc<dyn knot_composition::retention::CompositionRetainPort>>,
+    titan_submission_error: Option<String>,
+    knot_relations: Option<knot_relations::KnotRelationView>,
+) -> Result<(), String> {
     let mut hooks = host_hooks();
     let lane_config = LaneConfig::from_env("KNOT");
     let receipt = lane_config.is_some();
@@ -196,6 +223,7 @@ pub fn run_desktop_with_targets(
             } = launch;
             let mut state =
                 DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
+            state.set_knot_relation_view(knot_relations);
             for folder in sites {
                 state.attach_site(&folder);
             }

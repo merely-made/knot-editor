@@ -1,0 +1,24 @@
+# Run collection_acceptance --reopen-opened-link-fixture against a marked,
+# checkpointed fixture seeded with real signed Knot assertion/retraction ops.
+click role:button Readings
+settle 1
+assert snap readings_open == true
+assert text Relation history below is a startup snapshot from the authenticated Knot store; it does not live-refresh.
+assert text The highlighted passage supports this reading.
+assert text urn:knot:assertion:
+click role:button Retained history
+settle 1
+assert text A second, later withdrawn reading.
+assert text withdrawn at 1670000000000
+click role:button Timeline by direction
+settle 2
+assert text Assertions in time order
+click role:heading Assertions in time order
+settle 2
+capture opened-link-knot-timeline
+click role:button List by source
+settle 2
+assert text Reverse direction and unknown first time.
+click role:heading Retained assertion 2
+settle 2
+capture opened-link-knot-history

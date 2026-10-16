@@ -42,7 +42,7 @@ p2panda-stream = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p
 p2panda-sync = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 muniment = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 mere-proofs = { git = "https://github.com/merely-made/mere.git", branch = "main" }
-gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "882baeb1b59bbdbb305e475f6675f69af997c4f4" }
+gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", branch = "main" }
 
 [features]
 default = []

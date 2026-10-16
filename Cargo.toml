@@ -120,7 +120,7 @@ all = "warn"
 [patch.crates-io]
 muniment = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 mere-proofs = { git = "https://github.com/merely-made/mere.git", branch = "main" }
-gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "882baeb1b59bbdbb305e475f6675f69af997c4f4" }
+gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", branch = "main" }
 # Root patches are not inherited from Genet or Mere. These keep the standalone
 # workspace on the same type families as both upstream repositories.
 netrender_device = { git = "https://github.com/merely-made/netrender.git", branch = "main" }

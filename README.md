@@ -50,6 +50,37 @@ binaries as well as libraries. `knot-document` is an excluded nested workspace
 so a surface-only consumer can resolve it without paying for the sync and
 publishing graph.
 
+## Portable metre recipes
+
+`knot_readings::metre_scene::metre_scene` adapts a current `SoundReading` and
+an explicit `MetreTemplate` into the shared versioned `SceneInput`. It carries
+exact source byte ranges, word labels with numbered later syllables, and
+candidate lexical stress. Selected pronunciations participate in the revision
+fingerprint and the stress/rhyme facts. Unresolved words and stale
+readings are refused. This is a pronunciation-based reading, not intended
+performance or authored scansion. Expected rhyme groups belong to the caller;
+observed rhyme tails come from Mora.
+
+The file exporter uses the same bounded reading API and requires explicit
+dictionary opt-in. It reads at most 16 KiB and refuses an existing output file:
+
+```sh
+cargo run --features portable-scenes -p knot-readings --bin knot-metre-scene -- \
+  poem.txt metre.scene.json 5 2 ABAB --cmudict
+```
+
+The arguments after the paths are feet, positions per foot, and the expected
+group for each nonempty source line (`-` means no expected groups). Three
+positions support ternary feet. The result imports into Graphshell's Portable
+scenes or any host implementing the shared recipe. The native editor's existing
+sound reading supplies the same `SoundReading`; no new native panel is implied.
+
+This branch requires Mere's portable-backdrop implementation. Before that
+shared change is integrated, qualify against its checkout with
+`python3 /path/to/mere/support/design-studies/backdrops/with_local_scene_source.py /path/to/mere test -p knot-readings --features portable-scenes --lib`.
+That temporary patch keeps all four scene crates in one Cargo cohort. Production
+dependency rows remain on the family's canonical source.
+
 ## Embedding
 
 Hosts mount the `knot.document.v1` surface through Genet's generic retained

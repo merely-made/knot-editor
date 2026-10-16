@@ -15,9 +15,20 @@ knot-document = { workspace = true, features = ["engine"] }
 mora.workspace = true
 mora-cmudict.workspace = true
 script-rhai.workspace = true
+sceno = { workspace = true, optional = true }
+scenomise = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = "3"
 
 [lints]
 workspace = true
+
+[features]
+portable-scenes = ["dep:sceno", "dep:scenomise", "dep:serde_json"]
+
+[[bin]]
+name = "knot-metre-scene"
+path = "src/bin/knot-metre-scene.rs"
+required-features = ["portable-scenes"]

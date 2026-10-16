@@ -6721,7 +6721,10 @@ dependencies = [
  "knot-document",
  "mora",
  "mora-cmudict",
+ "sceno",
+ "scenomise",
  "script-rhai",
+ "serde_json",
  "tempfile",
 ]
 

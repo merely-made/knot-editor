@@ -19,7 +19,7 @@ capture opened-link-knot-timeline
 click role:button List by source
 settle 2
 assert text Reverse direction and unknown first time.
-click .detail-value withdrawn at 1670000000000
+click .detail-value A second, later withdrawn reading.
 settle 2
 assert text withdrawn at 1670000000000
 capture opened-link-knot-history

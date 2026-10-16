@@ -74,3 +74,8 @@ Earlier product and integration plans:
 - [Authoring consumer](2026-07-27_knot_authoring_consumer_plan.md)
 - [Graphshell integration](2026-08-02_knot_in_graphshell_plan.md)
 - [Initial Djot editor work](archive/2026-06-24_djot_editor_knot_nodes_plan.md)
+
+The [predicate and relation plan](2026-09-15_knot_predicates_inference_scripting_plan.md)
+records the link-model P2 projection continuation: optional signed retraction
+time with legacy checkpoint-byte preservation. Supplier checks and Mere intake
+qualification remain distinct from desktop authoring and automatic sync.

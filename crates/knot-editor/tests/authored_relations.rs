@@ -10,8 +10,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 use knot_editor::{
-    KnotAutomaticTextMerge, KnotCorePredicateV1, KnotDocumentConflict, KnotPredicateRefV1,
-    KnotProjectionCheckpoint, KnotRelationEndpointV1, KnotRelationPositionV1,
+    KnotAssertedTime, KnotAutomaticTextMerge, KnotCorePredicateV1, KnotDocumentConflict,
+    KnotPredicateRefV1, KnotProjectionCheckpoint, KnotRelationEndpointV1, KnotRelationPositionV1,
     KnotRelationRetractionV1, KnotSyncEvent, KnotSyncFileStore, KnotVault, VaultDocument,
     capture_endpoint_context,
 };
@@ -368,6 +368,139 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
     );
 }
 
+#[tokio::test]
+async fn retraction_times_survive_file_replay_checkpoint_and_reopen() {
+    const TIMED_WITHDRAWAL: u64 = 1_725_000_123_456;
+    let temp = tempdir().unwrap();
+    let database = temp.path().join("timed-relations.redb");
+    let author = InMemoryProvider::from_seed([0x75; 32]);
+    let seed = author.master_keypair().to_seed();
+    let writer = author.master_public_key().to_bytes();
+    let vault = open_vault(temp.path());
+    let store = KnotSyncFileStore::open(&database, SPACE, [writer]).unwrap();
+    let subject_body = "# Essay\nα is the subject.\n";
+    let object_body = "# Source\nβ is the object.\n";
+    let subject = document("essay", subject_body);
+    let object = document("source", object_body);
+    let subject_operation = store
+        .author(&seed, &vault, &KnotSyncEvent::Put(subject.clone()))
+        .await
+        .unwrap();
+    let object_operation = store
+        .author(&seed, &vault, &KnotSyncEvent::Put(object.clone()))
+        .await
+        .unwrap();
+    let make_relation = |qualification: &str| KnotSyncEvent::AssertRelation {
+        predicate: KnotPredicateRefV1::Core(KnotCorePredicateV1::Supports),
+        subject: endpoint(
+            &subject.id,
+            *subject_operation.hash.as_bytes(),
+            subject_body,
+            "α is the subject.",
+        ),
+        object: endpoint(
+            &object.id,
+            *object_operation.hash.as_bytes(),
+            object_body,
+            "β is the object.",
+        ),
+        evidence: None,
+        qualification: Some(qualification.into()),
+    };
+    let timed_assertion = store
+        .author(&seed, &vault, &make_relation("timed retraction"))
+        .await
+        .unwrap();
+    let untimed_assertion = store
+        .author(&seed, &vault, &make_relation("untimed retraction"))
+        .await
+        .unwrap();
+
+    let timed_retraction = store
+        .author_at(
+            &seed,
+            &vault,
+            &KnotSyncEvent::RetractRelation {
+                assertion: *timed_assertion.hash.as_bytes(),
+            },
+            KnotAssertedTime::At(TIMED_WITHDRAWAL),
+        )
+        .await
+        .unwrap();
+    let untimed_retraction = store
+        .author_at(
+            &seed,
+            &vault,
+            &KnotSyncEvent::RetractRelation {
+                assertion: *untimed_assertion.hash.as_bytes(),
+            },
+            KnotAssertedTime::None,
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        timed_retraction.header.extensions.asserted_at_ms,
+        Some(TIMED_WITHDRAWAL)
+    );
+    assert_eq!(untimed_retraction.header.extensions.asserted_at_ms, None);
+
+    let projection = store.projection(&vault).await.unwrap();
+    let timed_relation = projection
+        .relations
+        .iter()
+        .find(|relation| relation.id == *timed_assertion.hash.as_bytes())
+        .unwrap();
+    assert_eq!(timed_relation.retractions.len(), 1);
+    assert_eq!(
+        timed_relation.retractions[0].operation,
+        *timed_retraction.hash.as_bytes()
+    );
+    assert_eq!(
+        timed_relation.retractions[0].withdrawn_at_ms,
+        Some(TIMED_WITHDRAWAL)
+    );
+    let untimed_relation = projection
+        .relations
+        .iter()
+        .find(|relation| relation.id == *untimed_assertion.hash.as_bytes())
+        .unwrap();
+    assert_eq!(untimed_relation.retractions.len(), 1);
+    assert_eq!(
+        untimed_relation.retractions[0].operation,
+        *untimed_retraction.hash.as_bytes()
+    );
+    assert_eq!(untimed_relation.retractions[0].withdrawn_at_ms, None);
+    assert!(
+        !serde_json::to_value(&untimed_relation.retractions[0])
+            .unwrap()
+            .as_object()
+            .unwrap()
+            .contains_key("withdrawn_at_ms"),
+        "an absent retraction time remains absent in the checkpoint shape"
+    );
+
+    let checkpoint = store.save_checkpoint(&vault).await.unwrap();
+    assert_eq!(
+        checkpoint.snapshot.as_ref().unwrap().relations,
+        projection.relations
+    );
+    drop(store);
+
+    let reopened = KnotSyncFileStore::open(&database, SPACE, [writer]).unwrap();
+    assert_eq!(reopened.projection(&vault).await.unwrap(), projection);
+    assert_eq!(
+        reopened
+            .load_checkpoint()
+            .await
+            .unwrap()
+            .unwrap()
+            .snapshot
+            .unwrap()
+            .relations,
+        projection.relations
+    );
+}
+
 #[test]
 fn legacy_checkpoint_without_relation_fields_decodes_with_empty_relation_history() {
     let legacy = LegacyCheckpoint {
@@ -439,6 +572,7 @@ fn a_legacy_core_predicate_checkpoint_keeps_its_bytes_and_its_blake3() {
                 retractions: vec![KnotRelationRetractionV1 {
                     operation: [0x66; 32],
                     author: [0x61; 32],
+                    withdrawn_at_ms: None,
                 }],
             }],
         }),
@@ -455,6 +589,7 @@ fn a_legacy_core_predicate_checkpoint_keeps_its_bytes_and_its_blake3() {
         "a bare core slug decodes to the core predicate"
     );
     assert_eq!(relation.asserted_at_ms, None);
+    assert_eq!(relation.retractions[0].withdrawn_at_ms, None);
     assert!(relation.subject.prefix.is_empty());
 
     let current_bytes = serde_json::to_vec(&checkpoint).unwrap();

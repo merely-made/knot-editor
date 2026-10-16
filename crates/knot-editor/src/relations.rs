@@ -268,6 +268,11 @@ pub struct KnotRelationEndpointV1 {
 pub struct KnotRelationRetractionV1 {
     pub operation: [u8; 32],
     pub author: [u8; 32],
+    /// Author-asserted wall clock lifted from the signed retraction header.
+    /// Informative only; it never orders a fold. Appended and omitted when
+    /// absent so older checkpoints keep their original encoding.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub withdrawn_at_ms: Option<u64>,
 }
 
 /// An attributable relation assertion projected from one signed operation.

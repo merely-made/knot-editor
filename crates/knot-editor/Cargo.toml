@@ -105,12 +105,11 @@ zeroize = { version = "1", features = ["derive"] }
 # The serving half the tests and `k2_peer` stand up: admission, the endpoint
 # catalog, the session loop and the projection host (Mere's `graphshell-host`,
 # stack lift plan P4), and the client state the tests read back with.
-# `graphshell` remains only for its `view` receipts (`rosette_projection`) and
-# `sessions` (`revision_bell`). The app-route receipt that ran Graphshell's
+# Its `view` receipts (`rosette_projection`) and `sessions` (`revision_bell`)
+# are `graphshell_host`'s too. The app-route receipt that ran Graphshell's
 # broker moved to Djinn with the broker (P5).
 graphshell-host = { workspace = true, features = ["native"] }
 graphshell-client.workspace = true
-graphshell.workspace = true
 scenomise.workspace = true
 scenograph.workspace = true
 gemot.workspace = true

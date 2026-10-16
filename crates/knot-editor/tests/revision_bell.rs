@@ -12,7 +12,7 @@ use chirograph::{
     PresentationCapability, ResumeReply, ResumeRequest, SaveTextV1,
 };
 use graphshell_client::ResolvedContent;
-use graphshell::sessions::spawn_endpoint_session;
+use graphshell_host::sessions::spawn_endpoint_session;
 use graphshell_endpoint::stdio::StdioCarrier;
 use tempfile::tempdir;
 

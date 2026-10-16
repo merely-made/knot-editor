@@ -23,7 +23,7 @@ gemini-protocol = { version = "=0.1.7", features = ["server"] }
 spartan-protocol = "=0.1.1"
 tokio = { version = "1", features = ["rt", "sync", "net", "time", "macros"] }
 blake3 = "1"
-retinue = { git = "https://github.com/merely-made/murm.git", rev = "3d9e799fe06d2a58754569b8dc11b2dbc7d506e9", optional = true }
+retinue = { git = "https://www.github.com/merely-made/murm.git", rev = "fb6360c12b37ab5ce896184a055d203779d0244b", optional = true }
 getrandom = { version = "0.2", optional = true }
 tempfile = "3"
 
@@ -40,8 +40,8 @@ p2panda-encryption = { git = "https://github.com/mark-ik/p2panda.git", tag = "me
 p2panda-store = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 p2panda-stream = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
 p2panda-sync = { git = "https://github.com/mark-ik/p2panda.git", tag = "mere-p2panda-net-0.7.5-upstream-20261013" }
-muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "0c03dff3d324c53e7738722899804309f95d3087" }
-mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "0c03dff3d324c53e7738722899804309f95d3087" }
+muniment = { git = "https://www.github.com/merely-made/mere.git", rev = "75a2e6ae7cca1ecbbf8fc6a831539e55c3052e83" }
+mere-proofs = { git = "https://www.github.com/merely-made/mere.git", rev = "75a2e6ae7cca1ecbbf8fc6a831539e55c3052e83" }
 gemini-protocol = { git = "https://github.com/merely-made/smolweb.git", rev = "882baeb1b59bbdbb305e475f6675f69af997c4f4" }
 
 [features]
@@ -62,4 +62,4 @@ rust-version = "1.97.1"
 # Compatibility source keys for immutable suppliers published before the
 # repository rename. Targets and current direct dependencies use Murm.
 [patch."https://github.com/merely-made/retinue.git"]
-retinue = { git = "https://github.com/merely-made/murm.git", rev = "3d9e799fe06d2a58754569b8dc11b2dbc7d506e9" }
+retinue = { git = "https://www.github.com/merely-made/murm.git", rev = "fb6360c12b37ab5ce896184a055d203779d0244b" }

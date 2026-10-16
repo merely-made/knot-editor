@@ -1,0 +1,119 @@
+{
+  "schema": "knot.catalog-fold-qualification/v1",
+  "date": "2026-10-16",
+  "source_base": "921b4e0",
+  "mere_revision": "42c158bae427da87f6a29c50731164f1cadbca82",
+  "qualification": {
+    "native_seed": {
+      "launch_method": "LaunchServices temporary application bundle",
+      "launcher_exit": 0,
+      "timeout": false,
+      "success": true,
+      "elapsed_seconds": 17.186,
+      "binary_sha256": "1805802c80e6479bbce03e9d7b0c0215c70119d988c03513dcaba6fd69ed743b",
+      "scenario_sha256": "ba7bc64bed7fdf1e66e946bd13faf72faf788ad1314db5d65431e5b0f2438926",
+      "receipt": "scenario.done",
+      "captures": 5
+    },
+    "native_fresh_process_reopen": {
+      "launch_method": "LaunchServices temporary application bundle",
+      "launcher_exit": 0,
+      "timeout": false,
+      "success": true,
+      "elapsed_seconds": 19.197,
+      "binary_sha256": "1805802c80e6479bbce03e9d7b0c0215c70119d988c03513dcaba6fd69ed743b",
+      "scenario_sha256": "1670cc51de32510ff400f292f3eb77ca8f1deaf6488e4173ccdc7cbdf475f3e6",
+      "receipt": "scenario.done",
+      "captures": 3
+    },
+    "verification": {
+      "ok": true,
+      "captures": 8,
+      "size": [
+        2400,
+        1700
+      ],
+      "truth_digest": "10bd6c209f58e4acab14201852e36027f3530e06e334656c2a0cff8af69c733c",
+      "positions_digest": "44ecda7e5153d0b4786c426491c628b98888c23568b15af5ba516b2e8043e586",
+      "saved_and_restored_fold_digest": "003007fc776a78d7deca230dcb701f566689d9e3ef7a58dea43ceb6ea26a90c5",
+      "document_count_stayed_one": true,
+      "catalog_failure_flags_false": true,
+      "catalog_read_errors_zero": true,
+      "graph_visible_in_all_captures": true,
+      "source_files_match_fixture_byte_for_byte": true,
+      "catalog_fact_counts": [
+        5,
+        6
+      ],
+      "changed_files_after_reopen": [
+        "catalog.redb",
+        "preferences.json"
+      ],
+      "catalog_storage_note": "RedbBackend::open commits a table-initialization transaction (Mere crates/eidetic/muniment/src/redb_backend.rs:54); raw database-file bytes are not the graph truth fingerprint. Catalog-reading facts and source bytes are unchanged.",
+      "all_folds_expanded_and_saved": true,
+      "tested_source_unchanged": true
+    },
+    "shared_library_tests": {
+      "passed": 38,
+      "failed": 0
+    },
+    "mere_port_and_web_boundaries": "passed",
+    "captures_visually_reviewed": true,
+    "workspace": {
+      "passed": 698,
+      "failed": 0,
+      "ignored": 4,
+      "scope": "all six root workspace members; knot-document and knot-site are excluded standalone workspaces, compiled as dependencies here",
+      "command": "CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_INCREMENTAL=0 cargo test --workspace --locked --offline -j 4 -- --test-threads=4"
+    },
+    "native_build": "passed",
+    "new_and_formatted_module_rustfmt": "passed",
+    "git_diff_check": "passed"
+  },
+  "compatibility": [
+    "carried the synthetic-rhyme source-link initializer from existing b6a6222",
+    "initialized copied recipe geometry without inventing source assertion-pair identity",
+    "derive the arrangement picker from all 13 shared families, including Partition and Sets"
+  ],
+  "limits": [
+    "macOS standalone Knot desktop catalog; selection folds only",
+    "catalog fold history is session-local; persisted fold records survive reopen",
+    "no physical screen-reader, keyboard shortcut, Windows/Linux or renderer-recovery qualification",
+    "no resident session/archive truth or source file is changed by a catalog fold"
+  ],
+  "diagnostics": {
+    "earlier_fixture_launch": "refused before window creation because catalog database was inside source root; corrected to separate source and storage",
+    "earlier_workspace_failure": "old 11-family picker fixed to derive the current 13-family catalog",
+    "status_fix": "fold success feedback no longer appears as a catalog failure"
+  },
+  "local_full_artifacts": "/Users/markik/Code/output/knot-catalog-folds-2026-10-16",
+  "artifact_sha256": {
+    "README.md": "3607b822c03e173c2ebe48a288c3f81404b712fb0b580fd06de53cd99bf8e7b7",
+    "after-reopen.json": "b3d7035ba8fc03061be6d37ec48fabb83fe25f32abb09459c87d456dc27a0dfe",
+    "before-reopen.json": "09fb5ef5b8eb1aa59829389dab437f1352b1b2e7b211d7cc1407a14e793cf6d6",
+    "build.log": "e40afd804ae51f849632d784fe68a22b781a5054a881cd157cecb3d48f3634b4",
+    "capture-facts.json": "b8fa3e4cc91fd76f32a7f26ee720a8856cf9d67b167e4f8c224c22a4379c4855",
+    "doc-audit.json": "873ade5b73a01e791dc22f145d4a6ac0300b569f8aeb1807b1262ec584e823f9",
+    "inputs.json": "96a4969a320dfabbf869e2e8f1954ba254b3731c11183fec26101c58f7396ae0",
+    "mere-boundaries.log": "ed6e8e6214358ac43d6f72e8549446b5ce8170b62a9813b557dc1d130eb24186",
+    "mere-view-tests.log": "69de01c8f2a022426dd25bb668160f38087ed252117a29199adae3cec46e4419",
+    "native-reopen-r4/catalog-all-expanded.png": "b66e8c76505e15a39091de78f392c0e603fc9a04a26d69f5c767cec7f13cac7f",
+    "native-reopen-r4/catalog-restored.png": "712eb93875515d6ae35d8110e8570829ffc9a451dcf2bc3363b106e015088ea6",
+    "native-reopen-r4/catalog-summary-expanded.png": "82462ebdbd6e7940e9a9d550a1b0a3e1f34729ad25ef09f2d53244a8e72c9bba",
+    "native-reopen-r4/native.log": "3b90658140b2c6902fd49e68a7bd2b9570daaca347565550cc46f5c19782f9df",
+    "native-reopen-r4/process.json": "d3b85233afa3f8e9a93be8caf5569dbb2b4877499a30bb1eab5cfa57cc4b6db3",
+    "native-reopen-r4/scenario.done": "b8cebd903c41a6707480fe0772a31d632634e59b8a3b128fe3bc72e10a438028",
+    "native-seed-r4/catalog-expanded.png": "525498a7354af91ea32cf3c1a55892b565b36e3d382dead2b99e3122c822b09f",
+    "native-seed-r4/catalog-one-fold.png": "84351ac3a071acb8ac38c8b9859daf2165bc50fd99db005fe67ff8122421323c",
+    "native-seed-r4/catalog-redone.png": "c9ab738145e779b014b99c3660516a254337dbbd95da4d21879008232eadef34",
+    "native-seed-r4/catalog-two-folds.png": "66f5abb1319b72391be5174ddda902b75a990e1aacdca42668b221ec8181be3f",
+    "native-seed-r4/catalog-undone.png": "735a3fb21679a369e6548408faedc626326d6f4ba327b1f52d1e8ea6ab4d9c74",
+    "native-seed-r4/native.log": "53f94fe4edc6bedb72a647970aece2d7e86e778c1a2a6b8f2fe6336fddc869f9",
+    "native-seed-r4/process.json": "1c9bdb96fc65d19c8df4c4c30514fff77e28e80cc665706ff1416459a24745a3",
+    "native-seed-r4/scenario.done": "924fcb5124809b3220e2fb81d8f1e2350dde5b6c70966def9b84735fdbb2f62e",
+    "reopen-config.json": "e42619c8e2a1ab3f8978c6ccd55285bc3fc816eb881039ab651fbc085e05d4c3",
+    "seed-config.json": "fe35f58bebc6c263bdd2cd0c6bb6998d34cbbf349e2d52a3dd70bd7e70c4ac40",
+    "verification.json": "5b549af6f8130288358cfe0352709505a7ad9ad666a33a70709a23a37656ccfc",
+    "workspace.log": "01260cea00af8fd295337f8ed513d30ca78206b69eed66d0c4cd635809726d0d"
+  }
+}

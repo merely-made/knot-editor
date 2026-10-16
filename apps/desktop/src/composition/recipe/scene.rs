@@ -188,6 +188,10 @@ fn swatch_with_preview(
                     && visible_occurrences.contains(&disclosure.from_occurrence)
                     && visible_occurrences.contains(&disclosure.to_occurrence));
             visible.then(|| GraphCanvasRelation {
+                // Copied recipe disclosure has no source assertion-pair identity.
+                link_key: None,
+                marks: Default::default(),
+                strength: 1.0,
                 id: disclosure.id.clone(),
                 from: disclosure.from_occurrence.clone(),
                 to: disclosure.to_occurrence.clone(),

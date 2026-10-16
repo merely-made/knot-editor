@@ -13,6 +13,8 @@ use crate::recovery::{RecoveryId, RecoveryRecord, RecoveryRetention};
 use crate::recovery_runtime::RecoveryRuntime;
 #[path = "workspace_commands.rs"]
 mod commands;
+#[path = "catalog_folds.rs"]
+mod catalog_folds;
 use cambium::{
     AnyView, CommandEvent, CommandMenuBarState, CommandState, GenetCtx, GenetElement, Keyed,
     Popover, PopoverEvent, PopoverPlacement, PopoverState, Slot, TextInput, WorkspaceModel, button,
@@ -738,6 +740,9 @@ impl DesktopState {
     }
 
     fn carry_graph_request(&mut self, request: mere_view::MereViewRequest) {
+        if self.carry_catalog_fold_request(&request) {
+            return;
+        }
         match request {
             mere_view::MereViewRequest::Activate(key) => {
                 if let Some(raw) = key.strip_prefix("open:")
@@ -1639,6 +1644,11 @@ impl DesktopState {
         self.theme_session.load_font_preferences(&self.appearance);
         self.collapse = store.preferences().collapse.clone();
         self.graph.layout = store.preferences().graph_layout.clone();
+        if let Some(scope) = self.catalog_fold_scope() {
+            self.graph.view.folds = store.preferences().graph_folds.get(&scope)
+                .cloned().unwrap_or_default().into_iter()
+                .filter(|fold| fold.source_scope == scope).collect();
+        }
         let open = self.graph_open_nodes();
         self.graph.relayout(&open);
         let line = store

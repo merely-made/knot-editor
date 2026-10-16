@@ -21,6 +21,7 @@ repository = "https://github.com/merely-made/knot-editor"
 rust-version = "1.97.1"
 
 [workspace.dependencies]
+curation = { package = "mere-curation", version = "0.1.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Product crates.
 knot-capture = { version = "0.0.1", path = "crates/knot-capture" }
 knot-document = { version = "0.0.1", path = "crates/knot-document" }

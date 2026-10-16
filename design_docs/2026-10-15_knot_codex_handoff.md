@@ -71,48 +71,28 @@ Last full Knot check (2026-10-15): 623 passed, 4 ignored.
 
 ### Task 1: the cross-repository repin round (Mere, Knot, Mere, Turnstone)
 
-This lane owns the round's middle. Follow the remote mere route spec §7
-exactly: `mere/design_docs/mere_docs/technical_architecture/2026-10-15_remote_mere_route_spec.md`.
+**Status: done 2026-10-15 (Claude, at Mark's direction), then superseded by the
+branch convention below.** Revisions: Murm `M` `fb6360c12b`; Mere `R`
+`75a2e6ae7`; Knot `K` `fe9d98c`; Mere's Knot pin `R2` `b2c8dcc28`; Turnstone `T`
+`6439fa88`. Afterwards Mark ruled the family onto `branch = "main"` (Mere
+family composition brief, "Family source convention"): Genet `7af8de32`
+(netrender and murm-wire rows), Mere `4a74b1cf` (genet, murm, netrender,
+knot-editor rows, bridge tables deleted), Murm `a3621dc8` (the native
+workspace's Mere rows) and Knot (this commit) name each other by
+`branch = "main"` at the canonical URL, with `Cargo.lock` pinning the tested
+revision. Checks at that state: knot-editor with `mere-overlay` (153 + the
+integration tests), knot-document 45, knot-desktop 331 + scenario/font tests,
+knot-site; each graph resolves one Cargo source for Mere, Murm, Genet and
+netrender; none names `graphshell`.
 
-Murm is already done. Murm `main` is `fb6360c12b`, which merges the C1
-callback fix (`3d9e799f`) and the in-process kind (`38e9c9b8`). Use
-`M = fb6360c12b`.
-
-1. **§7.2, Mere.** Replace every `38e9c9b8dffe19ff374bd226375e27eea2eb98f6`
-   in Mere's root `Cargo.toml` (40 occurrences at `61fba39d9`) with Murm `M`'s
-   full hash, then run the §7.2 checks. Call the pushed commit `R`.
-2. **§7.3, Knot.** Knot onto `R`, using the six listed edits.
-   - Edit 5 (`dropped: Vec::new()`) may already be satisfied; check it
-     compiles.
-   - Also sweep for `edit_history` (none expected) and for `MereViewRequest`
-     / `SessionStep` matches without a wildcard arm. Both enums are
-     `#[non_exhaustive]`.
-
-   Call the pushed commit `K`.
-3. **§7.4, Mere's Knot pin.** Move it to `K`, then run its checks. Call it
-   `R2`.
-4. **§7.5, Turnstone** (merely-made/turnstone, `main` `79f5f87`). Move it onto
-   `K` and `R`, dropping `graphshell`. Call it `T`.
-5. **Handoff.** Message the Woodshed lane (or update its handoff,
-   `woodshed/design_docs/2026-10-15_woodshed_codex_handoff.md`) with `M` and
-   `R2`, so it runs §7.6.
-
-**Done when:**
-
-- `K`, `R2` and `T` are pushed;
-- Knot and Turnstone name no `graphshell` (`cargo tree`);
-- every graph resolves one Mere and one Murm source;
-- the lift plan's Progress section records the revisions and checks.
-
-**Checks:** as §7.3. Use `TMPDIR=/private/tmp`, because knot-site rejects
-the `/tmp` symlink. knot-document and knot-site are separate workspaces
-(`--manifest-path`). Expect 623 passed, 4 ignored, with one test moved to
-Djinn.
-
-**Stop and report if:**
-
-- anything fails beyond mechanical path, pin or wildcard fixes;
-- a lockfile resolves a second Mere or Murm source that you can't remove.
+**Convention for this lane from now on.** Never write `rev` for a first-party
+repository and never the `www.` spelling. A repin is `cargo update -p
+<package>` (Mere: any Mere package such as `graphshell-host`; Murm:
+`mere-transport`; Genet: `layout-dom-api`), then the checks below; commit the
+lock. Dramatis (`0234e7ee`) and smolweb stay on `rev` until their `main` is
+qualified. Use `TMPDIR=/private/tmp`, because knot-site rejects the `/tmp`
+symlink; knot-document and knot-site are separate workspaces
+(`--manifest-path`).
 
 ### Task 2: capture the pending-merge card natively
 

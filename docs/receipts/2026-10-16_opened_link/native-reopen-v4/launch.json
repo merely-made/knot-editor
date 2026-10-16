@@ -1,0 +1,29 @@
+{
+  "name": "KnotLinkReopenV4",
+  "binary": "/Users/markik/Code/testing/knot/link-model-p3-20261016/frozen-e7b5c50/collection_acceptance",
+  "output": "/Users/markik/Code/testing/knot/link-model-p3-20261016/native-reopen-v4",
+  "cwd": "/Users/markik/Code/repos/knot-link-model-p2-20261015",
+  "args": [
+    "--reopen-opened-link-fixture",
+    "/Users/markik/Code/testing/knot/link-model-p3-20261016/signed-fixture-v4"
+  ],
+  "source": "e7b5c501281a1d6418f2877b77eabda22fa0ac11",
+  "env": {
+    "KNOT_SCENARIO": "/Users/markik/Code/repos/knot-link-model-p2-20261015/scenarios/opened_link_knot.scn",
+    "KNOT_CAPTURE_DIR": "/Users/markik/Code/testing/knot/link-model-p3-20261016/native-reopen-v4",
+    "KNOT_RECEIPT": "/Users/markik/Code/testing/knot/link-model-p3-20261016/native-reopen-v4/scenario.done",
+    "KNOT_CAPTURE_CORRELATION": "1",
+    "KNOT_TEST_WIDTH": "1100",
+    "KNOT_TEST_HEIGHT": "900",
+    "KNOT_TEST_INITIAL_PRESENTATION_GRACE_SECS": "60",
+    "TMPDIR": "/tmp",
+    "XDG_DATA_HOME": "/Users/markik/Code/testing/knot/link-model-p3-20261016/xdg-data",
+    "XDG_CONFIG_HOME": "/Users/markik/Code/testing/knot/link-model-p3-20261016/xdg-config",
+    "XDG_CACHE_HOME": "/Users/markik/Code/testing/knot/link-model-p3-20261016/xdg-cache",
+    "MERE_ROOT": "/Users/markik/Code/testing/knot/link-model-p3-20261016/mere-root",
+    "GRAPHSHELL_APP_ENDPOINT": "/tmp/knot-p3-no-custody.sock"
+  },
+  "app": "/Users/markik/Code/testing/knot/link-model-p3-20261016/native-reopen-v4/KnotLinkReopenV4.app",
+  "binary_sha256": "dafa88de07fd8b707dbe2cbb9449b5eceb6ba030d5e88a72b672fcec42f7e37c",
+  "launch_method": "native UI launch of prepared task-owned app bundle"
+}

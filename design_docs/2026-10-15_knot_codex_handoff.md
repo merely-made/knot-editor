@@ -9,14 +9,16 @@ isn't written here, stop and ask Mark with concrete options.
 **2026-10-16 continuation:** the signed optional-retraction projection supplier is
 published at `0020a50e6`, and Mere's authenticated intake is P2-qualified. The
 Mere P3 Chartulary/shared Graphshell slice is published at `ee324e517`.
-Knot's receiving Readings consumer is now in progress under the existing
+Knot's receiving Readings consumer is now bounded-qualified on `e7b5c50` under the existing
 [composition readings plan](2026-09-30_knot_composition_readings.md). It uses a
 real signed personal relation projection through the shared opened-link swatch,
-with native and encrypted reopen checks still to run. The older snapshot and
+with reviewed native seed/fresh-process reopen checks. The receipt separates the
+encrypted vault from the existing plaintext checkpoint limitation, now recorded
+as deferred storage work. The older snapshot and
 receipts below remain historical evidence. This continuation changes Knot's
 root lock only; independently released roots keep their own qualification.
 
-## 1. Where Knot stands
+## 1. Historical snapshot as of 2026-10-15
 
 Knot `main` is `90ae0c2` (receipt-only), on code `b19eebf`.
 

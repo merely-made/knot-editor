@@ -11,7 +11,7 @@ system or acceptance of every reference workflow and viewport.
 
 ## Personal relation reading (2026-10-16)
 
-**Status: in progress, awaiting consumer qualification.** Mere's link-model P3
+**Status: bounded consumer qualified, 2026-10-16.** Mere's link-model P3
 supplier is published at `ee324e517`. Knot starts at `0020a50e6`; its root lock
 advances that supplier while preserving the qualified Genet, Dramatis and
 Netrender revisions. The phase contract lives in
@@ -29,12 +29,30 @@ reports that absence explicitly.
 Readings uses the same link-scoped Cambium List/Timeline component as Graphshell,
 with held/history and transient layout controls. It offers no source mutation
 actions and does not initialize a store when no personal authority is attached.
-The proof uses actual signed Knot operations, a checkpointed store and encrypted
-vault reopen rather than a fabricated graph fixture. Focused adapter/scenario
-controls, the affected desktop gate, reviewed native captures and a separate
-fresh-process reopen are required before this receiving-host gate is qualified.
-Automatic relation refresh after startup, authoring UI, renderer release and
-physical-peer acceptance are outside this slice.
+The [qualification receipt](../docs/receipts/2026-10-16_opened_link/checks.json)
+records source `e7b5c50`, signed fixture operations and a real checkpoint/reopen.
+The six-member root workspace passed 694 tests (four existing ignores) on
+`57f46d1`; the final presentation source passed the focused signed-history
+scenario and desktop example build. Native seed and a separate native process
+both passed 37 frames and two captures at 1100 × 900 logical pixels. All four
+captures were reviewed. They show held/withdrawn authored spans, an undated
+reverse assertion, full assertion/signer/space handles, qualification/evidence
+and truthful source availability. The exact IDs survive the separate process.
+Host detail wrapping was corrected after image review; Timeline labels remain
+compact so they do not overlap the compiled row geometry.
+
+**Finding and deferred storage work:** `sync.rs::save_checkpoint_with_cipher`
+currently writes the complete projection checkpoint as JSON to `RedbBackend`.
+The fixture database contains its qualification text in plaintext. The vault
+and signed operation path do not establish checkpoint confidentiality; this
+receipt qualifies signed history and encrypted-vault reopening only. A separate
+storage change must seal personal checkpoints and define existing-checkpoint
+handling before full at-rest confidentiality is claimed. Opening the store can
+also change database bytes without changing assertion identities.
+
+Automatic relation refresh after startup, authoring UI, checkpoint sealing,
+renderer release, physical-peer acceptance and the excluded `knot-document`/
+`knot-site` standalone workspace gates remain separate work.
 
 ## Ownership and opt-in behavior
 

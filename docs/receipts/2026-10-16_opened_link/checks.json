@@ -1,0 +1,110 @@
+{
+  "schema": "knot.opened-link-qualification/v1",
+  "date": "2026-10-16",
+  "source_revision": "e7b5c501281a1d6418f2877b77eabda22fa0ac11",
+  "baseline": "0020a50e6ff10a9244f4965609b31f4ac79fd753",
+  "mere_revision": "ee324e517d501653aee8df7d5a430760a74749c0",
+  "qualification": {
+    "workspace": {
+      "revision": "57f46d1",
+      "passed": 694,
+      "failed": 0,
+      "ignored": 4,
+      "scope": "six root workspace members; knot-document and knot-site standalone workspaces excluded"
+    },
+    "final_focused": {
+      "passed": 1,
+      "test": "opened_link_swatch_reads_checkpointed_signed_knot_history",
+      "log": "qualified-focused.log"
+    },
+    "native_build": "passed",
+    "native_seed": {
+      "frames": 37,
+      "captures": 2,
+      "result": "ok",
+      "reviewed": true
+    },
+    "native_fresh_process_reopen": {
+      "frames": 37,
+      "captures": 2,
+      "result": "ok",
+      "reviewed": true
+    },
+    "viewport": {
+      "logical": [
+        1100,
+        900
+      ],
+      "pixels": [
+        2200,
+        1800
+      ],
+      "font_px": 16
+    },
+    "verified": [
+      "authenticated read-only startup projection",
+      "full signed assertion, author and space identities",
+      "separate original direction buckets",
+      "held and terminal withdrawal histories",
+      "source authored times plus unknown first time",
+      "source basis and evidence",
+      "explicit unavailable public revision and startup-only freshness",
+      "exact same assertion IDs after both native processes",
+      "full detail handles wrap; compact timeline geometry preserved"
+    ]
+  },
+  "fixture": {
+    "kind": "marked deterministic public test keys; real KnotVault and signed KnotSyncFileStore",
+    "seed_pid": 35981,
+    "reopen_pid": 36113,
+    "processes_exited": true,
+    "vault": "encrypted document vault",
+    "checkpoint_limitation": "Existing save_checkpoint_with_cipher serializes the projection checkpoint directly to RedbBackend. The fixture sync.redb contains a plaintext qualification string. This qualifies signed history and encrypted-vault reopening, not end-to-end encrypted checkpoint storage. Read-only store reopen can change database file bytes."
+  },
+  "iterations": [
+    "initial fixture note mismatch corrected before workspace pass",
+    "first native image review found long identifiers clipping",
+    "initial host timeline wrapping overlapped fixed row geometry; compact timeline labels restored",
+    "two unsupported scenario selector attempts preserved externally; final plain detail-value selector passes"
+  ],
+  "outside_scope": [
+    "live refresh after startup",
+    "personal relation authoring UI",
+    "full checkpoint confidentiality",
+    "standalone knot-document and knot-site qualification",
+    "renderer publication",
+    "physical peers"
+  ],
+  "source_sha256": {
+    "Cargo.lock": "906e6e1e364fdd73fc1988eb41455a72bf7ed3501b639aab44bf99a1c23e8fb8",
+    "apps/desktop/examples/collection_acceptance.rs": "aae1593209c070919673d370285b1dadf6cc9aa14a87e184c60f830d1caf5c0f",
+    "apps/desktop/src/knot_relations.rs": "1830873214ad8e7f637d5cd21f28fd35d6e255a4fe282166049a8f6253c686b2",
+    "apps/desktop/src/lib.rs": "f807d2d148b95b764e80786de0d6132a71b54c72716ffb6d3cf2f73c7075b2a4",
+    "apps/desktop/src/main.rs": "fa4ba1c9933646c9908b1a8421ff67273452c09b1d2ee1193c2e5d7498838c74",
+    "apps/desktop/src/readings.rs": "f37e15a85dfea46fbf5f4d11e086bbe269d015393dc5b19dd475e67e228e2041",
+    "apps/desktop/src/workspace.rs": "8550d95fd992a0549880d9f9883877aa3595dc36cd510cb2fcb4694a6761e0a2",
+    "apps/desktop/tests/scenario_lane.rs": "dbd8146ad34fc57b2fb619809c020be60dfbce3ebe0124f01b5cd91fd328fb41",
+    "crates/knot-editor/src/startup.rs": "4171b29034988b9dd78e9f7903b909cca44caea076dbc34e7997f43d90b2f0fd",
+    "scenarios/opened_link_knot.scn": "1262f724ac07265d31249d6aef4c8228a07b6132e1e2e4b7b8c11d8a7a24612e"
+  },
+  "artifact_sha256": {
+    "fixture-before-reopen.json": "965c95948a0206bde0ceab81cdf4024d3a779bcd8df3384f81ef49d3cc763988",
+    "fixture-after-reopen.json": "8768f4ef944cb2fc6996677e95c1d8c88db55c45fab2c322f74815a62e71f86b",
+    "workspace.log": "4a34c186be11c69835aee240e2442f2ee69abc60cd51a031b4b44c7b272921e5",
+    "lock-delta.json": "49a4d566a10b42433bbd2026b6eb7e3e39e1f2e88cf67872935527f9dae75c27",
+    "qualified-focused.log": "0977becbcee24010fed88f0faf00602a8e0a74779a9d0b761b0b793eb5613aba",
+    "qualified-build.log": "16b101dcb587d614d8f86d5ab5d1da3b34006407338c8a4b68af2f8aed9b857a",
+    "native-seed-v4/native.log": "e09aa985829c6e3ec798cbc60e884d686281ff2c9c8b840f4927f29fb636e1af",
+    "native-seed-v4/scenario.done": "635d86d89c14db8f76e7f40fe53b6b805b70f115ea5540a0c56d6ed09480576f",
+    "native-seed-v4/opened-link-knot-timeline.png": "1daa6a6e10d1b263ce95b759d09cd37dc15ed152b5168a3e4edad609684ca8d3",
+    "native-seed-v4/opened-link-knot-history.png": "5cb863eba942898e3c0257eb037e514e5795e528c8288cbb6880737084d24a2a",
+    "native-seed-v4/launch.json": "77743ebbc46470844622dfefe60834c449ac65e70204263bbba9a364187d3b82",
+    "native-reopen-v4/native.log": "e09aa985829c6e3ec798cbc60e884d686281ff2c9c8b840f4927f29fb636e1af",
+    "native-reopen-v4/scenario.done": "3290ab3d9c76da685d01f34a8252d5d2668c0f18758e908968029704fb2f009a",
+    "native-reopen-v4/opened-link-knot-timeline.png": "627caf38709b5496047bcd1711e34dcfb77b90a12ac673bc01b018213723fd14",
+    "native-reopen-v4/opened-link-knot-history.png": "448a6ef01a237c6ff5a8d34f5220b29c200ea7ddb6446771c0203809bea23924",
+    "native-reopen-v4/launch.json": "ea1c715d587d665005bf87bc3c1e23510d556b6fc05fb4d34d2edf4f9947e4a6",
+    "doc-audit.json": "4f4523e162f2182c33d3f6997617c4c7503c0a733ebdeed9c39a3349a17d4a80"
+  },
+  "external_evidence": "/Users/markik/Code/testing/knot/link-model-p3-20261016"
+}

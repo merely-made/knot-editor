@@ -59,3 +59,34 @@ above it: sessions as containers, archives on them.
 
 Not done: a native capture of the layer in a running Knot with Djinn, and any
 choice of which mere a default launch should overlay.
+
+
+## Catalog fold curation (2026-10-16)
+
+Knot is the first production bounded-Swatch consumer of Mere's native fold
+records; Isocosm: VTT's changing workspace is not a prerequisite. The catalog
+remains the source graph. Select documents for fold switches node activation
+into a deliberate local multi-selection, and Fold selected creates a summary.
+Summary activation expands it; Expand all folds and separate bounded Undo fold
+and Redo fold commands alter only view state. Ordinary document activation is
+unchanged outside selection mode. Existing session/archive requests retain
+their resident owner.
+
+The shared `mere-view` state accepts native versioned records, computes layout
+from all source members, then hides folded members and routes exact directed
+boundary bundles into its paint/target Swatch before adding the resident tier.
+Knot persists records by canonical catalog root in local `graph_folds`
+preferences. Other preference keys survive saving; malformed preferences refuse
+to overwrite their source. Stale records cannot hide partial members, and
+selection refuses overlaps. History is bounded and session-local; records,
+member identity and placement survive process reopen. Fold feedback is separate
+from catalog failures, so a success cannot invent or overwrite an owner error.
+
+The [consumer receipt](../docs/receipts/2026-10-16_catalog_folds/README.md) records
+both native processes, eight reviewed captures, unchanged source-reading and
+member-position fingerprints, byte-equivalent source files, and restored fold
+identity. It also records the coherent Mere source update and the small
+source-link/arrangement-catalog compatibility fixes needed by current main.
+Only selection folds are exposed: extracted hyperlinks do not establish a
+parent hierarchy. Cross-platform, global keyboard-shortcut, live assistive
+technology and device-recovery qualification remain separate.

@@ -19,6 +19,7 @@ use std::path::{Component, Path, PathBuf};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 pub(crate) mod diagnostics;
+pub(crate) mod folds;
 use apparatus::{Cursor, OperationId, RecordRef};
 use diagnostics::{Diagnostics, Installed, Observation, Phase, ResultKind};
 
@@ -99,6 +100,7 @@ impl WorkerControl {
 
 pub(crate) struct GraphState {
     pub view: MereViewState,
+    pub folds: folds::CatalogFolds,
     reading: Option<CatalogReading>,
     receiver: Option<Receiver<CatalogCompletion>>,
     queued: Option<CatalogRequest>,
@@ -128,6 +130,7 @@ impl Default for GraphState {
     fn default() -> Self {
         Self {
             view: MereViewState::default(),
+            folds: Default::default(),
             reading: None,
             receiver: None,
             queued: None,
@@ -683,15 +686,33 @@ impl GraphState {
                 HostAction::new("new", "New"),
                 HostAction::new("open", "Open"),
             ],
-            notice: self.notice.clone().or_else(|| {
-                if self.configured {
-                    catalog_notice
-                } else {
-                    Some("No catalog is configured; showing open documents.".to_owned())
-                }
-            }),
+            notice: self
+                .notice
+                .clone()
+                .or_else(|| self.folds.feedback.clone())
+                .or_else(|| {
+                    if self.configured {
+                        catalog_notice
+                    } else {
+                        Some("No catalog is configured; showing open documents.".to_owned())
+                    }
+                }),
         };
         self.apply_overlay(&mut model);
+        if self.configured {
+            model.actions.extend(self.folds.actions());
+        }
+        if self.folds.selecting {
+            for node in &mut model.graph.nodes {
+                if self.folds.selected.contains(&node.key) {
+                    node.label.push_str(", selected for fold");
+                }
+            }
+            model.notice = Some(format!(
+                "{} catalog documents selected. Activate documents to toggle selection, then Fold selected.",
+                self.folds.selected.len()
+            ));
+        }
         model
     }
 

@@ -1,0 +1,24 @@
+click role:button Graph
+wait
+assert snap graph_visible == true
+assert snap catalog_folds == 2
+assert snap catalog_visible_nodes == 3
+assert snap catalog_fold_routes == 3
+assert snap catalog_fold_cells == 5
+capture catalog-restored
+click .graph-canvas-swatch-node @aria-label=Catalog fold 1 +2, activate to expand
+wait
+assert snap catalog_folds == 1
+assert snap catalog_visible_nodes == 4
+capture catalog-summary-expanded
+click role:button Undo fold
+wait
+assert snap catalog_folds == 2
+click role:button Redo fold
+wait
+assert snap catalog_folds == 1
+click role:button Expand all folds
+wait
+assert snap catalog_folds == 0
+assert snap catalog_visible_nodes == 5
+capture catalog-all-expanded

@@ -1,0 +1,27 @@
+{
+  "ok": true,
+  "captures": 8,
+  "size": [
+    2400,
+    1700
+  ],
+  "truth_digest": "10bd6c209f58e4acab14201852e36027f3530e06e334656c2a0cff8af69c733c",
+  "positions_digest": "44ecda7e5153d0b4786c426491c628b98888c23568b15af5ba516b2e8043e586",
+  "saved_and_restored_fold_digest": "003007fc776a78d7deca230dcb701f566689d9e3ef7a58dea43ceb6ea26a90c5",
+  "document_count_stayed_one": true,
+  "catalog_failure_flags_false": true,
+  "catalog_read_errors_zero": true,
+  "graph_visible_in_all_captures": true,
+  "source_files_match_fixture_byte_for_byte": true,
+  "catalog_fact_counts": [
+    5,
+    6
+  ],
+  "changed_files_after_reopen": [
+    "catalog.redb",
+    "preferences.json"
+  ],
+  "catalog_storage_note": "RedbBackend::open commits a table-initialization transaction (Mere crates/eidetic/muniment/src/redb_backend.rs:54); raw database-file bytes are not the graph truth fingerprint. Catalog-reading facts and source bytes are unchanged.",
+  "all_folds_expanded_and_saved": true,
+  "tested_source_unchanged": true
+}

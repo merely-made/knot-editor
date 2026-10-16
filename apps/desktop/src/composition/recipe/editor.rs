@@ -14,19 +14,12 @@ use scenomise::arrangement::{
 use scenomise::catalog::{FAMILIES, Family, Measure};
 use scenomise::registry::SolverRegistry;
 
-const FAMILY_LABELS: [&str; 11] = [
-    "Spiral",
-    "Grid",
-    "Geographic",
-    "Hulls",
-    "Stack",
-    "Penrose",
-    "L-system",
-    "Timeline",
-    "Kanban",
-    "Embedded",
-    "Radial",
-];
+fn family_labels() -> Vec<String> {
+    FAMILIES
+        .iter()
+        .map(|family| family.clone().capability().display_name)
+        .collect()
+}
 
 /// Clear only session UI drafts and point the family picker at the accepted
 /// arrangement. Call after a new/rebound/reopened recipe or a history move.
@@ -336,7 +329,11 @@ pub(super) fn view(state: &DesktopState) -> DesktopView {
         .cloned()
         .unwrap_or_else(|| accepted_family.clone().unwrap_or(Family::Grid));
     let family_picker = lens(
-        |selection: &mut cambium::SelectState| select(selection, &FAMILY_LABELS),
+        |selection: &mut cambium::SelectState| {
+            let labels = family_labels();
+            let labels = labels.iter().map(String::as_str).collect::<Vec<_>>();
+            select(selection, &labels)
+        },
         |state: &mut DesktopState| &mut state.composition.recipe.editor_family_select,
     );
     let toggle = Box::new(
@@ -433,8 +430,11 @@ mod tests {
 
     #[test]
     fn editor_rows_come_from_every_bounded_catalog_family() {
-        assert_eq!(FAMILIES.len(), 11);
-        for (family, label) in FAMILIES.iter().zip(FAMILY_LABELS) {
+        let labels = family_labels();
+        assert_eq!(labels.len(), FAMILIES.len());
+        assert!(labels.iter().any(|label| label == "Partition"));
+        assert!(labels.iter().any(|label| label == "Sets"));
+        for (family, label) in FAMILIES.iter().zip(labels) {
             assert_eq!(family.clone().capability().display_name, label);
             let family = family.clone();
             let rows = declared_options(family.clone(), &test_measure());

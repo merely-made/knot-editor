@@ -17,6 +17,7 @@ name = "collection_acceptance"
 required-features = ["mere-retention"]
 
 [dependencies]
+curation.workspace = true
 backstep.workspace = true
 scenomise.workspace = true
 scenograph.workspace = true

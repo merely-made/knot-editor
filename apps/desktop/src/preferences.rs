@@ -38,6 +38,8 @@ pub struct DesktopPreferences {
     pub collapse: CollapsePreferences,
     /// Cartography strategy used by the shared mere view.
     pub graph_layout: String,
+    /// View-local folds keyed by the canonical catalog root, never document truth.
+    pub graph_folds: std::collections::BTreeMap<String, Vec<curation::FoldRecord>>,
     /// Maximum age of private local recovery copies in this standalone app.
     pub recovery_days: u16,
     /// A knot-editor `KnotEmbeddingPreference`, uninterpreted here.
@@ -66,6 +68,7 @@ impl Default for DesktopPreferences {
             appearance: StoredAppearance::default(),
             collapse: CollapsePreferences::default(),
             graph_layout: mere_view::DEFAULT_LAYOUT.to_owned(),
+            graph_folds: Default::default(),
             recovery_days: 30,
             embedding: None,
             other: Map::new(),
@@ -190,6 +193,21 @@ impl PreferencesStore {
         next.save(&self.path)?;
         self.saved = next;
         Ok(true)
+    }
+
+    pub fn save_graph_folds(
+        &mut self,
+        scope: &str,
+        folds: &[curation::FoldRecord],
+    ) -> Result<(), String> {
+        if let Some(why) = &self.unreadable {
+            return Err(format!("preferences are unreadable: {why}"));
+        }
+        let mut next = self.saved.clone();
+        next.graph_folds.insert(scope.to_owned(), folds.to_vec());
+        next.save(&self.path)?;
+        self.saved = next;
+        Ok(())
     }
 
     pub fn save_graph_layout(&mut self, layout: &str) -> Result<bool, String> {
@@ -523,5 +541,48 @@ mod tests {
             "a nested key must not leak to the top level: {:?}",
             reloaded.other
         );
+    }
+}
+
+#[cfg(test)]
+mod catalog_fold_tests {
+    use super::*;
+    #[test]
+    fn catalog_folds_round_trip_per_root_without_dropping_other_preferences() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("preferences.json");
+        let mut store = PreferencesStore::open(path.clone());
+        store
+            .saved
+            .other
+            .insert("future".into(), serde_json::json!({"keep":true}));
+        let record = curation::FoldRecord::selection(
+            curation::FoldId::new("opaque"),
+            "catalog:a",
+            vec!["a".to_string(), "b".to_string()],
+        )
+        .unwrap();
+        store
+            .save_graph_folds("catalog:a", &[record.clone()])
+            .unwrap();
+        store.save_graph_folds("catalog:b", &[]).unwrap();
+        let reloaded = PreferencesStore::open(path);
+        assert_eq!(
+            reloaded.preferences().graph_folds["catalog:a"],
+            vec![record]
+        );
+        assert!(reloaded.preferences().graph_folds["catalog:b"].is_empty());
+        assert_eq!(reloaded.preferences().other["future"]["keep"], true);
+    }
+    #[test]
+    fn malformed_fold_preferences_are_preserved_and_cannot_be_overwritten() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("preferences.json");
+        let bad = r#"{"graph_folds":{"catalog:a":[{"version":99}]}}"#;
+        std::fs::write(&path, bad).unwrap();
+        let mut store = PreferencesStore::open(path.clone());
+        assert!(store.unreadable().is_some());
+        assert!(store.save_graph_folds("catalog:a", &[]).is_err());
+        assert_eq!(std::fs::read_to_string(path).unwrap(), bad);
     }
 }

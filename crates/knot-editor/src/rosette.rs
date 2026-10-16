@@ -333,6 +333,10 @@ pub fn project_rosette(
                     points: vec![positions[left], positions[right]],
                     kind: Some(kind.into()),
                     weight: Some(weight),
+                    // Rhyme lines are synthetic geometry, without a source assertion pair.
+                    link_key: None,
+                    marks: Default::default(),
+                    strength: None,
                 });
             }
         }

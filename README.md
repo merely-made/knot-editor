@@ -75,11 +75,10 @@ positions support ternary feet. The result imports into Graphshell's Portable
 scenes or any host implementing the shared recipe. The native editor's existing
 sound reading supplies the same `SoundReading`; no new native panel is implied.
 
-This branch requires Mere's portable-backdrop implementation. Before that
-shared change is integrated, qualify against its checkout with
-`python3 /path/to/mere/support/design-studies/backdrops/with_local_scene_source.py /path/to/mere test -p knot-readings --features portable-scenes --lib`.
-That temporary patch keeps all four scene crates in one Cargo cohort. Production
-dependency rows remain on the family's canonical source.
+The portable-scene API is integrated in Mere's canonical `main` source.
+The committed lockfile pins the shared scene cohort, so the commands above
+need no temporary local source patches. Earlier local-cohort receipts remain
+historical evidence; ordinary checks use `--locked` and `portable-scenes`.
 
 ## Embedding
 

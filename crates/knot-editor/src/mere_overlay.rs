@@ -350,6 +350,7 @@ mod tests {
                 source_name: "Branch".into(),
                 target_name: "Main".into(),
                 conflicts: Vec::new(),
+                dropped: Vec::new(),
             }),
         };
         overlay(&mut model, Some(&reading));

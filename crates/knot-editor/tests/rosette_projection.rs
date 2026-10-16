@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 use chirograph::{CapabilityProfile, PresentationCapability, ProjectionSession};
-use graphshell::view::{ProjectionLayoutView, ProjectionReceiptView, render_projection_receipt};
+use graphshell_host::view::{ProjectionLayoutView, ProjectionReceiptView, render_projection_receipt};
 use graphshell_client::RetainedEndpointSession;
 use graphshell_endpoint::ResumableProjectionSource;
 use graphshell_endpoint::local::LocalCarrier;

@@ -69,10 +69,10 @@ pub(crate) fn catalog_chip(catalog: Catalog) -> StatusChip {
 
 pub(crate) fn retention_chip(retention: Retention) -> StatusChip {
     let (label, severity) = match retention {
-        Retention::Busy => ("Retaining…", StatusSeverity::Quiet),
-        Retention::Failed => ("Retention failed", StatusSeverity::Warning),
-        Retention::Retained => ("Retained", StatusSeverity::Quiet),
-        Retention::Idle => ("Not retained", StatusSeverity::Quiet),
+        Retention::Busy => ("Collecting…", StatusSeverity::Quiet),
+        Retention::Failed => ("Collect failed", StatusSeverity::Warning),
+        Retention::Retained => ("Collected", StatusSeverity::Quiet),
+        Retention::Idle => ("Not collected", StatusSeverity::Quiet),
     };
     StatusChip::new(RETENTION, label).with_severity(severity)
 }
@@ -306,19 +306,19 @@ mod tests {
         );
         assert_eq!(
             read(retention_chip(Retention::Busy)),
-            ("Retaining…".into(), quiet)
+            ("Collecting…".into(), quiet)
         );
         assert_eq!(
             read(retention_chip(Retention::Failed)),
-            ("Retention failed".into(), warning)
+            ("Collect failed".into(), warning)
         );
         assert_eq!(
             read(retention_chip(Retention::Retained)),
-            ("Retained".into(), quiet)
+            ("Collected".into(), quiet)
         );
         assert_eq!(
             read(retention_chip(Retention::Idle)),
-            ("Not retained".into(), quiet)
+            ("Not collected".into(), quiet)
         );
         assert_eq!(
             read(serving_chip("field-notes · serving :5699")),

@@ -1,0 +1,36 @@
+{
+  "normal_file_save": true,
+  "changes": [
+    {
+      "line": "the night keeps quux beyond the quiet light",
+      "field": "stress",
+      "before": [
+        false,
+        true,
+        true,
+        null,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ],
+      "after": [
+        false,
+        true,
+        false,
+        null,
+        false,
+        true,
+        false,
+        true,
+        false,
+        true
+      ]
+    }
+  ],
+  "unknown_stress_preserved": true,
+  "text_units_alignment_preserved": true,
+  "collections_used": false
+}

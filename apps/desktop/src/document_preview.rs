@@ -216,6 +216,9 @@ fn blocks(
                         .attr("aria-label", format!("Select source heading: {label}")),
                     ))
                 },
+                Block::Div { blocks: items, .. } => Box::new(el(
+                    "div", blocks(items, headings, address, source_text, document, next_heading),
+                ).attr("class", "knot-document-block")),
                 Block::Paragraph { spans } => {
                     Box::new(el("p", inline(spans, link_source.as_ref())))
                 },

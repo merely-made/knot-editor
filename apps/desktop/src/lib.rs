@@ -47,6 +47,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
     let mut hooks: HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> = inert_hooks();
     let mut previews = theme_session::PreviewBindings::default();
     let mut metre = composition::metre::Bindings::default();
+    let mut block_lens = composition::block_lens::Bindings::default();
     // Rootstock clears the current redraw receipt before the pre-frame hook.
     // Observe its result after-frame instead, retaining only session-local
     // eligibility for the following attempt. A failed presentation freezes
@@ -61,6 +62,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
         }
         theme_session::update_stylesheet(ctx);
         metre.frame(ctx);
+        block_lens.frame(ctx);
         previews.frame(ctx)
     });
     hooks.after_frame = Box::new(move |ctx| {

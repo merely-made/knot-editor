@@ -1,0 +1,9 @@
+RESULT ok
+captured 01_composition_lens
+captured 02_saved_composition
+captured 03_wrapped_compact
+capture 01_composition_lens 2400x2000 digest=60b81e4d10be7ecd file=/Users/markik/Code/output/editable-blocks-20261017/native-seed-r5/01_composition_lens.png
+capture 02_saved_composition 2400x2000 digest=a0e9aafdd0d078dc file=/Users/markik/Code/output/editable-blocks-20261017/native-seed-r5/02_saved_composition.png
+capture 03_wrapped_compact 1120x2000 digest=272d63e12748b7a5 file=/Users/markik/Code/output/editable-blocks-20261017/native-seed-r5/03_wrapped_compact.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 68 frames, 71 redraws, 3 unpresented redraws

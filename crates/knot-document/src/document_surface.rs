@@ -494,6 +494,25 @@ impl KnotDocumentSession {
         });
         Ok(())
     }
+    /// Commit a source-bound replacement through the document's existing text
+    /// history. Selection is not an undo step; the insertion is one edit.
+    pub fn replace_source_span(
+        &mut self,
+        address: &str,
+        source_text: &str,
+        start: usize,
+        end: usize,
+        replacement: String,
+    ) -> Result<(), String> {
+        if self.write_posture == KnotDocumentWritePostureV1::ReadOnly {
+            return Err("Document is read-only".into());
+        }
+        self.select_source_range(address, source_text, start, end, "block edit")?;
+        self.apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(replacement)))
+            .map_err(|e| format!("Block edit refused: {e:?}"))?;
+        Ok(())
+    }
+
     pub fn apply(
         &mut self,
         intent: KnotDocumentIntentV1,

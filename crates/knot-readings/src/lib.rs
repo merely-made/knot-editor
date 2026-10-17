@@ -26,6 +26,8 @@ pub mod sound;
 pub mod metre_scene;
 #[cfg(feature = "portable-scenes")]
 pub mod metre_alignment;
+#[cfg(feature = "portable-scenes")]
+pub mod metre_block;
 mod scripts;
 
 pub use bindings::READING_SURFACE;

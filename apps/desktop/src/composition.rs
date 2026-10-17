@@ -25,6 +25,7 @@ use std::{
 
 mod recipe;
 pub(crate) mod metre;
+pub(crate) mod block_lens;
 
 pub(crate) use recipe::measure_cards as measure_recipe_cards;
 pub(crate) use recipe::pause_hidden_motion;
@@ -96,6 +97,7 @@ impl SelectionSnapshot {
 
 #[derive(Default)]
 pub struct CompositionState {
+    pub(crate) block_lens: block_lens::State,
     recipe: recipe::RecipeState,
     pub(crate) metre: metre::MetreState,
     pub(crate) query: TextInput,
@@ -1359,7 +1361,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                             )
                             .attr("data-item-id", item.id.clone())
                         }),
-                        saved_metre.map(|scene| button("Open retained metre alignment", move |state: &mut DesktopState, _| {
+                        saved_metre.map(|scene| button("Open collected metre snapshot", move |state: &mut DesktopState, _| {
                             match state.composition.metre.open_copy(scene.clone(), metre_anchor.clone()) {
                                 Ok(()) => state.composition.section = 1,
                                 Err(e) => state.composition.notice = Some(e),
@@ -1515,7 +1517,7 @@ pub(crate) fn view(state: &DesktopState, key: DocKey) -> DesktopView {
     };
     Box::new(el("section", (
         el("h3", "Composition"),
-        span("Readings observe; only Collect retains material. No reference source is enabled automatically."),
+        span("Readings observe. Save keeps authored composition; Collect takes a snapshot. Reference sources are enabled explicitly."),
         button("Collect selected passage", move |state: &mut DesktopState, _| collect_selection(state, key))
             .attr("aria-label", "Collect selected passage"),
         el("div", Keyed::new(tabs)).attr("class", "knot-composition-tabs"),

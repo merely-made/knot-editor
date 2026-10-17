@@ -1,0 +1,7 @@
+# Fresh process, same normally saved source; primary lens follows narrow width.
+settle 12
+assert snap dirty == false
+assert text Free composition
+click .knot-composition-line
+settle 3
+capture 05_wrapped_composition_lens

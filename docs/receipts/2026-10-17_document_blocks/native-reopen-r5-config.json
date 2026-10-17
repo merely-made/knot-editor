@@ -1,0 +1,33 @@
+{
+  "command": [
+    "python3",
+    "/Users/markik/Code/worktrees/mere-portable-scene-backdrops/scripts/run_macos_scenario.py",
+    "--binary",
+    "/Users/markik/Code/output/editable-blocks-20261017/frozen/knot",
+    "--prefix",
+    "KNOT",
+    "--scenario",
+    "/Users/markik/Code/worktrees/knot-portable-metre/scenarios/composition_blocks_reopen.scn",
+    "--output",
+    "/Users/markik/Code/output/editable-blocks-20261017/native-reopen-r5",
+    "--timeout",
+    "120",
+    "--env",
+    "KNOT_TEST_WIDTH=1200",
+    "--env",
+    "KNOT_TEST_HEIGHT=1000",
+    "--env",
+    "APPDATA=/Users/markik/Code/output/editable-blocks-20261017/profile-r5",
+    "--env",
+    "XDG_DATA_HOME=/Users/markik/Code/output/editable-blocks-20261017/profile-r5/data",
+    "--env",
+    "XDG_CONFIG_HOME=/Users/markik/Code/output/editable-blocks-20261017/profile-r5/config",
+    "--env",
+    "XDG_CACHE_HOME=/Users/markik/Code/output/editable-blocks-20261017/profile-r5/cache",
+    "--env",
+    "GRAPHSHELL_APP_ENDPOINT=/tmp/composition-blocks-no-resident.sock",
+    "--",
+    "/Users/markik/Code/output/editable-blocks-20261017/composition.djot"
+  ],
+  "cwd": "/Users/markik/Code/worktrees/knot-portable-metre"
+}

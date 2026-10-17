@@ -9,6 +9,10 @@
 //! The default dependency graph owns a single [`cambium::TextInput`] and native file
 //! writes. Preview and conversion are opt-in through [`engine`].
 
+#[cfg(feature = "engine")]
+mod blocks;
+#[cfg(feature = "engine")]
+pub use blocks::KnotDivSnapshot;
 mod document_surface;
 mod document_view;
 mod editor;

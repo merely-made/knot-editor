@@ -266,3 +266,36 @@ source/stress/rhyme facts. The source document remains byte-identical. See the
 [receipt](../docs/receipts/2026-10-17_metre_editing/README.md) for source binding,
 superseded layout failures and platform limits. Woodshed's published shared-intent
 adoption is `28a0741`; domain validation and persistence remain product-owned.
+
+### Prototype review (2026-10-17)
+
+Mark requests a prompted audit and refinement of the shared scene prototypes.
+The section above records implementation evidence, not settled approval of the
+authoring scope, vocabulary, captured-copy lifecycle or Sound-pane presentation.
+Track questions and explicit answers once in
+`mere/design_docs/mere_docs/implementation_strategy/2026-08-15_projection_grammar_adoption_plan.md`,
+section "Shared scene prototype design review (2026-10-17)". Answers through
+prompt 22 are recorded there verbatim; the separate-editor, complete-analysis,
+captured-reading freeze and collection-only save assumptions need refinement.
+Form-change and compact-presentation direction are also recorded there; detailed
+interactions and remaining questions stay open. Do not infer answers from the
+current implementation or promote the exploratory common grammar into a ruling.
+
+
+The selected first refinement is implemented as attributed Djot source blocks and
+composition lenses. Manual units/scansion, unknown stress and optional editable
+form declarations save with the ordinary composition. Apply-to-selection and
+independent insertion are different source operations. The wrapping lens and
+shared wider overview use the same authored facts; committed gestures use the
+normal document history, and previews/cancels do not write source. Unchanged
+unique lines retain authorship; changed/duplicate lines are disclosed for review
+without discarding old records. This does not establish a universal line identity
+or template-update protocol. The ordinary source editor remains visible while
+the rich-text block interaction is still a prototype.
+
+`docs/receipts/2026-10-17_document_blocks/receipt.json` distinguishes source-model,
+normal file save/reopen and actual native evidence. Checks require the local Mere
+cohort, using `support/design-studies/backdrops/with_local_scene_source.py
+--document-blocks`; the canonical supplier lockfile is not newly qualified.
+Workspace holding, group edits, alternate arrangements and reusable-template
+instance updates remain subsequent slices under the answered audit directions.

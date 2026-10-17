@@ -1,0 +1,27 @@
+# Normal document, manual authorship and ordinary Save; no dictionary or mere.
+settle 12
+assert snap dirty == false
+assert text Free composition
+click role:button Show wider metre overview
+settle 5
+click .knot-block-metre-overview
+settle 2
+capture 01_composition_lens
+click role:button @aria-label=Edit scansion: the night keeps quux beyond the quiet light
+settle 3
+click role:textbox @id=knot-block-lens-scan
+input-text u / u ? u / u / u /
+click role:button Apply scansion and form
+settle 4
+assert snap dirty == true
+click role:button Save
+settle 3
+assert snap dirty == false
+click .knot-block-metre-overview
+settle 2
+capture 02_saved_composition
+resize 560 1000
+settle 5
+click .knot-block-metre-overview
+settle 2
+capture 03_wrapped_compact

@@ -1,0 +1,7 @@
+# Composition lenses
+
+{class="metre" id="verse" metre-authorship="[{\"alignment\":null,\"stress\":[false,true,false,true,false,false,false,true],\"text\":\"the light is quiet in the night\",\"units\":[\"the\",\"light\",\"is\",\"qui\",\"et\",\"in\",\"the\",\"night\"]},{\"alignment\":null,\"stress\":[false,true,false,null,false,true,false,true,false,true],\"text\":\"the night keeps quux beyond the quiet light\",\"units\":[\"the\",\"night\",\"keeps\",\"quux\",\"be\",\"yond\",\"the\",\"qui\",\"et\",\"light\"]}]" rhyme="A A"}
+:::
+the night keeps quux beyond the quiet light
+the light is quiet in the night
+:::

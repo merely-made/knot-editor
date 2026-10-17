@@ -30,6 +30,39 @@ pub struct Surface {
     pub rendered_size: Option<(u32, u32)>,
     pub error: Option<String>,
 }
+pub(crate) fn apply_theme(state: &DesktopState, source: &Rc<RefCell<Surface>>) {
+    let resolved = state.theme_session.resolve(&state.appearance);
+    if let Ok(mode) = resolved.theme.palette_for_mode(&resolved.mode) {
+        let p = mode.palette;
+        let rgba = |c| {
+            let h = tinct::color_to_hex(c);
+            [
+                u8::from_str_radix(&h[1..3], 16).unwrap() as f32 / 255.0,
+                u8::from_str_radix(&h[3..5], 16).unwrap() as f32 / 255.0,
+                u8::from_str_radix(&h[5..7], 16).unwrap() as f32 / 255.0,
+                1.0,
+            ]
+        };
+        let mut theme = SurfaceTheme {
+            ground: rgba(p.surface),
+            text: rgba(p.text),
+            guide: rgba(p.text_dim),
+            category: rgba(p.primary),
+            root: rgba(p.tertiary),
+            fifth: rgba(p.secondary),
+            warning: rgba(p.danger),
+        };
+        theme.guide[3] = 0.28;
+        let mut s = source.borrow_mut();
+        if s.theme.ground != theme.ground || s.theme.text != theme.text
+            || s.theme.guide != theme.guide || s.theme.category != theme.category
+            || s.theme.root != theme.root || s.theme.fifth != theme.fifth
+            || s.theme.warning != theme.warning {
+            s.theme = theme;
+            s.revision = s.revision.wrapping_add(1);
+        }
+    }
+}
 struct Drag {
     baseline: SceneInput,
     proposal: Proposal,
@@ -450,6 +483,10 @@ fn control(
     )
 }
 pub fn view(state: &DesktopState, key: DocKey) -> DesktopView {
+    if state.composition.metre.draft.is_none() {
+        return Box::new(el("div", control("Apply metre lens to selected lines", "knot-metre-start", move |s| super::block_lens::apply_selection(s, key))));
+    }
+
     let m = &state.composition.metre;
     let mut children: Vec<DesktopView> = vec![
         Box::new(el("h3", "Metre alignment")),
@@ -499,12 +536,12 @@ pub fn view(state: &DesktopState, key: DocKey) -> DesktopView {
         ));
     } else {
         let current = m.current(state, key);
-        children.push(Box::new(el("p",if !current{"Source reading changed. This captured reading is inspectable; collect/discard it or reopen an explicit retained copy before editing."}else if m.drag.is_some(){"Drag preview — release to update the draft"}else if m.dirty(){"Metre draft — collect explicitly to retain"}else{"Retained metre copy"}).attr("role","status")));
+        children.push(Box::new(el("p",if !current{"Source reading changed. This captured reading is inspectable; collect/discard it or reopen an explicit collected copy before editing."}else if m.drag.is_some(){"Drag preview — release to update the draft"}else if m.dirty(){"Metre snapshot draft — Collect to keep this snapshot"}else{"Collected metre snapshot"}).attr("role","status")));
         children.push(Box::new(
             el(
                 "div",
                 vec![
-                    control("Collect metre alignment", "knot-metre-collect", retain),
+                    control("Collect metre snapshot", "knot-metre-collect", retain),
                     control(
                         if m.dirty() {
                             "Discard metre draft"
@@ -605,7 +642,7 @@ pub fn view(state: &DesktopState, key: DocKey) -> DesktopView {
 pub fn close_prompt(state: &DesktopState) -> DesktopView {
     let mut children: Vec<DesktopView> = vec![];
     if state.composition.metre.close_pending {
-        children.extend([Box::new(el("p","A metre draft has not been retained. Keep editing, or explicitly discard it before closing.")) as DesktopView,control("Keep editing metre","knot-metre-close-keep",|s|s.composition.metre.close_pending=false),control("Discard metre and close","knot-metre-close-discard",|s|{discard(s);s.window_commands().close();})]);
+        children.extend([Box::new(el("p","Metre snapshot edits have not been collected. Keep editing, or explicitly discard them before closing.")) as DesktopView,control("Keep editing metre","knot-metre-close-keep",|s|s.composition.metre.close_pending=false),control("Discard metre and close","knot-metre-close-discard",|s|{discard(s);s.window_commands().close();})]);
     }
     let style = if state.composition.metre.close_pending {
         let resolved = state.theme_session.resolve(&state.appearance);
@@ -629,7 +666,7 @@ pub fn close_prompt(state: &DesktopState) -> DesktopView {
         el("div", children)
             .attr("class", "knot-metre-close")
             .attr("role", "alertdialog")
-            .attr("aria-label", "Unretained metre draft")
+            .attr("aria-label", "Uncollected metre snapshot draft")
             .attr("style", style),
     )
 }
@@ -665,34 +702,7 @@ impl Bindings {
         }
         let state = ctx.runner.state();
         let source = state.composition.metre.surfaces.clone();
-        let resolved = state.theme_session.resolve(&state.appearance);
-        if let Ok(mode) = resolved.theme.palette_for_mode(&resolved.mode) {
-            let p = mode.palette;
-            let rgba = |c| {
-                let h = tinct::color_to_hex(c);
-                [
-                    u8::from_str_radix(&h[1..3], 16).unwrap() as f32 / 255.0,
-                    u8::from_str_radix(&h[3..5], 16).unwrap() as f32 / 255.0,
-                    u8::from_str_radix(&h[5..7], 16).unwrap() as f32 / 255.0,
-                    1.0,
-                ]
-            };
-            let mut theme = SurfaceTheme {
-                ground: rgba(p.surface),
-                text: rgba(p.text),
-                guide: rgba(p.text_dim),
-                category: rgba(p.primary),
-                root: rgba(p.tertiary),
-                fifth: rgba(p.secondary),
-                warning: rgba(p.danger),
-            };
-            theme.guide[3] = 0.28;
-            let mut s = source.borrow_mut();
-            if format!("{:?}", s.theme) != format!("{theme:?}") {
-                s.theme = theme;
-                s.revision = s.revision.wrapping_add(1);
-            }
-        }
+        apply_theme(state, &source);
         let producer = self.producer.get_or_insert_with(|| {
             Rc::new(RefCell::new(SceneProducer::new(
                 source.clone(),

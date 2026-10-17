@@ -75,6 +75,7 @@ pub fn metre_scene(
                 let stress = beats(phones, &parts, Mode::Accentual, WEIGHT_RULE);
                 for (index, beat) in stress.into_iter().enumerate() {
                     syllables.push(Syllable {
+                        stress_known: true,
                         text: if index == 0 {
                             token.word.clone()
                         } else {

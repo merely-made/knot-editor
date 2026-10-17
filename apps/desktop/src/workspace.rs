@@ -4301,7 +4301,7 @@ pub fn display_path(path: &Path) -> String {
 /// One document tile: its editor and the panels read from it, the writing
 /// area the window had before tabs. The panels read the focused entry, which
 /// is the document a single stack shows.
-fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
+pub(crate) fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
     let highlight = state.appearance.highlight;
     let document: DesktopView = Box::new(lens(
         move |state: &mut KnotDocumentSurfaceState| {
@@ -4309,7 +4309,7 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
         },
         move |state: &mut DesktopState| state.surface_mut_for(key),
     ));
-    let source_wrapper = el("div", document)
+    let source_wrapper = el("div", (crate::composition::block_lens::view(state, key), document))
         .attr("class", "knot-source-wrapper")
         .attr(
             "style",
@@ -5457,7 +5457,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-appearance-row { display:flex; align-items:center; flex-wrap:wrap; gap:6px; }",
     ".knot-font-licenses { max-height:240px; overflow:auto; }",
     ".knot-font-licenses pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }",
-    ".knot-source-wrapper { flex:1; min-width:0; width:100%; }",
+    ".knot-source-wrapper { display:flex; flex-direction:column; gap:12px; flex:1; min-width:0; width:100%; }",
     ".knot-path-field { display:flex; align-items:center; gap:6px; flex:1; }",
     ".knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:280px; flex:1; }",
     ".knot-path-popover { display:flex; align-items:center; flex-wrap:wrap; gap:8px; width:560px; max-width:80vw; margin-top:4px; padding:10px; border:1px solid; border-radius:6px; box-sizing:border-box; }",

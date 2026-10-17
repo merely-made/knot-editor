@@ -1,0 +1,83 @@
+{
+  "schema": "knot.document-block-prototype/v1",
+  "created_at": "2026-10-17T19:17:50.148341+00:00",
+  "status": "qualified local prototype; canonical supplier integration not qualified",
+  "decisions": "Mere projection grammar adoption plan, Shared scene prototype design review, prompts 1-22",
+  "checks": {
+    "source_document_blocks": {
+      "pass": 3,
+      "covers": [
+        "apply rules versus independent insertion",
+        "normal file Save and fresh session reopen",
+        "one chronological source history",
+        "quote/list/nested body preservation",
+        "stale/forged/read-only refusal"
+      ]
+    },
+    "authored_metre": {
+      "pass": 3,
+      "covers": [
+        "manual unknown stress without imposed form",
+        "clear source matches and preserved stale records",
+        "shared alignment intent preserves scansion and form"
+      ]
+    },
+    "native_library": {
+      "pass": 6,
+      "includes": "real production component, host portable paint with fonts, gesture preview/cancel/one-step undo, stale draft/gesture guards"
+    },
+    "existing_status_cases": {
+      "pass": 3
+    },
+    "headed_native": {
+      "processes": 3,
+      "captures": 5,
+      "binary_sha256": "ce5def9b44f2399284aec7c88f257e142785146caee4ee3ca3b3b353e1cd72b6",
+      "logical_sizes": [
+        [
+          1200,
+          1000
+        ],
+        [
+          560,
+          1000
+        ],
+        [
+          420,
+          900
+        ]
+      ],
+      "runs": [
+        "native-seed-r5",
+        "native-reopen-r5",
+        "native-compact-r5"
+      ],
+      "source_file": "composition.djot",
+      "file_facts_verification": "save-verification.json",
+      "collections_used": false,
+      "visual_review": "All five captures inspected; wide lens/overview, saved source, narrow wrapping and independent-process reopen. No blank frames."
+    }
+  },
+  "dependencies": "dependencies/scope.json",
+  "source": "source.json",
+  "native_compiler": "Homebrew rustc 1.99.0 (b940084d7 2026-09-28); repository declares 1.99.1; browser supplier separately checked/built with rustup 1.99.1",
+  "reproduction": {
+    "source_cohort": "From Knot: python3 MERE/support/design-studies/backdrops/with_local_scene_source.py --document-blocks MERE test --offline -p knot-desktop --no-default-features --lib composition::block_lens",
+    "native": "The three *-config.json files record exact frozen-binary launcher commands; copy scenarios/fixtures/composition_blocks.djot to a disposable path before the seed run.",
+    "lockfiles": "Canonical root app lock restored. Receipt dependency locks capture the temporary cohort; helper may update the app lock and is not a canonical repin."
+  },
+  "excluded": {
+    "first_native": "Bad scenario textbox selector; host rejected before launch.",
+    "native_r2": "Syllables stacked vertically and scenario targeted absent menu Save; excluded.",
+    "native_r3_r4": "Earlier functional/visual runs before final stale-declaration guard; preserved under the output directory, not relabelled as final-source evidence.",
+    "unscoped_no_default_test_invocation": "Integration target scenario_lane requires optional personae/mere-retention; unsupported broad no-default invocation was replaced with the intended focused --lib command."
+  },
+  "limits": [
+    "Primary lens still accompanies the visible source editor; finished rich-text block interaction is not qualified.",
+    "Exact unique text matching is conservative; changed or duplicate lines keep records and require review.",
+    "Full template instance relations, group moves, document-versus-alternative arrangement UI, workspace pocket and lexical/form suggestions remain open.",
+    "New native pointer gestures have handler/portable-host checks; headed scenarios here exercise scansion controls, Save, reopen and layout.",
+    "No new Windows/Linux, personal-wallet or sealed-collection qualification.",
+    "Attribute/authorship serialization is provisional; old scene readers may reject the new explicit unknown-stress field."
+  ]
+}

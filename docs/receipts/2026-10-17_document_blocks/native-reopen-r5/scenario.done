@@ -1,0 +1,5 @@
+RESULT ok
+captured 04_reopened_composition
+capture 04_reopened_composition 2400x2000 digest=d242e41c4e371e1d file=/Users/markik/Code/output/editable-blocks-20261017/native-reopen-r5/04_reopened_composition.png
+frames: 1 captured, 0 blank, 1 distinct digests
+presentation: 28 frames, 31 redraws, 3 unpresented redraws

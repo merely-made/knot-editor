@@ -1,0 +1,29 @@
+{
+  "base_commit": "7e196c534e64b50cf6f00bf4d95e3beb493e5a9f",
+  "fetched_origin_main": "7e196c534e64b50cf6f00bf4d95e3beb493e5a9f",
+  "source_state": "local prototype changes over base commit",
+  "sha256": {
+    "apps/desktop/src/composition.rs": "121bfe84f212e5efcf3f0df51b65dc2148ccff7928bb2c8c46ea7201b0566736",
+    "apps/desktop/src/composition/block_lens.rs": "34e159f5860dca831cbb5146045a34d89231034ab561bd723088603a2009f9e8",
+    "apps/desktop/src/composition/block_lens/gestures.rs": "72ec9cbacb9783467b17208b974b19b7aa3f8045428150fb2b7e80e9835e343f",
+    "apps/desktop/src/composition/metre.rs": "6770f565a419cb1e73bca29c27f4cf69b379001e621cce4cd764bc436f305188",
+    "apps/desktop/src/document_preview.rs": "2fc493007d94a354361651d2139a5d571a54d2774eabef3651ea84e23c12838d",
+    "apps/desktop/src/lib.rs": "1f64fed1ba94eea81a7d439146ccaf70be953cc86354c1925ad4117f93dcb8c0",
+    "apps/desktop/src/status.rs": "a9820fe29e5692817ff9969fa37bc44187911e7316dbae84149bdb4d2609c531",
+    "apps/desktop/src/workspace.rs": "45f15877be3c928555a05aaab8929dc71bb34b0e482cd8d68efa796e51a52ad5",
+    "crates/knot-document/src/blocks.rs": "1a1dffcd04d21da0394a4d96e326f1bfd4694b34f1bfe832be4335912b60a961",
+    "crates/knot-document/src/document_surface.rs": "36b38f50de2ffd85095725fc66ed96de4d65448c4367910cdabe03d956ea4ee8",
+    "crates/knot-document/src/lib.rs": "edc47c8dcd6d141920c65199d885fb37dfed3a7cc68ed0bed14d627534e68838",
+    "crates/knot-readings/Cargo.toml": "159100156c1904b87978ac7253cd3abb61b80199062df267b48614bb442fb1d1",
+    "crates/knot-readings/src/bin/knot-composition-scene.rs": "636c28fab730eb09c2068b22229dd5c6bfd8c409ea219ef1a987890cb270f0fb",
+    "crates/knot-readings/src/lib.rs": "b8a3e499c92007c760e5aa2f01f479444596044ae75793da1ead7b2892f5cffd",
+    "crates/knot-readings/src/metre_block.rs": "22a8bd9fe0ad6e04d42c9f16305c91dc8d9927a5169e3f8962c84f18d5f3cd6a",
+    "crates/knot-readings/src/metre_scene.rs": "3bb728e31a05333a10eee8d374285b13f0185ff45dcd701fafd2b6902a265af1",
+    "design_docs/2026-09-30_knot_composition_readings.md": "aa23e51e2ffab638fef6cf2c8667c590a3cbf1284e2c1614dd1a4fe09b492dd1",
+    "design_docs/README.md": "c1edae2ae40a499f29374763813085aee9a2be9238cb6e250525f04583e12687",
+    "scenarios/composition_blocks.scn": "f23b7d410210c9a2b1d8ea12168071cd911dd63f196222f8a28d6d202bf8074b",
+    "scenarios/composition_blocks_compact.scn": "f78194f414c1896309be7f5ef08dc4178c0993051bb7f346fce819759153b469",
+    "scenarios/composition_blocks_reopen.scn": "635c9d964d03f7016aa0589913859162523745205b654c1d26cb56084836e0fa",
+    "scenarios/fixtures/composition_blocks.djot": "d31ef3a73c2cba3ea0bc8f7bb830bd7153a871e631f69f7816e783ce45463833"
+  }
+}

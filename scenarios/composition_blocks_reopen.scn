@@ -1,0 +1,8 @@
+settle 12
+assert snap dirty == false
+assert text Free composition
+click role:button Show wider metre overview
+settle 5
+click .knot-block-metre-overview
+settle 2
+capture 04_reopened_composition

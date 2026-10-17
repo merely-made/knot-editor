@@ -45,6 +45,7 @@ pub enum ItemKind {
     Pronunciation,
     Note,
     ProjectionRecipe,
+    MetreAlignment,
 }
 
 /// A precise reference to the pack edition from which material was collected.
@@ -199,6 +200,9 @@ pub struct CollectionItem {
     /// Typed recipe and retained disclosure; `text` remains a readable summary.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub projection_recipe: Option<retention::ProjectionRecipeMaterial>,
+    /// Copied, validated metrical alignment; never a handle into a document.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub metre_scene: Option<scenomise::backdrops::SceneInput>,
     #[serde(default)]
     pub pack_sources: Vec<PackSource>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -221,6 +225,7 @@ impl CollectionItem {
             label: label.into(),
             text: text.into(),
             projection_recipe: None,
+            metre_scene: None,
             pack_sources: Vec::new(),
             document_source: None,
             author_notes: String::new(),
@@ -237,6 +242,12 @@ impl CollectionItem {
     pub fn with_projection_recipe(mut self, material: retention::ProjectionRecipeMaterial) -> Self {
         self.kind = ItemKind::ProjectionRecipe;
         self.projection_recipe = Some(material);
+        self
+    }
+
+    pub fn with_metre_scene(mut self, scene: scenomise::backdrops::SceneInput) -> Self {
+        self.kind = ItemKind::MetreAlignment;
+        self.metre_scene = Some(scene);
         self
     }
 
@@ -266,6 +277,29 @@ impl CollectionItem {
     }
 
     pub fn validate(&self) -> Result<(), CollectionError> {
+        match (&self.kind, &self.metre_scene) {
+            (ItemKind::MetreAlignment, Some(scene)) => {
+                if !matches!(scene.facts, scenomise::backdrops::SceneFacts::MetreGrid(_)) {
+                    return Err(CollectionError::Invalid(
+                        "Metre alignment requires metrical facts".into(),
+                    ));
+                }
+                scene
+                    .validate()
+                    .map_err(|e| CollectionError::Invalid(e.to_string()))?;
+                if serde_json::to_vec(scene).map_err(CollectionError::Malformed)?.len() > scenomise::backdrops::MAX_SCENE_INPUT_BYTES {
+                    return Err(CollectionError::Invalid(
+                        "Metre scene exceeds one MiB".into(),
+                    ));
+                }
+            },
+            (ItemKind::MetreAlignment, None) | (_, Some(_)) => {
+                return Err(CollectionError::Invalid(
+                    "Metre kind and payload must match".into(),
+                ));
+            },
+            _ => {},
+        }
         match (&self.kind, &self.projection_recipe) {
             (ItemKind::ProjectionRecipe, Some(material)) => material.validate()?,
             (ItemKind::ProjectionRecipe, None) | (_, Some(_)) => {

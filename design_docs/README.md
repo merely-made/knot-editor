@@ -1,3 +1,5 @@
+- [Native metre editing and shared span intents](2026-09-30_knot_composition_readings.md#authored-metre-alignment-2026-10-17) — Qualified on macOS: focused Sound editor, span preview/cancel, keyboard and undo/redo, immutable typed sealed copies and exact fresh reopening. 72 focused cases, two native processes and six reviewed captures on Mere `4c4ea11d8`. [Receipt](../docs/receipts/2026-10-17_metre_editing/README.md).
+
 # Knot Editor design documents
 
 The dated plans record Knot's development while it lived in Mere and its move

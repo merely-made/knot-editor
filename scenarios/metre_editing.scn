@@ -1,0 +1,79 @@
+# Marked synthetic fixture starts with the exact two-line source selected.
+settle 8
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+wait
+settle 3
+click role:button Sound
+click role:button Enable bundled CMUdict
+click role:button Perfect rhyme
+click role:button Read selected sounds
+settle 4
+assert text 4 tokens
+click .knot-metre-rhyme
+click .knot-metre-start
+settle 5
+assert snap metre_dirty == true
+checkpoint-metre original
+click .knot-metre-scene
+settle 3
+press-metre-span bytes-0-9/syllable/1 body
+settle 2
+move-metre-span 1
+settle 3
+assert snap metre_preview == true
+assert snap metre_start == 1
+capture 01_move_preview
+key Escape
+release-metre-span 1
+settle 3
+assert snap metre_preview == false
+assert snap metre_start == 1
+checkpoint-metre cancelled
+press-metre-span bytes-0-9/syllable/1 body
+settle 2
+move-metre-span 1
+settle 2
+release-metre-span 1
+settle 3
+assert snap metre_start == 2
+key ArrowRight
+settle 3
+assert snap metre_start == 3
+press-metre-span bytes-0-9/syllable/1 start
+settle 2
+move-metre-span -1
+settle 2
+release-metre-span -1
+settle 3
+assert snap metre_start == 2
+assert snap metre_length == 2
+press-metre-span bytes-0-9/syllable/1 end
+settle 2
+move-metre-span 1
+settle 2
+release-metre-span 1
+settle 3
+assert snap metre_length == 3
+checkpoint-metre edited
+capture 02_edges_and_keyboard
+click .knot-metre-undo
+settle 2
+assert snap metre_length == 2
+click .knot-metre-redo
+settle 2
+assert snap metre_length == 3
+click .knot-metre-collect
+wait
+settle 6
+assert snap metre_dirty == false
+assert snap dirty == false
+checkpoint-metre saved
+resize 560 1000
+settle 6
+click role:button Open Readings
+settle 4
+click .knot-metre-scene
+settle 3
+capture 03_compact_saved

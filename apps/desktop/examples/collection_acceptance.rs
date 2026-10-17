@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let marker = root.join("PUBLIC-TEST-KEYS-NOT-A-PERSONAL-WALLET");
     let initialize =
-        mode == "--initialize-test-fixture" || mode == "--initialize-opened-link-fixture";
+        mode == "--initialize-test-fixture" || mode == "--initialize-opened-link-fixture" || mode == "--initialize-metre-fixture";
     let opened_link_fixture =
         mode == "--initialize-opened-link-fixture" || mode == "--reopen-opened-link-fixture";
     if initialize {
@@ -43,7 +43,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &marker,
             "Synthetic acceptance authority only; all keys are public test constants.\n",
         )?;
-        let essay = if opened_link_fixture {
+        let essay = if mode == "--initialize-metre-fixture" {
+            "the night\nthe light\n"
+        } else if opened_link_fixture {
             "# Night light\nNight light by the river.\n"
         } else {
             "# Night light\n\nNight light by the river.\n"
@@ -51,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         std::fs::write(root.join("essay.djot"), essay)?;
     } else if mode == "--reopen-test-fixture"
         || mode == "--inspect-test-fixture"
-        || mode == "--reopen-opened-link-fixture"
+        || mode == "--reopen-opened-link-fixture" || mode == "--reopen-metre-fixture"
     {
         if !marker.is_file()
             || !root.join("sync.redb").is_file()
@@ -189,7 +191,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
     let source = root.join("essay.djot");
-    let first = KnotDocumentSession::open(&source)?;
+    let mut first = KnotDocumentSession::open(&source)?;
+    if mode == "--initialize-metre-fixture" {
+        let snapshot = first.snapshot();
+        first.select_source_span(&snapshot.source.address, &snapshot.text, 0, snapshot.text.len())?;
+    }
     if mode == "--initialize-test-fixture" {
         let snapshot = first.snapshot();
         let mut item = CollectionItem::new(ItemKind::Note, "Night light passage", "Night light");

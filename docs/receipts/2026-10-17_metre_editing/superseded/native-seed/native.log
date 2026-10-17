@@ -1,0 +1,20 @@
+[knot] marked synthetic acceptance fixture: initial presentation grace 60s; restores to 10s on first successful presentation
+[cambium-winit] accessibility Installed, 52 nodes projected
+[knot] first successful presentation observed; initial grace ended, normal 10s presentation timeout restored
+knot: waited 0 frames
+knot: FAIL: assert snap metre_preview Eq 'true': got 'false'
+knot: FAIL: assert snap metre_start Eq '1': got ''
+knot: captured 01_move_preview
+knot: FAIL: assert snap metre_start Eq '1': got ''
+knot: FAIL: assert snap metre_start Eq '2': got ''
+knot: FAIL: assert snap metre_start Eq '3': got ''
+knot: FAIL: assert snap metre_start Eq '2': got ''
+knot: FAIL: assert snap metre_length Eq '2': got ''
+knot: FAIL: assert snap metre_length Eq '3': got ''
+knot: captured 02_edges_and_keyboard
+knot: FAIL: assert snap metre_length Eq '2': got ''
+knot: FAIL: assert snap metre_length Eq '3': got ''
+knot: waited 0 frames
+knot: captured 03_compact_saved
+knot: FAIL: no current DOM target for Selector { surface: None, matcher: Class("knot-metre-scene"), text: None, attr: None }
+knot: RESULT fail (206 frames, 3 captures)

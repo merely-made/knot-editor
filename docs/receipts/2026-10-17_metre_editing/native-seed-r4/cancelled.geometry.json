@@ -1,0 +1,29 @@
+{
+  "fields": {
+    "metre_digest": "60e8d0938b44869128383886dfe24d658da92363d3dbec2752e0539183c542b9",
+    "metre_dirty": "true",
+    "metre_length": "1",
+    "metre_preview": "false",
+    "metre_render_error": "",
+    "metre_rendered_size": "Some((600, 348))",
+    "metre_selected": "bytes-0-9/syllable/1",
+    "metre_start": "1"
+  },
+  "geometry": [
+    {
+      "painted": [
+        794.0,
+        131.0,
+        600.0,
+        348.0
+      ],
+      "visible": [
+        794.0,
+        131.0,
+        362.0,
+        348.0
+      ]
+    }
+  ],
+  "producer": true
+}

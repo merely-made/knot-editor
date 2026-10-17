@@ -16,12 +16,14 @@ pub(crate) type DesktopLogic = fn(&DesktopState) -> DesktopView;
 pub struct KnotLane {
     sheet: String,
     capture_run: Option<String>,
+    metre_pointer: Option<(f32, f32)>,
 }
 
 impl KnotLane {
     pub fn new(sheet: String) -> Self {
         Self {
             sheet,
+            metre_pointer: None,
             capture_run: std::env::var_os("KNOT_CAPTURE_CORRELATION")
                 .filter(|value| value == "1")
                 .map(|_| uuid::Uuid::new_v4().to_string()),
@@ -117,7 +119,48 @@ impl mesquite::Product for KnotLane {
         for (key, value) in ctx.runner.state().composition.motion_scenario_fields() {
             snapshot = snapshot.with_field(key, value);
         }
+        for (key, value) in crate::composition::metre::scenario_fields(ctx.runner.state()) { snapshot = snapshot.with_field(key, value); }
         snapshot
+    }
+
+    fn app_step(&mut self, ctx: &mut mesquite::Ctx<'_, Self>, _: mesquite::Checkpoints<'_>, line: &str) -> Result<(), String> {
+        use cambium_rootstock::HostPointer;
+        let parts: Vec<_> = line.split_whitespace().collect();
+        if let ["checkpoint-metre", name] = parts.as_slice() {
+            if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') { return Err("simple checkpoint name required".into()); }
+            let input = ctx.runner.state().composition.metre.draft.as_ref().ok_or("No metre draft")?;
+            let root = std::env::var_os("KNOT_CAPTURE_DIR").ok_or("No capture directory")?;
+            let root = std::path::PathBuf::from(root);
+            std::fs::write(root.join(format!("{name}.scene.json")),serde_json::to_vec_pretty(&input.scene).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
+            let nodes = { let dom=ctx.runner.dom(); let dom=dom.borrow(); taproot::matching(&*dom,&taproot::Selector::class("knot-metre-scene")) };
+            let geometry: Vec<_> = nodes.iter().map(|node| serde_json::json!({"painted":ctx.painted_rect(*node),"visible":ctx.visible_rect(*node)})).collect();
+            std::fs::write(root.join(format!("{name}.geometry.json")),serde_json::to_vec_pretty(&serde_json::json!({"geometry":geometry,"producer":ctx.producers.contains(crate::composition::metre::KEY),"fields":crate::composition::metre::scenario_fields(ctx.runner.state())})).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
+            return Ok(());
+        }
+        let node = { let dom = ctx.runner.dom(); let dom = dom.borrow(); taproot::matching(&*dom,&taproot::Selector::class("knot-metre-scene")).into_iter().next().ok_or("No metre scene leaf")? };
+        let (x,y,w,h) = ctx.painted_rect(node).ok_or("Metre scene is not painted")?;
+        let surfaces = ctx.runner.state().composition.metre.surfaces.borrow();
+        let surface = surfaces.surface.as_ref().ok_or("No metre surface")?;
+        match parts.as_slice() {
+            ["press-metre-span", key, part] => {
+                let r = surface.occurrence_rect(key,w.round() as u32,h.round() as u32).ok_or("No placed metre occurrence")?;
+                let local_x = match *part { "start" => r.x+1.0, "end" => r.x+r.width-1.0, "body" => r.x+r.width/2.0, _ => return Err("body/start/end required".into()) };
+                let point = (x+local_x,y+r.y+r.height/2.0);
+                self.metre_pointer = Some(point);
+                ctx.pointer.push(HostPointer::Press(point.0,point.1));
+            },
+            [verb @ ("move-metre-span" | "release-metre-span"), delta] => {
+                let delta:f32 = delta.parse().map_err(|_|"position delta required")?;
+                if !delta.is_finite() { return Err("finite delta required".into()); }
+                let origin = self.metre_pointer.ok_or("No pressed metre occurrence")?;
+                let a = surface.scene_point(0.0,0.0,w.round() as u32,h.round() as u32).ok_or("Invalid viewport")?;
+                let b = surface.scene_point(1.0,0.0,w.round() as u32,h.round() as u32).ok_or("Invalid viewport")?;
+                let target = (origin.0+delta*47.0/(b.x-a.x),origin.1);
+                if *verb == "move-metre-span" { ctx.pointer.push(HostPointer::Moved(target.0,target.1)); } else { ctx.pointer.push(HostPointer::Release(target.0,target.1)); self.metre_pointer = None; }
+            },
+            _ => return Err(format!("Unknown Knot step: {line}")),
+        }
+        Ok(())
     }
 
     fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
@@ -265,6 +308,7 @@ fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, St
     .collect();
     fields.extend(state.catalog_fold_facts().into_iter().map(|(key,value)|(key.to_owned(),value)));
     fields.extend(state.composition.motion_scenario_fields());
+    fields.extend(crate::composition::metre::scenario_fields(state));
     fields
 }
 

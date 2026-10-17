@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "source": {
+    "adapter": "knot.document",
+    "id": "file:///Users/markik/Code/output/metre-editing-2026-10-17/native-fixture-r4/essay.djot"
+  },
+  "revision": "359e003ab8cc2ff846933f229d8b4403046ed3631fbb042e183f5edc3fb4ff8b",
+  "title": "CMUdict candidate stress · later syllables numbered · not intended performance",
+  "facts": {
+    "kind": "metre_grid",
+    "data": {
+      "feet": 5,
+      "lines": [
+        {
+          "key": "bytes-0-9",
+          "source": {
+            "adapter": "knot.document-range",
+            "id": "file:///Users/markik/Code/output/metre-editing-2026-10-17/native-fixture-r4/essay.djot#bytes=0..9"
+          },
+          "text": "the night",
+          "syllables": [
+            {
+              "text": "the",
+              "stressed": false
+            },
+            {
+              "text": "night",
+              "stressed": true
+            }
+          ],
+          "alignment": [
+            {
+              "start": 0,
+              "length": 1
+            },
+            {
+              "start": 2,
+              "length": 3
+            }
+          ],
+          "rhyme_group": "R1",
+          "rhyme_tail": "5-30"
+        },
+        {
+          "key": "bytes-10-19",
+          "source": {
+            "adapter": "knot.document-range",
+            "id": "file:///Users/markik/Code/output/metre-editing-2026-10-17/native-fixture-r4/essay.djot#bytes=10..19"
+          },
+          "text": "the light",
+          "syllables": [
+            {
+              "text": "the",
+              "stressed": false
+            },
+            {
+              "text": "light",
+              "stressed": true
+            }
+          ],
+          "rhyme_group": "R1",
+          "rhyme_tail": "5-30"
+        }
+      ]
+    }
+  }
+}

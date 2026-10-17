@@ -1,0 +1,16 @@
+# Fresh sealed copy, ordinary horizontal scroll to the far edge of the metre.
+settle 8
+click role:button Readings
+click role:button Collection
+click role:button Synthetic acceptance mere
+wait
+settle 3
+click role:button Open retained metre alignment
+settle 4
+click .knot-metre-scene
+settle 2
+wheel 10000 0 px on .knot-metre-scroll
+settle 4
+assert snap metre_dirty == false
+assert snap dirty == false
+capture 07_rhyme_edge_reopened

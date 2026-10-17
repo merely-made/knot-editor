@@ -1,0 +1,62 @@
+{
+  "schema": "knot.metre-editing-acceptance/v1",
+  "date": "2026-10-17",
+  "base_commit": "9759ee872639f4f4c2c366075cdcaaaa066b4915",
+  "shared_mere": "4c4ea11d8ea4b0210fd70af62638484e25f29d5e",
+  "result": "pass",
+  "checks": {
+    "owner_tests": 5,
+    "adapter_model_tests": 6,
+    "composition_tests": 52,
+    "sealed_retention_tests": 9,
+    "build": "pass",
+    "exact_cancel": true,
+    "exact_edited_collected_reopened_scene": true,
+    "lexical_source_stress_rhyme_unchanged": true,
+    "source_bytes_unchanged": true,
+    "new_other_git_source_pins": []
+  },
+  "source_sha256": {
+    "Cargo.lock": "7f99b5a970cee5c9704367d18e323ae0cb63a23f1fd700a1c4a0a8a663e9c057",
+    "Cargo.toml": "610d2f62b10ab98a7fcde576d648f7e304d5d680fc266ec7603435cfa9af0b6f",
+    "apps/desktop/Cargo.toml": "3a8ba76dc1005ca6c35b1c54c93c425a6ea9442b38dff5192c5ed8c3f4c27776",
+    "apps/desktop/src/composition.rs": "fbe7ee3509bbdf74230bdba8294742c20899a38d18d2654dde5fea48ecc3306b",
+    "apps/desktop/src/composition/metre.rs": "407dfa93466f78b1d003a2e5ee462dabffcff9447fff24c1756041762d548bc0",
+    "apps/desktop/src/lib.rs": "d1f7cf360dcc8693e608a59064252f2183a670731f2055eaf66fcca434b2f7c4",
+    "apps/desktop/src/workspace.rs": "214245cd47c9b316b8d20b7eb7e805a89a556f78ea87d9628c5b2a653b010c83",
+    "apps/desktop/src/scenario.rs": "259249cc8aa4aaf6a5a0c94627bfd73e7c80ef667ba9825283c8bb10deee4a9e",
+    "apps/desktop/examples/collection_acceptance.rs": "1fe71dfc3ea6bd8c295c4a09888000ad1c978827e3f40be63a65e6fdaaa8a790",
+    "crates/knot-readings/src/metre_alignment.rs": "14a53400bb7a8ae3a71752d71a6bfaaf62c4980f734e598f32e6211bc2d70b00",
+    "crates/knot-readings/src/metre_scene.rs": "a56cef53d71f1a6784d5f8c5d6dd35c57e840ee8459e391fc9cc82e117734072",
+    "crates/knot-composition/src/lib.rs": "cb167b00babbf29bf78d6c4b5b50f384706a573f38ffcf684232c353a8cfb215",
+    "crates/knot-composition/src/selected_export.rs": "63b17d3322f9a19c2ab9625961e9873511db3721981e529e9683253f5fdd0cf5",
+    "crates/knot-editor/tests/composition_retention.rs": "e19ab9b8a03a6760918c844e4a0dc74998a9333c83126a1c33cb5a9b33f6035a",
+    "scenarios/metre_editing.scn": "dc5ac0325eb1b41d74b1d45b396f0fb8177571527df2144db27dd14d18eaad1c",
+    "scenarios/metre_editing_reopen.scn": "0b688302c02ca83c9c433e8bd2ea8dc19b569ea0063329b9d2dcecdc17c57bc6"
+  },
+  "binary_sha256": "7063a780f0cf580388d1abef2ca542092cec4ff77d37a55ebec844039c460866",
+  "native": {
+    "platform": "macOS",
+    "profile": "marked synthetic sealed collection; no personal custody",
+    "seed_frames": 162,
+    "reopen_frames": 75,
+    "reviewed_captures": 6,
+    "window_sizes": [
+      [
+        1200,
+        850
+      ],
+      [
+        560,
+        1000
+      ]
+    ],
+    "error_fields": "no metre render errors; producer rendered 600 by 348 logical px",
+    "rhyme_arc": "far-right ordinary horizontal scroll in final compact capture"
+  },
+  "limits": [
+    "No Windows/Linux qualification in this receipt",
+    "Prior Woodshed headed receipt is historical; this adoption has new locked route/model checks",
+    "Graphshell functional copy-edit receipt lives in Mere; its scrolled captures do not qualify every viewport"
+  ]
+}

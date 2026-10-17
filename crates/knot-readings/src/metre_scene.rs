@@ -101,6 +101,7 @@ pub fn metre_scene(
                 },
                 text: text[offset..end].into(),
                 syllables,
+                alignment: None,
                 rhyme_group: None,
                 rhyme_tail: tail,
             });

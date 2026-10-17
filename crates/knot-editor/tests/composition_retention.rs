@@ -159,7 +159,10 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
         serde_json::json!({"version": 1, "spec": "{\"channels\":{\"future\":\"opaque\"},\"root\":{\"id\":\"spring.rapier\",\"node\":\"preset\"},\"version\":1}"}),
     ).unwrap());
     let presentation = material.presentation.as_mut().unwrap();
-    presentation.motion_roles.insert("night:0".into(), serde_json::from_str("\"pinned\"").unwrap());
+    presentation.motion_roles.insert(
+        "night:0".into(),
+        serde_json::from_str("\"pinned\"").unwrap(),
+    );
     presentation.refresh_version();
     assert_eq!(presentation.version, 4);
     material.snapshot.recipe.definition.arrangement.spacing += 8;
@@ -473,4 +476,90 @@ fn commons_keys_are_required_for_both_reads_and_writes() {
     );
     assert!(port.list(port.target()).is_err());
     assert!(port.retain(port.target(), item).is_err());
+}
+
+#[test]
+fn typed_metre_versions_reopen_exactly_in_the_sealed_collection() {
+    use scenomise::{
+        backdrops::SceneInput,
+        span_edit::{SpanEdit, SpanEditIntent},
+    };
+    let scene: SceneInput = serde_json::from_value(serde_json::json!({
+        "version":1,"source":{"adapter":"knot.document","id":"private-verse-48392"},
+        "revision":"resolved-cmudict-reading-13","title":"Private alignment 482749",
+        "facts":{"kind":"metre_grid","data":{"feet":3,"positions_per_foot":2,"lines":[{
+            "key":"line-0","source":{"adapter":"knot.document","id":"private-verse-48392#0-9"},
+            "text":"the night","syllables":[{"text":"the","stressed":false},{"text":"night","stressed":true}],
+            "rhyme_group":"A","rhyme_tail":"AY1 T"
+        }]}}
+    })).unwrap();
+    scene.validate().unwrap();
+    let first = CollectionItem::new(
+        ItemKind::MetreAlignment,
+        "Alignment one",
+        "Captured metrical reading",
+    )
+    .with_metre_scene(scene.clone());
+    let intent =
+        SpanEditIntent::propose(&scene, "line-0/syllable/1", SpanEdit::Move, 1.0, 1).unwrap();
+    let mut edited = scene.clone();
+    edited.facts = intent.proposed_facts(&scene).unwrap();
+    edited.revision = "authored-alignment-2".into();
+    let second = CollectionItem::new(
+        ItemKind::MetreAlignment,
+        "Alignment two",
+        "Explicitly retained edited copy",
+    )
+    .with_metre_scene(edited.clone());
+    let mut malformed = second.clone();
+    malformed.kind = ItemKind::Note;
+    assert!(malformed.validate().is_err());
+    let mut absent = first.clone();
+    absent.metre_scene = None;
+    assert!(absent.validate().is_err());
+    // Legacy items serialize identically: no new null field changes old signed material.
+    assert!(
+        serde_json::to_value(CollectionItem::new(ItemKind::Note, "Old", "Old bytes"))
+            .unwrap()
+            .get("metre_scene")
+            .is_none()
+    );
+    let root = tempfile::tempdir().unwrap();
+    let database = root.path().join("sync.redb");
+    let vault_path = root.path().join("vault");
+    let (seed, writer) = identity();
+    {
+        let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
+        let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+        let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
+        let port = adapter(&resident);
+        port.retain(port.target(), first.clone()).unwrap();
+        port.retain(port.target(), second.clone()).unwrap();
+        assert!(port.retain(port.target(), malformed).is_err());
+    }
+    let raw = std::fs::read(&database).unwrap();
+    for secret in [
+        "private-verse-48392",
+        "Private alignment 482749",
+        "the night",
+    ] {
+        assert!(!raw.windows(secret.len()).any(|w| w == secret.as_bytes()));
+    }
+    let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
+    let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+    let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
+    let port = adapter(&resident);
+    let rows = port.list(port.target()).unwrap();
+    assert_eq!(rows.len(), 2);
+    assert!(rows.iter().any(|r| r.item == first));
+    assert!(rows.iter().any(|r| r.item == second));
+    assert_eq!(
+        scene.span_target("line-0/syllable/1").unwrap().span.start,
+        1
+    );
+    assert_eq!(
+        edited.span_target("line-0/syllable/1").unwrap().span.start,
+        2
+    );
+    assert!(!root.path().join("collection.json").exists());
 }

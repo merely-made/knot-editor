@@ -318,6 +318,7 @@ impl DocumentEntry {
 /// intentionally not part of `knot.document.v1`, whose source admission remains
 /// the embedding host's responsibility.
 pub struct DesktopState {
+    pub(crate) pool: crate::pool::State,
     /// The open documents and the tiles that show them.
     pub docs: DocumentWorkspace<DocumentEntry>,
     pub(crate) link_form: Option<crate::link_workflow::LinkForm>,
@@ -474,6 +475,7 @@ impl DesktopState {
             readings_root: None,
             readings: Vec::new(),
             composition: crate::composition::CompositionState::default(),
+            pool: Default::default(),
             knot_relations: None,
             readings_load_notes: Vec::new(),
             reading_scripts: HashMap::new(),
@@ -1631,6 +1633,7 @@ impl DesktopState {
     /// file that cannot be read leaves defaults and says why, and a file a
     /// newer Knot wrote loads what this one knows and says that.
     pub fn set_preferences_path(&mut self, path: Option<PathBuf>) {
+        self.pool = crate::pool::State::configured(path.as_ref().and_then(|p| p.parent()).map(|p| p.join("pool.json")));
         self.composition = crate::composition::CompositionState::configured(
             path.as_ref()
                 .and_then(|path| path.parent())
@@ -3924,6 +3927,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                     .attr("aria-hidden", "true")
                     .attr("style", format!("position:fixed;left:0;top:0;display:block;width:1ch;height:1px;visibility:hidden;overflow:hidden;font-family:{};font-size:{}px;", state.appearance.source_face.css_family(), state.appearance.font_size)),
                 state.appearance_open.then_some(appearance_panel),
+                crate::pool::view(state),
                 state.link_form.as_ref().map(|_| crate::link_workflow::form_view(state)),
                 document_frame(state),
                 state.pending.as_ref().map(|_| prompt),

@@ -294,6 +294,8 @@ pub fn view(state: &DesktopState, key: DocKey) -> DesktopView {
             )));
             continue;
         }
+        let pool_id = id.clone();
+        rows.push(Box::new(button("Add block to Pool", move |s: &mut DesktopState, _| crate::pool::add_block(s,key,&pool_id))));
         let body = &snapshot.source_text[div.body.clone()];
         let title = div
             .attributes

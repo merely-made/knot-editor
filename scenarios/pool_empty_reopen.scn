@@ -1,0 +1,6 @@
+settle 12
+click role:button Pool
+settle 3
+assert text Pool is empty
+assert text 0 items
+capture 06_pool_removal_reopened

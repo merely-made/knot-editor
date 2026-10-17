@@ -1,0 +1,11 @@
+settle 12
+assert snap dirty == false
+assert text Free composition
+click role:button Pool
+settle 3
+assert text 1 item
+capture 04_pool_reopened
+click role:button Remove from Pool
+settle 3
+assert text Pool is empty
+capture 05_pool_removed

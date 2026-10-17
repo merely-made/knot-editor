@@ -76,7 +76,7 @@ transport = { package = "mere-transport", version = "0.0.2", git = "https://gith
 # Nematic and the Knot editor host in Mere; the raw engine contracts stay in
 # Genet. Keep every source on the same immutable revision per repository as the
 # Mere and Turnstone consumers.
-tabard = { git = "https://github.com/merely-made/mere.git", branch = "main" }
+tabard = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", branch = "main" }
 tabard-workshop = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 cambium-rootstock = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 cambium = { version = "0.3.3", git = "https://github.com/merely-made/mere.git", branch = "main" }

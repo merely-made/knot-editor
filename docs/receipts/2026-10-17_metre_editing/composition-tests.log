@@ -1,0 +1,249 @@
+warning: skipping duplicate package `mere-proofs v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/proofs/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/proofs/Cargo.toml
+
+warning: skipping duplicate package `muniment v0.1.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/eidetic/muniment/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/eidetic/muniment/Cargo.toml
+
+warning: skipping duplicate package `mere-apparatus v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/domain/apparatus/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/domain/apparatus/Cargo.toml
+
+warning: skipping duplicate package `cambium v0.3.3 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/cambium/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/cambium/Cargo.toml
+
+warning: skipping duplicate package `inker v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/inker/inker/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/inker/inker/Cargo.toml
+
+warning: skipping duplicate package `nematic v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/nematic/nematic/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/nematic/nematic/Cargo.toml
+
+warning: skipping duplicate package `sprigging v0.2.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/sprigging/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/sprigging/Cargo.toml
+
+warning: skipping duplicate package `workbench v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/workbench/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/workbench/Cargo.toml
+
+warning: skipping duplicate package `chartulary v0.2.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/eidetic/chartulary/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/eidetic/chartulary/Cargo.toml
+
+warning: skipping duplicate package `eidetic v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/eidetic/eidetic-core/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/eidetic/eidetic-core/Cargo.toml
+
+warning: skipping duplicate package `mere-fetch v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/fetch/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/fetch/Cargo.toml
+
+warning: skipping duplicate package `pandect v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/pandect/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/pandect/Cargo.toml
+
+warning: skipping duplicate package `servitor v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/servitor/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/servitor/Cargo.toml
+
+warning: skipping duplicate package `stickleback v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/stickleback/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/stickleback/Cargo.toml
+
+warning: skipping duplicate package `illume v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/nematic/illume/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/nematic/illume/Cargo.toml
+
+warning: skipping duplicate package `mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/surface-api/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/surface-api/Cargo.toml
+
+warning: skipping duplicate package `meristem v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/meristem/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/meristem/Cargo.toml
+
+warning: skipping duplicate package `cambium-winit v0.3.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/cambium-winit/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/cambium-winit/Cargo.toml
+
+warning: skipping duplicate package `incipit v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/incipit/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/incipit/Cargo.toml
+
+warning: skipping duplicate package `mere-kernel v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/graph/graph-kernel/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/graph/graph-kernel/Cargo.toml
+
+warning: skipping duplicate package `errand v0.4.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/errand/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/errand/Cargo.toml
+
+warning: skipping duplicate package `armillary v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/armillary/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/armillary/Cargo.toml
+
+warning: skipping duplicate package `numen v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/conatus/numen/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/conatus/numen/Cargo.toml
+
+warning: skipping duplicate package `document-canvas v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/inker/document-canvas/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/inker/document-canvas/Cargo.toml
+
+warning: skipping duplicate package `mere-document-lanes v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/document-lanes/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/document-lanes/Cargo.toml
+
+warning: skipping duplicate package `mere-page-load v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/page-load/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/page-load/Cargo.toml
+
+warning: skipping duplicate package `mere-alembic v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/distillery/alembic/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/distillery/alembic/Cargo.toml
+
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261013#1f69c9bc)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling arrayvec v0.7.8
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling bytemuck v1.25.2
+   Compiling hashbrown v0.17.1
+   Compiling syn v3.0.6
+   Compiling thiserror v2.0.21
+   Compiling once_cell v1.21.4
+   Compiling num-rational v0.4.2
+   Compiling smallvec v1.16.2
+   Compiling ena v0.14.4
+   Compiling either v1.19.0
+   Compiling euclid v0.22.14
+   Compiling blake3 v1.8.7
+   Compiling safe_arch v1.2.0
+   Compiling tracing-core v0.1.36
+   Compiling tempfile v3.27.0
+   Compiling spade v2.15.1
+   Compiling tracing v0.1.44
+   Compiling wide v1.7.1
+   Compiling serde_json v1.0.151
+   Compiling indexmap v2.14.2
+   Compiling uuid v1.27.0
+   Compiling serde_path_to_error v0.1.20
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.21
+   Compiling num-derive v0.5.1
+   Compiling async-trait v0.1.92
+   Compiling petgraph v0.8.3
+   Compiling sceno v0.0.5 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling muniment v0.1.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling mere-curation v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling numen v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling reference-data v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling knot-file-catalog v0.0.1 (/Users/markik/Code/worktrees/knot-portable-metre/crates/knot-file-catalog)
+   Compiling simba v0.10.2
+   Compiling knot-capture v0.0.1 (/Users/markik/Code/worktrees/knot-portable-metre/crates/knot-capture)
+   Compiling scenograph v0.0.4 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling scenotime v0.0.4 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling scenomise v0.0.5 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling nalgebra v0.35.0
+   Compiling glamx v0.3.1
+   Compiling parry2d v0.31.1
+   Compiling rapier2d v0.36.0
+   Compiling seiche v0.0.6 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling knot-composition v0.0.1 (/Users/markik/Code/worktrees/knot-portable-metre/crates/knot-composition)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 00s
+     Running unittests src/lib.rs (target/build/debug/deps/knot_composition-04246011aa04b1d2)
+
+running 1 test
+test selected_export::tests::selected_text_preserves_native_anchor_but_omits_private_material ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/bin/knot-wordnet-import.rs (target/build/debug/deps/knot_wordnet_import-c728dcc73a663a28)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/collections.rs (target/build/debug/deps/collections-1e5de5313d4a487b)
+
+running 18 tests
+test copied_quote_is_not_normalized_or_reinterpreted ... ok
+test optional_hash_checks_exact_original_bytes_and_never_searches ... ok
+test stale_source_is_not_implicitly_relocated_even_if_quote_still_exists ... ok
+test unicode_ranges_are_bytes_not_characters_and_cannot_split_codepoints ... ok
+test old_collection_records_do_not_require_a_recipe_payload ... ok
+test invalid_anchor_shape_or_hash_cannot_be_persisted ... ok
+test oversized_existing_store_is_refused_without_modification ... ok
+test symlink_store_is_refused_and_target_is_untouched ... ok
+test unknown_item_fields_and_duplicate_ids_are_not_silently_discarded ... ok
+test malformed_or_unknown_store_is_never_overwritten ... ok
+test malformed_external_replacement_is_preserved_and_mutation_is_refused ... ok
+test absent_open_is_read_only_and_collect_creates_a_reopenable_store ... ok
+test refused_item_or_duplicate_preserves_previous_file_and_memory ... ok
+test saved_personal_data_is_private_and_temporary_files_are_cleaned ... ok
+test sidecar_lock_refuses_overlapping_writes_without_changing_file ... ok
+test two_handles_cannot_lose_each_others_material ... ok
+test remove_is_durable_and_absent_remove_does_not_create_a_file ... ok
+test all_item_kinds_and_author_material_survive_reopen_without_pack_access ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.53s
+
+     Running tests/recipes.rs (target/build/debug/deps/recipes-70f25e3f62b2e6cc)
+
+running 21 tests
+test presentation_v1_without_background_categories_remains_byte_identical ... ok
+test presentation_v2_bytes_stay_identical_without_placement_trace ... ok
+test presentation_v2_allows_an_empty_background_category_set ... ok
+test legacy_recipe_without_scene_presentation_remains_valid_and_omitted ... ok
+test presentation_v2_roundtrips_exact_disclosed_background_categories ... ok
+test presentation_v1_refuses_nonempty_background_categories ... ok
+test presentation_rejects_invalid_background_categories ... ok
+test motion_roles_reject_unknown_ids_invalid_versions_and_empty_v4 ... ok
+test scene_presentation_roundtrips_with_disclosed_occurrences ... ok
+test authored_occurrences_keep_distinct_positions_when_they_share_a_source ... ok
+test placement_trace_refuses_shared_scene_edits_outside_occurrence_translation ... ok
+test authored_positions_survive_recipe_edits_but_refuse_rebound_source_anchors ... ok
+test motion_roles_roundtrip_by_disclosed_occurrence_and_keep_repeated_sources_distinct ... ok
+test scene_placement_refusal_preserves_exact_material ... ok
+test validation_outcome_does_not_depend_on_card_size ... ok
+test a_complete_preview_pose_keeps_hidden_occurrences_and_preserves_roles_and_source ... ok
+test scene_presentation_rejects_unknown_fields_versions_and_invalid_view_values ... ok
+test authored_positions_roundtrip_in_shared_trace_and_keep_zero_as_an_override ... ok
+test placement_trace_refuses_nonfinite_items_annotations_and_excess_steps ... ok
+test typed_recipe_roundtrips_and_rejects_invalid_associations_and_anchors ... ok
+test a_preview_pose_is_atomic_for_missing_foreign_nonfinite_and_exhausted_trace_input ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.59s
+
+     Running tests/wordnet_import.rs (target/build/debug/deps/wordnet_import-b4e77e8463a7960b)
+
+running 13 tests
+test local_upstream_oewn_pack_installs_disabled_then_looks_up_after_enable ... ignored, requires KNOT_TEST_OEWN_PACK pointing to an explicitly converted local upstream OEWN2025 pack
+test explicit_identity_and_nonempty_lemma_selection_are_required ... ok
+test malformed_external_entities_extensions_and_nested_important_markup_are_refused ... ok
+test neighbors_do_not_recursively_expand_but_all_output_targets_resolve ... ok
+test lowered_retained_record_budget_is_enforced_before_growth ... ok
+test unicode_lemma_lookup_is_exact_and_preserved ... ok
+test oewn_retains_both_upstream_notices_and_attributions_and_refuses_unknown_license ... ok
+test missing_targets_duplicate_senses_and_ambiguous_definitions_are_refused ... ok
+test real_lmf_structure_preserves_sense_targets_concepts_license_and_exact_text ... ok
+test self_closing_senses_and_explicitly_closed_relations_are_equivalent ... ok
+test attacker_chosen_diagnostic_names_are_bounded ... ok
+test cli_rejects_bad_input_without_creating_output ... ok
+test cli_emits_valid_pack_and_report_and_never_overwrites_output ... ok
+
+test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.46s
+
+   Doc-tests knot_composition
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

@@ -234,3 +234,35 @@ restart, narrow viewport and zoom acceptance remain separate follow-ups.
 Pure model tests, desktop integration tests and native visual acceptance are
 reported separately; a passing model suite is not evidence that a panel renders
 well at every size.
+
+
+## Authored metre alignment (2026-10-17)
+
+Add a native metrical scene to Sound readings over the same portable
+BackdropSurface used by Graphshell and Woodshed. Capture a complete current
+CMUdict reading explicitly; retain its source ranges, selected pronunciation,
+candidate stress and rhyme evidence. Edits author only position spans. Pointer
+move/start/end gestures snap to metrical positions, preview until release and
+cancel on Escape or stale source; keyboard equivalents and explicit retention
+reopen a copied scene independently of the original document.
+
+Prove the consumer first, then extract only the revision-qualified span-edit
+intents demonstrated by this consumer and Woodshed. Domain acceptance,
+retention and source authority stay with the two products. Graphshell is the
+first shared host for local copied-scene editing, with portable import/export.
+Done conditions include actual native/copy-reopen interaction, stale/forged
+intent refusal, exact source/evidence preservation and both consumers using
+the shared intents. Source document mutation and inferred intended performance
+are outside this slice.
+
+Landed and qualified on macOS: the active alignment leads Sound while open,
+with a stable scene surface, explicit horizontal scroll, body/start/end preview,
+Escape, keyboard edits, undo/redo, typed sealed collection and exact fresh-process
+reopening. Five owner/host-route, six adapter/model, 52 composition and nine sealed
+retention cases pass on canonical Mere `4c4ea11d8`; the locked desktop build and
+two final native processes pass with six reviewed captures and 237 presented
+frames. The pronunciation reading is revision-bound; edits preserve the portable
+source/stress/rhyme facts. The source document remains byte-identical. See the
+[receipt](../docs/receipts/2026-10-17_metre_editing/README.md) for source binding,
+superseded layout failures and platform limits. Woodshed's published shared-intent
+adoption is `28a0741`; domain validation and persistence remain product-owned.

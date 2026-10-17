@@ -24,6 +24,7 @@ use std::{
 };
 
 mod recipe;
+pub(crate) mod metre;
 
 pub(crate) use recipe::measure_cards as measure_recipe_cards;
 pub(crate) use recipe::pause_hidden_motion;
@@ -96,6 +97,7 @@ impl SelectionSnapshot {
 #[derive(Default)]
 pub struct CompositionState {
     recipe: recipe::RecipeState,
+    pub(crate) metre: metre::MetreState,
     pub(crate) query: TextInput,
     pub(crate) import_path: TextInput,
     pub(crate) import_digest: TextInput,
@@ -314,6 +316,7 @@ impl CompositionState {
                         });
                         self.organization_edit = None;
                         for entry in &self.retained {
+                            if let Some(scene) = entry.item.metre_scene.as_ref() { self.metre.mark_retained(scene); }
                             if let Some(material) = entry.item.projection_recipe.as_ref() {
                                 recipe::mark_retained(&mut self.recipe, material);
                             }
@@ -924,6 +927,9 @@ fn analyze_sound(state: &mut DesktopState, key: DocKey, retain_choices: bool) {
 }
 
 fn sound_view(state: &DesktopState, key: DocKey) -> DesktopView {
+    // A captured alignment is the active Sound editor; the lexical control
+    // form remains in state and returns when this draft is closed/discarded.
+    if state.composition.metre.draft.is_some() { return metre::view(state, key); }
     let active = state.composition.cmudict_enabled;
     let stale = state
         .composition
@@ -1068,6 +1074,7 @@ fn sound_view(state: &DesktopState, key: DocKey) -> DesktopView {
                 ),
             ),
             meter,
+            metre::view(state, key),
             button(
                 "Collect sound reading",
                 move |state: &mut DesktopState, _| {
@@ -1264,6 +1271,8 @@ fn collection_view(state: &DesktopState) -> DesktopView {
             let item = &retained.item;
             let anchor = item.document_source.clone();
             let saved_recipe = item.projection_recipe.clone();
+            let saved_metre = item.metre_scene.clone();
+            let metre_anchor = item.document_source.clone();
             let change = OrganizeComposition {
                 author: retained.author,
                 item_id: item.id.clone(),
@@ -1350,6 +1359,12 @@ fn collection_view(state: &DesktopState) -> DesktopView {
                             )
                             .attr("data-item-id", item.id.clone())
                         }),
+                        saved_metre.map(|scene| button("Open retained metre alignment", move |state: &mut DesktopState, _| {
+                            match state.composition.metre.open_copy(scene.clone(), metre_anchor.clone()) {
+                                Ok(()) => state.composition.section = 1,
+                                Err(e) => state.composition.notice = Some(e),
+                            }
+                        }).attr("class", "knot-metre-reopen")),
                         button("Return to source", move |state: &mut DesktopState, _| {
                             let Some(anchor) = anchor.as_ref() else {
                                 return;

@@ -3375,7 +3375,7 @@ fn recovery_detail(state: &DesktopState) -> DesktopView {
 
 pub fn desktop_view(state: &DesktopState) -> DesktopView {
     if state.theme_session.workshop_open {
-        return crate::theme_session::workshop_screen(state);
+        return Box::new(el("div", (crate::theme_session::workshop_screen(state), crate::composition::metre::close_prompt(state))).attr("style", "display:flex;flex-direction:column;width:100%;height:100%"));
     }
     let appearance_panel: DesktopView = if state.appearance_open {
         let appearance = &state.appearance;
@@ -3927,6 +3927,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 state.link_form.as_ref().map(|_| crate::link_workflow::form_view(state)),
                 document_frame(state),
                 state.pending.as_ref().map(|_| prompt),
+                crate::composition::metre::close_prompt(state),
                 status_bar,
             ),
         )

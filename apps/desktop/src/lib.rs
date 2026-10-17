@@ -46,6 +46,7 @@ use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> {
     let mut hooks: HostHooks<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView> = inert_hooks();
     let mut previews = theme_session::PreviewBindings::default();
+    let mut metre = composition::metre::Bindings::default();
     // Rootstock clears the current redraw receipt before the pre-frame hook.
     // Observe its result after-frame instead, retaining only session-local
     // eligibility for the following attempt. A failed presentation freezes
@@ -59,6 +60,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
             crate::composition::pause_hidden_motion(ctx);
         }
         theme_session::update_stylesheet(ctx);
+        metre.frame(ctx);
         previews.frame(ctx)
     });
     hooks.after_frame = Box::new(move |ctx| {
@@ -71,6 +73,11 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
     });
     hooks.after_wake = Box::new(workspace::after_wake);
     hooks.close_request = Box::new(|ctx, request| {
+        ctx.runner.update(|s| s.composition.metre.cancel());
+        if ctx.runner.state().composition.metre.dirty() {
+            ctx.runner.update(|s| s.composition.metre.close_pending = true);
+            return cambium_genet_winit_host::CloseDisposition::KeepVisible;
+        }
         let disposition = theme_session::close_request(ctx, request);
         theme_session::update_stylesheet(ctx);
         disposition
@@ -92,7 +99,7 @@ pub fn desktop_sheet() -> String {
         document_preview::CSS,
         navigator::CSS,
         readings::CSS,
-        scroll_site::CSS
+        format!("{}{}{}", scroll_site::CSS, composition::metre::CSS, cambium::BACKDROP_SCENE_CSS)
     )
 }
 

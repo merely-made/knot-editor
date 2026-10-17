@@ -1,0 +1,162 @@
+warning: skipping duplicate package `mere-proofs v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/proofs/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/proofs/Cargo.toml
+
+warning: skipping duplicate package `muniment v0.1.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/eidetic/muniment/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/eidetic/muniment/Cargo.toml
+
+warning: skipping duplicate package `mere-apparatus v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/domain/apparatus/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/domain/apparatus/Cargo.toml
+
+warning: skipping duplicate package `cambium v0.3.3 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/cambium/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/cambium/Cargo.toml
+
+warning: skipping duplicate package `inker v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/inker/inker/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/inker/inker/Cargo.toml
+
+warning: skipping duplicate package `nematic v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/nematic/nematic/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/nematic/nematic/Cargo.toml
+
+warning: skipping duplicate package `sprigging v0.2.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/sprigging/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/sprigging/Cargo.toml
+
+warning: skipping duplicate package `workbench v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/workbench/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/workbench/Cargo.toml
+
+warning: skipping duplicate package `chartulary v0.2.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/eidetic/chartulary/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/eidetic/chartulary/Cargo.toml
+
+warning: skipping duplicate package `eidetic v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/eidetic/eidetic-core/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/eidetic/eidetic-core/Cargo.toml
+
+warning: skipping duplicate package `mere-fetch v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/fetch/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/fetch/Cargo.toml
+
+warning: skipping duplicate package `pandect v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/pandect/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/pandect/Cargo.toml
+
+warning: skipping duplicate package `servitor v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/servitor/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/servitor/Cargo.toml
+
+warning: skipping duplicate package `stickleback v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/stickleback/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/stickleback/Cargo.toml
+
+warning: skipping duplicate package `illume v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/nematic/illume/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/nematic/illume/Cargo.toml
+
+warning: skipping duplicate package `mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/surface-api/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/surface-api/Cargo.toml
+
+warning: skipping duplicate package `meristem v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/meristem/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/meristem/Cargo.toml
+
+warning: skipping duplicate package `cambium-winit v0.3.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/cambium/cambium-winit/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/cambium/cambium-winit/Cargo.toml
+
+warning: skipping duplicate package `incipit v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/incipit/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/incipit/Cargo.toml
+
+warning: skipping duplicate package `mere-kernel v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/graph/graph-kernel/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/graph/graph-kernel/Cargo.toml
+
+warning: skipping duplicate package `errand v0.4.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/errand/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/errand/Cargo.toml
+
+warning: skipping duplicate package `armillary v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/armillary/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/armillary/Cargo.toml
+
+warning: skipping duplicate package `numen v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/conatus/numen/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/conatus/numen/Cargo.toml
+
+warning: skipping duplicate package `document-canvas v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/inker/document-canvas/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/inker/document-canvas/Cargo.toml
+
+warning: skipping duplicate package `mere-document-lanes v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/document-lanes/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/document-lanes/Cargo.toml
+
+warning: skipping duplicate package `mere-page-load v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/system/page-load/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/system/page-load/Cargo.toml
+
+warning: skipping duplicate package `mere-alembic v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)`:
+  /Users/markik/Code/worktrees/mere-vello-release-adoption/crates/distillery/alembic/Cargo.toml
+in favor of /Users/markik/.cargo/git/checkouts/mere-9d8e871c24d9ba76/4c4ea11/crates/distillery/alembic/Cargo.toml
+
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261013#1f69c9bc)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+    Blocking waiting for file lock on build directory
+   Compiling sceno v0.0.5 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling mere-curation v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling command-menu v0.1.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling genet-scripted-dom v0.1.2 (https://github.com/merely-made/genet.git?branch=main#6186c81a)
+   Compiling illume v0.0.2 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling errand v0.4.0 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling scenograph v0.0.4 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling script-rhai v0.0.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling scenomise v0.0.5 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?branch=main#4c4ea11d)
+   Compiling knot-document v0.0.1 (/Users/markik/Code/worktrees/knot-portable-metre/crates/knot-document)
+   Compiling knot-readings v0.0.1 (/Users/markik/Code/worktrees/knot-portable-metre/crates/knot-readings)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 50.14s
+     Running unittests src/lib.rs (target/build/debug/deps/knot_readings-390ce9d844f6e677)
+
+running 6 tests
+test metre_scene::tests::unresolved_and_stale_readings_are_refused_without_source_edits ... ok
+test metre_scene::tests::original_carriage_return_ranges_are_kept_in_the_reading ... ok
+test metre_alignment::tests::stale_forged_and_invalid_proposals_are_atomic_refusals ... ok
+test metre_scene::tests::a_selected_pronunciation_changes_the_exported_candidate_revision ... ok
+test metre_scene::tests::selected_pronunciation_and_source_ranges_survive_portable_round_trip ... ok
+test metre_alignment::tests::positional_edits_preserve_source_stress_and_rhyme_and_one_step_history ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 11 filtered out; finished in 1.25s
+
+     Running unittests src/bin/knot-metre-scene.rs (target/build/debug/deps/knot_metre_scene-91fe63543d4f32c9)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/reading_bindings.rs (target/build/debug/deps/reading_bindings-ab327598cbe78bf0)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 12 filtered out; finished in 0.00s
+
+     Running tests/reading_sandbox.rs (target/build/debug/deps/reading_sandbox-f96a072d62e4a991)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+

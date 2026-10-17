@@ -15,9 +15,12 @@ pub fn export_selected_content(
     item: &CollectionItem,
 ) -> Result<serde_json::Value, CollectionError> {
     item.validate()?;
-    if item.kind == ItemKind::ProjectionRecipe {
+    if matches!(
+        item.kind,
+        ItemKind::ProjectionRecipe | ItemKind::MetreAlignment
+    ) {
         return Err(CollectionError::Invalid(
-            "projection recipes require a typed export adapter".into(),
+            "scene and relationship recipes require a typed export adapter".into(),
         ));
     }
     Ok(serde_json::json!({

@@ -21,6 +21,7 @@ mod mere_overlay;
 mod link_workflow;
 pub mod navigator;
 pub mod preferences;
+pub mod pool;
 pub mod readings;
 pub mod recovery;
 mod recovery_runtime;

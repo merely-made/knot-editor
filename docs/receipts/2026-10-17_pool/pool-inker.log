@@ -1,0 +1,8 @@
+   Compiling inker v0.1.1 (/Users/markik/Code/worktrees/mere-portable-scene-backdrops/crates/inker/inker)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 14.51s
+     Running unittests src/lib.rs (target/build/debug/deps/inker-3d9123ab74cfdbec)
+
+running 1 test
+test pool::tests::independent_finished_and_unresolved_material_have_the_same_lifetime ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 123 filtered out; finished in 0.00s

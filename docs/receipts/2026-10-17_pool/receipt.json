@@ -1,0 +1,70 @@
+{
+  "schema": "knot.pool-workspace-prototype/v1",
+  "date": "2026-10-17",
+  "status": "local native prototype qualified; provisional material envelope",
+  "source": {
+    "knot_base": "5fe155485835e49d4a3df1308887a2b4b4477102",
+    "mere_base": "18b195dcd12286238a76d8576f9f2fa09eaedf55",
+    "changed_sources": "native-source-sha256.json",
+    "source_cohort": "local-source.toml",
+    "canonical_lockfile_restored": true,
+    "canonical_lockfile_sha256": "7f99b5a970cee5c9704367d18e323ae0cb63a23f1fd700a1c4a0a8a663e9c057"
+  },
+  "build": {
+    "pass": true,
+    "log": "pool-knot-build-final.log",
+    "toolchain": "Homebrew rustc/cargo 1.99.0; repository toolchain declares 1.99.1",
+    "features": "knot-desktop --no-default-features",
+    "canonical_supplier_integration": false
+  },
+  "tests": {
+    "shared_pool_model": {
+      "passed": 1,
+      "log": "pool-inker.log"
+    },
+    "desktop_pool": {
+      "passed": 3,
+      "log": "pool-knot-tests-fixed.log",
+      "covers": [
+        "copied authored block shared across document tabs",
+        "fresh independent metre ID on insertion",
+        "one-step destination undo/redo",
+        "source remains clean and byte-identical",
+        "plain selection copied from a read-only source; insertion refusal preserves Pool",
+        "file reopening and explicit removal persist",
+        "corrupt, stale and unavailable storage never replaced by defaults"
+      ]
+    }
+  },
+  "native": {
+    "processes": 3,
+    "captures": 6,
+    "all_success": true,
+    "binary_sha256": "190fc3403f1fefbf0f01258f2487e0752c0476315269a3ce043601b161331a82",
+    "routes": [
+      "native-add/process.json",
+      "native-reopen/process.json",
+      "native-empty-reopen/process.json"
+    ],
+    "visual_review": "All six full-frame captures inspected, including 560x1000 logical compact window; no blank captures. Pool material, normal saved destination and removal each survive separate processes.",
+    "source_file_unchanged": true,
+    "destination_contains_independent_block_and_original_text": true,
+    "saved_destination_artifact": "fixtures/destination.saved.djot",
+    "initial_destination_fixture": "fixtures/destination.djot"
+  },
+  "superseded_failures": {
+    "log": "pool-knot-tests-final.log",
+    "details": [
+      "Plain text read-only test initially used an unsupported .txt input; corrected to the supported plain-text Gemini format.",
+      "Initial block insertion could abut existing text at its closing fence; fixed separation on both sides, with the same regression case now passing."
+    ]
+  },
+  "limits": [
+    "Temporary local supplier cohort only; canonical dependency adoption remains separate.",
+    "No standalone Pool crate; Inker shares inert material data, hosts own storage and edits.",
+    "UTF-8 plain text and Djot only; richer previews, drag/drop and pocket/minimap presentation remain open.",
+    "Host-local workspace data, no cross-application sync.",
+    "Native stale-file comparison plus atomic replace is not an OS-level cross-process compare-and-swap lock.",
+    "One tested macOS native configuration; no Windows/Linux or external accessibility acceptance claim."
+  ]
+}

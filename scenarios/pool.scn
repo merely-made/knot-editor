@@ -1,0 +1,22 @@
+# Workspace Pool stays outside document tabs and insertion uses normal Save.
+settle 12
+assert snap dirty == false
+click role:button Add block to Pool
+settle 4
+assert text Block added to Pool
+assert text 1 item
+assert snap dirty == false
+capture 01_pool_source
+click role:tab destination.djot
+settle 4
+click role:button Insert from Pool
+settle 4
+assert snap dirty == true
+assert text Inserted independent content
+click role:button Save
+settle 4
+assert snap dirty == false
+capture 02_pool_destination
+resize 560 1000
+settle 5
+capture 03_pool_compact

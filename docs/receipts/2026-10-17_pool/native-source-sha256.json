@@ -1,0 +1,10 @@
+{
+  "apps/desktop/src/pool.rs": "e9d841c526bf88e728de8a305777e0bfa81d8842b284edd52b4d336866804369",
+  "apps/desktop/src/composition/block_lens.rs": "f4d305fd3403874bc392a639e2a39698a2f010c67c1063f0c7ba1faa20da9e81",
+  "apps/desktop/src/workspace.rs": "126b0210df95ece3fdd18d4abaef3fd0cf1ed480ab55e3aafe70c9da271e4e8c",
+  "apps/desktop/src/lib.rs": "f072a7eb336e6e09568a0e8042800661e090f166a8376a86c405a269409d9bac",
+  "shared_in_supporting_mere": {
+    "crates/inker/inker/src/pool.rs": "8f01c77a1c1d58d8e23d2e9e1ddcf446a1ef4328c3bd5b3727695adf439e9ea8",
+    "crates/inker/inker/src/lib.rs": "5eae9fba00eca4488c671789cb45fb9723cfb91938c8adfcdb81aa2caec6cd23"
+  }
+}

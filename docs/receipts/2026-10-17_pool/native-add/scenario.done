@@ -1,0 +1,9 @@
+RESULT ok
+captured 01_pool_source
+captured 02_pool_destination
+captured 03_pool_compact
+capture 01_pool_source 2400x2000 digest=be1a872b92ccacc2 file=/Users/markik/Code/output/pool-20261017/native-add/01_pool_source.png
+capture 02_pool_destination 2400x2000 digest=b3f216c26919cfef file=/Users/markik/Code/output/pool-20261017/native-add/02_pool_destination.png
+capture 03_pool_compact 1120x2000 digest=d4f464bfc8838958 file=/Users/markik/Code/output/pool-20261017/native-add/03_pool_compact.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 55 frames, 58 redraws, 3 unpresented redraws

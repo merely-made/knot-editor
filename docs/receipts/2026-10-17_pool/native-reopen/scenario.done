@@ -1,0 +1,7 @@
+RESULT ok
+captured 04_pool_reopened
+captured 05_pool_removed
+capture 04_pool_reopened 2400x2000 digest=230baad1a3e8fb5d file=/Users/markik/Code/output/pool-20261017/native-reopen/04_pool_reopened.png
+capture 05_pool_removed 2400x2000 digest=757a395104ab7f6d file=/Users/markik/Code/output/pool-20261017/native-reopen/05_pool_removed.png
+frames: 2 captured, 0 blank, 2 distinct digests
+presentation: 30 frames, 35 redraws, 5 unpresented redraws

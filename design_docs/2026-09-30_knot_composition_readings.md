@@ -297,5 +297,30 @@ the rich-text block interaction is still a prototype.
 normal file save/reopen and actual native evidence. Checks require the local Mere
 cohort, using `support/design-studies/backdrops/with_local_scene_source.py
 --document-blocks`; the canonical supplier lockfile is not newly qualified.
-Workspace holding, group edits, alternate arrangements and reusable-template
+Pool is implemented in the next slice below; group edits, alternate arrangements and reusable-template
 instance updates remain subsequent slices under the answered audit directions.
+
+
+### Pool workspace utility (2026-10-17)
+
+Pool is a persistent holding utility outside the document tabs. Add a source
+selection or an authored metre block, switch documents, then insert independent
+content through the destination's ordinary text history and Save path. Insertion
+leaves the held item intact and regenerates metre block IDs. The source address
+is provenance/navigation only; Open source never creates a live content link.
+Pool changes save independently of composition Save or explicit Collect.
+
+The shared data module is `inker::pool`, also used by Graphshell for portable
+metre/progression scenes and text. No separate Pool crate is extracted yet.
+Native persistence lives beside workspace preferences in `pool.json`. Invalid or
+unsupported files and stale storage refuse writes rather than resetting the
+Pool. Failed writes leave the visible Pool and its previous file intact. The
+stale check does not provide an OS-level multi-process lock.
+
+This is a compact expandable utility panel; the proposed pocket/minimap visual,
+drag/drop, grouping and richer previews remain open. Payloads are currently
+UTF-8 plain text or Djot; this does not establish arbitrary asset storage or
+cross-application synchronization. Template application remains a separate
+operation from content insertion. Verification is recorded in
+`docs/receipts/2026-10-17_pool/receipt.json`, using a temporary local Mere source
+cohort rather than a newly integrated canonical supplier lockfile.

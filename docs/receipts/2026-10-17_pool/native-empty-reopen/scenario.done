@@ -1,0 +1,5 @@
+RESULT ok
+captured 06_pool_removal_reopened
+capture 06_pool_removal_reopened 2400x2000 digest=1d9411cfcd490da2 file=/Users/markik/Code/output/pool-20261017/native-empty-reopen/06_pool_removal_reopened.png
+frames: 1 captured, 0 blank, 1 distinct digests
+presentation: 22 frames, 25 redraws, 3 unpresented redraws

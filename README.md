@@ -31,7 +31,7 @@ Collection retention requires explicitly attaching an existing personal mere
 and choosing its destination in the Collection panel. Ordinary file-only launch
 does not create or select an identity. See [attachment and legacy import](design_docs/2026-09-30_composition_mere_retention.md).
 
-The workspace uses Rust 1.99.0, with MSRV 1.97.1, and pins its Mere and Genet source identities.
+The workspace uses Rust 1.99.1, with MSRV 1.97.1, and pins its Mere and Genet source identities.
 Transport implementations come from the Murm family supplier while identity
 contracts come from Dramatis. The coordinated adoption is tracked in
 `murm/design_docs/2026-10-13_murm_family_move_plan.md`.

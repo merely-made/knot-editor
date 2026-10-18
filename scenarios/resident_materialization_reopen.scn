@@ -22,6 +22,9 @@ click role:button @data-step=fork
 wait
 assert snap resident_session_count == 5
 assert snap resident_fork_count == 1
+click .mere-view-card-close
+wait
+assert snap graph_open == true
 inspect-resident-fork
 wait
 assert snap graph_open == true

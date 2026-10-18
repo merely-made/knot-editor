@@ -123,7 +123,13 @@ fn command_inserts_undoes_saves_and_reopens_a_source_authored_link() {
         knot_document::KnotDocumentWritePostureV1::ReadOnly
     );
 
+    let stamp = fixture.harness.state().document().session().source_stamp();
     open_link_form(&mut fixture.harness);
+    fixture.harness.relayout();
+    assert_eq!(
+        fixture.harness.state().document().session().source_stamp(),
+        stamp
+    );
     assert!(
         fixture
             .harness
@@ -142,6 +148,17 @@ fn command_inserts_undoes_saves_and_reopens_a_source_authored_link() {
     fixture.harness.after_dispatch();
 
     let linked = fixture.harness.state().document().snapshot();
+    assert_eq!(
+        fixture
+            .harness
+            .state()
+            .document()
+            .session()
+            .source_stamp()
+            .revision,
+        stamp.revision + 1
+    );
+    assert_eq!(std::fs::read_to_string(&fixture.source).unwrap(), SOURCE);
     assert!(
         linked.dirty,
         "insertion should dirty the existing source buffer"
@@ -204,6 +221,7 @@ fn command_inserts_undoes_saves_and_reopens_a_source_authored_link() {
         parsed.links[0].rel.as_deref(),
         Some("https://mere.computer/ns/rel#supports")
     );
+    fresh_process_reopen(&fixture.source, &linked.text, 1);
 }
 
 #[test]
@@ -256,5 +274,150 @@ fn cancelling_or_escaping_restores_source_focus_without_editing() {
         fixture.harness.focus(),
         source_focus,
         "Cancel should return focus to the source editor"
+    );
+}
+
+#[test]
+fn external_edit_refuses_save_and_reopening_keeps_the_external_source() {
+    let mut fixture = fixture();
+    open_link_form(&mut fixture.harness);
+    assert!(
+        fixture
+            .harness
+            .click_on(&Selector::role("button").with_attr("data-link-target", "0"))
+    );
+    fixture.harness.relayout();
+    assert!(
+        fixture
+            .harness
+            .click_on(&Selector::role("button").with_attr("id", "knot-link-insert"))
+    );
+    let draft = fixture.harness.state().document().snapshot().text;
+    assert_ne!(draft, SOURCE);
+    std::fs::write(
+        &fixture.source,
+        "# External author\n\nTheir edit survives.\n",
+    )
+    .unwrap();
+    fixture.harness.press_key(&command_shortcut("s", false));
+    fixture.harness.after_dispatch();
+    let snapshot = fixture.harness.state().document().snapshot();
+    assert_eq!(snapshot.text, draft);
+    assert!(snapshot.dirty);
+    assert_eq!(
+        snapshot.refusal,
+        Some(knot_document::KnotDocumentRefusalV1::ExternalChange)
+    );
+    drop(fixture.harness);
+    let reopened = KnotDocumentSession::open(&fixture.source).unwrap();
+    assert_eq!(
+        reopened.input().text(),
+        "# External author\n\nTheir edit survives.\n"
+    );
+    assert!(!reopened.snapshot().dirty);
+    fresh_process_reopen(
+        &fixture.source,
+        "# External author\n\nTheir edit survives.\n",
+        0,
+    );
+}
+
+fn fresh_process_reopen(path: &std::path::Path, expected: &str, links: usize) {
+    let output = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "fresh_process_reopen_child",
+            "--ignored",
+            "--nocapture",
+        ])
+        .env("KNOT_PROPOSAL_REOPEN_PATH", path)
+        .env("KNOT_PROPOSAL_REOPEN_TEXT", expected)
+        .env("KNOT_PROPOSAL_REOPEN_LINKS", links.to_string())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    println!(
+        "fresh-process reopen ({} links): {}",
+        links,
+        String::from_utf8_lossy(&output.stdout)
+    );
+}
+
+#[test]
+#[ignore = "child-process helper invoked with a specific saved fixture"]
+fn fresh_process_reopen_child() {
+    let path = std::env::var_os("KNOT_PROPOSAL_REOPEN_PATH").expect("child path");
+    let expected = std::env::var("KNOT_PROPOSAL_REOPEN_TEXT").unwrap();
+    let links = std::env::var("KNOT_PROPOSAL_REOPEN_LINKS")
+        .unwrap()
+        .parse::<usize>()
+        .unwrap();
+    let reopened = KnotDocumentSession::open(PathBuf::from(path)).unwrap();
+    assert_eq!(reopened.input().text(), expected);
+    assert!(!reopened.snapshot().dirty);
+    let parsed = knot_readings::ReadingInput::from_session(&reopened).unwrap();
+    assert_eq!(parsed.links.len(), links);
+    if links == 1 {
+        assert_eq!(parsed.links[0].text, SELECTED);
+        assert_eq!(
+            parsed.links[0].rel.as_deref(),
+            Some("https://mere.computer/ns/rel#supports")
+        );
+    }
+}
+
+#[test]
+fn native_textarea_edits_undo_redo_advance_revision_but_layout_does_not() {
+    let mut fixture = fixture();
+    assert!(
+        fixture
+            .harness
+            .click_on(&Selector::role("textbox").with_attr("aria-label", "Document text"))
+    );
+    let stamp = fixture.harness.state().document().session().source_stamp();
+    fixture.harness.relayout();
+    assert_eq!(
+        fixture.harness.state().document().session().source_stamp(),
+        stamp
+    );
+    fixture
+        .harness
+        .press_key(&KeyPress::named(NamedKey::ArrowRight));
+    // The desktop focused-text-slot integration uses the public raw mutable
+    // escape hatch. It conservatively invalidates even selection-only borrows;
+    // plain session selection intents are separately tested as stamp-neutral.
+    let after_motion = fixture.harness.state().document().session().source_stamp();
+    assert!(after_motion.revision >= stamp.revision);
+    let before = fixture.harness.state().document().snapshot().text;
+    fixture.harness.press_key(&KeyPress::character("x"));
+    let changed = fixture.harness.state().document().session().source_stamp();
+    assert!(changed.revision > after_motion.revision);
+    fixture.harness.press_key(&command_shortcut("z", false));
+    assert_eq!(fixture.harness.state().document().snapshot().text, before);
+    assert_eq!(
+        fixture
+            .harness
+            .state()
+            .document()
+            .session()
+            .source_stamp()
+            .revision,
+        changed.revision + 1
+    );
+    fixture.harness.press_key(&command_shortcut("z", true));
+    assert_eq!(
+        fixture
+            .harness
+            .state()
+            .document()
+            .session()
+            .source_stamp()
+            .revision,
+        changed.revision + 2
     );
 }

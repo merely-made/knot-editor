@@ -7,8 +7,12 @@
 use crate::document_links;
 use crate::documents::{DocIdentity, DocKey};
 use crate::workspace::{DesktopState, DesktopView};
-use cambium::{CaretSelection, Keyed, TextCommand, button, el, span};
-use knot_document::{KnotDocumentIntentV1, KnotDocumentWritePostureV1};
+#[cfg(test)]
+use cambium::TextCommand;
+use cambium::{CaretSelection, Keyed, button, el, span};
+#[cfg(test)]
+use knot_document::KnotDocumentIntentV1;
+use knot_document::KnotDocumentWritePostureV1;
 use std::path::{Path, PathBuf};
 
 #[derive(Clone)]
@@ -23,8 +27,7 @@ pub(crate) struct LinkForm {
     source: DocKey,
     identity: DocIdentity,
     path: PathBuf,
-    address: String,
-    text: String,
+    base: knot_document::SourceSnapshot,
     selection: CaretSelection,
     targets: Vec<Target>,
     selected: Option<usize>,
@@ -92,8 +95,7 @@ pub(crate) fn begin(state: &mut DesktopState) {
         source,
         identity: state.docs.identity(source).expect("open identity").clone(),
         path: session.source_path().expect("saved source").to_path_buf(),
-        address: snapshot.source.address,
-        text: session.input().text().to_owned(),
+        base: session.source_snapshot(),
         selection: snapshot.selection,
         targets,
         selected: None,
@@ -113,7 +115,7 @@ pub(crate) fn dismiss(state: &mut DesktopState) {
     state.link_form_focus_requested = false;
 }
 
-fn insertion(state: &DesktopState, form: &LinkForm) -> Result<String, String> {
+fn insertion(state: &DesktopState, form: &LinkForm) -> Result<knot_document::Proposal, String> {
     let entry = state
         .docs
         .doc(form.source)
@@ -124,10 +126,6 @@ fn insertion(state: &DesktopState, form: &LinkForm) -> Result<String, String> {
         || !document_links::supported(snapshot.format)
         || session.source_path() != Some(form.path.as_path())
         || state.docs.identity(form.source) != Some(&form.identity)
-        || snapshot.source.address != form.address
-        || session.input().text() != form.text
-        || snapshot.selection != form.selection
-        || session.input().composition().is_some()
     {
         return Err("The source changed, its selection moved, or its write authority moved. Open the form again.".into());
     }
@@ -150,19 +148,19 @@ fn insertion(state: &DesktopState, form: &LinkForm) -> Result<String, String> {
     {
         return Err("The target was moved, saved elsewhere, or is missing or unreadable. Open the form again.".into());
     }
-    let start = form.selection.anchor.byte.min(form.selection.focus.byte);
-    let end = form.selection.anchor.byte.max(form.selection.focus.byte);
-    let selected = form
-        .text
-        .get(start..end)
-        .ok_or("The captured selection is invalid.")?;
-    document_links::markup(
+    let selected = session
+        .selected_source(&form.base, form.selection)
+        .map_err(|error| {
+            format!("The source changed or its selection moved: {error}. Open the form again.")
+        })?;
+    let markup = document_links::markup(
         &form.path,
         &target.path,
         selected,
         &target.label,
         form.relationship,
-    )
+    )?;
+    session.propose_selection_edit(&form.base, form.selection, markup)
 }
 
 pub(crate) fn insert(state: &mut DesktopState) {
@@ -171,10 +169,12 @@ pub(crate) fn insert(state: &mut DesktopState) {
     };
     let result = insertion(state, form);
     let source = form.source;
-    let result = result.and_then(|markup| {
+    let selection = form.selection;
+    let result = result.and_then(|proposal| {
         let document = state.surface_mut_for(source);
         document
-            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(markup)))
+            .session_mut()
+            .apply_source_proposal(&proposal, selection)
             .map_err(|error| format!("Link insertion refused: {error:?}"))?;
         Ok(())
     });
@@ -564,6 +564,54 @@ mod tests {
             document_links::parsed_links(&reopened).unwrap()[0].target,
             "./target.djot"
         );
+    }
+
+    #[test]
+    fn forged_snapshot_with_current_stamp_cannot_redirect_selected_text() {
+        let (_dir, mut state, source, _) = fixture("source");
+        select(&mut state, source, 0, 6);
+        arm(&mut state);
+        let stamp = state.surface_for(source).session().source_stamp();
+        state.link_form.as_mut().unwrap().base =
+            knot_document::SourceSnapshot::capture(stamp.clone(), "forged");
+        insert(&mut state);
+        assert_eq!(state.surface_for(source).session().input().text(), "source");
+        assert_eq!(state.surface_for(source).session().source_stamp(), stamp);
+        assert!(
+            state
+                .link_form
+                .as_ref()
+                .unwrap()
+                .error
+                .as_ref()
+                .unwrap()
+                .contains("source changed")
+        );
+    }
+
+    #[test]
+    fn edit_then_undo_does_not_revive_link_form() {
+        let (_dir, mut state, source, _) = fixture("source");
+        arm(&mut state);
+        for command in [TextCommand::Insert("later".into()), TextCommand::Undo] {
+            state
+                .surface_mut_for(source)
+                .apply(KnotDocumentIntentV1::Edit(command))
+                .unwrap();
+        }
+        assert_eq!(state.surface_for(source).session().input().text(), "source");
+        insert(&mut state);
+        assert!(
+            state
+                .link_form
+                .as_ref()
+                .unwrap()
+                .error
+                .as_ref()
+                .unwrap()
+                .contains("source changed")
+        );
+        assert_eq!(state.surface_for(source).session().input().text(), "source");
     }
 
     #[test]

@@ -14,7 +14,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, mpsc};
 use std::thread::{self, JoinHandle};
 
-use chirograph::{KnotClipArtifactRoleV1, KnotClipArtifactV1, PortableContentRefV1};
+use chirograph::{
+    KnotClipArtifactRoleV1, KnotClipArtifactV1, KnotClipSelectorV1, PortableContentRefV1,
+};
 use serde::{Deserialize, Serialize};
 use transport::{BlobHash, BlobLease, BlobReadAuthorizer, BlobScope, BlobStore};
 
@@ -38,6 +40,17 @@ pub struct KnotClipEvidenceRef {
 }
 
 impl KnotClipEvidenceRef {
+    /// Read a selected text range from already retained bytes. This has no
+    /// fetch path: size, portable SHA-256 and transport BLAKE3 are checked
+    /// before the selector can expose any text.
+    pub fn selected_text(
+        &self,
+        bytes: &[u8],
+        selector: &KnotClipSelectorV1,
+    ) -> Result<String, String> {
+        self.verify_bytes(bytes)?;
+        selected_text(selector, self.role, bytes)
+    }
     fn portable(artifact: &KnotClipArtifactV1) -> Self {
         let content = PortableContentRefV1::of(&artifact.bytes);
         Self {
@@ -93,6 +106,130 @@ impl KnotClipEvidenceRef {
         }
         Ok(())
     }
+}
+
+/// One authored clip occurrence. Unlike the blob inventory, this preserves
+/// document order and repeated citations, including equal text from different
+/// source identities. The note owns these facts, not a live origin.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KnotClipCitation {
+    pub source_url: String,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub selectors: Vec<KnotClipSelectorV1>,
+    pub evidence: Vec<KnotClipEvidenceRef>,
+}
+
+impl KnotClipCitation {
+    /// Verify one retained artifact and resolve its single exact scalar
+    /// range. A supplied quote must agree with that range. DOM selectors need
+    /// their own capable reader and are never silently treated as text ranges.
+    pub fn read_passage(&self, artifact: usize, bytes: &[u8]) -> Result<String, String> {
+        let reference = self
+            .evidence
+            .get(artifact)
+            .ok_or("The citation has no such artifact.")?;
+        let positions: Vec<_> = self.selectors.iter().filter(|s| matches!(s,
+            KnotClipSelectorV1::TextPosition { artifact_role, .. } if *artifact_role == reference.role)).collect();
+        let [position] = positions.as_slice() else {
+            return Err("The citation needs one exact text position for this artifact.".into());
+        };
+        let text = reference.selected_text(bytes, position)?;
+        for quote in self.selectors.iter().filter(|s| {
+            matches!(s,
+            KnotClipSelectorV1::TextQuote { artifact_role, .. } if *artifact_role == reference.role)
+        }) {
+            if reference.selected_text(bytes, quote)? != text {
+                return Err("The citation quote disagrees with its exact scalar range.".into());
+            }
+        }
+        Ok(text)
+    }
+}
+
+/// Decode evidence-bearing clip occurrences from the note itself. Unknown
+/// fields remain forward-compatible; legacy reference-only notes still work
+/// through `clip_evidence_references` without claiming an exact passage.
+pub fn clip_citations(source: &[u8]) -> Result<Vec<KnotClipCitation>, String> {
+    provenance_records(source)?
+        .into_iter()
+        .filter(|v| {
+            v.get("schema").and_then(|s| s.as_str()) == Some(chirograph::KNOT_CLIP_INSERT_SCHEMA_V2)
+        })
+        .map(|value| {
+            serde_json::from_value(value).map_err(|e| format!("Clip citation is malformed: {e}"))
+        })
+        .collect()
+}
+
+pub(crate) fn selected_text(
+    selector: &KnotClipSelectorV1,
+    role: KnotClipArtifactRoleV1,
+    bytes: &[u8],
+) -> Result<String, String> {
+    let text =
+        std::str::from_utf8(bytes).map_err(|_| "A text selector requires a UTF-8 artifact.")?;
+    match selector {
+        KnotClipSelectorV1::TextPosition {
+            artifact_role,
+            start,
+            end,
+        } if *artifact_role == role => {
+            let start = usize::try_from(*start).map_err(|_| "Text position is out of range.")?;
+            let end = usize::try_from(*end).map_err(|_| "Text position is out of range.")?;
+            if start >= end || end > text.chars().count() {
+                return Err(
+                    "Text position is not a nonempty Unicode scalar range in this artifact.".into(),
+                );
+            }
+            Ok(text.chars().skip(start).take(end - start).collect())
+        },
+        KnotClipSelectorV1::TextQuote {
+            artifact_role,
+            exact,
+            prefix,
+            suffix,
+        } if *artifact_role == role => {
+            if exact.is_empty() {
+                return Err("A text quote must be nonempty.".into());
+            }
+            let found = text.match_indices(exact).any(|(start, quote)| {
+                prefix.as_deref().is_none_or(|p| text[..start].ends_with(p))
+                    && suffix
+                        .as_deref()
+                        .is_none_or(|s| text[start + quote.len()..].starts_with(s))
+            });
+            if !found {
+                return Err(
+                    "The exact quote or its context is absent from the retained artifact.".into(),
+                );
+            }
+            Ok(exact.clone())
+        },
+        _ => Err("The selector does not name a supported text range in this artifact role.".into()),
+    }
+}
+
+fn provenance_records(source: &[u8]) -> Result<Vec<serde_json::Value>, String> {
+    const OPEN: &str = "```knot.clip.provenance\n";
+    const CLOSE: &str = "\n```";
+    let source = std::str::from_utf8(source)
+        .map_err(|_| "Evidence references require a UTF-8 Djot source.")?;
+    let mut rest = source;
+    let mut records = Vec::new();
+    while let Some(start) = rest.find(OPEN) {
+        let body = &rest[start + OPEN.len()..];
+        let end = body
+            .find(CLOSE)
+            .ok_or("Clip provenance fence is not closed.")?;
+        records.push(
+            serde_json::from_str(&body[..end])
+                .map_err(|e| format!("Clip provenance is malformed: {e}"))?,
+        );
+        rest = &body[end + CLOSE.len()..];
+    }
+    Ok(records)
 }
 
 #[derive(Serialize)]
@@ -203,20 +340,9 @@ impl<'de> Deserialize<'de> for KnotClipEvidenceRef {
 /// document. Unknown provenance fields remain forward-compatible; malformed or
 /// internally inconsistent evidence references fail closed.
 pub fn clip_evidence_references(source: &[u8]) -> Result<Vec<KnotClipEvidenceRef>, String> {
-    const OPEN: &str = "```knot.clip.provenance\n";
-    const CLOSE: &str = "\n```";
-
-    let source = std::str::from_utf8(source)
-        .map_err(|_| "evidence references require a UTF-8 Djot source".to_string())?;
-    let mut rest = source;
     let mut references = BTreeMap::<String, KnotClipEvidenceRef>::new();
-    while let Some(start) = rest.find(OPEN) {
-        let body = &rest[start + OPEN.len()..];
-        let end = body
-            .find(CLOSE)
-            .ok_or_else(|| "clip provenance fence is not closed".to_string())?;
-        let value: serde_json::Value = serde_json::from_str(&body[..end])
-            .map_err(|error| format!("clip provenance is malformed: {error}"))?;
+    let mut identities = BTreeMap::<String, (u64, Option<PortableContentRefV1>)>::new();
+    for value in provenance_records(source)? {
         if let Some(evidence) = value.get("evidence") {
             let entries = evidence
                 .as_array()
@@ -225,16 +351,29 @@ pub fn clip_evidence_references(source: &[u8]) -> Result<Vec<KnotClipEvidenceRef
                 let reference: KnotClipEvidenceRef = serde_json::from_value(entry.clone())
                     .map_err(|error| format!("clip evidence reference is malformed: {error}"))?;
                 reference.blob_hash()?;
-                if let Some(previous) = references.get(&reference.digest) {
-                    if previous != &reference {
-                        return Err("one clip evidence digest carries conflicting metadata".into());
-                    }
-                } else {
-                    references.insert(reference.digest.clone(), reference);
+                if let Some((size, portable)) = identities.get(&reference.digest)
+                    && (*size != reference.byte_size
+                        || portable
+                            .as_ref()
+                            .zip(reference.portable.as_ref())
+                            .is_some_and(|(a, b)| a != b))
+                {
+                    return Err(
+                        "One clip evidence digest carries conflicting content identity.".into(),
+                    );
                 }
+                let identity = identities
+                    .entry(reference.digest.clone())
+                    .or_insert((reference.byte_size, reference.portable.clone()));
+                if identity.1.is_none() {
+                    identity.1 = reference.portable.clone();
+                }
+                // A content digest owns bytes. URI, role and media type belong
+                // to each citation, and may legitimately differ for those bytes.
+                let key = serde_json::to_string(&reference).map_err(|e| e.to_string())?;
+                references.entry(key).or_insert(reference);
             }
         }
-        rest = &body[end + CLOSE.len()..];
     }
     Ok(references.into_values().collect())
 }
@@ -303,7 +442,7 @@ impl KnotClipEvidenceStore for FileClipEvidenceStore {
                 return Err(format!("could not stage clip evidence: {error}"));
             }
             match fs::rename(&temporary, &path) {
-                Ok(()) => {}
+                Ok(()) => {},
                 Err(error) if path.exists() => {
                     let _ = fs::remove_file(&temporary);
                     let existing = fs::read(&path).map_err(|read_error| {
@@ -316,11 +455,11 @@ impl KnotClipEvidenceStore for FileClipEvidenceStore {
                             "retained clip evidence does not match its BLAKE3 address".into()
                         );
                     }
-                }
+                },
                 Err(error) => {
                     let _ = fs::remove_file(&temporary);
                     return Err(format!("could not install clip evidence: {error}"));
-                }
+                },
             }
         }
         let reference = KnotClipEvidenceRef::portable(artifact);
@@ -493,7 +632,7 @@ impl KnotContentRetentionPort {
                             "could not create content-retention runtime: {error}"
                         )));
                         return;
-                    }
+                    },
                 };
                 let (blobs, owns_store) = match backing {
                     RetentionBacking::Open(root) => match runtime.block_on(BlobStore::open(root)) {
@@ -503,7 +642,7 @@ impl KnotContentRetentionPort {
                                 "could not open clip evidence blob store: {error}"
                             )));
                             return;
-                        }
+                        },
                     },
                     RetentionBacking::Borrowed(blobs) => (blobs, false),
                 };
@@ -525,7 +664,7 @@ impl KnotContentRetentionPort {
                         RetentionCommand::Retain { artifact, reply } => {
                             let result = runtime.block_on(store.retain_async(&artifact));
                             let _ = reply.send(result);
-                        }
+                        },
                         RetentionCommand::Close => break,
                     }
                 }
@@ -541,11 +680,11 @@ impl KnotContentRetentionPort {
             Ok(Err(error)) => {
                 let _ = join.join();
                 return Err(error);
-            }
+            },
             Err(_) => {
                 let _ = join.join();
                 return Err("content-retention actor stopped during startup".into());
-            }
+            },
         };
         Ok(Self {
             inner: Arc::new(RetentionPortInner {
@@ -611,13 +750,13 @@ async fn retain_blob_artifact(
             let lease = BlobLease::new(scope, "knot.evidence", digest.as_bytes())
                 .map_err(|error| format!("could not name clip evidence custody: {error}"))?;
             blobs.put_bytes_leased(artifact.bytes.clone(), &lease).await
-        }
+        },
         None => {
             let tag = format!("knot/clip-evidence/{digest_hex}");
             blobs
                 .put_bytes_named(artifact.bytes.clone(), tag.as_bytes())
                 .await
-        }
+        },
     }
     .map_err(|error| format!("could not retain clip evidence in blob store: {error}"))?;
     if stored.as_bytes() != digest.as_bytes() {
@@ -780,5 +919,115 @@ mod tests {
             conflicting.verify_bytes(&artifact.bytes).is_err(),
             "the conflicting portable identity fails closed",
         );
+    }
+    #[test]
+    fn equal_bytes_from_distinct_saved_sources_keep_distinct_provenance() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut store = FileClipEvidenceStore::new(temp.path(), 4096);
+        let mut artifacts = Vec::new();
+        for source in ["A1", "B1"] {
+            artifacts.push(KnotClipArtifactV1 {
+                role: KnotClipArtifactRoleV1::ObservedRepresentation,
+                media_type: "text/plain".into(),
+                canonical_uri: format!("urn:saved:{source}"),
+                bytes: "repeat café".as_bytes().to_vec(),
+            });
+        }
+        let references: Vec<_> = artifacts.iter().map(|a| store.retain(a).unwrap()).collect();
+        assert_eq!(references[0].content_uri, references[1].content_uri);
+        let source = references.iter().map(|reference| format!("```knot.clip.provenance\n{}\n```\n",
+            serde_json::json!({"schema":"knot.clip.insert/v2", "source_url":reference.canonical_uri,"selectors":[], "evidence":[reference]})))
+            .collect::<Vec<_>>().join("\n");
+        let reopened = clip_evidence_references(source.as_bytes()).unwrap();
+        assert_eq!(
+            reopened.len(),
+            2,
+            "deduplicate bytes, not distinct source citations"
+        );
+        for reference in &reopened {
+            reference.verify_bytes(&artifacts[0].bytes).unwrap();
+        }
+        assert_eq!(fs::read_dir(temp.path().join("blake3")).unwrap().count(), 1);
+    }
+    #[test]
+    fn saved_passage_reopens_with_unicode_position_and_both_hashes() {
+        let temp = tempdir().unwrap();
+        let bytes = "café · 🐦 · café".as_bytes().to_vec();
+        let artifact = KnotClipArtifactV1 {
+            role: KnotClipArtifactRoleV1::ObservedRepresentation,
+            media_type: "text/plain; charset=utf-8".into(),
+            canonical_uri: "urn:saved:A1".into(),
+            bytes: bytes.clone(),
+        };
+        let reference = {
+            let mut store = BlobClipEvidenceStore::open(temp.path(), 4096).unwrap();
+            store.retain(&artifact).unwrap()
+        };
+        let role = artifact.role;
+        let citation = KnotClipCitation {
+            source_url: "urn:saved:A1?start=11&end=15".into(),
+            title: Some("A1".into()),
+            selectors: vec![
+                KnotClipSelectorV1::TextPosition {
+                    artifact_role: role,
+                    start: 11,
+                    end: 15,
+                },
+                KnotClipSelectorV1::TextQuote {
+                    artifact_role: role,
+                    exact: "café".into(),
+                    prefix: Some(" · ".into()),
+                    suffix: None,
+                },
+            ],
+            evidence: vec![reference.clone()],
+        };
+        let note = format!(
+            "Authored commentary.\n\n```knot.clip.provenance\n{}\n```",
+            serde_json::json!({
+                "schema": chirograph::KNOT_CLIP_INSERT_SCHEMA_V2,
+                "source_url":citation.source_url, "title":citation.title,
+                "selectors":citation.selectors, "evidence":citation.evidence,
+            })
+        );
+        let path = temp.path().join("note.knot");
+        fs::write(&path, note).unwrap();
+        let reopened = BlobClipEvidenceStore::open(temp.path(), 4096).unwrap();
+        let runtime = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .unwrap();
+        let retained = runtime
+            .block_on(
+                reopened
+                    .blob_store()
+                    .get_bytes(reference.blob_hash().unwrap()),
+            )
+            .unwrap();
+        let mut decoded = clip_citations(&fs::read(&path).unwrap()).unwrap().remove(0);
+        assert_eq!(decoded.read_passage(0, &retained).unwrap(), "café");
+        let mut corrupt = retained.to_vec();
+        corrupt[0] ^= 1;
+        assert!(decoded.read_passage(0, &corrupt).is_err());
+        assert!(decoded.read_passage(1, &retained).is_err());
+        decoded.selectors.push(KnotClipSelectorV1::TextQuote {
+            artifact_role: role,
+            exact: "🐦".into(),
+            prefix: None,
+            suffix: None,
+        });
+        assert!(decoded.read_passage(0, &retained).is_err());
+        decoded.selectors = vec![KnotClipSelectorV1::TextPosition {
+            artifact_role: role,
+            start: 11,
+            end: 16,
+        }];
+        assert!(decoded.read_passage(0, &retained).is_err());
+        decoded.selectors = vec![KnotClipSelectorV1::TextPosition {
+            artifact_role: KnotClipArtifactRoleV1::SourceResponse,
+            start: 11,
+            end: 15,
+        }];
+        assert!(decoded.read_passage(0, &retained).is_err());
     }
 }

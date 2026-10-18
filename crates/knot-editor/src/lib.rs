@@ -47,7 +47,7 @@ pub use retain_host::KnotResidentRetainPort;
 pub use endpoint::{CompositionGrant, KnotCompositionPort, KnotResidentCompositionPort};
 pub use clip_evidence::{
     BlobClipEvidenceStore, FileClipEvidenceStore, KnotClipEvidenceRef, KnotClipEvidenceStore,
-    KnotContentRetentionPort, clip_evidence_references,
+    KnotContentRetentionPort, KnotClipCitation, clip_citations, clip_evidence_references,
 };
 pub use content_classes::{
     FILE_CLASS, FILE_DOCUMENT_FACET, KnotContentClasses, NOTE_CLASS, NOTE_DOCUMENT_FACET,

@@ -85,6 +85,7 @@ impl mesquite::Product for KnotLane {
         let (arrangement, columns, retained) =
             ctx.runner.state().composition.recipe_scenario_fields();
         let (positions, steps, position) = ctx.runner.state().composition.scene_scenario_fields();
+        let resident = ctx.runner.state().graph.model(&ctx.runner.state().graph_open_nodes());
         let source = ctx.runner.state().document().session().input().text();
         let mut snapshot = ctx
             .runner
@@ -112,7 +113,9 @@ impl mesquite::Product for KnotLane {
                 "source_blake3",
                 blake3::hash(source.as_bytes()).to_hex().to_string(),
             )
-            .with_field("scene_selected_position", position);
+            .with_field("scene_selected_position", position)
+            .with_field("resident_session_count", resident.sessions.len().to_string())
+            .with_field("resident_fork_count", resident.sessions.iter().filter(|session| session.name.starts_with("Session (fork of ")).count().to_string());
         for (key, value) in ctx.runner.state().catalog_fold_facts() {
             snapshot = snapshot.with_field(key, value);
         }
@@ -125,6 +128,27 @@ impl mesquite::Product for KnotLane {
 
     fn app_step(&mut self, ctx: &mut mesquite::Ctx<'_, Self>, _: mesquite::Checkpoints<'_>, line: &str) -> Result<(), String> {
         use cambium_rootstock::HostPointer;
+        if line == "inspect-resident-fork" {
+            let state = ctx.runner.state();
+            let model = state.graph.model(&state.graph_open_nodes());
+            let mut forks = model.sessions.iter().filter(|session| session.name.starts_with("Session (fork of "));
+            let fork = forks.next().ok_or("Resident did not disclose the expected fork")?;
+            if forks.next().is_some() { return Err("Resident disclosed more than one fixture fork".into()); }
+            let key = mere_view::session_node_key(fork.id);
+            let report = serde_json::json!({"fork":fork.id.as_uuid().to_string(),"name":fork.name,"sessions":model.sessions.iter().map(|session|serde_json::json!({"id":session.id.as_uuid().to_string(),"name":session.name,"attached":session.attached,"trashed":session.trashed})).collect::<Vec<_>>()});
+            let node = {
+                let dom = ctx.runner.dom(); let dom = dom.borrow();
+                taproot::matching_classes(&dom, &taproot::Selector::class("graph-canvas-swatch-node").with_attr("data-key", key)).into_iter().next().ok_or("Resident fork has no mounted node")?
+            };
+            let painted = ctx.painted_rect(node).ok_or("Resident fork node is not painted")?;
+            let visible = ctx.visible_rect(node).ok_or("Resident fork node is not visible")?;
+            if painted.2 <= 0.0 || painted.3 <= 0.0 || [painted.0-visible.0,painted.1-visible.1,painted.2-visible.2,painted.3-visible.3].iter().any(|delta|delta.abs()>1.0) { return Err("Resident fork node is clipped".into()); }
+            // Inspect through the mounted shared card callback; never synthesize an owner action.
+            ctx.runner.dispatch_click(node, cambium::PointerClick::at((painted.2/2.0,painted.3/2.0)));
+            let root = std::env::var_os("KNOT_CAPTURE_DIR").ok_or("No capture directory")?;
+            std::fs::write(std::path::PathBuf::from(root).join("resident-fork.json"),serde_json::to_vec_pretty(&report).map_err(|error|error.to_string())?).map_err(|error|error.to_string())?;
+            return Ok(());
+        }
         let parts: Vec<_> = line.split_whitespace().collect();
         if let ["checkpoint-metre", name] = parts.as_slice() {
             if name.is_empty() || !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-') { return Err("simple checkpoint name required".into()); }

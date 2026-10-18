@@ -1465,3 +1465,52 @@ restoration, or a universal dashboard to ship the safe writing cut.
 - `mere/design_docs/cambium_docs/implementation_strategy/2026-07-15_component_catalog_growth_plan.md`
 - `mere/design_docs/cambium_docs/implementation_strategy/2026-09-03_host_ui_zoom_plan.md`
 - `mere/design_docs/mere_docs/implementation_strategy/2026-08-15_projection_grammar_adoption_plan.md`
+
+
+## Saved-source research note intake — 2026-10-18
+
+**Status: owner implementation qualified; consumer headed acceptance is tracked in Turnstone.** Mark authorized the Turnstone saved-source to authored
+Knot note join, with both repos current and headed/cold-reopen proof before
+publication. The product workflow is owned by
+`turnstone/design_docs/2026-09-06_page_lifecycle_plan.md`, authored research note
+join. This section owns the receiving evidence contract.
+
+Reuse v2 clip insertion, file/vault write grants and the existing retained
+content authority. Validate scalar text positions and exact quotes against the
+actual offered UTF-8 artifact before retaining bytes or writing the note. Keep
+DOM capture's distinct role/fidelity rules. A canonical derived saved-text
+snapshot is an observed representation, not an original HTTP response.
+
+Preserve distinct citation metadata for byte-identical content from different
+sources while deduplicating actual bytes. Conflicting size/hash identities
+still fail closed. Provide an offline owner-side read that verifies the
+retained reference and resolves its exact Unicode selection, without fetching
+an origin or substituting the live source. Existing v1/legacy reference decoding
+retains its stated scope.
+
+Done requires focused endpoint/evidence controls for invalid ranges, corrupt or
+missing bytes, stale target before retention, duplicate blob/distinct provenance
+and fresh reopening of authored commentary with exact citations. The consumer
+must qualify real source/destination control ownership and headed cold return;
+component tests do not stand in for that UI proof. Personal custody installation,
+other platforms, OS assistive activation and physical power loss remain their
+own gates.
+
+Owner qualification on current main's supplier family: `cargo test -p
+knot-editor --lib --locked --offline -j2 -- --test-threads=1` passed **154,
+0 failed, 1 ignored**. The two first regression controls failed before the
+fixes (equal bytes from distinct sources and invalid scalar ranges), then passed.
+The owner suite includes real BlobStore close/reopen, portable SHA-256 plus
+BLAKE3 verification, repeated Unicode text at an exact range, corrupt bytes,
+quote/range disagreement, wrong role, stale target before retention, ambiguous
+artifact roles and unchanged authored notes on refusal. `clip_citations` and
+`KnotClipCitation::read_passage` expose those same owner rules to consumers.
+Raw qualification logs are retained in
+`/Users/markik/Code/output/turnstone-knot-notes-20261018/`; the public consumer
+receipt will live at `turnstone/docs/receipts/research_notes_20261018/`.
+
+After concurrent main updates, the unpublished change was rebased onto
+`4ec1cda`. The same full editor command passed again: **154 passed, 0 failed,
+1 ignored**, using Mere `500bc78a7fa9e0b9abe8f35d189c465f93d3ccab` and Genet
+`7114f91ce928937ac0891d7db816655706843204` from current Knot's lock. The existing
+isolated `mere-source-edit` revision exception remains intact.

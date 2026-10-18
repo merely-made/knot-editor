@@ -10,10 +10,12 @@
 mod capture_retention;
 #[path = "composition_retention.rs"]
 mod composition_retention;
-pub use composition_retention::{CompositionGrant, KnotCompositionPort, KnotResidentCompositionPort};
 pub use capture_retention::{
     KnotCaptureDestination, KnotCaptureError, KnotCaptureGrant, KnotCaptureReceipt,
     KnotFileCapturePort, KnotPreparedFileCaptureV1,
+};
+pub use composition_retention::{
+    CompositionGrant, KnotCompositionPort, KnotResidentCompositionPort,
 };
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -956,7 +958,7 @@ impl KnotEndpoint {
                 }));
                 documents.sort_by(|left, right| left.id.cmp(&right.id));
                 documents
-            }
+            },
         }
     }
 
@@ -1002,7 +1004,7 @@ impl KnotEndpoint {
                                 .strip_prefix("knot:vault:")
                                 .unwrap_or(&document.id);
                             source.vault.body(id).is_some()
-                        }
+                        },
                         Source::Directory { .. } => true,
                         Source::Fixture(_) => false,
                     }
@@ -1031,7 +1033,7 @@ impl KnotEndpoint {
                     .readable_document_path(&document.id)
                     .map_err(|error| format!("could not open Rosette source: {error}"))?;
                 fs::read(path).map_err(|error| format!("could not read Rosette source: {error}"))?
-            }
+            },
             Source::Vault(source) => {
                 let source = source.state();
                 let id = document
@@ -1045,7 +1047,7 @@ impl KnotEndpoint {
                         "Rosette source is unavailable while the vault is locked".to_string()
                     })?
                     .to_vec()
-            }
+            },
             Source::Fixture(_) => return Err("fixture documents have no Rosette source".into()),
         };
         if bytes.len() as u64 > self.rosette_config.max_source_bytes {
@@ -1125,7 +1127,7 @@ impl KnotEndpoint {
                     derived: self.derived_text(&document.id, &base_token),
                     base_token,
                 })
-            }
+            },
             Source::Vault(source) => {
                 let (text, base_token, public_revision) = {
                     let source = source.state();
@@ -1156,7 +1158,7 @@ impl KnotEndpoint {
                     derived: self.derived_text(&document.id, &base_token),
                     base_token,
                 })
-            }
+            },
             Source::Fixture(_) => None,
         }
     }
@@ -1241,7 +1243,7 @@ impl KnotEndpoint {
                         Err(_) => continue,
                     };
                     (record, Some(envelope.epoch))
-                }
+                },
                 (Some(VaultSyncAuthority::Commons { .. }), _) => continue,
                 (_, StoredDerivedCache::Personal(record)) => (record, None),
                 (_, StoredDerivedCache::Commons(_)) => continue,
@@ -1288,7 +1290,7 @@ impl KnotEndpoint {
                         format!("could not seal Commons derived cache: {error}")
                     })?,
                 )
-            }
+            },
             _ => StoredDerivedCache::Personal(record.clone()),
         };
         source.vault.store_derived_cache(id, &stored)
@@ -1443,13 +1445,13 @@ impl KnotEndpoint {
             badges: match (&self.source, editable, conflicted) {
                 (Source::Vault(_), _, true) => {
                     vec!["sealed vault".into(), "conflict".into()]
-                }
+                },
                 (Source::Vault(_), true, false) => {
                     vec!["sealed vault".into(), "editable".into()]
-                }
+                },
                 (Source::Vault(_), false, false) => {
                     vec!["sealed vault".into(), "read only".into()]
-                }
+                },
                 (_, true, _) => vec!["files in place".into(), "editable".into()],
                 (_, false, _) => vec!["files in place".into(), "read only".into()],
             },
@@ -1774,7 +1776,7 @@ impl KnotEndpoint {
                 source
                     .refresh()
                     .map_err(|error| format!("directory refresh failed after save: {error}"))?;
-            }
+            },
             Source::Vault(resident) => {
                 let mut source = resident.state();
                 let native_id = id.strip_prefix("knot:vault:").unwrap_or(id);
@@ -1811,7 +1813,7 @@ impl KnotEndpoint {
                             .map_err(|error| format!("could not author Knot save: {error}"))?;
                         pollster::block_on(store.projection(&source.vault))
                             .map_err(|error| format!("could not project Knot save: {error}"))?
-                    }
+                    },
                     VaultSyncAuthority::Commons {
                         store,
                         signing_seed,
@@ -1824,15 +1826,15 @@ impl KnotEndpoint {
                         pollster::block_on(store.communal_projection(keys)).map_err(|error| {
                             format!("could not project Commons Knot save: {error}")
                         })?
-                    }
+                    },
                 };
                 source.install_projection(projection)?;
-            }
+            },
             Source::Fixture(_) => {
                 return Ok(IntentResult::Rejected {
                     reason: "fixture documents are read-only".into(),
                 });
-            }
+            },
         }
 
         self.sync_source_revision();
@@ -1905,6 +1907,11 @@ impl KnotEndpoint {
                 reason: "structured clip evidence exceeds 262144 bytes".into(),
             });
         }
+        if payload.artifacts.len() == 2 && payload.artifacts[0].role == payload.artifacts[1].role {
+            return Ok(IntentResult::Rejected {
+                reason: "Clip artifact roles must be unambiguous.".into(),
+            });
+        }
         for artifact in &payload.artifacts {
             if artifact.media_type.is_empty()
                 || artifact.media_type.len() > 256
@@ -1928,8 +1935,25 @@ impl KnotEndpoint {
             })
         {
             return Ok(IntentResult::Rejected {
-                reason: "clip selector names an artifact role the clip did not retain".into(),
+                reason:
+                    "clip selector does not match its retained artifact role or exact text range"
+                        .into(),
             });
+        }
+
+        for artifact in &payload.artifacts {
+            let mut positions = payload.selectors.iter().filter(|s| matches!(s, KnotClipSelectorV1::TextPosition { artifact_role, .. } if *artifact_role == artifact.role));
+            let mut quotes = payload.selectors.iter().filter(|s| matches!(s, KnotClipSelectorV1::TextQuote { artifact_role, .. } if *artifact_role == artifact.role));
+            if let (Some(position), Some(quote)) = (positions.next(), quotes.next())
+                && positions.next().is_none()
+                && quotes.next().is_none()
+                && crate::clip_evidence::selected_text(position, artifact.role, &artifact.bytes)
+                    != crate::clip_evidence::selected_text(quote, artifact.role, &artifact.bytes)
+            {
+                return Ok(IntentResult::Rejected {
+                    reason: "The exact quote disagrees with its scalar range.".into(),
+                });
+            }
         }
 
         // Check the revision before retaining bytes. A stale gesture must not
@@ -2303,9 +2327,15 @@ fn selector_matches_artifacts(
                 return false;
             }
             *artifact_role
-        }
+        },
     };
-    artifacts.iter().any(|artifact| artifact.role == role)
+    artifacts.iter().any(|artifact| {
+        artifact.role == role
+            && match selector {
+                KnotClipSelectorV1::DomRange { .. } => true,
+                _ => crate::clip_evidence::selected_text(selector, role, &artifact.bytes).is_ok(),
+            }
+    })
 }
 
 fn render_effect_input(input: &EngineInput) -> Result<EngineDocument, String> {
@@ -2319,13 +2349,13 @@ fn render_effect_input(input: &EngineInput) -> Result<EngineDocument, String> {
         Some("text/plain") => Box::new(nematic::TextEngine::new()),
         _ if address.ends_with(".gmi") || address.ends_with(".gemini") => {
             Box::new(nematic::GemtextEngine::new())
-        }
+        },
         _ if address.ends_with(".md") || address.ends_with(".markdown") => {
             Box::new(nematic::MarkdownEngine::new())
-        }
+        },
         _ if address.ends_with(".html") || address.ends_with(".htm") => {
             Box::new(nematic::HtmlFragmentEngine::new())
-        }
+        },
         _ if address.ends_with(".knot") => Box::new(nematic::KnotEngine::new()),
         _ => Box::new(nematic::TextEngine::new()),
     };
@@ -2626,7 +2656,7 @@ impl IntentSink for KnotEndpoint {
                 return Ok(IntentResult::Rejected {
                     reason: "intent was not advertised by this Knot endpoint".into(),
                 });
-            }
+            },
         };
         if !snapshot
             .presentation
@@ -2656,10 +2686,10 @@ impl IntentSink for KnotEndpoint {
                             reason: "save payload does not match graphshell.editable-text.save/v1"
                                 .into(),
                         });
-                    }
+                    },
                 };
                 self.save_text(&document_id, payload)
-            }
+            },
             KNOT_CLIP_INSERT_INTENT => {
                 if self.clip_evidence.is_some() {
                     let payload: InsertKnotClipV2 = match serde_json::from_slice(&intent.payload) {
@@ -2668,7 +2698,7 @@ impl IntentSink for KnotEndpoint {
                             return Ok(IntentResult::Rejected {
                                 reason: "clip payload does not match knot.clip.insert/v2".into(),
                             });
-                        }
+                        },
                     };
                     self.insert_clip_v2(&document_id, payload)
                 } else {
@@ -2678,11 +2708,11 @@ impl IntentSink for KnotEndpoint {
                             return Ok(IntentResult::Rejected {
                                 reason: "clip payload does not match knot.clip.insert/v1".into(),
                             });
-                        }
+                        },
                     };
                     self.insert_clip(&document_id, payload)
                 }
-            }
+            },
             KNOT_TRANSCLUSION_RESOLVE_INTENT | KNOT_BLOCK_RUN_INTENT => {
                 let payload: KnotEffectV1 = match serde_json::from_slice(&intent.payload) {
                     Ok(payload) => payload,
@@ -2697,14 +2727,14 @@ impl IntentSink for KnotEndpoint {
                                 }
                             ),
                         });
-                    }
+                    },
                 };
                 if intent.intent == KNOT_TRANSCLUSION_RESOLVE_INTENT {
                     self.resolve_transclusions(&document_id, payload)
                 } else {
                     self.run_blocks(&document_id, payload)
                 }
-            }
+            },
             _ => unreachable!("intent kind was checked above"),
         }
     }
@@ -3096,6 +3126,79 @@ mod tests {
             .unwrap();
         assert!(matches!(invalid, IntentResult::Rejected { .. }));
         assert_eq!(fs::read_to_string(&path).unwrap(), saved);
+    }
+
+    #[test]
+    fn rejected_saved_passages_do_not_write_notes_or_retain_artifacts() {
+        let temp = tempdir().unwrap();
+        let evidence = tempdir().unwrap();
+        let path = temp.path().join("field.knot");
+        fs::write(&path, "My commentary.\n").unwrap();
+        let mut endpoint =
+            KnotEndpoint::open_writable(temp.path(), KnotWriteGrant::new(8192)).unwrap();
+        endpoint.grant_clip_evidence(crate::FileClipEvidenceStore::new(evidence.path(), 4096));
+        let snapshot = endpoint
+            .snapshot(endpoint.describe().projections.remove(0).request)
+            .unwrap();
+        let (target, editable, _) = editable_resource(&mut endpoint, &snapshot, "field.knot");
+        let role = KnotClipArtifactRoleV1::ObservedRepresentation;
+        let valid = InsertKnotClipV2 {
+            base_token: editable.base_token.clone(),
+            source_url: "urn:saved:A1".into(),
+            title: None,
+            selectors: vec![KnotClipSelectorV1::TextPosition {
+                artifact_role: role,
+                start: 2,
+                end: 3,
+            }],
+            knot_body: "🐦\n".into(),
+            artifacts: vec![KnotClipArtifactV1 {
+                role,
+                media_type: "text/plain".into(),
+                canonical_uri: "urn:saved:A1".into(),
+                bytes: "a 🐦 café".as_bytes().to_vec(),
+            }],
+            fidelity: vec![],
+            discovered_edges: vec![],
+        };
+        for control in 0..4 {
+            let mut payload = valid.clone();
+            match control {
+                0 => {
+                    payload.selectors = vec![KnotClipSelectorV1::TextPosition {
+                        artifact_role: role,
+                        start: 2,
+                        end: 99,
+                    }]
+                },
+                1 => payload.selectors.push(KnotClipSelectorV1::TextQuote {
+                    artifact_role: role,
+                    exact: "café".into(),
+                    prefix: None,
+                    suffix: None,
+                }),
+                2 => payload.artifacts.push(payload.artifacts[0].clone()),
+                _ => payload.base_token = b"stale revision".to_vec(),
+            }
+            let result = endpoint
+                .invoke(clip_v2_invocation(&snapshot, target, &payload))
+                .unwrap();
+            assert!(
+                matches!(
+                    result,
+                    IntentResult::Rejected { .. } | IntentResult::Stale { .. }
+                ),
+                "{result:?}"
+            );
+            assert_eq!(fs::read_to_string(&path).unwrap(), "My commentary.\n");
+            assert_eq!(fs::read_dir(evidence.path()).unwrap().count(), 0);
+        }
+        assert_eq!(
+            endpoint
+                .invoke(clip_v2_invocation(&snapshot, target, &valid))
+                .unwrap(),
+            IntentResult::Accepted
+        );
     }
 
     #[test]
@@ -4224,5 +4327,31 @@ Fallback.
                 .any(|window| window == private_body)
         );
         assert_eq!(snapshot.scene.active_item_count(), 1);
+    }
+    #[test]
+    fn invalid_saved_source_scalar_ranges_are_not_admitted() {
+        let artifact = KnotClipArtifactV1 {
+            role: KnotClipArtifactRoleV1::ObservedRepresentation,
+            media_type: "text/plain".into(),
+            canonical_uri: "urn:saved:A1".into(),
+            bytes: "a 🐦 café".as_bytes().to_vec(),
+        };
+        for (start, end) in [(0, 0), (3, 2), (0, 9), (8, 12)] {
+            let selector = KnotClipSelectorV1::TextPosition {
+                artifact_role: KnotClipArtifactRoleV1::ObservedRepresentation,
+                start,
+                end,
+            };
+            assert!(
+                !selector_matches_artifacts(&selector, std::slice::from_ref(&artifact)),
+                "invalid scalar range {start}..{end} passed"
+            );
+        }
+        let valid = KnotClipSelectorV1::TextPosition {
+            artifact_role: KnotClipArtifactRoleV1::ObservedRepresentation,
+            start: 2,
+            end: 3,
+        };
+        assert!(selector_matches_artifacts(&valid, &[artifact]));
     }
 }

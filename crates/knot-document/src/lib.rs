@@ -13,6 +13,8 @@ mod document_surface;
 mod document_view;
 mod editor;
 mod hard_wrap;
+mod source_edit;
+pub use mere_source_edit::{EditReceipt, Proposal, SourceSnapshot, SourceStamp, TextEdit};
 mod writer;
 
 pub use document_surface::{

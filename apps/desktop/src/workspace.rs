@@ -5606,9 +5606,10 @@ mod tests {
                 "status outside viewport with Appearance={appearance_open}: ({x},{y},{w},{h})"
             );
             let source = host.with_dom(|dom| {
-                taproot::matching(
+                taproot::matching_with_projection(
                     dom,
                     &Selector::role("textbox").with_attr("aria-label", "Document text"),
+                    &host.a11y_projection(),
                 )
             });
             let (_, y, w, h) = host.visible_rect(source[0]).unwrap();
@@ -5658,7 +5659,7 @@ mod tests {
             host.prepare_frame();
             host.relayout();
         }
-        let heading_nodes = host.with_dom(|dom| taproot::matching(dom, &heading));
+        let heading_nodes = host.with_dom(|dom| taproot::matching_with_projection(dom, &heading, &host.a11y_projection()));
         let (x, y, w, h) = host
             .visible_rect(heading_nodes[0])
             .expect("visible preview heading");
@@ -5691,9 +5692,10 @@ mod tests {
         assert!(source_is_focused(host.runner()));
         assert_chrome(&host);
         let source = host.with_dom(|dom| {
-            taproot::matching(
+            taproot::matching_with_projection(
                 dom,
                 &Selector::role("textbox").with_attr("aria-label", "Document text"),
+                &host.a11y_projection(),
             )
         });
         let (_, y, w, h) = host.visible_rect(source[0]).unwrap();

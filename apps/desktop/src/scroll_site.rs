@@ -4953,7 +4953,7 @@ mod tests {
             let dom = host.runner().dom();
             let dom = dom.borrow();
             let button = |label: &str| {
-                taproot::matching(&dom, &Selector::role("button").containing(label))[0]
+                taproot::matching_with_projection(&dom, &Selector::role("button").containing(label), &host.a11y_projection())[0]
             };
             let folder_field = node_with_id(&dom, dom.document(), "knot-scroll-folder").unwrap();
             vec![

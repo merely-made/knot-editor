@@ -132,12 +132,12 @@ impl mesquite::Product for KnotLane {
             let root = std::env::var_os("KNOT_CAPTURE_DIR").ok_or("No capture directory")?;
             let root = std::path::PathBuf::from(root);
             std::fs::write(root.join(format!("{name}.scene.json")),serde_json::to_vec_pretty(&input.scene).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
-            let nodes = { let dom=ctx.runner.dom(); let dom=dom.borrow(); taproot::matching(&*dom,&taproot::Selector::class("knot-metre-scene")) };
+            let nodes = { let dom=ctx.runner.dom(); let dom=dom.borrow(); taproot::matching_classes(&*dom,&taproot::Selector::class("knot-metre-scene")) };
             let geometry: Vec<_> = nodes.iter().map(|node| serde_json::json!({"painted":ctx.painted_rect(*node),"visible":ctx.visible_rect(*node)})).collect();
             std::fs::write(root.join(format!("{name}.geometry.json")),serde_json::to_vec_pretty(&serde_json::json!({"geometry":geometry,"producer":ctx.producers.contains(crate::composition::metre::KEY),"fields":crate::composition::metre::scenario_fields(ctx.runner.state())})).map_err(|e|e.to_string())?).map_err(|e|e.to_string())?;
             return Ok(());
         }
-        let node = { let dom = ctx.runner.dom(); let dom = dom.borrow(); taproot::matching(&*dom,&taproot::Selector::class("knot-metre-scene")).into_iter().next().ok_or("No metre scene leaf")? };
+        let node = { let dom = ctx.runner.dom(); let dom = dom.borrow(); taproot::matching_classes(&*dom,&taproot::Selector::class("knot-metre-scene")).into_iter().next().ok_or("No metre scene leaf")? };
         let (x,y,w,h) = ctx.painted_rect(node).ok_or("Metre scene is not painted")?;
         let surfaces = ctx.runner.state().composition.metre.surfaces.borrow();
         let surface = surfaces.surface.as_ref().ok_or("No metre surface")?;

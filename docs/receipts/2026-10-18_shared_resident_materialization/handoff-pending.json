@@ -1,0 +1,27 @@
+{
+  "resident_native_status": "PENDING",
+  "packet_status": "additive checkpoint; final supplier build/tests/native results parent-owned and not yet incorporated",
+  "frozen_initial_files_verified": 114,
+  "imported_files_verified": 109,
+  "native_phases": 10,
+  "failed_resident_phases": 7,
+  "passing_standalone_controls": 3,
+  "resident_captures": 0,
+  "standalone_captures": 3,
+  "visually_reviewed_standalone_originals": [
+    "knot-native-01",
+    "knot-native-trace-02"
+  ],
+  "unreviewed_standalone_originals": [
+    "knot-native-frame-03"
+  ],
+  "final_intake_handoff": {
+    "knot_revision": "e0bc340f406da102208ccc98cf5dff46f5377d39",
+    "mere_revision": "500bc78a7fa9e0b9abe8f35d189c465f93d3ccab",
+    "genet_revision": "7114f91ce928937ac0891d7db816655706843204",
+    "own_command": "interrupted after commit and build start; unified process exit 130, no completed build claimed",
+    "parent_owns": "remaining build, frozen binary, final hashes/metadata, overlay rerun and native capture qualification"
+  },
+  "privacy_scope": "No profile, vault, fixture store or binary included; original allowlist and checksum ledger unchanged",
+  "write_scope": "Only this new packet directory; no source or lock writes after ownership handoff"
+}

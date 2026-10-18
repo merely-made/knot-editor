@@ -1,0 +1,59 @@
+{
+  "command": [
+    "cargo",
+    "+1.99.1",
+    "metadata",
+    "--format-version",
+    "1",
+    "--locked",
+    "--offline"
+  ],
+  "exit_code": 0,
+  "head": "10a798f941d3c0908ba23fc9034528747238f7ce",
+  "status": "",
+  "lock_sha256": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+  "finished_utc": "2026-10-18T16:38:06.146323+00:00",
+  "package_count": 1087,
+  "resolved_node_count": 1087,
+  "key_packages": [
+    {
+      "name": "knot-desktop",
+      "source": null,
+      "features": [
+        "default",
+        "mere-retention"
+      ]
+    },
+    {
+      "name": "knot-editor",
+      "source": null,
+      "features": [
+        "default",
+        "mere-overlay"
+      ]
+    },
+    {
+      "name": "mere-overmap",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "features": [
+        "default",
+        "resident",
+        "view"
+      ]
+    },
+    {
+      "name": "mere-source-edit",
+      "source": "git+https://github.com/merely-made/mere.git?rev=70deef2c8cf3d3410ae35b496a9396514070b24f#70deef2c8cf3d3410ae35b496a9396514070b24f",
+      "features": []
+    },
+    {
+      "name": "taproot",
+      "source": "git+https://github.com/merely-made/genet.git?branch=main#7114f91ce928937ac0891d7db816655706843204",
+      "features": [
+        "default",
+        "image-decode"
+      ]
+    }
+  ],
+  "files_hashed": 837
+}

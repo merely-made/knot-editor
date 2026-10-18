@@ -1,0 +1,21 @@
+{
+  "mere": [
+    "git+https://github.com/merely-made/mere.git?branch=main#500bc78a7fa9e0b9abe8f35d189c465f93d3ccab",
+    "git+https://github.com/merely-made/mere.git?rev=70deef2c8cf3d3410ae35b496a9396514070b24f#70deef2c8cf3d3410ae35b496a9396514070b24f"
+  ],
+  "genet": [
+    "git+https://github.com/merely-made/genet.git?branch=main#7114f91ce928937ac0891d7db816655706843204"
+  ],
+  "dramatis": [
+    "git+https://github.com/merely-made/dramatis.git?branch=main#cf562f47f33ab0b6ad0db1c5ac3123775769979e"
+  ],
+  "smolweb": [
+    "git+https://github.com/merely-made/smolweb.git?branch=main#ed11be68eaeef8767cc97aa58f4b81840c043e1c"
+  ],
+  "murm": [
+    "git+https://github.com/merely-made/murm.git?branch=main#7c2432ab16723daeb8119f21014a66f0a8121ff8"
+  ],
+  "netrender": [
+    "git+https://github.com/merely-made/netrender.git?rev=c5efc94f876e93caba20807709189c5f9589492b#c5efc94f876e93caba20807709189c5f9589492b"
+  ]
+}

@@ -1,0 +1,10 @@
+{"launch_method": "LaunchServices temporary application bundle", "launcher_exit": 0, "timeout": false, "success": true, "elapsed_seconds": 4.508, "binary_sha256": "5adceda4c21bf4c049b63e65ebf88d879c8b053f05b3c712c7c0f7fdf6a8c915", "scenario_sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59", "receipt": "scenario.done", "captures": 1}
+RESULT ok
+knot overmap standalone: launched
+waited 0 frames
+waited 0 frames
+captured overmap-standalone-graph-no-layer
+knot overmap standalone: done
+capture overmap-standalone-graph-no-layer 2200x1400 digest=5830a6c2d20992b0 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-final-07/standalone/overmap-standalone-graph-no-layer.png
+frames: 1 captured, 0 blank, 1 distinct digests
+presentation: 10 frames, 11 redraws, 1 unpresented redraws

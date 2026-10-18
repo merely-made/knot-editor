@@ -1,0 +1,10 @@
+# Knot standalone (no --mere-domain, no Djinn): the catalog graph with no overmap layer.
+log knot overmap standalone: launched
+wait
+assert snap document_count == 2
+click role:button Graph
+wait
+assert snap graph_open == true
+assert text Catalog reading
+capture overmap-standalone-graph-no-layer
+log knot overmap standalone: done

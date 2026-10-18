@@ -1,0 +1,33 @@
+# Fresh Knot process against the same fixture: the saved codicil is read back
+# from Djinn as an archive node in the overmap tier, opened as a session through
+# its popover's Open control, and the thaw is then forked from its card.
+log knot overmap reopen: launched
+wait
+click role:button Graph
+wait
+assert snap graph_open == true
+assert text Evening reading
+click .graph-canvas-swatch-node @data-node-kind=archive
+wait
+assert text Open as session
+capture overmap-reopen-codicil-read-back
+click role:button @data-step=open-archive
+wait
+assert snap graph_open == true
+assert text Session (from blake3:
+capture overmap-reopen-after-open
+click .graph-canvas-swatch-node @data-attached=true
+wait
+click role:button @data-step=fork
+wait
+assert snap resident_session_count == 5
+assert snap resident_fork_count == 1
+click .mere-view-card-close
+wait
+assert snap graph_open == true
+inspect-resident-fork
+wait
+assert snap graph_open == true
+assert text Session (fork of
+capture overmap-reopen-after-fork
+log knot overmap reopen: done

@@ -1,0 +1,19 @@
+RESULT fail
+knot overmap reopen: launched
+waited 0 frames
+waited 0 frames
+waited 0 frames
+captured overmap-reopen-codicil-read-back
+waited 1 frames
+captured overmap-reopen-after-open
+waited 0 frames
+waited 0 frames
+waited 0 frames
+FAIL: assert text 'Session (fork of': not on any surface
+captured overmap-reopen-after-fork
+knot overmap reopen: done
+capture overmap-reopen-codicil-read-back 2200x1400 digest=a8f3149e01511bac file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-final-07/live-native-reopen/overmap-reopen-codicil-read-back.png
+capture overmap-reopen-after-open 2200x1400 digest=ae72211517f4ec79 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-final-07/live-native-reopen/overmap-reopen-after-open.png
+capture overmap-reopen-after-fork 2200x1400 digest=4fb6940e3dfa457e file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-final-07/live-native-reopen/overmap-reopen-after-fork.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 27 frames, 28 redraws, 1 unpresented redraws

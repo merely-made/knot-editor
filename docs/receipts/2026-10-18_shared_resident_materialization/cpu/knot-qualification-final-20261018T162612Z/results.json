@@ -1,0 +1,70 @@
+{
+  "head": "88eeb9750f2e9a15a2ff9dfe797bb5c1e15d7fd8",
+  "lock_sha256_before": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+  "environment": {
+    "RUSTC": "/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustc",
+    "RUSTDOC": "/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustdoc",
+    "CARGO_BUILD_JOBS": "2",
+    "TMPDIR": "/tmp"
+  },
+  "runs": [
+    {
+      "name": "overlay",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "test",
+        "-p",
+        "knot-editor",
+        "--features",
+        "mere-overlay",
+        "--lib",
+        "mere_overlay",
+        "--locked",
+        "--offline"
+      ],
+      "started_utc": "2026-10-18T16:26:12.355270+00:00",
+      "log": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/overlay.log",
+      "exit_code": 0,
+      "finished_utc": "2026-10-18T16:27:51.219699+00:00"
+    },
+    {
+      "name": "editor-lib",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "test",
+        "-p",
+        "knot-editor",
+        "--features",
+        "mere-overlay",
+        "--lib",
+        "--locked",
+        "--offline"
+      ],
+      "started_utc": "2026-10-18T16:27:51.221987+00:00",
+      "log": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/editor-lib.log",
+      "exit_code": 0,
+      "finished_utc": "2026-10-18T16:28:09.785511+00:00"
+    },
+    {
+      "name": "desktop-build",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "build",
+        "-p",
+        "knot-desktop",
+        "--bin",
+        "knot",
+        "--locked",
+        "--offline"
+      ],
+      "started_utc": "2026-10-18T16:28:09.791041+00:00",
+      "log": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/desktop-build.log",
+      "exit_code": 101,
+      "finished_utc": "2026-10-18T16:33:08.560449+00:00"
+    }
+  ],
+  "lock_sha256_after": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb"
+}

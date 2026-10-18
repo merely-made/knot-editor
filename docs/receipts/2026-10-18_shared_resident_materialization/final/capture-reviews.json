@@ -1,0 +1,37 @@
+[
+  {
+    "file": "native/knot-native-qualified-08/live-native/overmap-live-sessions.png",
+    "sha256": "0095c2069958bbd16fb5acf848f23043f0e400ae47e2f76e96f62e5f3955797b",
+    "review": "Three named resident session nodes and New session/Compose controls occupy the upper tier; two catalog documents and their relation remain below the solid divider."
+  },
+  {
+    "file": "native/knot-native-qualified-08/live-native/overmap-live-card-fork-branch.png",
+    "sha256": "a3c64703fb4dae9017b23817f176180fef54948381a22c1a35c8045c130391ff",
+    "review": "Attached Session card opens with Fork, Branch, Trash and Save to archive; the catalog graph stays visible below."
+  },
+  {
+    "file": "native/knot-native-qualified-08/live-native/overmap-live-after-save.png",
+    "sha256": "6e7212509de3cdf5ba844215c16d965f0184e98962008bd73b331c4959d595a8",
+    "review": "Saved codicil appears under Session and opens its read-only archive popover with Open as session and explicit composition controls."
+  },
+  {
+    "file": "native/knot-native-qualified-08/live-native-reopen/overmap-reopen-codicil-read-back.png",
+    "sha256": "0c0aab12edf9fb9e8ebf538d24b606fb1269d73f202f700d404613f512441ddf",
+    "review": "Fresh Knot process reads the same saved codicil and its archive popover, while both catalog documents remain visible."
+  },
+  {
+    "file": "native/knot-native-qualified-08/live-native-reopen/overmap-reopen-after-open.png",
+    "sha256": "bb27391c05602dab67785809a4b58a2ae2ed1af426857f06ea5b435760b9a0fa",
+    "review": "Archive Open adds a shown thaw with the saved codicil name; the original three resident sessions and catalog graph remain."
+  },
+  {
+    "file": "native/knot-native-qualified-08/live-native-reopen/overmap-reopen-after-fork.png",
+    "sha256": "53b03e1b2dd33740a8ba7866c05acb664af1c8dd3a60079482f45cfaa5f2cba7",
+    "review": "Stable-ID inspection opens the new fork card, with Fork name prefix and Switch/Fork/Branch/Trash/Save controls. Long title tail clips and this card overlaps tier controls; no blanket compact/popover layout claim."
+  },
+  {
+    "file": "native/knot-native-qualified-08/standalone/overmap-standalone-graph-no-layer.png",
+    "sha256": "ae51783b8916e72cc67b9175d80da7a30324103c374bd32a6f23dc946e4ee097",
+    "review": "Both catalog documents and relation paint without any resident session/archive tier; Ready is legible."
+  }
+]

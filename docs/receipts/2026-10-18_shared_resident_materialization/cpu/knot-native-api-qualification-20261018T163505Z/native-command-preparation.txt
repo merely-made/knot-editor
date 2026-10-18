@@ -1,0 +1,24 @@
+Prepared only; not executed. Parent owns native execution and visual review.
+
+TASK_ROOT=/Users/markik/Code/testing/shared-resident-materialization-20261018
+KNOT_SRC="$TASK_ROOT/knot"
+MERE_SRC="$TASK_ROOT/mere"
+TMPDIR=/tmp zsh "$KNOT_SRC/docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh" \
+  "$KNOT_SRC/target/debug/knot" \
+  "$MERE_SRC/target/debug/examples/knot_overmap_live_host" \
+  "$KNOT_SRC" "$MERE_SRC" "$TASK_ROOT/knot-native-final-10a798f-9b8c161" \
+  essay.djot field_notes.djot
+
+The output directory must not already exist. The wrapper creates the marked public-test-key fixture.
+The wrapper catches scenario-runner failures; its exit alone is insufficient. Require all three
+scenario.done files to begin RESULT ok and all three process.json success fields to be true,
+then review all seven original captures. Existing pending-merge visual gate is separate.
+
+Expected captures:
+live-native/overmap-live-sessions.png
+live-native/overmap-live-card-fork-branch.png
+live-native/overmap-live-after-save.png
+live-native-reopen/overmap-reopen-codicil-read-back.png
+live-native-reopen/overmap-reopen-after-open.png
+live-native-reopen/overmap-reopen-after-fork.png
+standalone/overmap-standalone-graph-no-layer.png

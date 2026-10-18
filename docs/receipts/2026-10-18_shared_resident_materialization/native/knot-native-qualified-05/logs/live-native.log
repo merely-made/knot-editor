@@ -1,0 +1,17 @@
+{"launch_method": "LaunchServices temporary application bundle", "launcher_exit": 0, "timeout": false, "success": true, "elapsed_seconds": 8.057, "binary_sha256": "5adceda4c21bf4c049b63e65ebf88d879c8b053f05b3c712c7c0f7fdf6a8c915", "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687", "receipt": "scenario.done", "captures": 3}
+RESULT ok
+knot overmap live: launched
+waited 0 frames
+waited 0 frames
+captured overmap-live-sessions
+waited 0 frames
+captured overmap-live-card-fork-branch
+waited 1 frames
+waited 0 frames
+captured overmap-live-after-save
+knot overmap live: done
+capture overmap-live-sessions 2200x1400 digest=973302f94b6e8c2d file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-05/live-native/overmap-live-sessions.png
+capture overmap-live-card-fork-branch 2200x1400 digest=c1cc7b8e80488649 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-05/live-native/overmap-live-card-fork-branch.png
+capture overmap-live-after-save 2200x1400 digest=7c9bf6b1da9cdd72 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-05/live-native/overmap-live-after-save.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 26 frames, 27 redraws, 1 unpresented redraws

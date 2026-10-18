@@ -1,0 +1,89 @@
+warning: patch `netrender_device v0.1.2 (https://github.com/merely-made/netrender.git?branch=main#8960024f)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://github.com/merely-made/netrender.git
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261013#1f69c9bc)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+   Compiling scenomise v0.0.5 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling data-encoding-macro v0.1.21
+   Compiling sprigging v0.2.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling backstep v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling iroh-base v1.3.0
+   Compiling cambium v0.3.3 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling chartulary v0.2.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling numen v0.2.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling iroh-dns v1.3.0
+   Compiling mere-forme v0.2.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-kernel v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling iroh-relay v1.3.0
+   Compiling iroh v1.3.0
+   Compiling scenotime v0.0.4 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling tabard v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling armillary v0.1.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling errand v0.4.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling chirograph v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling incipit v0.2.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling seiche v0.0.6 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling eidetic v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-alembic v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling iroh-gossip v0.101.0
+   Compiling pandect v0.1.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling iroh-mdns-address-lookup v0.6.0
+   Compiling cambium-winit v0.3.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-cartography v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling esp v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling pictograph v0.2.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling cambium-rootstock v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-p2panda-net v0.7.5 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261013#1f69c9bc)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling knot-file-catalog v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/crates/knot-file-catalog)
+   Compiling iroh-util v0.6.0
+   Compiling iroh-tickets v1.0.0
+   Compiling mere-proofs v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mora-cmudict v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling script-rhai v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling iroh-blobs v0.103.1
+   Compiling knot-document v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/crates/knot-document)
+   Compiling graphshell-endpoint v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling stickleback v0.1.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling knot-capture v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/crates/knot-capture)
+   Compiling mere-view v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-fleece v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling graphshell-client v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling document-canvas v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling reference-data v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-page-load v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling knot-composition v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/crates/knot-composition)
+   Compiling mere-fetch v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-document-lanes v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-overmap v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-transport v0.0.2 (https://github.com/merely-made/murm.git?branch=main#7c2432ab)
+   Compiling cambium-winit-a11y v0.3.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling servitor v0.0.2 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling mere-apparatus v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling cambium-genet-winit-host v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling knot-editor v0.0.3 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/crates/knot-editor)
+   Compiling mesquite v0.1.0 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+   Compiling tabard-workshop v0.0.1 (https://github.com/merely-made/mere.git?branch=main#500bc78a)
+warning: unused variable: `path`
+  --> crates/knot-editor/src/directory.rs:53:13
+   |
+53 |     fn read(path: &Path, _metadata: &Metadata) -> io::Result<Self> {
+   |             ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+   Compiling knot-readings v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/crates/knot-readings)
+   Compiling knot-desktop v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/apps/desktop)
+warning: `knot-editor` (lib) generated 1 warning (run `cargo fix --lib -p knot-editor` to apply 1 suggestion)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `knot-desktop` (bin "knot") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 35s

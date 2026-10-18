@@ -1,0 +1,67 @@
+{
+  "head": "10a798f941d3c0908ba23fc9034528747238f7ce",
+  "lock_sha256_before": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+  "environment": {
+    "RUSTC": "/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustc",
+    "RUSTDOC": "/Users/markik/.rustup/toolchains/1.97.1-aarch64-apple-darwin/bin/rustdoc",
+    "CARGO_BUILD_JOBS": "2",
+    "TMPDIR": "/tmp"
+  },
+  "runs": [
+    {
+      "name": "metre-lib",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "test",
+        "-p",
+        "knot-desktop",
+        "--lib",
+        "composition::metre::tests",
+        "--locked",
+        "--offline"
+      ],
+      "started_utc": "2026-10-18T16:35:05.356538+00:00",
+      "log": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/metre-lib.log",
+      "exit_code": 0,
+      "finished_utc": "2026-10-18T16:35:36.621104+00:00"
+    },
+    {
+      "name": "scenario-lane",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "test",
+        "-p",
+        "knot-desktop",
+        "--test",
+        "scenario_lane",
+        "--locked",
+        "--offline"
+      ],
+      "started_utc": "2026-10-18T16:35:36.622205+00:00",
+      "log": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/scenario-lane.log",
+      "exit_code": 0,
+      "finished_utc": "2026-10-18T16:36:39.152779+00:00"
+    },
+    {
+      "name": "desktop-build",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "build",
+        "-p",
+        "knot-desktop",
+        "--bin",
+        "knot",
+        "--locked",
+        "--offline"
+      ],
+      "started_utc": "2026-10-18T16:36:39.153854+00:00",
+      "log": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/desktop-build.log",
+      "exit_code": 0,
+      "finished_utc": "2026-10-18T16:36:43.119278+00:00"
+    }
+  ],
+  "lock_sha256_after": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb"
+}

@@ -1,0 +1,36 @@
+{
+  "fork": "540fa9ba-110a-4d58-b297-e2fde368b879",
+  "name": "Session (fork of Session (from blake3:efb74))",
+  "sessions": [
+    {
+      "attached": false,
+      "id": "d74be440-afdf-4e98-8493-6b88b4c132ca",
+      "name": "Session",
+      "trashed": false
+    },
+    {
+      "attached": false,
+      "id": "fac6d54f-d223-4dc5-9c4a-4c4fb077bbf5",
+      "name": "Evening reading",
+      "trashed": false
+    },
+    {
+      "attached": false,
+      "id": "54787109-0cb2-417d-8a92-1984c5b360d9",
+      "name": "Draft spread",
+      "trashed": false
+    },
+    {
+      "attached": true,
+      "id": "96423361-a98a-48e8-b3de-38e02ab62e5f",
+      "name": "Session (from blake3:efb74)",
+      "trashed": false
+    },
+    {
+      "attached": false,
+      "id": "540fa9ba-110a-4d58-b297-e2fde368b879",
+      "name": "Session (fork of Session (from blake3:efb74))",
+      "trashed": false
+    }
+  ]
+}

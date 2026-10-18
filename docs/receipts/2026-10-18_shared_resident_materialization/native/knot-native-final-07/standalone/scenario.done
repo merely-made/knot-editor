@@ -1,0 +1,9 @@
+RESULT ok
+knot overmap standalone: launched
+waited 0 frames
+waited 0 frames
+captured overmap-standalone-graph-no-layer
+knot overmap standalone: done
+capture overmap-standalone-graph-no-layer 2200x1400 digest=5830a6c2d20992b0 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-final-07/standalone/overmap-standalone-graph-no-layer.png
+frames: 1 captured, 0 blank, 1 distinct digests
+presentation: 10 frames, 11 redraws, 1 unpresented redraws

@@ -1,0 +1,659 @@
+{
+  "policy": "Explicit file allowlist only. No fixture/profile/vault/store trees or binaries copied. All imported files byte-equal to original at copy and final verification.",
+  "files": [
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/artifact-sha256.json",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/artifact-sha256.json",
+      "sha256": "df903dd6f1e623510503a547aab272030a8ee3cb3a1b78c641a4f6d130221a13",
+      "bytes": 923
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/cargo-metadata.json",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/cargo-metadata.json",
+      "sha256": "3ad506e5ee0fb5a5fd0236ac5631a2a5f631c9b452b1e5dba8c5334afa44cdf5",
+      "bytes": 5566682
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/cargo-metadata.log",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/cargo-metadata.log",
+      "sha256": "9f6cbaae504ea54be5e3f2004f42621300c77752e6eea17c24445d014394adfb",
+      "bytes": 745
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/desktop-build.log",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/desktop-build.log",
+      "sha256": "7294c8389b95fc1563c9192862f62a0134d7bda2afb81a3c4013380b9823becc",
+      "bytes": 24882
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/editor-lib.log",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/editor-lib.log",
+      "sha256": "fee0156e23cc5f98188ea16ec01592830b0aacd779a9b4e3e2fffb459e861c7d",
+      "bytes": 14999
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/inputs-sha256.json",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/inputs-sha256.json",
+      "sha256": "263a3a971cb8776bdfad8b3fb284462ae0fb36f9c9b522e8d2bb85d32001f697",
+      "bytes": 154492
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/metadata-result.json",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/metadata-result.json",
+      "sha256": "0d4732d8718ff7d7c8626644e29c518970e77af5b49ee32cdbc13a2a3ad3293e",
+      "bytes": 521
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/native-command-preparation.txt",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/native-command-preparation.txt",
+      "sha256": "8ddc944a5012b755ff7259c9ec01a8766aa473664a6d20a479208f0893d62fce",
+      "bytes": 1230
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/overlay.log",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/overlay.log",
+      "sha256": "98d24143fee79cd579e5235bcd0843a2209ed61418e98375a67471779259d47b",
+      "bytes": 7915
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/resolved-closure.json",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/resolved-closure.json",
+      "sha256": "f05cd865e4f01fd8335e93dabf68dea542c2ffa0251c02e421d858e30a541029",
+      "bytes": 3628101
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-qualification-final-20261018T162612Z/results.json",
+      "packet": "cpu/knot-qualification-final-20261018T162612Z/results.json",
+      "sha256": "46b2ed37fddbcb21361e758a5a57ba227ecaf3f25d2c0763070d11044276b1a5",
+      "bytes": 2120
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/artifact-sha256.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/artifact-sha256.json",
+      "sha256": "5f6ff06d24ace843b5bb54ba4ab65905c5394b4dba2b0fa0f5475f9275417581",
+      "bytes": 1124
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/cargo-metadata.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/cargo-metadata.json",
+      "sha256": "3ad506e5ee0fb5a5fd0236ac5631a2a5f631c9b452b1e5dba8c5334afa44cdf5",
+      "bytes": 5566682
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/cargo-metadata.log",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/cargo-metadata.log",
+      "sha256": "9f6cbaae504ea54be5e3f2004f42621300c77752e6eea17c24445d014394adfb",
+      "bytes": 745
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/desktop-build.log",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/desktop-build.log",
+      "sha256": "7ec6184b4bcebe8bad3bd8ddeed63b47bb6935fee2ab7e5f4e2711b83009e34f",
+      "bytes": 1553
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/inputs-sha256.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/inputs-sha256.json",
+      "sha256": "e373dd15619a14cff887b27bac36d9dd161876625cf50a915ddd08466873414a",
+      "bytes": 154853
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/metadata-result.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/metadata-result.json",
+      "sha256": "70eca73deed5db6321ac11dd205cb247fe92efd57c8021f764bca6dc3f9f164d",
+      "bytes": 1416
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/metre-lib.log",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/metre-lib.log",
+      "sha256": "aee65bdfdb8f639f05b67d6027a6e94a9624e563d52aa310fe68ae1e7a8ae0fa",
+      "bytes": 2412
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/native-command-preparation.txt",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/native-command-preparation.txt",
+      "sha256": "df4c3aaf027bf8de3f6a2cd98f20e2ab870a46d430a9b7f917b3c116eeb4a9ce",
+      "bytes": 1230
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/resolved-closure.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/resolved-closure.json",
+      "sha256": "f05cd865e4f01fd8335e93dabf68dea542c2ffa0251c02e421d858e30a541029",
+      "bytes": 3628101
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/results.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/results.json",
+      "sha256": "266d528e14bb9a65ed302caa1adb880892db33fe91c564b2cdbd3d25d1ea9b6e",
+      "bytes": 2092
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/role-selector-result.json",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/role-selector-result.json",
+      "sha256": "1cb9bd71c3c890284f29737e3a03bcea67b6a19c9adf00e7e0049de5d803f65e",
+      "bytes": 859
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/role-selector-tests.log",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/role-selector-tests.log",
+      "sha256": "3dfb1754b8add73f8889511e166b6a6f28f9725be2cceac7a78409b5a2af596e",
+      "bytes": 2463
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-api-qualification-20261018T163505Z/scenario-lane.log",
+      "packet": "cpu/knot-native-api-qualification-20261018T163505Z/scenario-lane.log",
+      "sha256": "6fca237e5cb007b74d77659badc5d67c088fe5390b2fe60228e6195e6f78c62b",
+      "bytes": 2727
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/Cargo.lock.after",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/Cargo.lock.after",
+      "sha256": "cdf5542407082bcf4421da5cc059cdf3f7e98ac51d92136be938fa3f56c0299d",
+      "bytes": 346329
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/Cargo.lock.before",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/Cargo.lock.before",
+      "sha256": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+      "bytes": 346329
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/cargo-update.log",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/cargo-update.log",
+      "sha256": "62614c0b138eaaa96a39d6e811fa1f39cea1d5cad89b5af0ed24a237b307b4ec",
+      "bytes": 7933
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/desktop-build.log",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/desktop-build.log",
+      "sha256": "4cb2afdd4e7491bddffae25236490691acad3990f0dc637e5fa2e3898d9dcb9b",
+      "bytes": 7968
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/frozen-binary.json",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/frozen-binary.json",
+      "sha256": "74c726c49d0672d4114ec8588bdb5c117d019457b459aae54c9ac2c8922cb1cd",
+      "bytes": 327
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/intake-result.json",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/intake-result.json",
+      "sha256": "56dc5728914f8eed52310456204f55378e42bcdf8c11158d9a27c18824a4f28f",
+      "bytes": 589
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/lock-closure-changes.json",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/lock-closure-changes.json",
+      "sha256": "a16954b08603577da220a5ec4ae495b909abd26f547416f014ed62fabf75a87c",
+      "bytes": 72837
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/overlay.log",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/overlay.log",
+      "sha256": "189f9402aab49ccc967f7ee999e9a2f57f81849e61b12e7f1546d6403f440bc4",
+      "bytes": 7303
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-diagnostic-intake-20261018T164629Z/qualification-result.json",
+      "packet": "cpu/knot-diagnostic-intake-20261018T164629Z/qualification-result.json",
+      "sha256": "832fadcc525fba5d5b9fba93f9cd52ea09eeb99bc6a19a774271d88f4ca5c3c3",
+      "bytes": 1528
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-overlay-reviewfix.log",
+      "packet": "cpu/history/knot-overlay-reviewfix.log",
+      "sha256": "fc01e12f90aed8e861f4eead19d0f1a81f2c0a29aa5a4234f07c888885a0aa65",
+      "bytes": 37188
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-intake.log",
+      "packet": "cpu/history/knot-intake.log",
+      "sha256": "04168ec1f5bbddf4f0ad5613f56dc38fd8115e8d12ba6096ad72430086695d2f",
+      "bytes": 12521
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-intake-final.log",
+      "packet": "cpu/history/knot-intake-final.log",
+      "sha256": "9e3bd5026a725ccd7f5d2a2799bea9c8f16b55bd0b1d7a23e032fbe1073a71a5",
+      "bytes": 7915
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-intake-sources.json",
+      "packet": "cpu/history/knot-intake-sources.json",
+      "sha256": "24f18e63cbdf4e3788e1319c4104ae8e1800a10a0fda502493d15b01902346e0",
+      "bytes": 973
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-preservation-before.json",
+      "packet": "cpu/history/knot-preservation-before.json",
+      "sha256": "582fdd2c58c4345cbaec1a978572139a9c5d2c4f825520df54aa079dd03065f8",
+      "bytes": 77998
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-frozen-binary.json",
+      "packet": "cpu/history/knot-frozen-binary.json",
+      "sha256": "933ad356c5aafa67792ec1911ffe3eb4a2896311fe74f167d6b3c77802f82787",
+      "bytes": 269
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-frozen-binary-diagnostic.json",
+      "packet": "cpu/history/knot-frozen-binary-diagnostic.json",
+      "sha256": "4a89955d5dd3eae6af9894f186befffdaa2dee41106cf82610c470b33ecc1888",
+      "bytes": 269
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01-driver.log",
+      "packet": "native/knot-native-01/driver.log",
+      "sha256": "275d528150039ac27002e051548378eec10b71dcd14c4b606a417b01a9f7d980",
+      "bytes": 140
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native/launcher.log",
+      "packet": "native/knot-native-01/live-native/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native/native.log",
+      "packet": "native/knot-native-01/live-native/native.log",
+      "sha256": "4975afcd9a4af0330c399b941372e26473b533e8f65351ac947973775fcb728a",
+      "bytes": 479
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native/process.json",
+      "packet": "native/knot-native-01/live-native/process.json",
+      "sha256": "6eb9dc23b1480bcc2fc6c61e72d108c9215e179aa59cf7b9901a30c1f8b39840",
+      "bytes": 382
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native/scenario.done",
+      "packet": "native/knot-native-01/live-native/scenario.done",
+      "sha256": "0afb01b2f36b3b3ed3a7a0c60c7f5700ba3592eae2d3c9167fb22728acc30ab0",
+      "bytes": 249
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native-reopen/launcher.log",
+      "packet": "native/knot-native-01/live-native-reopen/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native-reopen/native.log",
+      "packet": "native/knot-native-01/live-native-reopen/native.log",
+      "sha256": "a79462bf137b0e1366e31267b61bda2d00d43bdbdd6bfe061de19c3b97827459",
+      "bytes": 481
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native-reopen/process.json",
+      "packet": "native/knot-native-01/live-native-reopen/process.json",
+      "sha256": "4aaa29ced59f4d93424c7273f79d5d28213ff236360c9278af877b9f45af1d78",
+      "bytes": 383
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/live-native-reopen/scenario.done",
+      "packet": "native/knot-native-01/live-native-reopen/scenario.done",
+      "sha256": "ec7829610820edb568ed455ef0878f125614c862b04acc639d961f4fdaf36d22",
+      "bytes": 251
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/standalone/launcher.log",
+      "packet": "native/knot-native-01/standalone/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/standalone/native.log",
+      "packet": "native/knot-native-01/standalone/native.log",
+      "sha256": "abd6e6924e315ff2625e99a67cf57c8a048fd76378893765f92cecacc3649d64",
+      "bytes": 503
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/standalone/overmap-standalone-graph-no-layer.png",
+      "packet": "native/knot-native-01/standalone/overmap-standalone-graph-no-layer.png",
+      "sha256": "437c274336d97f6d5d23725da6f376e7d90df3201334babca8e7dde813e0aedc",
+      "bytes": 358918
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/standalone/process.json",
+      "packet": "native/knot-native-01/standalone/process.json",
+      "sha256": "a832ca09c9f1f7858afa75848e0f571df335986f61366e48e2eff68be78c3c48",
+      "bytes": 381
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/standalone/scenario.done",
+      "packet": "native/knot-native-01/standalone/scenario.done",
+      "sha256": "069c0a2ba9db6c78646d67345df91ebaa92d33860c7c040fbeae9fa327768f7b",
+      "bytes": 469
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/logs/fixture-host.log",
+      "packet": "native/knot-native-01/logs/fixture-host.log",
+      "sha256": "0b115c7279eb807ba80563d5061960bf409ac0179eee3e124711b95062f8b0f5",
+      "bytes": 1284
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/logs/live-native-reopen.log",
+      "packet": "native/knot-native-01/logs/live-native-reopen.log",
+      "sha256": "c6e8a853c133bf382e3cb3e27e7325dba8c7f3a4ead1784b1e978c144a475ecd",
+      "bytes": 614
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/logs/live-native.log",
+      "packet": "native/knot-native-01/logs/live-native.log",
+      "sha256": "ab194f3b2aea097644064d72d1e7877f6efbf039f5defcf925ca5902f35ede93",
+      "bytes": 611
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-01/logs/standalone.log",
+      "packet": "native/knot-native-01/logs/standalone.log",
+      "sha256": "c4a79b0efb50b0276ac764948a8b5180a5e22a90ff8a7a748b0b09c120db3b9a",
+      "bytes": 830
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02-driver.log",
+      "packet": "native/knot-native-trace-02/driver.log",
+      "sha256": "275d528150039ac27002e051548378eec10b71dcd14c4b606a417b01a9f7d980",
+      "bytes": 140
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native/launcher.log",
+      "packet": "native/knot-native-trace-02/live-native/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native/native.log",
+      "packet": "native/knot-native-trace-02/live-native/native.log",
+      "sha256": "150809d2acd785a8556f7d5593d69d6635d981417aab06f48c727c7fd2ba9a61",
+      "bytes": 480596
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native/process.json",
+      "packet": "native/knot-native-trace-02/live-native/process.json",
+      "sha256": "83fc117c86223caee479075956c399fa80389afafc6bef24723a0355acafa960",
+      "bytes": 383
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native/scenario.done",
+      "packet": "native/knot-native-trace-02/live-native/scenario.done",
+      "sha256": "b1e63a50bd461e40365c683185243ddd3f55cc11340a2fa2f2e92f5274411c45",
+      "bytes": 246
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native-reopen/launcher.log",
+      "packet": "native/knot-native-trace-02/live-native-reopen/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native-reopen/native.log",
+      "packet": "native/knot-native-trace-02/live-native-reopen/native.log",
+      "sha256": "697256b62066707869cc826b9b3044853de403af125948135f9baae92605da76",
+      "bytes": 458476
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native-reopen/process.json",
+      "packet": "native/knot-native-trace-02/live-native-reopen/process.json",
+      "sha256": "f810a1854c3d3ac6960b49bf80f2c6d1786f9b3c33febb9a1018b18a4d04c521",
+      "bytes": 383
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/live-native-reopen/scenario.done",
+      "packet": "native/knot-native-trace-02/live-native-reopen/scenario.done",
+      "sha256": "273ed230c93203f3d8701d9295931831b42d6287401b6dfb97efa5f8cec1b13b",
+      "bytes": 248
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/standalone/launcher.log",
+      "packet": "native/knot-native-trace-02/standalone/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/standalone/native.log",
+      "packet": "native/knot-native-trace-02/standalone/native.log",
+      "sha256": "8258d828938ac7127d38ac51842cd70afe514ae8ba566bef3d362aa0ce9faf15",
+      "bytes": 6662
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/standalone/overmap-standalone-graph-no-layer.png",
+      "packet": "native/knot-native-trace-02/standalone/overmap-standalone-graph-no-layer.png",
+      "sha256": "6bc1e8e4aae18cd64ce5aad022afc177691d3e7f153a7a7c3e0497a742a07d40",
+      "bytes": 358991
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/standalone/process.json",
+      "packet": "native/knot-native-trace-02/standalone/process.json",
+      "sha256": "9aaa131f574224d456a6f9d28cc9890b82f9822d5eb23d09cf2d9b7bfdad85db",
+      "bytes": 381
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/standalone/scenario.done",
+      "packet": "native/knot-native-trace-02/standalone/scenario.done",
+      "sha256": "40dd3c6429b1305b08f69cac3313b29affcfbbb9e7d2ff9f8611feabb86410cb",
+      "bytes": 475
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/logs/fixture-host.log",
+      "packet": "native/knot-native-trace-02/logs/fixture-host.log",
+      "sha256": "9795550180981ad030d29dd434a036a8bcbe8e891d84b5dcf72ec946e4c49e2e",
+      "bytes": 1290
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/logs/live-native-reopen.log",
+      "packet": "native/knot-native-trace-02/logs/live-native-reopen.log",
+      "sha256": "8dc5eaa8b8c19b07fb38e8f54f37c7e0752dd9b5d8c238e6f1b2de6a188b9514",
+      "bytes": 611
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/logs/live-native.log",
+      "packet": "native/knot-native-trace-02/logs/live-native.log",
+      "sha256": "d5040bc03ce579dd62007f5d5fa9c9b6b05f2ae81a836f4a3a9501f07faff93a",
+      "bytes": 609
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-trace-02/logs/standalone.log",
+      "packet": "native/knot-native-trace-02/logs/standalone.log",
+      "sha256": "80f79320404a9cd51393e6b796681912d5dd788032ea07a552e76fe9d5513ad3",
+      "bytes": 836
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03-driver.log",
+      "packet": "native/knot-native-frame-03/driver.log",
+      "sha256": "275d528150039ac27002e051548378eec10b71dcd14c4b606a417b01a9f7d980",
+      "bytes": 140
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native/launcher.log",
+      "packet": "native/knot-native-frame-03/live-native/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native/native.log",
+      "packet": "native/knot-native-frame-03/live-native/native.log",
+      "sha256": "4e9f2c9fdc959af79460214d7c9b9ec50d031239c0e9e93f61e62fffd348d956",
+      "bytes": 1068451
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native/process.json",
+      "packet": "native/knot-native-frame-03/live-native/process.json",
+      "sha256": "f5455ccb16b9974232e1b06f355c8590852a046c4ebc46fa78f3945d36e32db2",
+      "bytes": 383
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native/scenario.done",
+      "packet": "native/knot-native-frame-03/live-native/scenario.done",
+      "sha256": "d0930988a131acbdeda3269b70b806799a896de0c6d201201a9d51cf068fd8ab",
+      "bytes": 246
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native-reopen/launcher.log",
+      "packet": "native/knot-native-frame-03/live-native-reopen/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native-reopen/native.log",
+      "packet": "native/knot-native-frame-03/live-native-reopen/native.log",
+      "sha256": "9e921f173d326288290abfd4ff62b4eb9fdfc695b4bc5242aca46c8a695f100f",
+      "bytes": 1068981
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native-reopen/process.json",
+      "packet": "native/knot-native-frame-03/live-native-reopen/process.json",
+      "sha256": "a8ad5e5ec79d7d3d318ced3a48b022a223c42ade9dd91a3c6ebb1e38ccd9c509",
+      "bytes": 383
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/live-native-reopen/scenario.done",
+      "packet": "native/knot-native-frame-03/live-native-reopen/scenario.done",
+      "sha256": "c3de00d640a32969fca8d2a85909d153967001da26a3b8db072aa5ce78adb6fd",
+      "bytes": 248
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/standalone/launcher.log",
+      "packet": "native/knot-native-frame-03/standalone/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/standalone/native.log",
+      "packet": "native/knot-native-frame-03/standalone/native.log",
+      "sha256": "7aae3770ffe1dba0fa0c0ca537cef7e822ba3d58f460ad565faf9b98168f8c6f",
+      "bytes": 19122
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/standalone/overmap-standalone-graph-no-layer.png",
+      "packet": "native/knot-native-frame-03/standalone/overmap-standalone-graph-no-layer.png",
+      "sha256": "3349c64233a30ce363b15e9c0e7aeb727c30481583a76ce7ce419fcf73916c79",
+      "bytes": 359542
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/standalone/process.json",
+      "packet": "native/knot-native-frame-03/standalone/process.json",
+      "sha256": "8c5b2bb3c923a4c40885d81a0f6bf21bf3d866ca46b20178a4be08ad4dd0d57e",
+      "bytes": 381
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/standalone/scenario.done",
+      "packet": "native/knot-native-frame-03/standalone/scenario.done",
+      "sha256": "f7c871bf5160d160b3b9800bef50893d278a8e393ac630a0e203705039134b66",
+      "bytes": 475
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/logs/fixture-host.log",
+      "packet": "native/knot-native-frame-03/logs/fixture-host.log",
+      "sha256": "b1d976cc6550c94dd35f7c4c76b90edad7710f1beadfa299054db81946f9ad23",
+      "bytes": 1290
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/logs/live-native-reopen.log",
+      "packet": "native/knot-native-frame-03/logs/live-native-reopen.log",
+      "sha256": "e5be34a7c2c33029140152711cb96ad18432f379ed6f2d63d805707bd30584d8",
+      "bytes": 611
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/logs/live-native.log",
+      "packet": "native/knot-native-frame-03/logs/live-native.log",
+      "sha256": "982d9508a0965a299f83537a6e1e55e61ddb794cf38f4b5d1990d9a2bd1d77be",
+      "bytes": 609
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/logs/standalone.log",
+      "packet": "native/knot-native-frame-03/logs/standalone.log",
+      "sha256": "1605c6dc9a10676fc5243b10c8ffe6d0fec1add1282734eabc12026f704e138f",
+      "bytes": 836
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04-driver.log",
+      "packet": "native/knot-native-refusal-04/driver.log",
+      "sha256": "e403774897459c2b287c7584877c170a49a7cfafd255b816c661b32d4a38d36e",
+      "bytes": 27
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04/live-native/launcher.log",
+      "packet": "native/knot-native-refusal-04/live-native/launcher.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04/live-native/native.log",
+      "packet": "native/knot-native-refusal-04/live-native/native.log",
+      "sha256": "2a1427c9d4ed41ae18776a291b4115cb27e0bd1d5fa925eb3f7cf7b19900f9d2",
+      "bytes": 1163291
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04/live-native/process.json",
+      "packet": "native/knot-native-refusal-04/live-native/process.json",
+      "sha256": "b61917717e7f5ab2e4d37720c8e0de7031bbdf9b4cd2cf2e0d6420bf015f7643",
+      "bytes": 383
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04/live-native/scenario.done",
+      "packet": "native/knot-native-refusal-04/live-native/scenario.done",
+      "sha256": "929c727cc9737a7dc2e4c16bbf4da150b029ec252d702038759939026a6d2abd",
+      "bytes": 246
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04/logs/fixture-host.log",
+      "packet": "native/knot-native-refusal-04/logs/fixture-host.log",
+      "sha256": "43b127ff4a3d83d33a703760ada2fe96a742ee6a4a3ec9356c9bcb5ec4549d6b",
+      "bytes": 1199
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-refusal-04/logs/live-native.log",
+      "packet": "native/knot-native-refusal-04/logs/live-native.log",
+      "sha256": "beec961b6a6fb9f2f0fdd3ea95f65d153349b2fd84c6cf9beb03c5dec2fd5562",
+      "bytes": 609
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/run-knot-frame-trace.sh",
+      "packet": "controllers/external/run-knot-frame-trace.sh",
+      "sha256": "27c38f8e7c7324b6a0980f8579ff06c8cf710b71cf9d7c4db4b8175f4cce22c3",
+      "bytes": 2745
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/run-knot-refusal-trace.sh",
+      "packet": "controllers/external/run-knot-refusal-trace.sh",
+      "sha256": "c6f3362b9a49826f64b51540b5da85428e86ae3cb14a3a5da23436bd850c8247",
+      "bytes": 2315
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh",
+      "packet": "controllers/knot/docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh",
+      "sha256": "85e154d85a82198f346eeabf804298eacd726451aa5e87ac96d63a36e3ebccad",
+      "bytes": 2680
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/scenarios/overmap_live.scn",
+      "packet": "controllers/knot/scenarios/overmap_live.scn",
+      "sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+      "bytes": 1122
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/scenarios/overmap_live_reopen.scn",
+      "packet": "controllers/knot/scenarios/overmap_live_reopen.scn",
+      "sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+      "bytes": 824
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/scenarios/overmap_standalone.scn",
+      "packet": "controllers/knot/scenarios/overmap_standalone.scn",
+      "sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+      "bytes": 328
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/mere/scripts/run_macos_scenario.py",
+      "packet": "controllers/mere/scripts/run_macos_scenario.py",
+      "sha256": "ca8bc5d355d02f2e46760f3196c02b24db75828493e745cf171531826037020d",
+      "bytes": 6328
+    },
+    {
+      "original": "/Users/markik/Code/testing/shared-resident-materialization-20261018/mere/ports/djinn/examples/knot_overmap_live_host.rs",
+      "packet": "controllers/mere/ports/djinn/examples/knot_overmap_live_host.rs",
+      "sha256": "f2d5a9376b96f15da3fdf3f67e0b1f1cbc93029fbed8e21c6d85c99e37123eb0",
+      "bytes": 13027
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{"launch_method": "LaunchServices temporary application bundle", "launcher_exit": 0, "timeout": false, "success": true, "elapsed_seconds": 6.666, "binary_sha256": "d81533f64dddfd1d6dc0f599160f7ad26970f6dd75f30932d77e88e6734b549e", "scenario_sha256": "cf99d0de0cdfa542574e368238a255ee16441bca2c6ce3b1c3d0e4c082ee37d0", "receipt": "scenario.done", "captures": 3}
+RESULT ok
+knot overmap reopen: launched
+waited 0 frames
+waited 0 frames
+waited 0 frames
+captured overmap-reopen-codicil-read-back
+waited 1 frames
+captured overmap-reopen-after-open
+waited 0 frames
+waited 1 frames
+waited 0 frames
+waited 0 frames
+captured overmap-reopen-after-fork
+knot overmap reopen: done
+capture overmap-reopen-codicil-read-back 2200x1400 digest=687298dc492be1ee file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-08/live-native-reopen/overmap-reopen-codicil-read-back.png
+capture overmap-reopen-after-open 2200x1400 digest=445b47bbbd43ced7 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-08/live-native-reopen/overmap-reopen-after-open.png
+capture overmap-reopen-after-fork 2200x1400 digest=02d4712c597750b1 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-08/live-native-reopen/overmap-reopen-after-fork.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 33 frames, 34 redraws, 1 unpresented redraws

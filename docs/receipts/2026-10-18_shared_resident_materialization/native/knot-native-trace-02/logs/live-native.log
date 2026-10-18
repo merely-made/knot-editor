@@ -1,0 +1,7 @@
+{"launch_method": "LaunchServices temporary application bundle", "launcher_exit": 0, "timeout": false, "success": false, "elapsed_seconds": 18.664, "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764", "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687", "receipt": "scenario.done", "captures": 0}
+RESULT fail
+knot overmap live: launched
+waited 0 frames
+frames: 0 captured, 0 blank, 0 distinct digests
+presentation: 4 frames, 938 redraws, 934 unpresented redraws
+FAIL: native presentation stalled for 10000 ms (938 redraws, 4 presented frames)

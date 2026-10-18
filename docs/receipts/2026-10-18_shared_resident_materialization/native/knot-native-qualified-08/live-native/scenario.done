@@ -1,0 +1,16 @@
+RESULT ok
+knot overmap live: launched
+waited 0 frames
+waited 0 frames
+captured overmap-live-sessions
+waited 0 frames
+captured overmap-live-card-fork-branch
+waited 1 frames
+waited 0 frames
+captured overmap-live-after-save
+knot overmap live: done
+capture overmap-live-sessions 2200x1400 digest=c7df03471a5884d6 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-08/live-native/overmap-live-sessions.png
+capture overmap-live-card-fork-branch 2200x1400 digest=3b4e5fd91b45adb5 file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-08/live-native/overmap-live-card-fork-branch.png
+capture overmap-live-after-save 2200x1400 digest=cacc3654c3f91c0e file=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-qualified-08/live-native/overmap-live-after-save.png
+frames: 3 captured, 0 blank, 3 distinct digests
+presentation: 26 frames, 28 redraws, 2 unpresented redraws

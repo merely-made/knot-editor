@@ -41,7 +41,7 @@ fleece.workspace = true
 # DR-C), through the application door (Mere stack lift plan P1); no
 # `graphshell` in the library.
 graphshell-endpoint = { workspace = true, features = ["door", "stdio"] }
-mere-overmap = { workspace = true, optional = true }
+mere-overmap = { workspace = true, optional = true, features = ["resident"] }
 mere-view = { workspace = true, optional = true }
 chirograph.workspace = true
 inker.workspace = true

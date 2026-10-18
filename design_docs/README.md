@@ -82,3 +82,5 @@ The [predicate and relation plan](2026-09-15_knot_predicates_inference_scripting
 records the link-model P2 projection continuation: optional signed retraction
 time with legacy checkpoint-byte preservation. Supplier checks and Mere intake
 qualification remain distinct from desktop authoring and automatic sync.
+
+- [Shared resident materialization](2026-10-15_knot_mere_overmap_layer.md#shared-resident-materialization-2026-10-18-in-progress): Knot and Cleromancy adopt one shared reader; Knot preserves catalog ownership and invalidates cached actions after failed refresh. Supplier/software/native qualification is in progress.

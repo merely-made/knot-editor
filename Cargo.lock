@@ -6641,6 +6641,7 @@ dependencies = [
  "illume",
  "inker",
  "knot-editor-host",
+ "mere-source-edit",
  "mere-surface-api",
  "nematic",
  "same-file",
@@ -7465,6 +7466,14 @@ dependencies = [
  "blake3",
  "serde",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "mere-source-edit"
+version = "0.1.0"
+source = "git+https://github.com/merely-made/mere.git?rev=70deef2c8cf3d3410ae35b496a9396514070b24f#70deef2c8cf3d3410ae35b496a9396514070b24f"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

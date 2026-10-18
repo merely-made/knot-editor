@@ -135,7 +135,8 @@ pub enum KnotDocumentIntentV1 {
 
 /// One selected document over the retained Knot editor. There is no second buffer.
 pub struct KnotDocumentSession {
-    editor: KnotEditor,
+    pub(crate) editor: KnotEditor,
+    pub(crate) source_version: crate::source_edit::SourceVersion,
     write_posture: KnotDocumentWritePostureV1,
     last_save_outcome: Option<KnotDocumentSaveOutcomeV1>,
     refusal: Option<KnotDocumentRefusalV1>,
@@ -169,6 +170,7 @@ impl KnotDocumentSession {
         Ok(Self {
             editor,
             write_posture,
+            source_version: crate::source_edit::SourceVersion::new(),
             last_save_outcome: None,
             refusal: None,
             last_save_failure: None,
@@ -178,6 +180,7 @@ impl KnotDocumentSession {
         Self {
             editor: KnotEditor::scratch(address, source),
             write_posture: KnotDocumentWritePostureV1::Scratch,
+            source_version: crate::source_edit::SourceVersion::new(),
             last_save_outcome: None,
             refusal: None,
             last_save_failure: None,
@@ -210,6 +213,7 @@ impl KnotDocumentSession {
         let mut session = Self {
             editor: KnotEditor::scratch_with_format(address, "", format),
             write_posture: KnotDocumentWritePostureV1::Scratch,
+            source_version: crate::source_edit::SourceVersion::new(),
             last_save_outcome: None,
             refusal: None,
             last_save_failure: None,
@@ -236,6 +240,7 @@ impl KnotDocumentSession {
         Self {
             editor: KnotEditor::scratch_with_format(address, source, format),
             write_posture: KnotDocumentWritePostureV1::ReadOnly,
+            source_version: crate::source_edit::SourceVersion::new(),
             last_save_outcome: None,
             refusal: None,
             last_save_failure: None,
@@ -278,6 +283,7 @@ impl KnotDocumentSession {
             self.refuse_read_only_edit();
             return Err(KnotDocumentRefusalV1::ReadOnly);
         }
+        self.source_version.advance();
         Ok(self.editor.input_mut())
     }
 
@@ -506,7 +512,9 @@ impl KnotDocumentSession {
                         KnotDocumentRefusalV1::ReadOnly,
                     ));
                 }
-                self.editor.apply(command);
+                if self.editor.apply(command).source_changed {
+                    self.source_version.advance();
+                }
                 self.refusal = None;
             },
             KnotDocumentIntentV1::Save => self.save()?,
@@ -564,8 +572,12 @@ impl KnotDocumentSession {
         if self.write_posture == KnotDocumentWritePostureV1::ReadOnly {
             return self.refuse_read_only_write();
         }
+        let old_address = self.editor.address().to_owned();
         match self.editor.save_as(path) {
             Ok(outcome) => {
+                if self.editor.address() != old_address {
+                    self.source_version.advance();
+                }
                 self.write_posture = KnotDocumentWritePostureV1::FileTarget;
                 self.record_save_outcome(outcome);
                 Ok(())
@@ -595,6 +607,7 @@ impl KnotDocumentSession {
         }
         match self.editor.reload() {
             Ok(()) => {
+                self.source_version.advance();
                 self.last_save_outcome = None;
                 self.refusal = None;
                 self.last_save_failure = None;

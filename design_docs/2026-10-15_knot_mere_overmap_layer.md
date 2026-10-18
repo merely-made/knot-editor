@@ -90,3 +90,7 @@ source-link/arrangement-catalog compatibility fixes needed by current main.
 Only selection folds are exposed: extracted hyperlinks do not establish a
 parent hierarchy. Cross-platform, global keyboard-shortcut, live assistive
 technology and device-recovery qualification remain separate.
+
+## Shared resident materialization (2026-10-18; in progress)
+
+Mark authorized adoption of Mere's common reader alongside Cleromancy. The owning contract is `mere/design_docs/2026-10-18_resident_materialization_plan.md`. Knot consumes `mere_overmap::materialization::read` in `ProjectionOnly` mode and keeps its catalog graph, merge choices and action routing. Repeated snapshot/card/pending-media decoding is removed. A failed refresh clears cached owner actions; the new regression checks that no stale request reaches the wire. Supplier intake, focused software checks and native save/archive/fresh reopening remain in progress. The isolated checkout excludes primary Knot's active source-edit changes; all prior receipts retain their original identities.

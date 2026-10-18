@@ -10,7 +10,7 @@ use crate::{
 };
 use cambium::{
     AnyView, DomHandle, GenetAppRunner, GenetCtx, GenetElement, RunnerSurfaceSession, TextInput,
-    button, div, el, lens, span, textarea_typed,
+    button, div, el, lens, map_message_result, span, textarea_typed,
 };
 #[cfg(feature = "highlight")]
 use cambium::{Highlight, highlighted_textarea};
@@ -127,13 +127,33 @@ pub fn knot_document_view_with_status(
         )
     } else {
         Box::new(
-            el(
-                "div",
-                lens(
-                    move |input: &mut TextInput| editable_document_textarea(input, highlight_note),
-                    |state: &mut KnotDocumentSurfaceState| state.input_mut_for_editable_view(),
-                ),
-            )
+            el("div", {
+                // Lens access also happens on pure build/rebuild. Keep a
+                // transient before-message witness, not another editor.
+                let before = std::rc::Rc::new(std::cell::RefCell::new(None::<String>));
+                let capture = before.clone();
+                map_message_result(
+                    lens(
+                        move |input: &mut TextInput| {
+                            editable_document_textarea(input, highlight_note)
+                        },
+                        move |state: &mut KnotDocumentSurfaceState| {
+                            *capture.borrow_mut() = Some(state.session.input().text().to_owned());
+                            state.input_mut_for_editable_view()
+                        },
+                    ),
+                    move |state: &mut KnotDocumentSurfaceState, result| {
+                        if before
+                            .borrow_mut()
+                            .take()
+                            .is_some_and(|text| text != state.session.input().text())
+                        {
+                            state.session.source_version.advance();
+                        }
+                        result
+                    },
+                )
+            })
             .attr("class", "knot-document-body")
             .attr("role", "textbox")
             .attr("aria-label", "Document text"),

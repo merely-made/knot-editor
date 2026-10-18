@@ -2053,7 +2053,7 @@ mod tests {
         assert_eq!(host.state().composition.recipe.dynamics.ticks(), 3);
         assert!(rendered_text(&host).contains("Motion finished · 3 fixed ticks"), "{}", rendered_text(&host));
         let disabled = |host: &RecipeHost, label: &str| host.with_dom(|dom| {
-            let nodes = taproot::matching(dom, &Selector::role("button").containing(label));
+            let nodes = taproot::matching_with_projection(dom, &Selector::role("button").containing(label), &host.a11y_projection());
             assert_eq!(nodes.len(), 1, "{label}");
             dom.attribute(nodes[0], &layout_dom_api::Namespace::from(""), &layout_dom_api::LocalName::from("aria-disabled"))
                 == Some("true")
@@ -2113,7 +2113,7 @@ mod tests {
         assert_eq!(fields["scene_motion_ticks"], "0");
         for label in ["Step scene motion once", "Pause scene motion", "Keep placement"] {
             host.with_dom(|dom| {
-                let nodes = taproot::matching(dom, &Selector::role("button").containing(label));
+                let nodes = taproot::matching_with_projection(dom, &Selector::role("button").containing(label), &host.a11y_projection());
                 assert_eq!(nodes.len(), 1, "{label}");
                 assert_eq!(dom.attribute(nodes[0], &layout_dom_api::Namespace::from(""),
                     &layout_dom_api::LocalName::from("aria-disabled")), Some("true"));
@@ -2168,7 +2168,7 @@ mod tests {
             host.after_dispatch();
             host.relayout();
             let canvases =
-                host.with_dom(|dom| taproot::matching(dom, &Selector::class("graph-canvas-swatch")));
+                host.with_dom(|dom| taproot::matching_classes(dom, &Selector::class("graph-canvas-swatch")));
             assert_eq!(canvases.len(), 1);
             let viewport = canvases[0];
             let painted = host.painted_rect(viewport).unwrap();
@@ -2185,7 +2185,7 @@ mod tests {
                 "Keep placement",
             ] {
                 let nodes = host.with_dom(|dom| {
-                    taproot::matching(dom, &Selector::role("button").containing(label))
+                    taproot::matching_with_projection(dom, &Selector::role("button").containing(label), &host.a11y_projection())
                 });
                 assert_eq!(nodes.len(), 1, "{label}");
                 let painted = host.painted_rect(nodes[0]).unwrap();
@@ -2261,7 +2261,7 @@ mod tests {
             ] {
                 let selector = Selector::role("button").containing(label);
                 assert!(
-                    taproot::matching(dom, &selector).is_empty(),
+                    taproot::matching_with_projection(dom, &selector, &host.a11y_projection()).is_empty(),
                     "{label} resolves to nothing while hidden"
                 );
             }
@@ -3577,7 +3577,7 @@ mod tests {
         let notice = host.state().composition.notice.clone();
         let has_pan = |host: &RecipeHost| {
             host.with_dom(|dom| {
-                !taproot::matching(dom, &Selector::role("button").containing("Pan scene right"))
+                !taproot::matching_with_projection(dom, &Selector::role("button").containing("Pan scene right"), &host.a11y_projection())
                     .is_empty()
             })
         };
@@ -3598,7 +3598,7 @@ mod tests {
             assert_eq!(host.state().composition.notice, notice);
             for primary in ["Zoom scene in", "Zoom scene out", "Fit relationship scene"] {
                 assert!(host.with_dom(|dom| {
-                    !taproot::matching(dom, &Selector::role("button").containing(primary))
+                    !taproot::matching_with_projection(dom, &Selector::role("button").containing(primary), &host.a11y_projection())
                         .is_empty()
                 }));
             }
@@ -3618,10 +3618,11 @@ mod tests {
             assert_eq!(host.state().composition.recipe.material, material);
             assert_eq!(host.state().composition.notice, notice);
             assert_eq!(
-                host.with_dom(|dom| !taproot::matching(
+                host.with_dom(|dom| !taproot::matching_with_projection(
                     dom,
                     &Selector::role("button")
-                        .containing("Hide scene background category: sound.perfect_rhyme")
+                        .containing("Hide scene background category: sound.perfect_rhyme"),
+                    &host.a11y_projection(),
                 )
                 .is_empty()),
                 expanded

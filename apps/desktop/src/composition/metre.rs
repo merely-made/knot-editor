@@ -641,7 +641,7 @@ pub struct Bindings {
 impl Bindings {
     pub fn frame(&mut self, ctx: &mut Ctx<'_>) {
         let state = ctx.runner.state();
-        let mounted = !taproot::matching(
+        let mounted = !taproot::matching_classes(
             &*ctx.runner.dom().borrow(),
             &taproot::Selector::class("knot-metre-scene"),
         )
@@ -951,7 +951,7 @@ mod tests {
         host.prepare_frame();
         host.relayout();
         let node = host.with_dom(|dom| {
-            taproot::matching(dom, &taproot::Selector::class("knot-metre-scene"))[0]
+            taproot::matching_classes(dom, &taproot::Selector::class("knot-metre-scene"))[0]
         });
         let rect = host.painted_rect(node).unwrap();
         assert!(rect.0 >= -1.0 && rect.0 < 100.0, "metre geometry {rect:?}");

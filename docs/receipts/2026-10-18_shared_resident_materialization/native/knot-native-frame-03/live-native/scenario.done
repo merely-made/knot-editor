@@ -1,0 +1,6 @@
+RESULT fail
+knot overmap live: launched
+waited 0 frames
+frames: 0 captured, 0 blank, 0 distinct digests
+presentation: 4 frames, 989 redraws, 985 unpresented redraws
+FAIL: native presentation stalled for 10000 ms (989 redraws, 4 presented frames)

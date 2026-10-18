@@ -1,0 +1,25 @@
+{
+  "command": [
+    "cargo",
+    "+1.99.1",
+    "metadata",
+    "--format-version",
+    "1",
+    "--locked",
+    "--offline"
+  ],
+  "exit_code": 0,
+  "finished_utc": "2026-10-18T16:33:38.313639+00:00",
+  "package_count": 1087,
+  "resolved_node_count": 1087,
+  "knot_editor_features": [
+    [
+      "default",
+      "mere-overlay"
+    ]
+  ],
+  "lock_sha256": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+  "head": "88eeb9750f2e9a15a2ff9dfe797bb5c1e15d7fd8",
+  "status": "",
+  "files_hashed": 837
+}

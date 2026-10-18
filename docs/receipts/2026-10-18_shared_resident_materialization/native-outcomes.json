@@ -1,0 +1,230 @@
+{
+  "resident_native_status": "PENDING",
+  "runs": [
+    {
+      "run": "knot-native-01",
+      "phase": "live-native",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 15.99,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (1117 redraws, 4 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    },
+    {
+      "run": "knot-native-01",
+      "phase": "live-native-reopen",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 14.439,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (1112 redraws, 3 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    },
+    {
+      "run": "knot-native-01",
+      "phase": "standalone",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": true,
+        "elapsed_seconds": 6.172,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+        "receipt": "scenario.done",
+        "captures": 1
+      },
+      "receipt_first_line": "RESULT ok",
+      "capture_originals": [
+        "native/knot-native-01/standalone/overmap-standalone-graph-no-layer.png"
+      ],
+      "failure_lines": [],
+      "capture_status": "see process and original captures"
+    },
+    {
+      "run": "knot-native-trace-02",
+      "phase": "live-native",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 18.664,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (938 redraws, 4 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    },
+    {
+      "run": "knot-native-trace-02",
+      "phase": "live-native-reopen",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 18.914,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (893 redraws, 3 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    },
+    {
+      "run": "knot-native-trace-02",
+      "phase": "standalone",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": true,
+        "elapsed_seconds": 5.743,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+        "receipt": "scenario.done",
+        "captures": 1
+      },
+      "receipt_first_line": "RESULT ok",
+      "capture_originals": [
+        "native/knot-native-trace-02/standalone/overmap-standalone-graph-no-layer.png"
+      ],
+      "failure_lines": [],
+      "capture_status": "see process and original captures"
+    },
+    {
+      "run": "knot-native-frame-03",
+      "phase": "live-native",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 15.857,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (989 redraws, 4 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    },
+    {
+      "run": "knot-native-frame-03",
+      "phase": "live-native-reopen",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 16.296,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (988 redraws, 3 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    },
+    {
+      "run": "knot-native-frame-03",
+      "phase": "standalone",
+      "source": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": true,
+        "elapsed_seconds": 5.296,
+        "binary_sha256": "b37ba16ab21d5085ae3b975c598b91b19bdc1b9e8bc68d7a9a2ab850207bf764",
+        "scenario_sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+        "receipt": "scenario.done",
+        "captures": 1
+      },
+      "receipt_first_line": "RESULT ok",
+      "capture_originals": [
+        "native/knot-native-frame-03/standalone/overmap-standalone-graph-no-layer.png"
+      ],
+      "failure_lines": [],
+      "capture_status": "see process and original captures"
+    },
+    {
+      "run": "knot-native-refusal-04",
+      "phase": "live-native",
+      "source": "0bfc8c21300f6f41fa5019a16df2655d06ec72ae",
+      "process": {
+        "launch_method": "LaunchServices temporary application bundle",
+        "launcher_exit": 0,
+        "timeout": false,
+        "success": false,
+        "elapsed_seconds": 16.228,
+        "binary_sha256": "88ab7834c395aa3afc2da134878713ddbda03d0e05ddd7c5f1f8c98a3539b80b",
+        "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+        "receipt": "scenario.done",
+        "captures": 0
+      },
+      "receipt_first_line": "RESULT fail",
+      "capture_originals": [],
+      "failure_lines": [
+        "FAIL: native presentation stalled for 10000 ms (946 redraws, 4 presented frames)"
+      ],
+      "capture_status": "not reached; native presentation stalled before capture"
+    }
+  ],
+  "notes": [
+    "All failed originals retained; no failed attempt is superseded by a later standalone success.",
+    "Standalone is a control; it does not exercise resident sessions, archive, or merge.",
+    "Native capture requests were not reached in the resident stalled runs; zero captures is not a successful readback."
+  ]
+}

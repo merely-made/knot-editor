@@ -1,0 +1,255 @@
+{
+  "scope": "Hash exact Git source inputs; broader source hash inventories are retained unchanged in each CPU capture. These identities are not interchangeable.",
+  "revisions": [
+    {
+      "revision": "88eeb9750f2e9a15a2ff9dfe797bb5c1e15d7fd8",
+      "tree": "1d3f5d1bff8638c7d6a9283c465fbcb6f6898db4",
+      "subject": "Intake reviewed resident materialization supplier",
+      "scoped_source_sha256": {
+        "Cargo.toml": {
+          "sha256": "610d2f62b10ab98a7fcde576d648f7e304d5d680fc266ec7603435cfa9af0b6f",
+          "bytes": 11735
+        },
+        "Cargo.lock": {
+          "sha256": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+          "bytes": 346329
+        },
+        "rust-toolchain.toml": {
+          "sha256": "271159a5847b87e8529ee67e4981d498814251afa70fda1d703f75f011d65d6c",
+          "bytes": 103
+        },
+        "crates/knot-editor/Cargo.toml": {
+          "sha256": "3db93556cbfbc52fb7a5c3e994c7a0a07550bed8433bbb014a2bb40616f41e58",
+          "bytes": 4908
+        },
+        "crates/knot-editor/src/mere_overlay.rs": {
+          "sha256": "30be5cc68d52b4175a69f2341b6d15b2837af8f1ca9b44f9d5d789ce6e13ec0f",
+          "bytes": 25605
+        },
+        "apps/desktop/Cargo.toml": {
+          "sha256": "3a8ba76dc1005ca6c35b1c54c93c425a6ea9442b38dff5192c5ed8c3f4c27776",
+          "bytes": 2115
+        },
+        "apps/desktop/src/lib.rs": {
+          "sha256": "d1f7cf360dcc8693e608a59064252f2183a670731f2055eaf66fcca434b2f7c4",
+          "bytes": 10828
+        },
+        "apps/desktop/src/mere_overlay.rs": {
+          "sha256": "6e7481f6afe6373184a655ba28f9486a52b8bcec2cca73206d9914005059434d",
+          "bytes": 6338
+        },
+        "apps/desktop/src/graph.rs": {
+          "sha256": "b884535ed9ba197f96a193779b342856128bc763ec13a554579d780ba1a224e0",
+          "bytes": 43889
+        },
+        "apps/desktop/src/workspace.rs": {
+          "sha256": "214245cd47c9b316b8d20b7eb7e805a89a556f78ea87d9628c5b2a653b010c83",
+          "bytes": 409536
+        },
+        "apps/desktop/src/composition.rs": {
+          "sha256": "fbe7ee3509bbdf74230bdba8294742c20899a38d18d2654dde5fea48ecc3306b",
+          "bytes": 154958
+        },
+        "apps/desktop/src/composition/metre.rs": {
+          "sha256": "407dfa93466f78b1d003a2e5ee462dabffcff9447fff24c1756041762d548bc0",
+          "bytes": 41059
+        },
+        "apps/desktop/src/scenario.rs": {
+          "sha256": "259249cc8aa4aaf6a5a0c94627bfd73e7c80ef667ba9825283c8bb10deee4a9e",
+          "bytes": 20645
+        },
+        "apps/desktop/src/scenario_startup.rs": {
+          "sha256": "3d287bbe9103f11cb7b058f45dd688a1aea5cd6c4ca1ab027cbe83d223fca1cd",
+          "bytes": 7647
+        },
+        "apps/desktop/src/scroll_site.rs": {
+          "sha256": "1815b3adf1c4d8e0d0d3dde0362c4009798e58877e0dc1cc0e049500a8cfc559",
+          "bytes": 211183
+        },
+        "docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh": {
+          "sha256": "85e154d85a82198f346eeabf804298eacd726451aa5e87ac96d63a36e3ebccad",
+          "bytes": 2680
+        },
+        "scenarios/overmap_live.scn": {
+          "sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+          "bytes": 1122
+        },
+        "scenarios/overmap_live_reopen.scn": {
+          "sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+          "bytes": 824
+        },
+        "scenarios/overmap_standalone.scn": {
+          "sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+          "bytes": 328
+        }
+      }
+    },
+    {
+      "revision": "10a798f941d3c0908ba23fc9034528747238f7ce",
+      "tree": "1308d0744ad71c2b117c9e6b1c5b9164295f9a04",
+      "subject": "Use retained Taproot selectors in Knot native host",
+      "scoped_source_sha256": {
+        "Cargo.toml": {
+          "sha256": "610d2f62b10ab98a7fcde576d648f7e304d5d680fc266ec7603435cfa9af0b6f",
+          "bytes": 11735
+        },
+        "Cargo.lock": {
+          "sha256": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+          "bytes": 346329
+        },
+        "rust-toolchain.toml": {
+          "sha256": "271159a5847b87e8529ee67e4981d498814251afa70fda1d703f75f011d65d6c",
+          "bytes": 103
+        },
+        "crates/knot-editor/Cargo.toml": {
+          "sha256": "3db93556cbfbc52fb7a5c3e994c7a0a07550bed8433bbb014a2bb40616f41e58",
+          "bytes": 4908
+        },
+        "crates/knot-editor/src/mere_overlay.rs": {
+          "sha256": "30be5cc68d52b4175a69f2341b6d15b2837af8f1ca9b44f9d5d789ce6e13ec0f",
+          "bytes": 25605
+        },
+        "apps/desktop/Cargo.toml": {
+          "sha256": "3a8ba76dc1005ca6c35b1c54c93c425a6ea9442b38dff5192c5ed8c3f4c27776",
+          "bytes": 2115
+        },
+        "apps/desktop/src/lib.rs": {
+          "sha256": "d1f7cf360dcc8693e608a59064252f2183a670731f2055eaf66fcca434b2f7c4",
+          "bytes": 10828
+        },
+        "apps/desktop/src/mere_overlay.rs": {
+          "sha256": "6e7481f6afe6373184a655ba28f9486a52b8bcec2cca73206d9914005059434d",
+          "bytes": 6338
+        },
+        "apps/desktop/src/graph.rs": {
+          "sha256": "b884535ed9ba197f96a193779b342856128bc763ec13a554579d780ba1a224e0",
+          "bytes": 43889
+        },
+        "apps/desktop/src/workspace.rs": {
+          "sha256": "af664f9a7e46c3e073d8d6c3c9ccd74efd31bcc82ac5522acef981d001e34ded",
+          "bytes": 409695
+        },
+        "apps/desktop/src/composition.rs": {
+          "sha256": "85fad04c289d7f6253f0d1714535aa8e158d562ed551c1cf98b9d50cc3ec5593",
+          "bytes": 155274
+        },
+        "apps/desktop/src/composition/metre.rs": {
+          "sha256": "1a5946cd752f0e2d4617dc9075bd9ead4d70627f0978309ffda179ca025403d6",
+          "bytes": 41075
+        },
+        "apps/desktop/src/scenario.rs": {
+          "sha256": "b08bce34fa7c5df5a155f562759a5d3d54e959f1e6187882bfd6772bcd7fe19d",
+          "bytes": 20661
+        },
+        "apps/desktop/src/scenario_startup.rs": {
+          "sha256": "3d287bbe9103f11cb7b058f45dd688a1aea5cd6c4ca1ab027cbe83d223fca1cd",
+          "bytes": 7647
+        },
+        "apps/desktop/src/scroll_site.rs": {
+          "sha256": "7d512d8dc23d13236cde9ba0219ff09b6eff4005cf5b6507f7d155745ec9368e",
+          "bytes": 211224
+        },
+        "docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh": {
+          "sha256": "85e154d85a82198f346eeabf804298eacd726451aa5e87ac96d63a36e3ebccad",
+          "bytes": 2680
+        },
+        "scenarios/overmap_live.scn": {
+          "sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+          "bytes": 1122
+        },
+        "scenarios/overmap_live_reopen.scn": {
+          "sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+          "bytes": 824
+        },
+        "scenarios/overmap_standalone.scn": {
+          "sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+          "bytes": 328
+        }
+      }
+    },
+    {
+      "revision": "0bfc8c21300f6f41fa5019a16df2655d06ec72ae",
+      "tree": "bd808d1f0f8114b138d39be63fd135d80e9aa3b9",
+      "subject": "Intake published native presentation refusal diagnostic",
+      "scoped_source_sha256": {
+        "Cargo.toml": {
+          "sha256": "610d2f62b10ab98a7fcde576d648f7e304d5d680fc266ec7603435cfa9af0b6f",
+          "bytes": 11735
+        },
+        "Cargo.lock": {
+          "sha256": "cdf5542407082bcf4421da5cc059cdf3f7e98ac51d92136be938fa3f56c0299d",
+          "bytes": 346329
+        },
+        "rust-toolchain.toml": {
+          "sha256": "271159a5847b87e8529ee67e4981d498814251afa70fda1d703f75f011d65d6c",
+          "bytes": 103
+        },
+        "crates/knot-editor/Cargo.toml": {
+          "sha256": "3db93556cbfbc52fb7a5c3e994c7a0a07550bed8433bbb014a2bb40616f41e58",
+          "bytes": 4908
+        },
+        "crates/knot-editor/src/mere_overlay.rs": {
+          "sha256": "30be5cc68d52b4175a69f2341b6d15b2837af8f1ca9b44f9d5d789ce6e13ec0f",
+          "bytes": 25605
+        },
+        "apps/desktop/Cargo.toml": {
+          "sha256": "3a8ba76dc1005ca6c35b1c54c93c425a6ea9442b38dff5192c5ed8c3f4c27776",
+          "bytes": 2115
+        },
+        "apps/desktop/src/lib.rs": {
+          "sha256": "d1f7cf360dcc8693e608a59064252f2183a670731f2055eaf66fcca434b2f7c4",
+          "bytes": 10828
+        },
+        "apps/desktop/src/mere_overlay.rs": {
+          "sha256": "6e7481f6afe6373184a655ba28f9486a52b8bcec2cca73206d9914005059434d",
+          "bytes": 6338
+        },
+        "apps/desktop/src/graph.rs": {
+          "sha256": "b884535ed9ba197f96a193779b342856128bc763ec13a554579d780ba1a224e0",
+          "bytes": 43889
+        },
+        "apps/desktop/src/workspace.rs": {
+          "sha256": "af664f9a7e46c3e073d8d6c3c9ccd74efd31bcc82ac5522acef981d001e34ded",
+          "bytes": 409695
+        },
+        "apps/desktop/src/composition.rs": {
+          "sha256": "85fad04c289d7f6253f0d1714535aa8e158d562ed551c1cf98b9d50cc3ec5593",
+          "bytes": 155274
+        },
+        "apps/desktop/src/composition/metre.rs": {
+          "sha256": "1a5946cd752f0e2d4617dc9075bd9ead4d70627f0978309ffda179ca025403d6",
+          "bytes": 41075
+        },
+        "apps/desktop/src/scenario.rs": {
+          "sha256": "b08bce34fa7c5df5a155f562759a5d3d54e959f1e6187882bfd6772bcd7fe19d",
+          "bytes": 20661
+        },
+        "apps/desktop/src/scenario_startup.rs": {
+          "sha256": "3d287bbe9103f11cb7b058f45dd688a1aea5cd6c4ca1ab027cbe83d223fca1cd",
+          "bytes": 7647
+        },
+        "apps/desktop/src/scroll_site.rs": {
+          "sha256": "7d512d8dc23d13236cde9ba0219ff09b6eff4005cf5b6507f7d155745ec9368e",
+          "bytes": 211224
+        },
+        "docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh": {
+          "sha256": "85e154d85a82198f346eeabf804298eacd726451aa5e87ac96d63a36e3ebccad",
+          "bytes": 2680
+        },
+        "scenarios/overmap_live.scn": {
+          "sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+          "bytes": 1122
+        },
+        "scenarios/overmap_live_reopen.scn": {
+          "sha256": "189d188562b86c322386b8afba91ce5df035b090a79f0498b9d991d3574ec03a",
+          "bytes": 824
+        },
+        "scenarios/overmap_standalone.scn": {
+          "sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+          "bytes": 328
+        }
+      }
+    }
+  ],
+  "legacy_reviewfix_scope": "knot-overlay-reviewfix.log predates frozen 88eeb97; it includes failed attempts and the passing precommit migration test. Do not relabel as a committed-source receipt."
+}

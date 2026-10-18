@@ -1,0 +1,836 @@
+{
+  "removed": [
+    {
+      "name": "armillary",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"armillary\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"tracing\",\n]"
+    },
+    {
+      "name": "backstep",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"backstep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\""
+    },
+    {
+      "name": "cambium",
+      "version": "0.3.3",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"cambium\"\nversion = \"0.3.3\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"backstep\",\n \"command-menu\",\n \"genet-scripted-dom\",\n \"genet-text\",\n \"illume\",\n \"layout-dom-api\",\n \"mere-surface-api\",\n \"meristem\",\n \"sceno\",\n \"scenograph\",\n \"scenomise\",\n \"sprigging\",\n \"tinct\",\n \"workbench\",\n]"
+    },
+    {
+      "name": "cambium-genet-winit-host",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"cambium-genet-winit-host\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"accesskit\",\n \"cambium\",\n \"cambium-rootstock\",\n \"cambium-winit\",\n \"cambium-winit-a11y\",\n \"genet-parley\",\n \"genet-render-host\",\n \"genet-scripted-dom\",\n \"genet-winit-host\",\n \"layout-dom-api\",\n \"light-file-dialog\",\n \"meristem\",\n \"netrender\",\n \"objc2-app-kit 0.3.2\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"raw-window-handle\",\n \"sprigging\",\n \"taproot\",\n \"wgpu\",\n \"windows-sys 0.61.2\",\n \"winit\",\n \"x11rb\",\n]"
+    },
+    {
+      "name": "cambium-rootstock",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"cambium-rootstock\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"cambium\",\n \"cambium-winit\",\n \"document-session-api\",\n \"genet-livery\",\n \"genet-render\",\n \"genet-render-host\",\n \"genet-scripted-dom\",\n \"layout-dom-api\",\n \"meristem\",\n \"netrender\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"sprigging\",\n \"web-time\",\n \"wgpu\",\n]"
+    },
+    {
+      "name": "cambium-winit",
+      "version": "0.3.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"cambium-winit\"\nversion = \"0.3.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"cambium\",\n \"web-time\",\n \"winit\",\n]"
+    },
+    {
+      "name": "cambium-winit-a11y",
+      "version": "0.3.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"cambium-winit-a11y\"\nversion = \"0.3.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"accesskit\",\n \"cambium-rootstock\",\n \"genet-render\",\n \"genet-scripted-dom\",\n \"genet-winit-host\",\n \"layout-dom-api\",\n \"sprigging\",\n \"winit\",\n]"
+    },
+    {
+      "name": "chartulary",
+      "version": "0.2.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"chartulary\"\nversion = \"0.2.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"muniment\",\n \"petgraph\",\n \"rkyv\",\n \"serde\",\n \"serde_json\",\n \"slotmap\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "chirograph",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"chirograph\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"base64 0.22.1\",\n \"blake3\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n \"sha2 0.11.0\",\n]"
+    },
+    {
+      "name": "command-menu",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"command-menu\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "cubecl-runtime",
+      "version": "0.11.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"cubecl-runtime\"\nversion = \"0.11.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"buildid\",\n \"bytemuck\",\n \"cfg-if\",\n \"cfg_aliases\",\n \"cubecl-common\",\n \"cubecl-environment\",\n \"cubecl-ir\",\n \"cubecl-monitoring\",\n \"cubecl-zspace\",\n \"derive-new\",\n \"derive_more\",\n \"foldhash 0.2.0\",\n \"futures-util\",\n \"hashbrown 0.17.1\",\n \"itertools 0.15.0\",\n \"log\",\n \"pliron\",\n \"serde\",\n \"serde_json\",\n \"smallvec\",\n \"thiserror 2.0.21\",\n \"toml\",\n \"wasm-bindgen-futures\",\n]"
+    },
+    {
+      "name": "document-canvas",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"document-canvas\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"genet-parley\",\n \"inker\",\n \"netrender\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"serde\",\n]"
+    },
+    {
+      "name": "eidetic",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"eidetic\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"async-trait\",\n \"blake3\",\n \"chartulary\",\n \"jsonschema\",\n \"muniment\",\n \"serde\",\n \"serde_json\",\n \"url\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "errand",
+      "version": "0.4.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"errand\"\nversion = \"0.4.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"finger-protocol\",\n \"gemini-protocol\",\n \"gopher-protocol\",\n \"guppy-protocol\",\n \"misfin\",\n \"nex-protocol\",\n \"quick-xml 0.39.4\",\n \"rustls\",\n \"scroll-protocol\",\n \"spartan-protocol\",\n \"tokio\",\n \"tokio-rustls\",\n \"tracing\",\n \"url\",\n]"
+    },
+    {
+      "name": "esp",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"esp\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"burn\",\n \"getrandom 0.4.3\",\n \"half\",\n \"safetensors 0.4.5\",\n \"serde\",\n \"serde_json\",\n \"tokenizers\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "gemot",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"gemot\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"insigne\",\n \"mere-proofs\",\n \"mien\",\n \"mooting\",\n \"muniment\",\n \"p2panda-auth\",\n \"p2panda-core\",\n \"p2panda-encryption\",\n \"p2panda-store\",\n \"personae\",\n \"redb 2.6.4\",\n \"serde\",\n \"servitor\",\n \"stickleback\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "graphshell-client",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"graphshell-client\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"chirograph\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "graphshell-endpoint",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"graphshell-endpoint\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"base64 0.22.1\",\n \"chatelaine\",\n \"chirograph\",\n \"dramatis\",\n \"insigne\",\n \"libc\",\n \"pandect\",\n \"personae\",\n \"rand_core 0.6.4\",\n \"serde\",\n \"serde_json\",\n \"thiserror 1.0.69\",\n \"tokio\",\n \"tracing\",\n \"uuid\",\n \"windows-sys 0.59.0\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "graphshell-host",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"graphshell-host\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"base64 0.22.1\",\n \"chirograph\",\n \"getrandom 0.3.4\",\n \"graphshell-client\",\n \"graphshell-endpoint\",\n \"insigne\",\n \"mere-transport\",\n \"mere-webrtc-carrier\",\n \"notochord\",\n \"pandect\",\n \"personae\",\n \"rand_core 0.6.4\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n \"thiserror 1.0.69\",\n \"tokio\",\n]"
+    },
+    {
+      "name": "illume",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"illume\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"jotdown\",\n \"logos\",\n]"
+    },
+    {
+      "name": "incipit",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"incipit\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "inker",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"inker\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"accesskit\",\n \"document-session-api\",\n \"getrandom 0.4.3\",\n \"petgraph\",\n \"serde\",\n \"tracing\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "knot-editor-host",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"knot-editor-host\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"cambium\",\n \"illume\",\n \"inker\",\n \"nematic\",\n \"pulldown-cmark\",\n]"
+    },
+    {
+      "name": "luggage",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"luggage\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"semver\",\n \"serde\",\n \"serde_json\",\n \"thiserror 1.0.69\",\n \"time\",\n \"url\",\n]"
+    },
+    {
+      "name": "mere-alembic",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-alembic\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"mere-kernel\",\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-apparatus",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-apparatus\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-cartography",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-cartography\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"mere-kernel\",\n \"sceno\",\n \"scenomise\",\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-curation",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-curation\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-document-lanes",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-document-lanes\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"document-canvas\",\n \"document-session-api\",\n \"genet-host-api\",\n \"genet-static-dom\",\n \"image\",\n \"inker\",\n \"mere-fleece\",\n \"netrender\",\n \"tabard\",\n \"url\",\n]"
+    },
+    {
+      "name": "mere-fetch",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-fetch\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"armillary\",\n \"async-trait\",\n \"bytes\",\n \"eidetic\",\n \"errand\",\n \"futures-util\",\n \"genet-host-api\",\n \"inker\",\n \"mere-page-load\",\n \"netfetcher\",\n \"pandect\",\n \"pollster 0.4.0\",\n \"rustls-pki-types\",\n \"serde\",\n \"serde_json\",\n \"tokio\",\n \"tracing\",\n \"url\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "mere-fleece",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-fleece\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"fleece\",\n]"
+    },
+    {
+      "name": "mere-forme",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-forme\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"mere-curation\",\n \"serde\",\n \"serde_json\",\n \"taffy\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "mere-kernel",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-kernel\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"accesskit\",\n \"chartulary\",\n \"command-menu\",\n \"crossbeam-channel\",\n \"euclid\",\n \"futures-util\",\n \"infer\",\n \"mere-forme\",\n \"mime_guess\",\n \"muniment\",\n \"numen\",\n \"petgraph\",\n \"rkyv\",\n \"serde\",\n \"serde_json\",\n \"strum\",\n \"time\",\n \"url\",\n \"uuid\",\n \"web-time\",\n]"
+    },
+    {
+      "name": "mere-overmap",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-overmap\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"chirograph\",\n \"graphshell-client\",\n \"graphshell-endpoint\",\n \"mere-cartography\",\n \"mere-kernel\",\n \"mere-view\",\n \"pandect\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "mere-page-load",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-page-load\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\""
+    },
+    {
+      "name": "mere-proofs",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-proofs\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"blake3\",\n \"serde\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "mere-surface-api",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-surface-api\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"workbench\",\n]"
+    },
+    {
+      "name": "mere-view",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mere-view\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"cambium\",\n \"incipit\",\n \"mere-cartography\",\n \"mere-curation\",\n \"mere-kernel\",\n \"pictograph\",\n \"sprigging\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "meristem",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"meristem\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"anymore\",\n \"tracing\",\n]"
+    },
+    {
+      "name": "mesquite",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mesquite\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"cambium\",\n \"cambium-rootstock\",\n \"genet-scripted-dom\",\n \"mere-apparatus\",\n \"paint_list_api\",\n \"png 0.17.16\",\n \"postcard\",\n \"serde\",\n \"serde_json\",\n \"taproot\",\n]"
+    },
+    {
+      "name": "mien",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mien\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"insigne\",\n \"muniment\",\n \"p2panda-core\",\n \"p2panda-store\",\n \"personae\",\n \"serde\",\n \"stickleback\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "mooting",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mooting\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"p2panda-core\",\n \"serde\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "mora-cmudict",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"mora-cmudict\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"mora\",\n]"
+    },
+    {
+      "name": "muniment",
+      "version": "0.1.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"muniment\"\nversion = \"0.1.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"async-trait\",\n \"blake3\",\n \"redb 2.6.4\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "nematic",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"nematic\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"errand\",\n \"genet-static-dom\",\n \"inker\",\n \"jotdown\",\n \"pulldown-cmark\",\n \"serde\",\n \"serde_json\",\n \"tracing\",\n \"url\",\n]"
+    },
+    {
+      "name": "numen",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"numen\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n \"strum\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "pandect",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"pandect\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"async-trait\",\n \"blake3\",\n \"chacha20poly1305 0.11.0\",\n \"chartulary\",\n \"ciborium\",\n \"command-menu\",\n \"dirs 5.0.1\",\n \"eidetic\",\n \"getrandom 0.3.4\",\n \"hex\",\n \"incipit\",\n \"insigne\",\n \"mere-alembic\",\n \"mere-curation\",\n \"mere-kernel\",\n \"muniment\",\n \"notochord\",\n \"personae\",\n \"sceno\",\n \"serde\",\n \"serde_json\",\n \"tabard\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "pictograph",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"pictograph\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"armillary\",\n \"chartulary\",\n \"chirograph\",\n \"emblem\",\n \"esp\",\n \"euclid\",\n \"genet-livery\",\n \"genet-scripted-dom\",\n \"layout-dom-api\",\n \"libm\",\n \"mere-cartography\",\n \"mere-curation\",\n \"mere-forme\",\n \"mere-kernel\",\n \"netrender\",\n \"numen\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"petgraph\",\n \"sceno\",\n \"scenograph\",\n \"scenomise\",\n \"scenotime\",\n \"seiche\",\n \"serde\",\n \"serde_json\",\n \"tinct\",\n \"tracing\",\n \"tracing-subscriber\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "reference-data",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"reference-data\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"blake3\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "sceno",
+      "version": "0.0.5",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"sceno\"\nversion = \"0.0.5\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "scenograph",
+      "version": "0.0.4",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"scenograph\"\nversion = \"0.0.4\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"mere-curation\",\n \"sceno\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "scenomise",
+      "version": "0.0.5",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"scenomise\"\nversion = \"0.0.5\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"libm\",\n \"sceno\",\n \"scenograph\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "scenotime",
+      "version": "0.0.4",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"scenotime\"\nversion = \"0.0.4\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"sceno\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "script-rhai",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"script-rhai\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"inker\",\n \"libm\",\n \"rhai\",\n \"script-engine-api\",\n]"
+    },
+    {
+      "name": "seiche",
+      "version": "0.0.6",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"seiche\"\nversion = \"0.0.6\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"armillary\",\n \"euclid\",\n \"numen\",\n \"petgraph\",\n \"rapier2d\",\n \"serde\",\n \"serde_path_to_error\",\n \"tracing\",\n]"
+    },
+    {
+      "name": "servitor",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"servitor\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"chartulary\",\n \"insigne\",\n \"personae\",\n]"
+    },
+    {
+      "name": "sprigging",
+      "version": "0.2.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"sprigging\"\nversion = \"0.2.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"accesskit\",\n \"netrender-vello\",\n \"paint_list_api\",\n]"
+    },
+    {
+      "name": "stickleback",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"stickleback\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"blake3\",\n \"futures-util\",\n \"hex\",\n \"insigne\",\n \"mere-p2panda-net\",\n \"mere-proofs\",\n \"muniment\",\n \"p2panda-core\",\n \"p2panda-encryption\",\n \"p2panda-store\",\n \"p2panda-sync\",\n \"personae\",\n \"serde\",\n \"serde_bytes\",\n \"thiserror 1.0.69\",\n \"tokio\",\n \"tokio-stream\",\n]"
+    },
+    {
+      "name": "tabard",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"tabard\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n \"serde_json\",\n \"tinct\",\n]"
+    },
+    {
+      "name": "tabard-workshop",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"tabard-workshop\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"cambium\",\n \"document-canvas\",\n \"genet-livery\",\n \"genet-scripted-dom\",\n \"inker\",\n \"layout-dom-api\",\n \"livery\",\n \"mere-document-lanes\",\n \"netrender\",\n \"paint_list_render\",\n \"sprigging\",\n \"tabard\",\n \"tinct\",\n]"
+    },
+    {
+      "name": "tinct",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"tinct\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "workbench",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+      "lock_record": "name = \"workbench\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#9b8c161a831aa9615c84a4bbfaea9b15021e3659\""
+    }
+  ],
+  "added": [
+    {
+      "name": "armillary",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"armillary\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"tracing\",\n]"
+    },
+    {
+      "name": "backstep",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"backstep\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\""
+    },
+    {
+      "name": "cambium",
+      "version": "0.3.3",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"cambium\"\nversion = \"0.3.3\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"backstep\",\n \"command-menu\",\n \"genet-scripted-dom\",\n \"genet-text\",\n \"illume\",\n \"layout-dom-api\",\n \"mere-surface-api\",\n \"meristem\",\n \"sceno\",\n \"scenograph\",\n \"scenomise\",\n \"sprigging\",\n \"tinct\",\n \"workbench\",\n]"
+    },
+    {
+      "name": "cambium-genet-winit-host",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"cambium-genet-winit-host\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"accesskit\",\n \"cambium\",\n \"cambium-rootstock\",\n \"cambium-winit\",\n \"cambium-winit-a11y\",\n \"genet-parley\",\n \"genet-render-host\",\n \"genet-scripted-dom\",\n \"genet-winit-host\",\n \"layout-dom-api\",\n \"light-file-dialog\",\n \"meristem\",\n \"netrender\",\n \"objc2-app-kit 0.3.2\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"raw-window-handle\",\n \"sprigging\",\n \"taproot\",\n \"wgpu\",\n \"windows-sys 0.61.2\",\n \"winit\",\n \"x11rb\",\n]"
+    },
+    {
+      "name": "cambium-rootstock",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"cambium-rootstock\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"cambium\",\n \"cambium-winit\",\n \"document-session-api\",\n \"genet-livery\",\n \"genet-render\",\n \"genet-render-host\",\n \"genet-scripted-dom\",\n \"layout-dom-api\",\n \"meristem\",\n \"netrender\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"sprigging\",\n \"web-time\",\n \"wgpu\",\n]"
+    },
+    {
+      "name": "cambium-winit",
+      "version": "0.3.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"cambium-winit\"\nversion = \"0.3.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"cambium\",\n \"web-time\",\n \"winit\",\n]"
+    },
+    {
+      "name": "cambium-winit-a11y",
+      "version": "0.3.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"cambium-winit-a11y\"\nversion = \"0.3.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"accesskit\",\n \"cambium-rootstock\",\n \"genet-render\",\n \"genet-scripted-dom\",\n \"genet-winit-host\",\n \"layout-dom-api\",\n \"sprigging\",\n \"winit\",\n]"
+    },
+    {
+      "name": "chartulary",
+      "version": "0.2.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"chartulary\"\nversion = \"0.2.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"muniment\",\n \"petgraph\",\n \"rkyv\",\n \"serde\",\n \"serde_json\",\n \"slotmap\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "chirograph",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"chirograph\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"base64 0.22.1\",\n \"blake3\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n \"sha2 0.11.0\",\n]"
+    },
+    {
+      "name": "command-menu",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"command-menu\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "cubecl-runtime",
+      "version": "0.11.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"cubecl-runtime\"\nversion = \"0.11.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"buildid\",\n \"bytemuck\",\n \"cfg-if\",\n \"cfg_aliases\",\n \"cubecl-common\",\n \"cubecl-environment\",\n \"cubecl-ir\",\n \"cubecl-monitoring\",\n \"cubecl-zspace\",\n \"derive-new\",\n \"derive_more\",\n \"foldhash 0.2.0\",\n \"futures-util\",\n \"hashbrown 0.17.1\",\n \"itertools 0.15.0\",\n \"log\",\n \"pliron\",\n \"serde\",\n \"serde_json\",\n \"smallvec\",\n \"thiserror 2.0.21\",\n \"toml\",\n \"wasm-bindgen-futures\",\n]"
+    },
+    {
+      "name": "document-canvas",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"document-canvas\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"genet-parley\",\n \"inker\",\n \"netrender\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"serde\",\n]"
+    },
+    {
+      "name": "eidetic",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"eidetic\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"async-trait\",\n \"blake3\",\n \"chartulary\",\n \"jsonschema\",\n \"muniment\",\n \"serde\",\n \"serde_json\",\n \"url\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "errand",
+      "version": "0.4.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"errand\"\nversion = \"0.4.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"finger-protocol\",\n \"gemini-protocol\",\n \"gopher-protocol\",\n \"guppy-protocol\",\n \"misfin\",\n \"nex-protocol\",\n \"quick-xml 0.39.4\",\n \"rustls\",\n \"scroll-protocol\",\n \"spartan-protocol\",\n \"tokio\",\n \"tokio-rustls\",\n \"tracing\",\n \"url\",\n]"
+    },
+    {
+      "name": "esp",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"esp\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"burn\",\n \"getrandom 0.4.3\",\n \"half\",\n \"safetensors 0.4.5\",\n \"serde\",\n \"serde_json\",\n \"tokenizers\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "gemot",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"gemot\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"insigne\",\n \"mere-proofs\",\n \"mien\",\n \"mooting\",\n \"muniment\",\n \"p2panda-auth\",\n \"p2panda-core\",\n \"p2panda-encryption\",\n \"p2panda-store\",\n \"personae\",\n \"redb 2.6.4\",\n \"serde\",\n \"servitor\",\n \"stickleback\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "graphshell-client",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"graphshell-client\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"chirograph\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "graphshell-endpoint",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"graphshell-endpoint\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"base64 0.22.1\",\n \"chatelaine\",\n \"chirograph\",\n \"dramatis\",\n \"insigne\",\n \"libc\",\n \"pandect\",\n \"personae\",\n \"rand_core 0.6.4\",\n \"serde\",\n \"serde_json\",\n \"thiserror 1.0.69\",\n \"tokio\",\n \"tracing\",\n \"uuid\",\n \"windows-sys 0.59.0\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "graphshell-host",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"graphshell-host\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"base64 0.22.1\",\n \"chirograph\",\n \"getrandom 0.3.4\",\n \"graphshell-client\",\n \"graphshell-endpoint\",\n \"insigne\",\n \"mere-transport\",\n \"mere-webrtc-carrier\",\n \"notochord\",\n \"pandect\",\n \"personae\",\n \"rand_core 0.6.4\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n \"thiserror 1.0.69\",\n \"tokio\",\n]"
+    },
+    {
+      "name": "illume",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"illume\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"jotdown\",\n \"logos\",\n]"
+    },
+    {
+      "name": "incipit",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"incipit\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "inker",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"inker\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"accesskit\",\n \"document-session-api\",\n \"getrandom 0.4.3\",\n \"petgraph\",\n \"serde\",\n \"tracing\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "knot-editor-host",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"knot-editor-host\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"cambium\",\n \"illume\",\n \"inker\",\n \"nematic\",\n \"pulldown-cmark\",\n]"
+    },
+    {
+      "name": "luggage",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"luggage\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"semver\",\n \"serde\",\n \"serde_json\",\n \"thiserror 1.0.69\",\n \"time\",\n \"url\",\n]"
+    },
+    {
+      "name": "mere-alembic",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-alembic\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"mere-kernel\",\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-apparatus",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-apparatus\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-cartography",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-cartography\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"mere-kernel\",\n \"sceno\",\n \"scenomise\",\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-curation",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-curation\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "mere-document-lanes",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-document-lanes\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"document-canvas\",\n \"document-session-api\",\n \"genet-host-api\",\n \"genet-static-dom\",\n \"image\",\n \"inker\",\n \"mere-fleece\",\n \"netrender\",\n \"tabard\",\n \"url\",\n]"
+    },
+    {
+      "name": "mere-fetch",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-fetch\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"armillary\",\n \"async-trait\",\n \"bytes\",\n \"eidetic\",\n \"errand\",\n \"futures-util\",\n \"genet-host-api\",\n \"inker\",\n \"mere-page-load\",\n \"netfetcher\",\n \"pandect\",\n \"pollster 0.4.0\",\n \"rustls-pki-types\",\n \"serde\",\n \"serde_json\",\n \"tokio\",\n \"tracing\",\n \"url\",\n \"zeroize\",\n]"
+    },
+    {
+      "name": "mere-fleece",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-fleece\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"fleece\",\n]"
+    },
+    {
+      "name": "mere-forme",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-forme\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"mere-curation\",\n \"serde\",\n \"serde_json\",\n \"taffy\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "mere-kernel",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-kernel\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"accesskit\",\n \"chartulary\",\n \"command-menu\",\n \"crossbeam-channel\",\n \"euclid\",\n \"futures-util\",\n \"infer\",\n \"mere-forme\",\n \"mime_guess\",\n \"muniment\",\n \"numen\",\n \"petgraph\",\n \"rkyv\",\n \"serde\",\n \"serde_json\",\n \"strum\",\n \"time\",\n \"url\",\n \"uuid\",\n \"web-time\",\n]"
+    },
+    {
+      "name": "mere-overmap",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-overmap\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"chirograph\",\n \"graphshell-client\",\n \"graphshell-endpoint\",\n \"mere-cartography\",\n \"mere-kernel\",\n \"mere-view\",\n \"pandect\",\n \"sceno\",\n \"scenotime\",\n \"serde\",\n \"serde_json\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "mere-page-load",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-page-load\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\""
+    },
+    {
+      "name": "mere-proofs",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-proofs\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"blake3\",\n \"serde\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "mere-surface-api",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-surface-api\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"workbench\",\n]"
+    },
+    {
+      "name": "mere-view",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mere-view\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"cambium\",\n \"incipit\",\n \"mere-cartography\",\n \"mere-curation\",\n \"mere-kernel\",\n \"pictograph\",\n \"sprigging\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "meristem",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"meristem\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"anymore\",\n \"tracing\",\n]"
+    },
+    {
+      "name": "mesquite",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mesquite\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"cambium\",\n \"cambium-rootstock\",\n \"genet-scripted-dom\",\n \"mere-apparatus\",\n \"paint_list_api\",\n \"png 0.17.16\",\n \"postcard\",\n \"serde\",\n \"serde_json\",\n \"taproot\",\n]"
+    },
+    {
+      "name": "mien",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mien\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"insigne\",\n \"muniment\",\n \"p2panda-core\",\n \"p2panda-store\",\n \"personae\",\n \"serde\",\n \"stickleback\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "mooting",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mooting\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"p2panda-core\",\n \"serde\",\n \"thiserror 1.0.69\",\n]"
+    },
+    {
+      "name": "mora-cmudict",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"mora-cmudict\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"mora\",\n]"
+    },
+    {
+      "name": "muniment",
+      "version": "0.1.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"muniment\"\nversion = \"0.1.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"async-trait\",\n \"blake3\",\n \"redb 2.6.4\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "nematic",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"nematic\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"errand\",\n \"genet-static-dom\",\n \"inker\",\n \"jotdown\",\n \"pulldown-cmark\",\n \"serde\",\n \"serde_json\",\n \"tracing\",\n \"url\",\n]"
+    },
+    {
+      "name": "numen",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"numen\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n \"strum\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "pandect",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"pandect\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"async-trait\",\n \"blake3\",\n \"chacha20poly1305 0.11.0\",\n \"chartulary\",\n \"ciborium\",\n \"command-menu\",\n \"dirs 5.0.1\",\n \"eidetic\",\n \"getrandom 0.3.4\",\n \"hex\",\n \"incipit\",\n \"insigne\",\n \"mere-alembic\",\n \"mere-curation\",\n \"mere-kernel\",\n \"muniment\",\n \"notochord\",\n \"personae\",\n \"sceno\",\n \"serde\",\n \"serde_json\",\n \"tabard\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "pictograph",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"pictograph\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"armillary\",\n \"chartulary\",\n \"chirograph\",\n \"emblem\",\n \"esp\",\n \"euclid\",\n \"genet-livery\",\n \"genet-scripted-dom\",\n \"layout-dom-api\",\n \"libm\",\n \"mere-cartography\",\n \"mere-curation\",\n \"mere-forme\",\n \"mere-kernel\",\n \"netrender\",\n \"numen\",\n \"paint_list_api\",\n \"paint_list_render\",\n \"petgraph\",\n \"sceno\",\n \"scenograph\",\n \"scenomise\",\n \"scenotime\",\n \"seiche\",\n \"serde\",\n \"serde_json\",\n \"tinct\",\n \"tracing\",\n \"tracing-subscriber\",\n \"uuid\",\n]"
+    },
+    {
+      "name": "reference-data",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"reference-data\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"blake3\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "sceno",
+      "version": "0.0.5",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"sceno\"\nversion = \"0.0.5\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "scenograph",
+      "version": "0.0.4",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"scenograph\"\nversion = \"0.0.4\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"mere-curation\",\n \"sceno\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "scenomise",
+      "version": "0.0.5",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"scenomise\"\nversion = \"0.0.5\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"libm\",\n \"sceno\",\n \"scenograph\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "scenotime",
+      "version": "0.0.4",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"scenotime\"\nversion = \"0.0.4\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"sceno\",\n \"serde\",\n \"serde_json\",\n]"
+    },
+    {
+      "name": "script-rhai",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"script-rhai\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"inker\",\n \"libm\",\n \"rhai\",\n \"script-engine-api\",\n]"
+    },
+    {
+      "name": "seiche",
+      "version": "0.0.6",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"seiche\"\nversion = \"0.0.6\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"armillary\",\n \"euclid\",\n \"numen\",\n \"petgraph\",\n \"rapier2d\",\n \"serde\",\n \"serde_path_to_error\",\n \"tracing\",\n]"
+    },
+    {
+      "name": "servitor",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"servitor\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"chartulary\",\n \"insigne\",\n \"personae\",\n]"
+    },
+    {
+      "name": "sprigging",
+      "version": "0.2.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"sprigging\"\nversion = \"0.2.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"accesskit\",\n \"netrender-vello\",\n \"paint_list_api\",\n]"
+    },
+    {
+      "name": "stickleback",
+      "version": "0.1.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"stickleback\"\nversion = \"0.1.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"blake3\",\n \"futures-util\",\n \"hex\",\n \"insigne\",\n \"mere-p2panda-net\",\n \"mere-proofs\",\n \"muniment\",\n \"p2panda-core\",\n \"p2panda-encryption\",\n \"p2panda-store\",\n \"p2panda-sync\",\n \"personae\",\n \"serde\",\n \"serde_bytes\",\n \"thiserror 1.0.69\",\n \"tokio\",\n \"tokio-stream\",\n]"
+    },
+    {
+      "name": "tabard",
+      "version": "0.0.2",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"tabard\"\nversion = \"0.0.2\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n \"serde_json\",\n \"tinct\",\n]"
+    },
+    {
+      "name": "tabard-workshop",
+      "version": "0.0.1",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"tabard-workshop\"\nversion = \"0.0.1\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"cambium\",\n \"document-canvas\",\n \"genet-livery\",\n \"genet-scripted-dom\",\n \"inker\",\n \"layout-dom-api\",\n \"livery\",\n \"mere-document-lanes\",\n \"netrender\",\n \"paint_list_render\",\n \"sprigging\",\n \"tabard\",\n \"tinct\",\n]"
+    },
+    {
+      "name": "tinct",
+      "version": "0.2.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"tinct\"\nversion = \"0.2.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\"\ndependencies = [\n \"serde\",\n]"
+    },
+    {
+      "name": "workbench",
+      "version": "0.1.0",
+      "source": "git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+      "lock_record": "name = \"workbench\"\nversion = \"0.1.0\"\nsource = \"git+https://github.com/merely-made/mere.git?branch=main#15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\""
+    }
+  ],
+  "changed_existing_identity": [
+    {
+      "name": "colored",
+      "version": "3.1.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"colored\"\nversion = \"3.1.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34\"\ndependencies = [\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"colored\"\nversion = \"3.1.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34\"\ndependencies = [\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "dirs-sys",
+      "version": "0.5.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"dirs-sys\"\nversion = \"0.5.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab\"\ndependencies = [\n \"libc\",\n \"option-ext\",\n \"redox_users 0.5.3\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"dirs-sys\"\nversion = \"0.5.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"e01a3366d27ee9890022452ee61b2b63a67e6f13f58900b651ff5665f0bb1fab\"\ndependencies = [\n \"libc\",\n \"option-ext\",\n \"redox_users 0.5.3\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "errno",
+      "version": "0.3.14",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"errno\"\nversion = \"0.3.14\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb\"\ndependencies = [\n \"libc\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"errno\"\nversion = \"0.3.14\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb\"\ndependencies = [\n \"libc\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "nu-ansi-term",
+      "version": "0.50.3",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"nu-ansi-term\"\nversion = \"0.50.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5\"\ndependencies = [\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"nu-ansi-term\"\nversion = \"0.50.3\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5\"\ndependencies = [\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "quinn-udp",
+      "version": "0.5.16",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"quinn-udp\"\nversion = \"0.5.16\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"af66907df18639dcf4db56ca65490cabc4b27a97dbadd96f2926cca73298f016\"\ndependencies = [\n \"cfg_aliases\",\n \"libc\",\n \"once_cell\",\n \"socket2\",\n \"tracing\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"quinn-udp\"\nversion = \"0.5.16\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"af66907df18639dcf4db56ca65490cabc4b27a97dbadd96f2926cca73298f016\"\ndependencies = [\n \"cfg_aliases\",\n \"libc\",\n \"once_cell\",\n \"socket2\",\n \"tracing\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "rustix",
+      "version": "1.1.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"rustix\"\nversion = \"1.1.5\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d\"\ndependencies = [\n \"bitflags 2.13.2\",\n \"errno\",\n \"libc\",\n \"linux-raw-sys 0.12.1\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"rustix\"\nversion = \"1.1.5\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"891efababe418670775f199f0d233d84843c227a0949a883ce15b37c78d6629d\"\ndependencies = [\n \"bitflags 2.13.2\",\n \"errno\",\n \"libc\",\n \"linux-raw-sys 0.12.1\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "rustls-platform-verifier",
+      "version": "0.7.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"rustls-platform-verifier\"\nversion = \"0.7.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"1167586491e2b18b8bfbb293e8180ec17c201c4f076d7cb3070ca964e7598f98\"\ndependencies = [\n \"core-foundation 0.10.1\",\n \"core-foundation-sys\",\n \"jni 0.22.4\",\n \"log\",\n \"once_cell\",\n \"rustls\",\n \"rustls-native-certs\",\n \"rustls-platform-verifier-android\",\n \"rustls-webpki\",\n \"security-framework\",\n \"security-framework-sys\",\n \"webpki-root-certs\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"rustls-platform-verifier\"\nversion = \"0.7.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"1167586491e2b18b8bfbb293e8180ec17c201c4f076d7cb3070ca964e7598f98\"\ndependencies = [\n \"core-foundation 0.10.1\",\n \"core-foundation-sys\",\n \"jni 0.22.4\",\n \"log\",\n \"once_cell\",\n \"rustls\",\n \"rustls-native-certs\",\n \"rustls-platform-verifier-android\",\n \"rustls-webpki\",\n \"security-framework\",\n \"security-framework-sys\",\n \"webpki-root-certs\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "socket2",
+      "version": "0.6.5",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"socket2\"\nversion = \"0.6.5\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4\"\ndependencies = [\n \"libc\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"socket2\"\nversion = \"0.6.5\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4\"\ndependencies = [\n \"libc\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "stacker",
+      "version": "0.1.25",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"stacker\"\nversion = \"0.1.25\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"707f49d46706bacf8a2b00d51dace3f9de527c13eec3778f570c411f89e69967\"\ndependencies = [\n \"cc\",\n \"cfg-if\",\n \"libc\",\n \"psm\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"stacker\"\nversion = \"0.1.25\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"707f49d46706bacf8a2b00d51dace3f9de527c13eec3778f570c411f89e69967\"\ndependencies = [\n \"cc\",\n \"cfg-if\",\n \"libc\",\n \"psm\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "tempfile",
+      "version": "3.27.0",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"tempfile\"\nversion = \"3.27.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd\"\ndependencies = [\n \"fastrand\",\n \"getrandom 0.4.3\",\n \"once_cell\",\n \"rustix 1.1.5\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"tempfile\"\nversion = \"3.27.0\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd\"\ndependencies = [\n \"fastrand\",\n \"getrandom 0.4.3\",\n \"once_cell\",\n \"rustix 1.1.5\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "uds_windows",
+      "version": "1.2.1",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"uds_windows\"\nversion = \"1.2.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e\"\ndependencies = [\n \"memoffset\",\n \"tempfile\",\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"uds_windows\"\nversion = \"1.2.1\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e\"\ndependencies = [\n \"memoffset\",\n \"tempfile\",\n \"windows-sys 0.60.2\",\n]"
+    },
+    {
+      "name": "winapi-util",
+      "version": "0.1.11",
+      "source": "registry+https://github.com/rust-lang/crates.io-index",
+      "before": "name = \"winapi-util\"\nversion = \"0.1.11\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22\"\ndependencies = [\n \"windows-sys 0.61.2\",\n]",
+      "after": "name = \"winapi-util\"\nversion = \"0.1.11\"\nsource = \"registry+https://github.com/rust-lang/crates.io-index\"\nchecksum = \"c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22\"\ndependencies = [\n \"windows-sys 0.60.2\",\n]"
+    }
+  ]
+}

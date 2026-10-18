@@ -1,0 +1,80 @@
+{
+  "schema": "knot.shared-resident-materialization/v1",
+  "status": "qualified within recorded scope",
+  "source": "d4ac7772692d0e8638ced4417740a10745c06810",
+  "supplier": "500bc78a7fa9e0b9abe8f35d189c465f93d3ccab",
+  "genet": "7114f91ce928937ac0891d7db816655706843204",
+  "native_binary_sha256": "d81533f64dddfd1d6dc0f599160f7ad26970f6dd75f30932d77e88e6734b549e",
+  "gates": [
+    {
+      "name": "final desktop build",
+      "exit": 0,
+      "log": "final/knot-final-probe-build-02.log"
+    },
+    {
+      "name": "overlay against final supplier",
+      "source": "e0bc340f406da102208ccc98cf5dff46f5377d39",
+      "unchanged_library_source_at_final": true,
+      "exit": 0,
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "log": "final/knot-final-divider-overlay.log"
+    }
+  ],
+  "native": {
+    "live-native": {
+      "launch_method": "LaunchServices temporary application bundle",
+      "launcher_exit": 0,
+      "timeout": false,
+      "success": true,
+      "elapsed_seconds": 7.061,
+      "binary_sha256": "d81533f64dddfd1d6dc0f599160f7ad26970f6dd75f30932d77e88e6734b549e",
+      "scenario_sha256": "be66e893b4e634063e0f3bd1ba70f6e7a483571f1762b32a873fa9e5e3658687",
+      "receipt": "scenario.done",
+      "captures": 3
+    },
+    "live-native-reopen": {
+      "launch_method": "LaunchServices temporary application bundle",
+      "launcher_exit": 0,
+      "timeout": false,
+      "success": true,
+      "elapsed_seconds": 6.666,
+      "binary_sha256": "d81533f64dddfd1d6dc0f599160f7ad26970f6dd75f30932d77e88e6734b549e",
+      "scenario_sha256": "cf99d0de0cdfa542574e368238a255ee16441bca2c6ce3b1c3d0e4c082ee37d0",
+      "receipt": "scenario.done",
+      "captures": 3
+    },
+    "standalone": {
+      "launch_method": "LaunchServices temporary application bundle",
+      "launcher_exit": 0,
+      "timeout": false,
+      "success": true,
+      "elapsed_seconds": 4.33,
+      "binary_sha256": "d81533f64dddfd1d6dc0f599160f7ad26970f6dd75f30932d77e88e6734b549e",
+      "scenario_sha256": "9ad4a63811eda73e90296958e9515fb8cd2dea273faa1b38e09186769a57fb59",
+      "receipt": "scenario.done",
+      "captures": 1
+    }
+  },
+  "reviewed_originals": 7,
+  "fork_count": 1,
+  "session_count_after_open_and_fork": 5,
+  "prior_receipts_preserved": 518,
+  "scope": "Native archive Save, fresh Knot process archive readback/Open, explicit Fork and stable-ID mounted-card inspection, standalone catalog control. Resident stays running across client reopening.",
+  "process_exit_contract": "LaunchServices open -W exit 0 plus product RESULT ok; child application exit code is not separately reported by this runner. Owned fixture resident exit 0 is recorded.",
+  "acceptance_refinement": "Original reopen assertions remain in the supplementary scenario. It additionally checks five sessions/one fork, closes the specific thaw card, and inspects the fork through its mounted stable-ID node. An overview label can be suppressed by collision; no owner action, timeout or renderer refusal was bypassed.",
+  "historical_diagnostics": "Initial packet plus native attempts 05-07 retained. Attempt06 used an overbroad Close selector and closed the graph tab; 07 used the correct close but overview label remained collision-suppressed.",
+  "not_claimed": [
+    "resident owner restart through Knot",
+    "pending-merge native visual qualification",
+    "compact layout qualification",
+    "cross-platform qualification"
+  ],
+  "fixture_resident": {
+    "source": "9b8c161a831aa9615c84a4bbfaea9b15021e3659",
+    "binary_sha256": "50f853286c5c76623e30f820d46fd2eb1bd5f06a34e50b474210a01a3e940b6b",
+    "public_fixture_only": true,
+    "note": "Frozen owner fixture built before the consumer-only diagnostic/divider intake; fixture source unchanged. Native clients consume the final supplier recorded above."
+  }
+}

@@ -1,0 +1,25 @@
+warning: patch `netrender_device v0.1.2 (https://github.com/merely-made/netrender.git?branch=main#8960024f)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://github.com/merely-made/netrender.git
+warning: patch `p2panda-stream v0.7.1 (https://github.com/mark-ik/p2panda.git?tag=mere-p2panda-net-0.7.5-upstream-20261013#1f69c9bc)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: unused variable: `path`
+  --> crates/knot-editor/src/directory.rs:53:13
+   |
+53 |     fn read(path: &Path, _metadata: &Metadata) -> io::Result<Self> {
+   |             ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-editor` (lib) generated 1 warning (run `cargo fix --lib -p knot-editor` to apply 1 suggestion)
+   Compiling knot-desktop v0.0.1 (/Users/markik/Code/testing/shared-resident-materialization-20261018/knot/apps/desktop)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `knot-desktop` (bin "knot") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 16.53s

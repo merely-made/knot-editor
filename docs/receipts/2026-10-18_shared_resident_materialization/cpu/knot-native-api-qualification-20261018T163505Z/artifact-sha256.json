@@ -1,0 +1,14 @@
+{
+  "cargo-metadata.json": "3ad506e5ee0fb5a5fd0236ac5631a2a5f631c9b452b1e5dba8c5334afa44cdf5",
+  "cargo-metadata.log": "9f6cbaae504ea54be5e3f2004f42621300c77752e6eea17c24445d014394adfb",
+  "desktop-build.log": "7ec6184b4bcebe8bad3bd8ddeed63b47bb6935fee2ab7e5f4e2711b83009e34f",
+  "inputs-sha256.json": "e373dd15619a14cff887b27bac36d9dd161876625cf50a915ddd08466873414a",
+  "metadata-result.json": "70eca73deed5db6321ac11dd205cb247fe92efd57c8021f764bca6dc3f9f164d",
+  "metre-lib.log": "aee65bdfdb8f639f05b67d6027a6e94a9624e563d52aa310fe68ae1e7a8ae0fa",
+  "native-command-preparation.txt": "df4c3aaf027bf8de3f6a2cd98f20e2ab870a46d430a9b7f917b3c116eeb4a9ce",
+  "resolved-closure.json": "f05cd865e4f01fd8335e93dabf68dea542c2ffa0251c02e421d858e30a541029",
+  "results.json": "266d528e14bb9a65ed302caa1adb880892db33fe91c564b2cdbd3d25d1ea9b6e",
+  "role-selector-result.json": "1cb9bd71c3c890284f29737e3a03bcea67b6a19c9adf00e7e0049de5d803f65e",
+  "role-selector-tests.log": "3dfb1754b8add73f8889511e166b6a6f28f9725be2cceac7a78409b5a2af596e",
+  "scenario-lane.log": "6fca237e5cb007b74d77659badc5d67c088fe5390b2fe60228e6195e6f78c62b"
+}

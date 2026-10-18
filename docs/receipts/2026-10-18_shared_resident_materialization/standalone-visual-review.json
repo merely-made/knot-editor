@@ -1,0 +1,34 @@
+{
+  "reviews": [
+    {
+      "capture": "native/knot-native-01/standalone/overmap-standalone-graph-no-layer.png",
+      "sha256": "437c274336d97f6d5d23725da6f376e7d90df3201334babca8e7dde813e0aedc",
+      "reviewed_utc": "2026-10-18T16:54:40.669310+00:00",
+      "reviewer": "Codex in this chat; direct image inspection",
+      "method": "Viewed original local PNG through image viewer; source bytes copied unchanged. Tool displayed resized pixels.",
+      "observations": [
+        "Graph tab active; essay.djot and field_notes.djot are both open and shown as two labeled green catalog nodes.",
+        "One visible connecting relation; catalog reading notice and Ready status are legible.",
+        "Top toolbar and graph controls are visible; no resident session/archive tier or New session control is visible.",
+        "No blank frame or visible error overlay."
+      ],
+      "verdict": "PASS bounded standalone catalog/no-resident visual control; not resident acceptance"
+    },
+    {
+      "capture": "native/knot-native-trace-02/standalone/overmap-standalone-graph-no-layer.png",
+      "sha256": "6bc1e8e4aae18cd64ce5aad022afc177691d3e7f153a7a7c3e0497a742a07d40",
+      "reviewed_utc": "2026-10-18T16:54:40.669902+00:00",
+      "reviewer": "Codex in this chat; direct image inspection",
+      "method": "Viewed original local PNG through image viewer; source bytes copied unchanged. Tool displayed resized pixels.",
+      "observations": [
+        "Graph tab active; essay.djot and field_notes.djot are both open and shown as two labeled green catalog nodes.",
+        "One visible connecting relation; catalog reading notice and Ready status are legible.",
+        "Top toolbar and graph controls are visible; no resident session/archive tier or New session control is visible.",
+        "No blank frame or visible error overlay."
+      ],
+      "verdict": "PASS bounded standalone catalog/no-resident visual control; not resident acceptance"
+    }
+  ],
+  "unreviewed_preserved_capture": "native/knot-native-frame-03/standalone/overmap-standalone-graph-no-layer.png",
+  "resident_native_status": "PENDING"
+}

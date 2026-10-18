@@ -1,0 +1,24 @@
+{
+  "head": "10a798f941d3c0908ba23fc9034528747238f7ce",
+  "command": [
+    "cargo",
+    "+1.99.1",
+    "test",
+    "-p",
+    "knot-desktop",
+    "--lib",
+    "--locked",
+    "--offline",
+    "--",
+    "finished_motion_discloses_its_end_and_disables_step_until_restarted",
+    "a_refused_motion_slot_is_disclosed_and_repair_requires_an_explicit_play",
+    "motion_preview_stays_visible_with_its_controls_at_compact_panel_widths",
+    "recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame",
+    "scene_camera_disclosure_is_session_only_and_removes_pan_targets",
+    "short_zoomed_viewport_keeps_source_status_and_drawer_inside_the_window",
+    "keyboard_focus_matches_the_one_focus_rule_on_every_kind_of_control"
+  ],
+  "started_utc": "2026-10-18T16:36:59.350093+00:00",
+  "exit_code": 0,
+  "finished_utc": "2026-10-18T16:37:20.534095+00:00"
+}

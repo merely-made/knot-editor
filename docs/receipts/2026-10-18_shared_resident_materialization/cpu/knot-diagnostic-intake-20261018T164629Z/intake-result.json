@@ -1,0 +1,17 @@
+{
+  "supplier_revision": "15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64",
+  "verified_remote_main": "15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64\trefs/heads/main",
+  "knot_head_before": "10a798f941d3c0908ba23fc9034528747238f7ce",
+  "lock_sha256_before": "96e8d6b6d06078ae51705dd31229e7d5767d1bf3c96ae3fe4fe5ebdfb49875fb",
+  "update_command": [
+    "cargo",
+    "+1.99.1",
+    "update",
+    "-p",
+    "mere-overmap",
+    "--precise",
+    "15b9b664844ec4ac2f27f4a4cc5f96a356b2bc64"
+  ],
+  "update_exit": 0,
+  "lock_sha256_after": "cdf5542407082bcf4421da5cc059cdf3f7e98ac51d92136be938fa3f56c0299d"
+}

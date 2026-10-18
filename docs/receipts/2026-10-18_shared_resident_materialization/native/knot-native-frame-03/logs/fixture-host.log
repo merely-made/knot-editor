@@ -1,0 +1,11 @@
+2026-10-18T16:45:04.941083Z  INFO graphshell_endpoint::door::local_endpoint: resident endpoint listening endpoint="/tmp/kov-7db46f8d.sock" door="first-party"
+2026-10-18T16:45:04.963303Z  WARN djinn::door::app_broker: first-party session failed error=the application stream ended before its hello
+FIXTURE_SESSION id=SessionId(ea305153-9b88-4b48-8aa9-78469b004069) name="Session" attached=true
+FIXTURE_SESSION id=SessionId(be8e53ea-96bb-47db-a7f5-206fb2bc7417) name="Evening reading" attached=false
+FIXTURE_SESSION id=SessionId(0f092696-ab02-4b31-9a59-3485cb983f25) name="Draft spread" attached=false
+FIXTURE_READING title="divination" sessions=3 can_mint=true archive=Some(ArchiveModel { entries: [], save_sessions: [SessionId(ea305153-9b88-4b48-8aa9-78469b004069), SessionId(be8e53ea-96bb-47db-a7f5-206fb2bc7417), SessionId(0f092696-ab02-4b31-9a59-3485cb983f25)], can_compose: true })
+FIXTURE_READY pid=4266 persona=00000000-0000-0000-6b6e-6f7420261015 mere_root=/Users/markik/Code/testing/shared-resident-materialization-20261018/knot-native-frame-03/fixture/shared
+2026-10-18T16:45:07.897798Z  INFO djinn::custody: released epoch keys app=knot-editor keys=3
+2026-10-18T16:45:24.644545Z  INFO djinn::custody: released epoch keys app=knot-editor keys=3
+FIXTURE_STOPPED pid=4266
+host exit=0

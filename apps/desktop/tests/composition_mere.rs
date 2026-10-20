@@ -251,7 +251,9 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
     };
     let click = |host: &mut DesktopHarness, label: &str| {
         let selector = Selector::role("button").containing(label);
-        let matches = host.with_dom(|dom| taproot::matching(dom, &selector));
+        let projection = host.a11y_projection();
+        let matches =
+            host.with_dom(|dom| taproot::matching_with_projection(dom, &selector, &projection));
         let geometry: Vec<_> = matches
             .iter()
             .map(|node| (host.painted_rect(*node), host.visible_rect(*node)))

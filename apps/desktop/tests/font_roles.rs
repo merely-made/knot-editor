@@ -76,8 +76,9 @@ fn field(role: &str) -> Selector {
     Selector::role("textbox").with_attr("data-font-role", role)
 }
 fn focus(host: &mut Host, selector: &Selector) {
+    let projection = host.a11y_projection();
     let node = host
-        .with_dom(|dom| taproot::matching(dom, selector).first().copied())
+        .with_dom(|dom| taproot::matching_with_projection(dom, selector, &projection).first().copied())
         .expect("mounted control");
     for _ in 0..160 {
         if host.focus() == Some(node) {
@@ -152,10 +153,12 @@ fn mounted_typing_picker_keyboard_apply_and_reopen_preserve_writer_authority() {
     host.key_injected("Source Serif 4");
     host.after_dispatch();
     host.relayout();
+    let projection = host.a11y_projection();
     assert!(host.with_dom(|dom| {
-        taproot::matching(
+        taproot::matching_with_projection(
             dom,
             &Selector::role("button").with_attr("data-font-family", "IBM Plex Mono"),
+            &projection,
         )
         .is_empty()
     }));
@@ -410,7 +413,7 @@ fn probe_view(state: &DesktopState) -> DesktopView {
     )
 }
 fn width(host: &Host, class: &str) -> f32 {
-    let node = host.with_dom(|dom| taproot::matching(dom, &Selector::class(class))[0]);
+    let node = host.with_dom(|dom| taproot::matching_classes(dom, &Selector::class(class))[0]);
     host.painted_rect(node).unwrap().2
 }
 #[test]
@@ -423,9 +426,9 @@ fn mounted_geometry_and_authored_cascade_honor_family_only_preferences() {
     let serif = width(&host, "reader-probe");
     let writer = width(&host, "writer-probe");
     let reader =
-        host.with_dom(|dom| taproot::matching(dom, &Selector::class("knot-document-preview"))[0]);
+        host.with_dom(|dom| taproot::matching_classes(dom, &Selector::class("knot-document-preview"))[0]);
     let heading =
-        host.with_dom(|dom| taproot::matching(dom, &Selector::class("heading-style-probe"))[0]);
+        host.with_dom(|dom| taproot::matching_classes(dom, &Selector::class("heading-style-probe"))[0]);
     let reader_metrics = (
         host.computed_value(reader, "font-size"),
         host.computed_value(reader, "line-height"),

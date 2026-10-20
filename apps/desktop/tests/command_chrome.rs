@@ -57,7 +57,8 @@ fn button(label: &str) -> Selector {
 }
 
 fn node(h: &DesktopHarness, selector: &Selector) -> genet_scripted_dom::NodeId {
-    h.with_dom(|dom| taproot::matching(dom, selector).into_iter().next())
+    let projection = h.a11y_projection();
+    h.with_dom(|dom| taproot::matching_with_projection(dom, selector, &projection).into_iter().next())
         .expect("matching DOM node")
 }
 

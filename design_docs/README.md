@@ -74,7 +74,7 @@ visual residuals; it does not infer live dynamics or release acceptance.
 
 Retained contract and historical execution:
 
-- [Shared document surface and port contribution](2026-08-24_knot_shared_surface_and_port_contribution_plan.md)
+- [Shared document surface and port contribution](2026-08-24_knot_shared_surface_and_port_contribution_plan.md) Embedded Cambium 0.5 compatibility (2026-10-20) permits both 0.4/0.5 widget cohorts; the standalone desktop lock stays fixed, and Turnstone owns the receiving gate.
 
 Earlier product and integration plans:
 

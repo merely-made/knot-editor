@@ -82,6 +82,13 @@ scope and validation record is
 Site identity, revision history, replication and new actor adapters remain later
 slices; this extraction does not move vault or editor authority.
 
+Receiving qualification uses the ordinary root `Cargo.lock`, including the
+shared model and the separately qualified borrowed-lowering Mere/NetRender
+cohort (`80bb318`, Mere `d4756e0fb`). `cargo check -p knot-site --lib --locked --offline` passes from the
+root workspace, and the shared model's three fixed compatibility cases pass
+under that root dependency set. The standalone site suites pass 17 default
+cases and 22 cases with Retinue, including loopback serving and replacement.
+
 ## Persistent serving ownership and rollout boundary
 
 The canonical ownership proposal is

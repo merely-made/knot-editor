@@ -78,7 +78,7 @@ fn harness(size: u8) -> FontHarness {
 fn width(h: &FontHarness, class: &str) -> f32 {
     let node = h
         .with_dom(|dom| {
-            taproot::matching(dom, &Selector::class(class))
+            taproot::matching_classes(dom, &Selector::class(class))
                 .first()
                 .copied()
         })
@@ -274,7 +274,7 @@ fn appearance_source_and_preview_measures_are_glyph_geometry_at_12_and_24px() {
 fn rect_measure(h: &MeasureHarness, class: &str) -> (f32, f32, f32, f32) {
     let node = h
         .with_dom(|dom| {
-            taproot::matching(dom, &Selector::class(class))
+            taproot::matching_classes(dom, &Selector::class(class))
                 .first()
                 .copied()
         })
@@ -314,7 +314,7 @@ fn desktop_harness(size: u8) -> DesktopHarness {
 fn desktop_rect(h: &DesktopHarness, class: &str) -> (f32, f32, f32, f32) {
     let node = h
         .with_dom(|dom| {
-            taproot::matching(dom, &Selector::class(class))
+            taproot::matching_classes(dom, &Selector::class(class))
                 .first()
                 .copied()
         })

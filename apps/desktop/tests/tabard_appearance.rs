@@ -93,7 +93,7 @@ fn a_loaded_library_does_not_replace_embedding_styles_on_unrelated_input() {
     host.layout_at(1280.0, 960.0);
     appearance(&mut host);
     let node =
-        host.with_dom(|dom| taproot::matching(dom, &Selector::class("knot-writing-area"))[0]);
+        host.with_dom(|dom| taproot::matching_classes(dom, &Selector::class("knot-writing-area"))[0]);
     assert_eq!(
         host.computed_value(node, "min-height").as_deref(),
         Some("555px")
@@ -584,7 +584,7 @@ fn empty_writing_field_keeps_native_geometry_and_typing_after_semantic_input_ado
 fn rendered_color(host: &Host, class: &str, property: &str, expected: tinct::Srgb) {
     let node = host
         .with_dom(|dom| {
-            taproot::matching(dom, &Selector::class(class))
+            taproot::matching_classes(dom, &Selector::class(class))
                 .first()
                 .copied()
         })

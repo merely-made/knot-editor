@@ -151,10 +151,14 @@ fn narrow_menu_and_drawer_escape_preserve_preedit_selection_disk_and_focus() {
     let disk = host.state().document().session().compare_disk().unwrap();
     let tree = host.state().docs.workspace().tiled().clone();
     settle(&mut host, 320.0, 800.0);
+    let projection = host.a11y_projection();
     assert_eq!(
-        host.with_dom(
-            |dom| taproot::matching(dom, &Selector::role("menuitem").containing("Menu")).len()
-        ),
+        host.with_dom(|dom| taproot::matching_with_projection(
+            dom,
+            &Selector::role("menuitem").containing("Menu"),
+            &projection
+        )
+        .len()),
         1
     );
     let rails = host.with_dom(|dom| dom.all_with_class(dom.document(), "frisket-rail"));
@@ -186,8 +190,14 @@ fn narrow_menu_and_drawer_escape_preserve_preedit_selection_disk_and_focus() {
     assert_eq!(host.state().docs.workspace().tiled(), &tree);
     assert_eq!(std::fs::read_to_string(path).unwrap(), source);
     let focused = host.runner().focus().expect("source focus restored");
+    let projection = host.a11y_projection();
     assert!(
-        host.with_dom(|dom| taproot::matching(dom, &Selector::role("textbox")).contains(&focused)),
+        host.with_dom(|dom| taproot::matching_with_projection(
+            dom,
+            &Selector::role("textbox"),
+            &projection
+        )
+        .contains(&focused)),
         "focus should return to document input"
     );
 }
@@ -207,7 +217,10 @@ fn four_times_zoom_uses_the_same_logical_reflow_policy() {
         x >= -0.5 && x + w <= 320.5 && y >= -0.5 && y + h <= 175.5,
         "status outside short zoomed viewport: ({x}, {y}, {w}, {h})"
     );
-    let editors = host.with_dom(|dom| taproot::matching(dom, &Selector::role("textbox")));
+    let projection = host.a11y_projection();
+    let editors = host.with_dom(|dom| {
+        taproot::matching_with_projection(dom, &Selector::role("textbox"), &projection)
+    });
     assert!(
         editors.iter().any(|node| host
             .visible_rect(*node)

@@ -81,6 +81,8 @@ pub fn metre_scene(
                             format!("·{}", index + 1)
                         },
                         stressed: beat == Beat::Strong,
+                        // The CMUdict pronunciation supplies the stress judgment.
+                        stress_known: true,
                     });
                 }
                 let phones = rhyme_tail(phones, &parts);

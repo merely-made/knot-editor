@@ -5181,9 +5181,12 @@ mod tests {
         )
     }
 
-    // The preview pane is not its own scroll container: `.knot-scroll-preview`
-    // grows to content height, so the window viewport carries the offset. The
-    // form panel switching to its sending view must not move that offset.
+    // `.knot-scroll-preview` grows to content height inside its Frisket pane,
+    // and the pane (`.frisket-content`, `overflow: auto`) carries the offset.
+    // Content inside a nested scroll container no longer enlarges the
+    // document (Mere `e1053942`), so the test wheels over the pane itself and
+    // lays out with the desktop's real sheet, which sizes the Frisket stack.
+    // The form panel switching to its sending view must not move that offset.
     #[test]
     fn a_micron_submission_redraw_keeps_the_scrolled_preview_where_it_was() {
         let mut source = String::from(
@@ -5216,17 +5219,30 @@ mod tests {
             Init {
                 state,
                 logic: desktop_view as fn(&DesktopState) -> DesktopView,
-                sheet: format!("{DESKTOP_CSS}{CSS}"),
+                sheet: crate::desktop_sheet(),
                 fonts: Vec::new(),
                 images: Vec::new(),
             },
             host_hooks(),
         );
         host.layout_at(1100.0, 730.0);
-        let (x, y) = host
-            .resolve(&Selector::role("button").containing("Close Micron form"))
+        host.resolve(&Selector::role("button").containing("Close Micron form"))
             .expect("the form panel is rendered in the preview");
-        host.move_to(x, y);
+        let pane = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let preview = class_nodes(&dom, dom.document(), "knot-scroll-preview")[0];
+            let mut node = preview;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("the preview sits in a Frisket pane");
+            }
+        };
+        let (px, py, pw, ph) = host.visible_rect(pane).expect("the preview pane is visible");
+        assert!(ph > 100.0, "the preview pane collapsed to {ph}px");
+        host.move_to(px + pw / 2.0, py + ph / 2.0);
         host.wheel(0.0, 300.0);
         let scrolled = host.element_scroll_total();
         assert!(scrolled > 0.0, "the preview did not scroll");

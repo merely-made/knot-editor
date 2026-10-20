@@ -46,7 +46,7 @@ chirograph = { version = "0.0.2", git = "https://github.com/merely-made/mere.git
 eidetic = { version = "0.0.2", default-features = false, git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 esp = { version = "0.1.0", git = "https://github.com/merely-made/esp.git", rev = "6d371901435b68e3fb4099a97789222d15f87cf0" }
 fetch = { package = "mere-fetch", version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
-gemot = { version = "0.1.1", git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+gemot = { version = "0.1.1", git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 graphshell-endpoint = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", branch = "main" }
 # The serving half Knot's place projection test and k2 peer serve through
 # (Mere stack lift plan P4, `graphshell-host`).
@@ -124,13 +124,13 @@ eidetic = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63e
 errand = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 esp = { git = "https://github.com/merely-made/esp.git", rev = "6d371901435b68e3fb4099a97789222d15f87cf0" }
 finger-protocol = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
-gemot = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+gemot = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 gopher-protocol = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 guppy-protocol = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 luggage = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
-mien = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+mien = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 misfin = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
-mooting = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+mooting = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 nex-protocol = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 scroll-protocol = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 servitor = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
@@ -174,11 +174,11 @@ chartulary = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d
 eidetic = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 errand = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 esp = { git = "https://github.com/merely-made/esp.git", rev = "6d371901435b68e3fb4099a97789222d15f87cf0" }
-gemot = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+gemot = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 luggage = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 mere-proofs = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
-mien = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
-mooting = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+mien = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
+mooting = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 muniment = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 servitor = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 stickleback = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
@@ -200,11 +200,11 @@ chartulary = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d
 eidetic = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 errand = { git = "https://github.com/merely-made/errand.git", rev = "dce1f08546b8475e42a5a01ca1ea18794c6e9b97" }
 esp = { git = "https://github.com/merely-made/esp.git", rev = "6d371901435b68e3fb4099a97789222d15f87cf0" }
-gemot = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+gemot = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 luggage = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 mere-proofs = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
-mien = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
-mooting = { git = "https://github.com/merely-made/gemot.git", rev = "692674ca66728f5b0dbb2fc7e756acaa83626f5c" }
+mien = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
+mooting = { git = "https://github.com/merely-made/gemot.git", rev = "4342aed4bd101e68b1e71d24e010190d81765201" }
 muniment = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 servitor = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }
 stickleback = { git = "https://github.com/merely-made/eidetic.git", rev = "34105d63ec17826e0a58a5b461b65150357dd000" }

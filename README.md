@@ -14,7 +14,9 @@ the document presentation and desktop host.
 - `crates/knot-document`: the narrow one-document model and reusable Cambium
   surface.
 - `crates/knot-site`: native small-web site folders and explicit loopback
-  publication snapshots, reusable by other Knot hosts.
+  publication snapshots, reusable by other Knot hosts. Portable site records,
+  validation and canonical snapshot V1 come from Mere's `mere-site` crate;
+  `knot-site` re-exports those types and owns the file/protocol adapters.
 - `crates/knot-file-catalog`: durable file identities without the editor's
   preview, publishing, or replication dependencies.
 - `crates/knot-capture`: lightweight host-issued retention targets and receipts.

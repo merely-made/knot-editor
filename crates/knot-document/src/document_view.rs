@@ -192,7 +192,7 @@ pub fn knot_document_descriptor() -> SurfaceDescriptor {
     SurfaceDescriptor {
         provider_id: ProviderId::from("knot"),
         surface_id: SurfaceId::from("knot.document.v1"),
-        label: "Knot document".to_owned(),
+        label: "Document".to_owned(),
         accepted_source: SurfaceSourceShape::One(SourceKindId::from("knot.document.v1")),
     }
 }

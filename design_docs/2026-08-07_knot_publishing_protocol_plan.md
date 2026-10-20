@@ -13,6 +13,21 @@ protocol. Phase B has not begun: the Phase-A grammar needs real product use and
 an intended independent implementer before it is promoted into a compatibility
 commitment.
 
+**Named-recipient research handoff, 2026-10-19:** Turnstone's next consumer
+chooses one saved document and each saved-source attachment independently.
+The current publisher's single vault-document read is the authority baseline;
+it is not a completed directory-document/evidence handoff. The inspected
+`KnotPublishSource` is supplied by the startup-unlocked signed vault owner,
+whereas Turnstone's ordinary research note uses a directory endpoint. The
+source-owning resident must supply an admitted, saved-revision-bound selected
+publication, with durable selection and signed withdrawal, before that
+consumer can qualify cold reopening. Do not reopen the resident's operation
+store in the host or infer evidence transfer from a retained reference.
+The consumer's exact gap assessment, disclosure requirements and acceptance
+cases live once in
+`turnstone/design_docs/2026-09-06_page_lifecycle_plan.md`, section
+"Named-recipient sharing boundary, 2026-10-19". That gate remains open.
+
 **Scope**: Let one persona explicitly share selected, versioned Knot documents
 with another persona without giving that reader a paired-writer grant, a vault
 key, or a replica. Phase A is authenticated, read-only publishing. It does not

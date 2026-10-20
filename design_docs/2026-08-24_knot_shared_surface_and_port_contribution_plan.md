@@ -719,3 +719,20 @@ through UI admission.
 - evidence, sharing, and resident status preserve their existing authority and
   custody boundaries;
 - deferred broader product work remains explicit in this plan.
+
+
+### 2026-10-20: embedded Cambium 0.5 compatibility
+
+The Hest H2 adoption in Turnstone requires Cambium 0.5.0. The embedded
+`knot-document` surface does not construct or expose Hest command records;
+it uses the Cambium widget surface shared by the 0.4 and 0.5 cohorts.
+Its Cambium requirement now permits `>=0.4.0, <0.6.0`, so an embedding host
+selects one coherent family. The desktop workspace retains its existing 0.4
+requirement and lock; this is not a standalone Knot application repin.
+
+The owning continuation and receiving evidence live in
+`mere/design_docs/cambium_docs/implementation_strategy/2026-10-20_hest_command_architecture_plan.md`.
+Turnstone will require 0.5 and validate the actual embedded receiver. The
+supplier constraint change is committed locally; push/publication and native
+presentation remain deferred. Document authority, save policy and source-edit
+contract pins are unchanged.

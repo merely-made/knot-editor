@@ -29,7 +29,8 @@ engine = [
 # Canonical Git source; no local patch or other supplier repin.
 mere-source-edit = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", rev = "70deef2c8cf3d3410ae35b496a9396514070b24f" }
 same-file = "1.0.6"
-cambium = { version = "0.4.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
+# The embedded surface uses the widget API shared by the 0.4 and 0.5 cohorts.
+cambium = { version = ">=0.4.0, <0.6.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 mere-surface-api = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 illume = { version = "0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main", optional = true }
 inker = { git = "https://github.com/merely-made/mere.git", branch = "main", optional = true }

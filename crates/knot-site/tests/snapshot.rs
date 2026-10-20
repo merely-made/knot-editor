@@ -6,7 +6,7 @@ fn saved_publication_round_trips_through_a_canonical_process_neutral_snapshot() 
     let site = Site::create_for(&temp.path().join("site"), SiteFormat::Gemini).unwrap();
     let publication = site.publication().unwrap();
     let encoded = publication.to_snapshot_v1().unwrap().encode().unwrap();
-    let snapshot = PublishedSnapshotV1::decode(&encoded).unwrap();
+    let snapshot: site_model::PublishedSnapshotV1 = PublishedSnapshotV1::decode(&encoded).unwrap();
     assert_eq!(snapshot.encode().unwrap(), encoded);
     let restored = Publication::from_snapshot_v1(snapshot).unwrap();
     let url = url::Url::parse("gemini://localhost:1965/").unwrap();

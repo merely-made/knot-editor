@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "test_filter": "clip_evidence",
+  "passed_cases": 6,
+  "scope": "Knot clip evidence on aligned immutable Eidetic family; no headed standalone claim",
+  "source_base": "2a7231ac9c1948eb350ca37ef2c6fcc0c74c48c0",
+  "files_sha256": {
+    "Cargo.toml": "c5db016a6881c25fc4b5ce2535fc054edb6966f0c839829230591df89e309674",
+    "Cargo.lock": "c2bd53fc91c9bdcf63996a0c9577e325327129b3572b3e7939c6e71e26e9412b"
+  },
+  "log_sha256": "2071207ca5ff8e95942d56d16028fde319c9982fe2c67b01b1948c042d342bd2"
+}

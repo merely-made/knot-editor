@@ -174,3 +174,15 @@ and records its Scry/Weld native qualification and frozen source archive at
 `turnstone/docs/receipts/browser_supplier_integration_20261006/`.
 The primary checkout's unpublished local documentation and concurrent work
 remain separate from this integration.
+
+## Progress, 2026-10-19: Eidetic family alignment for retained-content intake
+
+Knot's active manifest and patch rows now share Eidetic `543f5ff`, Gemot
+`67ce0ac` and ESP `af5597c` with the published Mere consumer family. This keeps
+current citation APIs available to Turnstone while avoiding a second Eidetic
+source identity in the embedded graph. Six focused `knot-editor` clip-evidence
+cases pass, including saved Unicode passage reopening, verified transport and
+content hashes, and distinct saved-source provenance. The standalone lock keeps
+its existing branch suppliers; Turnstone's own lock selects its qualified Mere
+and renderer revisions. This is dependency and citation qualification, with no
+new standalone headed-authoring claim.

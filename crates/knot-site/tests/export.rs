@@ -26,7 +26,11 @@ fn exports_canonical_snapshot_and_exact_saved_page_bytes_to_static_layout() {
 
     assert_eq!(receipt.page_count, snapshot.pages.len());
     assert_eq!(receipt.snapshot_digest, expected_digest);
-    assert_eq!(receipt.output_dir, fs::canonicalize(&output).unwrap());
+    // Windows canonicalization may add the extended-length path prefix.
+    assert_eq!(
+        fs::canonicalize(&receipt.output_dir).unwrap(),
+        fs::canonicalize(&output).unwrap()
+    );
     assert_eq!(
         fs::read(output.join("snapshot.json")).unwrap(),
         snapshot.encode().unwrap()

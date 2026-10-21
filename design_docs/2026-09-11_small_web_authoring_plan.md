@@ -41,8 +41,8 @@ serving adapters remain subsequent slices.
   The existing renderer and source-edit cohorts retain their locked revisions;
   the root graph has exactly one `mere-site` package identity.
 - Shared V1 fixtures and all six persistence/failure/concurrency controls pass.
-- Final published supplier `4232d5622` is adopted without moving the existing
-  renderer or source-edit cohorts. The standalone site suite passes 18 cases;
+- Final published model supplier `4232d5622` is adopted independently of the
+  renderer and source-edit cohorts. The standalone site suite passes 18 cases;
   the file-only desktop checkpoint/worker case and all nine launch tests pass.
   [Site receipt](../support/receipts/shared-site-revisions/site.json) and
   [desktop receipt](../support/receipts/shared-site-revisions/desktop.json).
@@ -50,6 +50,12 @@ serving adapters remain subsequent slices.
   ([build receipt](../support/receipts/shared-site-revisions/normal-build.json)).
   These are automated native gates; a history browser/restore UI, new retention
   runtime acceptance and headed acceptance remain separate.
+- Rebased onto upstream Knot `b8d0e2f`, preserving its Hest/Cambium receiving
+  cohort (Mere `e94cb23e`) and every Git source outside the model contract.
+  The checkpoint case, all nine launch cases and the normal default-feature
+  build pass again on combined source `5297224`. The standalone capture source
+  and lock remain byte-identical to their completed 18-case gate.
+  [Final receiving receipt](../support/receipts/shared-site-revisions/integration.json).
 
 **Status (2026-09-13):** Gemini/Spartan local publication and reviewed Titan/
 Spartan submission implemented and checked through the headed review/send flow.

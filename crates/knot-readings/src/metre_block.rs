@@ -220,7 +220,10 @@ pub fn scene(
                     })
                     .unwrap_or_default(),
                 alignment: authored.and_then(|line| line.alignment.clone()),
-                rhyme_group: rhyme.get(row).map(|s| (*s).to_string()),
+                rhyme_group: rhyme
+                    .get(row)
+                    .filter(|group| **group != "-")
+                    .map(|group| (*group).to_string()),
                 rhyme_tail: None,
             }
         })
@@ -405,5 +408,27 @@ mod tests {
             panic!()
         };
         assert!(grid.lines.iter().all(|line| line.syllables.is_empty()));
+    }
+
+    #[test]
+    fn dash_rhyme_placeholders_do_not_form_expected_arcs() {
+        let mut attrs = BTreeMap::from([("rhyme".into(), "- -".into())]);
+        let (unset, _) =
+            scene("memory:test", "verse", "first line\nsecond line\n", &attrs).unwrap();
+        let SceneFacts::MetreGrid(grid) = &unset.facts else {
+            panic!()
+        };
+        assert!(grid.lines.iter().all(|line| line.rhyme_group.is_none()));
+        assert!(unset.compile().unwrap().scene.relations.is_empty());
+
+        attrs.insert("rhyme".into(), "A A".into());
+        let (expected, _) =
+            scene("memory:test", "verse", "first line\nsecond line\n", &attrs).unwrap();
+        let compiled = expected.compile().unwrap();
+        assert_eq!(compiled.scene.relations.len(), 1);
+        assert_eq!(
+            compiled.scene.relations[0].kind.as_deref(),
+            Some("expected.rhyme")
+        );
     }
 }

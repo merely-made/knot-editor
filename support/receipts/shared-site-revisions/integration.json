@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-21",
+  "tested_commit": "52972246372c6b16769bba2bb14eff3607727e13",
+  "upstream_receiving_base": "b8d0e2fd5f090a8edde5a2ddef09b784ecdf5f75",
+  "receiving_mere_cohort": "e94cb23e88c8989355eb128b893f6cdbe559e074",
+  "model_supplier": "4232d56229428b7d3f6b1f7260b45d427618ddc4",
+  "root_lock_sha256": "28b247bcdf69b137aad25ff0f5636686f6ea0e24260eba5718671638b207b144",
+  "root_worker_gate": {
+    "command": "cargo test -p knot-desktop --no-default-features --lib site_history::tests --locked --offline -j 2",
+    "passed": true,
+    "tests_passed": 1,
+    "unrelated_filtered": 342
+  },
+  "root_cli_gate": {
+    "passed": true,
+    "tests_passed": 9,
+    "filtered": 0
+  },
+  "normal_build_gate": {
+    "passed": true,
+    "default_features": true
+  },
+  "commands": [
+    {
+      "command": "cargo test -p knot-desktop --no-default-features --bin knot --locked --offline -j 2",
+      "passed": true
+    },
+    {
+      "command": "cargo check -p knot-desktop --locked --offline -j 2",
+      "passed": true
+    }
+  ],
+  "standalone_site_gate_unchanged": true,
+  "standalone_site_tests_passed": 18,
+  "preserved_upstream_git_sources_outside_model_contract": true,
+  "one_model_identity": true,
+  "scope": "Combined upstream Hest/Cambium receiving cohort; automated native checks. No new headed, replication, retention runtime or public-serving claim."
+}

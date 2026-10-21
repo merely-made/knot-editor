@@ -1,0 +1,18 @@
+{
+  "schema": "hest-h3-receiver/v1",
+  "date": "2026-10-20",
+  "receiver": "knot-editor",
+  "tested_source_commit": "3acb3d219b633dce05c9be0e002aaaf899bb3bf1",
+  "supplier": "9ef5e3026997dce50760ae445da9eedd38a325ac",
+  "checks": "checks.json",
+  "source": "tested-source.json",
+  "cohort": "cohort.json",
+  "lock_scope": "lock-scope.json",
+  "native_gui_or_window_manager_acceptance": false,
+  "crate_publication": false,
+  "common_owner": "mere/design_docs/cambium_docs/implementation_strategy/2026-10-20_hest_command_architecture_plan.md",
+  "host_exercise": "Actual Knot desktop caption controls and its shared host-supplied window queue; resize invocation admission is pending, malformed contracts leave the queue empty.",
+  "document_export": "document-export.json",
+  "passed": 417,
+  "existing_ignored": 2
+}

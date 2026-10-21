@@ -763,3 +763,10 @@ incoming NetRender `ec15eb26`, Genet `6ef3cd37` and Murm `e2f19a3f` pins;
 1,248 unrelated incoming package blocks remain exact. Source files and the
 committed lock are hashed in the receiver receipt. No native window-manager
 acceptance or crate publication is inferred from these software checks.
+
+Canonical common-contract owner:
+`mere/design_docs/cambium_docs/implementation_strategy/2026-10-20_hest_command_architecture_plan.md`.
+
+[H3 receiving qualification](../docs/receipts/hest-h3-20261020/qualification.json)
+retains the exact source, canonical dependency cohort, command outcomes and
+standalone export proof. Git delivery is authorized; crate publication remains held.

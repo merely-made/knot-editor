@@ -1,0 +1,92 @@
+[
+  {
+    "name": "chrome",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "knot-desktop",
+      "--lib",
+      "--test",
+      "command_chrome"
+    ],
+    "environment": {
+      "TMPDIR": "/tmp",
+      "CARGO_BUILD_JOBS": "4"
+    },
+    "exit_code": 0,
+    "elapsed_seconds": 257.75,
+    "log": "knot-chrome.log.gz",
+    "raw_log_sha256": "be6d6f330f9209d78a5630c8b331161ca7eece7b8483bd8f1a6614dc499e5e80",
+    "suites": [
+      {
+        "passed": 342,
+        "failed": 0,
+        "ignored": 1
+      },
+      {
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "stored_log_sha256": "af28ba2ce33e6b37e81211ddeec9027f8410b77df05a3ab38a7557dae9a85bef",
+    "compression": "gzip"
+  },
+  {
+    "name": "document",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "--manifest-path",
+      "/Users/markik/Code/testing/mere/hest-h3-20261020/knot-document-source/crates/knot-document/Cargo.toml",
+      "--features",
+      "engine",
+      "--lib"
+    ],
+    "environment": {
+      "TMPDIR": "/tmp",
+      "CARGO_BUILD_JOBS": "4",
+      "CARGO_TARGET_DIR": "/Users/markik/Code/repos/knot-editor/target"
+    },
+    "exit_code": 0,
+    "elapsed_seconds": 26.56,
+    "log": "knot-document-final.log.gz",
+    "raw_log_sha256": "8449b2408d059998f1f0eccf7c8dc19e8ce2ed732a92217a619de6c241f4f574",
+    "suites": [
+      {
+        "passed": 66,
+        "failed": 0,
+        "ignored": 1
+      }
+    ],
+    "stored_log_sha256": "acd854d6aefdefb95f2e4462885242bec8a2efb2dbb71ac73618e8e448009e34",
+    "compression": "gzip"
+  },
+  {
+    "name": "all-targets",
+    "command": [
+      "cargo",
+      "check",
+      "--workspace",
+      "--all-targets",
+      "--locked",
+      "--offline"
+    ],
+    "environment": {
+      "TMPDIR": "/tmp",
+      "CARGO_BUILD_JOBS": "4"
+    },
+    "exit_code": 0,
+    "elapsed_seconds": 84.45,
+    "log": "knot-all-targets-final.log.gz",
+    "raw_log_sha256": "58e5657d73c785db96b3c774cee5a51364c3270eb64cab0c144c633fe2209957",
+    "suites": [],
+    "stored_log_sha256": "01d88801e66872e4d817bb5eb09a08ff3b393c6bd9f3850995243d2f18771f58",
+    "compression": "gzip"
+  }
+]

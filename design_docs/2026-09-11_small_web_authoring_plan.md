@@ -69,16 +69,38 @@ effect; sending requires a separate explicit action over reviewed bytes.
    Done when registered sessions render native pages, local authoring preserves
    source, and explicit Gemini/Titan/Spartan flows remain usable.
 
-## Persistent serving proposal, not rollout
+## Shared site model extraction (2026-10-20)
+
+The portable `SiteFormat`, `Page`, `SiteConfig`, `PublishedPageV1` and
+`PublishedSnapshotV1` records, their validation and canonical encoding now belong
+to `mere-site` at `mere/crates/domain/site`. `knot-site` re-exports the same types
+and retains file discovery, templates, checked saves and protocol-serving
+adapters. Existing V1 bytes, digests, native metadata and bounds are preserved.
+Djinn imports the snapshot contract directly from the shared crate. The canonical
+scope and validation record is
+`mere/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md`.
+Site identity, revision history, replication and new actor adapters remain later
+slices; this extraction does not move vault or editor authority.
+
+Receiving qualification uses the ordinary root `Cargo.lock`, including the
+shared model and the separately qualified borrowed-lowering Mere/NetRender
+cohort (`80bb318`, Mere `d4756e0fb`). `cargo check -p knot-site --lib --locked --offline` passes from the
+root workspace, and the shared model's three fixed compatibility cases pass
+under that root dependency set. The standalone site suites pass 17 default
+cases and 22 cases with Retinue, including loopback serving and replacement.
+
+## Persistent serving ownership and rollout boundary
 
 The canonical ownership proposal is
 `mere/design_docs/mere_docs/implementation_strategy/2026-08-22_djinn_family_resident_services_plan.md`,
 section 13. It compares Knot-owned serving, Djinn-held ordinary snapshots, and
 Djinn-supervised governed hosting. The preferred persistent step is explicit
 snapshot handoff to Djinn while keeping ordinary sites independent of Gemot.
-Certificate identity, restart policy, audience, retention, authority changes,
-resource bounds and external-client restart acceptance remain proposal gates.
-The current work only runs loopback listeners within the authoring process.
+The ordinary Gemini snapshot service has since landed in Djinn, with durable
+custody, stable TLS identity, opt-in restart and local independent-reader
+acceptance, as recorded in section 13 of that plan. Knot's in-process serving
+remains available. Headed desktop handoff, public binding, additional resident
+protocols and governed hosting retain separate gates.
 
 Theme-export research is scoped separately. A client's installed theme/settings,
 app chrome, document palette, and author-supplied styling are different surfaces.

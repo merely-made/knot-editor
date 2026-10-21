@@ -47,6 +47,21 @@ cargo test -p knot-desktop
 Launch an untitled document with `cargo run -p knot-desktop`, or append
 `-- path/to/document.djot` to open a file at startup.
 
+Optional saved-site history is enabled with
+`cargo run -p knot-desktop -- --site-history path/to/history path/to/site`.
+Choose **Site → Checkpoint saved site** (or the site tile's button) after saving
+source and metadata. The explicitly selected directory holds plaintext V1
+snapshots and their checkpoint journal; ordinary launch attaches no history
+store. Embedded hosts can supply another Muniment backend through
+`DesktopLaunch::site_history`, with their own capacity and sealing policy.
+Standalone capacity is configurable with `--site-history-revisions` and
+`--site-history-journal-bytes` (defaults: 10,000 checkpoints per site and an
+8 MiB journal). Capacity refusal retains all existing revisions.
+Checkpoints include files edited by hand, never start serving, and never restore
+over working files. Folder identity binds local history: moving the site starts
+a separate history. Revision list/load APIs are available through
+`knot_site::history`; a history browser and restore UI are subsequent work.
+
 The root `Cargo.lock` is committed because this repository ships application
 binaries as well as libraries. `knot-document` is an excluded nested workspace
 so a surface-only consumer can resolve it without paying for the sync and

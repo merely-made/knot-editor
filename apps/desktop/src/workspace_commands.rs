@@ -36,6 +36,7 @@ pub(super) const SITE_OPEN: &str = "site.open";
 const SITE_PAGE_PREFIX: &str = "site.page:";
 const SITE_METADATA_PREFIX: &str = "site.metadata:";
 pub(super) const SITE_PUBLISH: &str = "site.publish";
+pub(super) const SITE_CHECKPOINT: &str = "site.checkpoint";
 pub(super) const SITE_STOP: &str = "site.stop";
 pub(super) const SITE_CLOSE: &str = "site.close";
 
@@ -241,6 +242,11 @@ pub(super) fn groups(state: &DesktopState) -> Vec<CommandItem> {
                 },
                 item(SITE_PUBLISH, "Publish locally", no_site.or(site_unsaved)),
                 item(
+                    SITE_CHECKPOINT,
+                    "Checkpoint saved site",
+                    no_site.or_else(|| site.and_then(|site| state.site_checkpoint_disabled(site))),
+                ),
+                item(
                     SITE_STOP,
                     "Stop serving",
                     no_site.or_else(|| (!serving).then_some("This site is not serving.")),
@@ -365,12 +371,13 @@ impl DesktopState {
                     self.open_metadata(site, name);
                 }
             },
-            SITE_PUBLISH | SITE_STOP | SITE_CLOSE => {
+            SITE_PUBLISH | SITE_CHECKPOINT | SITE_STOP | SITE_CLOSE => {
                 let Some(site) = self.site_page().map(|page| page.site) else {
                     return;
                 };
                 match id {
                     SITE_PUBLISH => self.publish_site(site),
+                    SITE_CHECKPOINT => self.checkpoint_site(site),
                     SITE_STOP => {
                         self.scroll.stop_serving(site);
                         self.message = Some("Stopped serving locally.".into());

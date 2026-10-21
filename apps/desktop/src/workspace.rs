@@ -641,9 +641,11 @@ impl DesktopState {
         key
     }
 
-    /// Whether any document, or the placeholder, has a send in flight.
+    /// Whether a document send or saved-site checkpoint is in flight.
     pub(crate) fn submissions_busy(&self) -> bool {
-        self.placeholder.site.busy() || self.docs.docs().any(|(_, entry)| entry.site.busy())
+        self.scroll.history.busy()
+            || self.placeholder.site.busy()
+            || self.docs.docs().any(|(_, entry)| entry.site.busy())
     }
 
     /// Whether a scenario must keep pumping frames before it can truthfully
@@ -656,8 +658,11 @@ impl DesktopState {
             || self.composition.busy()
     }
 
-    /// Take every finished send's outcome into the document it was sent from.
+    /// Observe checkpoint status and take finished sends into their documents.
     pub(crate) fn drain_submissions(&mut self) {
+        if let Some(message) = self.scroll.history.drain() {
+            self.message = Some(message);
+        }
         let entries = std::iter::once(&mut self.placeholder)
             .chain(self.docs.docs_mut().map(|(_, entry)| entry));
         for entry in entries.filter(|entry| entry.site.busy()) {

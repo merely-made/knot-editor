@@ -6576,6 +6576,7 @@ dependencies = [
  "mere-curation",
  "mere-view",
  "mesquite",
+ "muniment",
  "nematic",
  "percent-encoding",
  "personae",
@@ -6731,6 +6732,7 @@ dependencies = [
  "gemini-protocol",
  "getrandom 0.2.17",
  "mere-site",
+ "muniment",
  "rcgen 0.13.2",
  "retinue",
  "rustls",
@@ -7438,10 +7440,11 @@ dependencies = [
 [[package]]
 name = "mere-site"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?branch=main#e94cb23e88c8989355eb128b893f6cdbe559e074"
+source = "git+https://github.com/merely-made/mere.git?rev=4232d56229428b7d3f6b1f7260b45d427618ddc4#4232d56229428b7d3f6b1f7260b45d427618ddc4"
 dependencies = [
  "blake3",
  "language-tags",
+ "muniment",
  "serde",
  "serde_json",
  "time",

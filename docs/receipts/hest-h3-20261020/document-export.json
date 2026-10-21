@@ -1,0 +1,16 @@
+{
+  "revision": "ebf10c7410241ae7fca11f100d7e430d7b31ce99",
+  "files": {
+    "crates/knot-document/Cargo.toml": "b61ca3d75e7289d5d5a1dea97db13aa565cd23710a6654b3a3b3300eb209a120",
+    "crates/knot-document/src/document_surface.rs": "e3b54fddb63b5a907f3dfb9ea6550b8a365217be61b587144f4889007c3cd48f",
+    "crates/knot-document/src/document_view.rs": "5bb1f2da447199c80c334dd72cd5dbc41e6c8991dce7d4e78dfd9e9c3a0ba6b8",
+    "crates/knot-document/src/editor.rs": "7d33d25f1487eaa2bd9e31ef3b390208f468588d8e6cf1325ca04b541337a477",
+    "crates/knot-document/src/hard_wrap.rs": "8b2be57e18b26d31db233598478c0ba2b830aded7c9612756ab24fe88e450f4c",
+    "crates/knot-document/src/lib.rs": "becba7651aeb7f64b6865d526a93dee49b3d18b9dec4550833434df186c01536",
+    "crates/knot-document/src/source_edit.rs": "3eaaf4f875f302a06496c784421f877569e6f846dc4da9f10a1da0bbe07ee49c",
+    "crates/knot-document/src/writer.rs": "4e2e886dba83f83d8b6207c20f647f4a43ec626a8d26cb5f62a7f27196fbeeda"
+  },
+  "standalone_lock_sha256": "f4e18834dd911564d538730963c5a33e51d0130ed3ae28fc7de49a9b4f15634d",
+  "build_target_reused_only": true,
+  "source_overrides": false
+}

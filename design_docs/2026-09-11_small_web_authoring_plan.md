@@ -1,5 +1,56 @@
 # Native small-web authoring and serving
 
+## Optional saved-site checkpoints (2026-10-21)
+
+**Status (2026-10-21):** landed. Mark authorized explicit record/list/load site revisions
+over the shared model, with Knot as first consumer and snapshot V1 unchanged.
+Canonical supplier plan:
+`mere/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md`.
+
+The `knot-site/history` feature captures saved manifest/source through
+`Site::checkpoint`; it reopens saved files so hand edits are included while
+in-memory drafts stay excluded. The caller supplies Muniment storage. Desktop
+accepts an explicit `--site-history` directory or an already supplied host store
+through `DesktopLaunch`. The menu and site tile expose **Checkpoint saved site**;
+absent storage, unsaved source/metadata and an in-flight checkpoint refuse.
+Persistence runs on a worker and status confirms only after backend commit.
+
+History is local to the canonical folder path, not a new public identity or
+manifest field. Revision envelopes and ordered journals remain separate from
+unchanged immutable V1 snapshot blobs. Hosts configure revision/journal limits;
+capacity refuses new entries without pruning existing ones. The standalone
+host exposes `--site-history-revisions` and `--site-history-journal-bytes` for
+these limits, in addition to embedded hosts' supplied `HistoryLimits`. The
+directory store is explicitly selected plaintext storage, separate from sealed
+composition retention. No implicit store is opened on Save or Publish locally.
+
+Done when shared persistence/reopen/failure/concurrency controls pass, Knot
+captures two revisions including hand edits without changing drafts, the desktop
+command refuses unsaved work, and checkpointing leaves serving stopped. Receipt
+cap: 100 MB across repositories; reuse stable repository Cargo targets. A history
+browser, destructive restore, branching, replication and Errand/Armillary
+serving adapters remain subsequent slices.
+
+### Findings and progress (2026-10-21)
+
+- Existing `Site::publication` already reopens the saved manifest and each
+  listed source file; the history path uses this capture boundary.
+- Existing Muniment supplies the required transactional backend and journal
+  support at the current family pin. No Eidetic source change is required.
+- The portable `mere-site` contract uses an exact qualified supplier revision.
+  The existing renderer and source-edit cohorts retain their locked revisions;
+  the root graph has exactly one `mere-site` package identity.
+- Shared V1 fixtures and all six persistence/failure/concurrency controls pass.
+- Final published supplier `4232d5622` is adopted without moving the existing
+  renderer or source-edit cohorts. The standalone site suite passes 18 cases;
+  the file-only desktop checkpoint/worker case and all nine launch tests pass.
+  [Site receipt](../support/receipts/shared-site-revisions/site.json) and
+  [desktop receipt](../support/receipts/shared-site-revisions/desktop.json).
+  The normal default-feature desktop library/binary check also passes
+  ([build receipt](../support/receipts/shared-site-revisions/normal-build.json)).
+  These are automated native gates; a history browser/restore UI, new retention
+  runtime acceptance and headed acceptance remain separate.
+
 **Status (2026-09-13):** Gemini/Spartan local publication and reviewed Titan/
 Spartan submission implemented and checked through the headed review/send flow.
 Micron has source-preserving syntax, a native preview for text, headings,

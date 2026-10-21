@@ -1,0 +1,9 @@
+{
+  "date": "2026-10-21",
+  "command": "cargo check -p knot-desktop --locked --offline -j 2",
+  "passed": true,
+  "default_features": true,
+  "model_supplier": "4232d56229428b7d3f6b1f7260b45d427618ddc4",
+  "root_lock_sha256": "d74549a72858bcbbcfa6c931cd419020f2648f9fde33856fc6b8be83efe4a1f8",
+  "scope": "Normal native desktop library/binary type checking, including the existing default retention feature; no new headed or retention runtime acceptance claim."
+}

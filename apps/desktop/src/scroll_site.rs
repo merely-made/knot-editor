@@ -115,6 +115,7 @@ impl SiteEntry {
 /// that open or create the next site. What belongs to one document, its page,
 /// Micron form and composer, is on its entry ([`DocumentSite`]).
 pub struct ScrollWorkspace {
+    pub(crate) history: crate::site_history::SiteHistoryState,
     sites: BTreeMap<SiteKey, SiteEntry>,
     next_site: u64,
     /// The Site popover: the folder, format, Create and Open.
@@ -130,6 +131,7 @@ pub struct ScrollWorkspace {
 impl Default for ScrollWorkspace {
     fn default() -> Self {
         Self {
+            history: crate::site_history::SiteHistoryState::default(),
             sites: BTreeMap::new(),
             next_site: 0,
             popover: PopoverState::default(),
@@ -148,6 +150,7 @@ impl ScrollWorkspace {
     }
 
     pub fn set_submission_wake(&mut self, wake: HostWake) {
+        self.history.wake = Some(wake.clone());
         self.submission_wake = Some(wake);
     }
 
@@ -1760,6 +1763,7 @@ pub(crate) fn site_view(state: &DesktopState, site: SiteKey) -> DesktopView {
                         button("Publish locally", move |state: &mut DesktopState, _| {
                             state.publish_site(site)
                         }),
+                        crate::site_history::checkpoint_button(state, site),
                         button("Stop serving", move |state: &mut DesktopState, _| {
                             state.scroll.stop_serving(site);
                             state.message = Some("Local serving stopped.".into());

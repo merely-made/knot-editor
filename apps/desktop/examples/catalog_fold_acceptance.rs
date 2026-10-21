@@ -55,6 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             failures: vec![],
             recovery_path: None,
             mere_overlay: None,
+            site_history: None,
         },
         Some(catalog),
         1_048_576,

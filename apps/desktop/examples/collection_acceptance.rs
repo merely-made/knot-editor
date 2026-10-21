@@ -216,6 +216,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             failures: Vec::new(),
             recovery_path: None,
             mere_overlay: None,
+            site_history: None,
         },
         None,
         8192,

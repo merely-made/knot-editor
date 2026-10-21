@@ -29,6 +29,9 @@ struct LaunchOptions {
     /// overmap layer above the catalog graph. Needs `--mere-root` and
     /// `--mere-persona`.
     mere_domain: Option<String>,
+    site_history: Option<PathBuf>,
+    site_history_revisions: Option<usize>,
+    site_history_journal_bytes: Option<usize>,
 }
 #[derive(Debug, PartialEq, Eq)]
 struct MereOptions {
@@ -46,9 +49,43 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
     let mut mere_root = None;
     let mut mere_persona = None;
     let mut mere_domain = None;
+    let mut site_history = None;
+    let mut site_history_revisions = None;
+    let mut site_history_journal_bytes = None;
     while let Some(arg) = args.next() {
         if !positional_only && arg == "--" {
             positional_only = true;
+        } else if !positional_only
+            && (arg == "--site-history-revisions" || arg == "--site-history-journal-bytes")
+        {
+            let value = args
+                .next()
+                .ok_or("site history limits require a positive integer")?;
+            let number = value
+                .to_str()
+                .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()))
+                .ok_or("site history limits require a positive integer")?
+                .parse::<usize>()
+                .map_err(|_| "site history limit exceeds the supported size")?;
+            if number == 0 {
+                return Err("site history limits must be positive".into());
+            }
+            let slot = if arg == "--site-history-revisions" {
+                &mut site_history_revisions
+            } else {
+                &mut site_history_journal_bytes
+            };
+            if slot.replace(number).is_some() {
+                return Err("duplicate site history limit".into());
+            }
+        } else if !positional_only && arg == "--site-history" {
+            let value = args.next().ok_or("--site-history requires a directory")?;
+            if value.is_empty() || value.to_string_lossy().starts_with("--") {
+                return Err("--site-history requires an explicit directory".into());
+            }
+            if site_history.replace(PathBuf::from(value)).is_some() {
+                return Err("duplicate --site-history".into());
+            }
         } else if !positional_only && (arg == "--mere-root" || arg == "--mere-persona") {
             let value = args
                 .next()
@@ -118,6 +155,9 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
                 || value == "--catalog-root"
                 || value == "--catalog"
                 || value == "--capture-max-bytes"
+                || value == "--site-history"
+                || value == "--site-history-revisions"
+                || value == "--site-history-journal-bytes"
                 || value == "--"
             {
                 return Err(format!("{} requires a path", arg.to_string_lossy()));
@@ -148,12 +188,20 @@ fn select_document<I: IntoIterator<Item = OsString>>(args: I) -> Result<LaunchOp
     if mere_domain.is_some() && mere.is_none() {
         return Err("--mere-domain requires --mere-root and --mere-persona".into());
     }
+    if site_history.is_none()
+        && (site_history_revisions.is_some() || site_history_journal_bytes.is_some())
+    {
+        return Err("site history limits require --site-history".into());
+    }
     Ok(LaunchOptions {
         documents,
         catalog,
         capture_max_bytes: capture_max_bytes.unwrap_or(DEFAULT_CAPTURE_MAX_BYTES),
         mere,
         mere_domain,
+        site_history,
+        site_history_revisions,
+        site_history_journal_bytes,
     })
 }
 /// Open the named documents in order, the first in front. Every site folder
@@ -198,6 +246,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
         failures,
         recovery_path: None,
         mere_overlay: None,
+        site_history: None,
     })
 }
 fn open_path(path: &Path) -> Result<KnotDocumentSession, String> {
@@ -238,6 +287,29 @@ fn main() {
     });
     launch.recovery_path = Some(settings_root.join("recovery"));
     launch.mere_overlay = options.mere_domain;
+    launch.site_history = options
+        .site_history
+        .map(|path| {
+            let backend = muniment::DirectoryBackend::open(&path)
+                .map_err(|e| format!("site history could not be opened: {e}"))?;
+            let backend: Box<dyn muniment::Backend + Send + Sync> = Box::new(backend);
+            Ok::<_, String>(knot_site::history::SiteHistory::new(
+                backend,
+                knot_site::history::HistoryLimits {
+                    max_revisions: options
+                        .site_history_revisions
+                        .unwrap_or(knot_site::history::HistoryLimits::default().max_revisions),
+                    max_journal_bytes: options
+                        .site_history_journal_bytes
+                        .unwrap_or(knot_site::history::HistoryLimits::default().max_journal_bytes),
+                },
+            ))
+        })
+        .transpose()
+        .unwrap_or_else(|error| {
+            eprintln!("knot: {error}");
+            std::process::exit(1)
+        });
     if let Err(error) = run_desktop_with_targets_and_relations(
         launch,
         catalog,
@@ -316,6 +388,75 @@ fn attach_mere(options: Option<MereOptions>) -> Result<MereAttachment, String> {
 }
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn site_history_requires_an_explicit_single_directory() {
+        assert!(
+            select_document(["knot"].map(OsString::from))
+                .unwrap()
+                .site_history
+                .is_none()
+        );
+        assert_eq!(
+            select_document(["knot", "--site-history", "history", "site"].map(OsString::from))
+                .unwrap()
+                .site_history,
+            Some(PathBuf::from("history"))
+        );
+        for args in [
+            vec!["knot", "--site-history"],
+            vec!["knot", "--site-history", "--mere-root"],
+            vec![
+                "knot",
+                "--catalog-root",
+                "--site-history",
+                "history",
+                "--catalog",
+                "catalog",
+            ],
+            vec!["knot", "--site-history", "a", "--site-history", "b"],
+            vec!["knot", "--site-history-revisions", "2"],
+            vec![
+                "knot",
+                "--site-history",
+                "a",
+                "--site-history-revisions",
+                "0",
+            ],
+            vec![
+                "knot",
+                "--site-history",
+                "a",
+                "--site-history-journal-bytes",
+                "-1",
+            ],
+            vec![
+                "knot",
+                "--site-history",
+                "a",
+                "--site-history-revisions",
+                "2",
+                "--site-history-revisions",
+                "3",
+            ],
+        ] {
+            assert!(select_document(args.into_iter().map(OsString::from)).is_err());
+        }
+        let configured = select_document(
+            [
+                "knot",
+                "--site-history",
+                "history",
+                "--site-history-revisions",
+                "2",
+                "--site-history-journal-bytes",
+                "4096",
+            ]
+            .map(OsString::from),
+        )
+        .unwrap();
+        assert_eq!(configured.site_history_revisions, Some(2));
+        assert_eq!(configured.site_history_journal_bytes, Some(4096));
+    }
     use super::*;
     #[test]
     #[cfg(feature = "mere-retention")]
@@ -421,6 +562,9 @@ mod tests {
                 capture_max_bytes: DEFAULT_CAPTURE_MAX_BYTES,
                 mere: None,
                 mere_domain: None,
+                site_history: None,
+                site_history_revisions: None,
+                site_history_journal_bytes: None,
             }
         );
         assert_eq!(

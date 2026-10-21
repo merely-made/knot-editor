@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-21",
+  "knot_base": "00a25f2c698ed0fee1d1e46ec8b3b5fa3e0d6889",
+  "model_supplier": "4232d56229428b7d3f6b1f7260b45d427618ddc4",
+  "commands": [
+    {
+      "command": "cargo test -p knot-desktop --no-default-features --lib site_history::tests -j 2",
+      "passed": true,
+      "tests_passed": 1,
+      "unrelated_filtered": 342
+    },
+    {
+      "command": "cargo test -p knot-desktop --no-default-features --bin knot --locked --offline -j 2",
+      "passed": true,
+      "tests_passed": 9,
+      "filtered": 0
+    }
+  ],
+  "root_lock_sha256": "d74549a72858bcbbcfa6c931cd419020f2648f9fde33856fc6b8be83efe4a1f8",
+  "source_sha256": {
+    "apps/desktop/src/site_history.rs": "b683c7fa8b62bad4d8726f8c8654180adec410b0968f9aeb63194c84d30f578c",
+    "apps/desktop/src/main.rs": "2a82540af6582266d6bc0b18d22bf21482cbfbf82e1d1000684861ef0a622a9b",
+    "crates/knot-site/src/history.rs": "5a34788d2ca6425668d9a9a0f3245df7a79bd4165d06a50bbe1d49fff968e935"
+  },
+  "scope": "Automated native file-only desktop state/worker and CLI tests. No new headed, default-retention, browser or public-serving acceptance claim.",
+  "one_site_model_identity": true,
+  "existing_git_cohorts_preserved": true,
+  "receipt_budget_bytes": 100000000,
+  "temporary_worktree_removed": true,
+  "new_isolated_cargo_home": null,
+  "ordinary_target": "C:/t/cargo-targets/knot-editor"
+}

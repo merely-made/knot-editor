@@ -27,6 +27,7 @@ mod recovery_runtime;
 pub mod scenario;
 mod scenario_startup;
 pub mod scroll_site;
+pub mod site_history;
 pub mod status;
 pub mod theme_session;
 pub mod workspace;
@@ -124,6 +125,8 @@ pub struct DesktopLaunch {
     /// catalog graph: Djinn's `mere/<domain>` route, as `knot-editor`. None
     /// leaves the layer empty.
     pub mere_overlay: Option<String>,
+    /// Explicit host-supplied checkpoint storage. None disables site history.
+    pub site_history: Option<site_history::SiteHistoryStore>,
 }
 
 pub fn run_desktop_with_targets(
@@ -227,10 +230,12 @@ pub fn run_desktop_with_targets_and_relations(
                 failures,
                 recovery_path,
                 mere_overlay,
+                site_history,
             } = launch;
             let mut state =
                 DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
             state.set_knot_relation_view(knot_relations);
+            state.set_site_history(site_history);
             for folder in sites {
                 state.attach_site(&folder);
             }

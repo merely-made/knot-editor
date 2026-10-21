@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-21",
+  "knot_base": "00a25f2c698ed0fee1d1e46ec8b3b5fa3e0d6889",
+  "model_supplier": "4232d56229428b7d3f6b1f7260b45d427618ddc4",
+  "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --features history --all-targets --offline -j 2",
+  "passed": true,
+  "tests_passed": 18,
+  "history_cases": 1,
+  "historical_site_cases": 17,
+  "history_case": "Two saved revisions, hand-edited source/manifest, draft exclusion, durable close/reopen, non-destructive load, and missing-source refusal",
+  "snapshot_v1": "No field or canonical encoding change; shared four-profile fixtures remain unchanged",
+  "standalone_lock_sha256": "be5c10c905c3aa2046002e689d75e1961a32ae7efa88c2f31a1d23418c041df7",
+  "site_history_source_sha256": "5a34788d2ca6425668d9a9a0f3245df7a79bd4165d06a50bbe1d49fff968e935",
+  "scope": "Native automated local capture, storage, and existing loopback tests; no new headed acceptance claim."
+}

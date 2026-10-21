@@ -27,7 +27,8 @@ seiche.workspace = true
 apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mesquite.workspace = true
-knot-site = { path = "../../crates/knot-site" }
+knot-site = { path = "../../crates/knot-site", features = ["history"] }
+muniment = { workspace = true, features = ["directory"] }
 inker.workspace = true
 nematic.workspace = true
 

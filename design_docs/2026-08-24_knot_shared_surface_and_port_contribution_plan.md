@@ -740,8 +740,8 @@ contract pins are unchanged.
 
 ### Hest invocation receiving (2026-10-20)
 
-H3 is authorized for implementation, commit and Git delivery; crate publication
-remains held. Knot's canonical Cambium requirement advances to 0.5 to receive
+At the H3 implementation checkpoint, commit and Git delivery were authorized
+and crate publication remained held. Knot's canonical Cambium requirement advanced to 0.5 to receive
 Hest's additive invocation API. The portable window queue carries Hest command
 ids, versioned opaque arguments and declared effects, then drains through the
 existing event-source and close-policy seam. Queue admission is pending and
@@ -769,4 +769,29 @@ Canonical common-contract owner:
 
 [H3 receiving qualification](../docs/receipts/hest-h3-20261020/qualification.json)
 retains the exact source, canonical dependency cohort, command outcomes and
-standalone export proof. Git delivery is authorized; crate publication remains held.
+standalone export proof. Publication was held at that checkpoint; the later
+Hest/Cambium registry release is recorded by the common Mere owner plan.
+
+
+### Hest H4 command-producing fences (2026-10-20)
+
+Knot receives Mere `e94cb23e88c8989355eb128b893f6cdbe559e074` through its canonical
+Git source. The new opt-in `rhai-command` evaluator produces Hest request data;
+ordinary `rhai eval` and production endpoint authority remain unchanged. The
+receiving fixture uses the actual writable endpoint, explicit effect consent
+and the host language allowlist. It parses request JSON from the real derived
+document, verifies shared zoom/physics ids with the Graphshell viewer schema,
+and keeps authored bytes exact. Admission reports no terminal command result.
+An excluded language has no advertised run action; external source changes
+return stale. Runtime/budget failure preserves the source fence without partial
+request output. Actual command enactment is Graphshell's separate host gate.
+
+Three H4 receiving tests and the existing consent/freshness and budget cases
+pass; workspace all-targets and locked metadata pass. The dependency update
+preserves all 1,246 unrelated package blocks, including the prior Murm pin.
+Only the test-module hook, new separated receiving tests, a test dependency
+and the supplier lock change Knot code; production endpoint logic is exact.
+[H4 receiving qualification](../docs/receipts/hest-h4-20261020/qualification.json)
+retains owned outcomes, source hashes and failed-attempt evidence. The shared
+contract and full supplier checks remain in Mere's existing Hest architecture
+plan. Native presentation/human AT, MSRV and backend publication are separate.

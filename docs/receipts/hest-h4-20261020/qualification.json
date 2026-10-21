@@ -1,0 +1,25 @@
+{
+  "status": "canonical H4 receiving qualified",
+  "supplier": "e94cb23e88c8989355eb128b893f6cdbe559e074",
+  "checks": "checks.json",
+  "cohort": "cohort.json",
+  "source": "tested-source.json",
+  "preservation": "source-preservation.json",
+  "superseded_attempts": "superseded-checks.json",
+  "tests_passed": 14,
+  "h4_new_tests": 3,
+  "workspace_all_targets": "passed",
+  "ordinary_rhai_and_production_endpoint": "unchanged",
+  "actual_host_exercise": "Actual writable KnotEndpoint/KnotEffectAuthority, confirmed explicit rhai-command block produces shared Graphshell viewer Invocation data as a derived preview; no automatic dispatch or Done.",
+  "source_exact_on_failure": true,
+  "consent_language_and_stale_gates": "verified",
+  "common_contract_owner": "mere/design_docs/cambium_docs/implementation_strategy/2026-10-20_hest_command_architecture_plan.md",
+  "supplier_owner_packet": "mere/support/receipts/hest-h4-20261020/qualification.json",
+  "not_claimed": [
+    "native window-manager acceptance",
+    "fresh-process native reopen",
+    "human AT acceptance",
+    "fresh MSRV qualification",
+    "backend package publication"
+  ]
+}

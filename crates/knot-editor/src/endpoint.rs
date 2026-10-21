@@ -2742,6 +2742,8 @@ impl IntentSink for KnotEndpoint {
 
 #[cfg(test)]
 mod tests {
+    mod hest_scripts;
+
     use std::fs;
 
     use chirograph::{

@@ -1,0 +1,6 @@
+{
+  "production_endpoint_prefix_exact": true,
+  "other_tracked_rust_files_exact": 150,
+  "new_code_is_receiving_tests_only": true,
+  "unrelated_lock_blocks_preserved": 1246
+}

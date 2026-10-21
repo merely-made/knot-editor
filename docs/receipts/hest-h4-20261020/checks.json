@@ -1,0 +1,189 @@
+[
+  {
+    "name": "knot-h4-final",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "knot-editor",
+      "--lib",
+      "hest_scripts",
+      "--",
+      "--test-threads=1"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 7.45,
+    "finished_utc": "2026-10-21T03:53:09.164766+00:00",
+    "log": "knot-h4-final.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "a1242a39f7dbd5b5664a31b083122d1edcb79877f907584356c6e7fe1f62fa32",
+    "stored_log_sha256": "83b8723359a77696248c89a095517a6d3801c378b2e96181f81df1cce5db6243",
+    "suites": [
+      {
+        "passed": 3,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  {
+    "name": "knot-existing-consent",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "knot-editor",
+      "--lib",
+      "resolve_and_run_are_consented_revisioned_derived_state",
+      "--",
+      "--test-threads=1"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 2.92,
+    "finished_utc": "2026-10-21T03:53:46.402695+00:00",
+    "log": "knot-existing-consent.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "28bac8afaddc5306420ea553df61ac1e67f28d238cd1adb802795405ea355498",
+    "stored_log_sha256": "6f479f01930996c21482b51d80bbc18d633165696420469e56d8503da30f7096",
+    "suites": [
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  {
+    "name": "knot-existing-budget",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "knot-editor",
+      "--lib",
+      "auto_run_stops_at_the_injected_operation_budget",
+      "--",
+      "--test-threads=1"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 2.84,
+    "finished_utc": "2026-10-21T03:53:46.322743+00:00",
+    "log": "knot-existing-budget.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "1c22cd60c43c26cde3865e1e0056eef8d1dd91af9d6077308639a45e51014769",
+    "stored_log_sha256": "e67f7187ac1f7aaa042902f804d2ba70403d4208d739b0a05fa0a2bb2e6ce280",
+    "suites": [
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  {
+    "name": "knot-chrome",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "knot-desktop",
+      "--test",
+      "command_chrome",
+      "--",
+      "--test-threads=1"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 56.97,
+    "finished_utc": "2026-10-21T03:54:40.461360+00:00",
+    "log": "knot-chrome.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "8024c5794e1c94cdcdb34297b321f911c3fb074bc29f29a20035679513522ff7",
+    "stored_log_sha256": "878858f5fc7307a29caa4b7748c55d02512bab86145164258cf8cc04c2d04af7",
+    "suites": [
+      {
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  {
+    "name": "knot-workspace",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "check",
+      "--locked",
+      "--offline",
+      "--workspace",
+      "--all-targets"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 13.75,
+    "finished_utc": "2026-10-21T03:53:57.231926+00:00",
+    "log": "knot-workspace.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "da5408e7c216628b13d0047fd0337086ce369a276e94983990e8684da5e754f2",
+    "stored_log_sha256": "4d24bfe086faebad0fb5492bc3cd5c76ae9d59465b4d6aad8c679e66f545873f",
+    "suites": []
+  },
+  {
+    "name": "knot-supplier-update",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "update",
+      "-p",
+      "script-rhai",
+      "--precise",
+      "e94cb23e88c8989355eb128b893f6cdbe559e074"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 17.86,
+    "finished_utc": "2026-10-21T03:49:09.592645+00:00",
+    "log": "knot-supplier-update.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "cbc82c23575f5662951f1acd60fa9a066d552430b0f55ed49936162418769ae2",
+    "stored_log_sha256": "ac7d20ae804d57d2b131fa906402bc988c9f13ad266581121173cce57426252f",
+    "suites": []
+  },
+  {
+    "name": "knot-preserve-murm",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "update",
+      "-p",
+      "mere-transport",
+      "--precise",
+      "e2f19a3f3b42012951c4a820f9a53cb90d9bacd6"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 0,
+    "elapsed_seconds": 3.4,
+    "finished_utc": "2026-10-21T03:50:02.045133+00:00",
+    "log": "knot-preserve-murm.log.gz",
+    "compression": "gzip",
+    "raw_log_sha256": "8c00bd406ab17cdeabbbfe597659d4cb6538776a76ef5350af0563d096ee0e73",
+    "stored_log_sha256": "37d710274ac3516c7e7a75af4dc1a9023d2ceaa513a9da6fd4b28bde42a73cf0",
+    "suites": []
+  }
+]

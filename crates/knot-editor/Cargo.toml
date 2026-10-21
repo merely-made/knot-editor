@@ -102,6 +102,8 @@ uuid.workspace = true
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
+# Hest declarations and invocation data in the real script-fence receiving test.
+cambium.workspace = true
 # The serving half the tests and `k2_peer` stand up: admission, the endpoint
 # catalog, the session loop and the projection host (Mere's `graphshell-host`,
 # stack lift plan P4), and the client state the tests read back with.

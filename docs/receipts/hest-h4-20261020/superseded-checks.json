@@ -1,0 +1,34 @@
+[
+  {
+    "name": "knot-h4",
+    "cwd": "/Users/markik/Code/repos/knot-editor",
+    "command": [
+      "cargo",
+      "test",
+      "--locked",
+      "--offline",
+      "-p",
+      "knot-editor",
+      "--lib",
+      "hest_scripts",
+      "--",
+      "--test-threads=1"
+    ],
+    "source_revision": "db929c8752c72749463bca775dfe0203489f0ee5",
+    "exit_code": 101,
+    "elapsed_seconds": 72.33,
+    "finished_utc": "2026-10-21T03:51:39.728364+00:00",
+    "log": "knot-first-attempt.log.gz",
+    "raw_log_sha256": "bdbe42dfe48f0bef88c3b8b0516b1f9615df2826c9e951f9e193e6f17d4cd4f0",
+    "stored_log_sha256": "6e8450ec78a20529927d6cba3b53d2f515608a39589e1165c10a9b55cc1f8673",
+    "compression": "gzip",
+    "explanation": {
+      "command_record": "knot-h4.json",
+      "source_sha256": "c4fd8c00e0b84e1cc05f7878456b82fa66b09bd4c9901b77899c50e458d3b6f3",
+      "exit_code": 101,
+      "passed": 2,
+      "failed": 1,
+      "cause": "Test expected a derived denied-language preview, but actual Knot does not advertise the run intent for an excluded language and correctly rejects it before evaluation. Production was not changed."
+    }
+  }
+]

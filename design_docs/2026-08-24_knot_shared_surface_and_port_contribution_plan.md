@@ -736,3 +736,30 @@ Turnstone will require 0.5 and validate the actual embedded receiver. The
 supplier constraint change is committed locally; push/publication and native
 presentation remain deferred. Document authority, save policy and source-edit
 contract pins are unchanged.
+
+
+### Hest invocation receiving (2026-10-20)
+
+H3 is authorized for implementation, commit and Git delivery; crate publication
+remains held. Knot's canonical Cambium requirement advances to 0.5 to receive
+Hest's additive invocation API. The portable window queue carries Hest command
+ids, versioned opaque arguments and declared effects, then drains through the
+existing event-source and close-policy seam. Queue admission is pending and
+must not be reported as terminal `Done`.
+
+The receiving gate is the existing desktop `command_chrome` harness, including
+actual caption controls and a resize invocation into that same host-supplied
+queue. Its malformed-contract case must leave the queue empty. Native window
+manager acceptance and physical platform review remain separate. The shared
+contract, Chirograph admission/completion distinction and cross-host receipts
+are owned by Mere's existing Hest architecture plan.
+
+
+H3 receiving is qualified on Mere `9ef5e3026`: desktop library 342 passed
+(1 existing ignore), actual command-chrome harness 9 passed, and the standalone
+unchanged document source export with engine enabled 66 passed (1 existing
+ignore). Workspace all-targets and locked metadata pass. The root keeps the
+incoming NetRender `ec15eb26`, Genet `6ef3cd37` and Murm `e2f19a3f` pins;
+1,248 unrelated incoming package blocks remain exact. Source files and the
+committed lock are hashed in the receiver receipt. No native window-manager
+acceptance or crate publication is inferred from these software checks.

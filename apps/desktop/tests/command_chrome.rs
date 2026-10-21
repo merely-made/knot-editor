@@ -283,3 +283,19 @@ fn client_menu_collapses_and_reopens_safely_after_resize() {
             .is_some()
     );
 }
+
+#[test]
+fn hest_window_invocation_uses_knots_actual_host_queue_without_claiming_completion() {
+    let h = harness(CommandChrome::ClientTitlebar, 1400.0);
+    let commands = h.commands();
+    let invocation = WindowCommand::Resize(960.5, 720.25).invocation();
+    assert_eq!(invocation.id, "window:resize");
+    assert_eq!(commands.invoke(&invocation), Ok(()));
+    // Admission to the queue gives no terminal Done; this harness does not
+    // stand in for a window manager accepting the resize.
+    assert_eq!(commands.drain(), vec![WindowCommand::Resize(960.5, 720.25)]);
+    let mut malformed = WindowCommand::Close.invocation();
+    malformed.schema_id.push_str("-other");
+    assert!(matches!(commands.invoke(&malformed), Err(cambium::Outcome::Refused { .. })));
+    assert!(commands.is_empty());
+}

@@ -79,7 +79,7 @@ transport = { package = "mere-transport", version = "0.0.2", git = "https://gith
 tabard = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", branch = "main" }
 tabard-workshop = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 cambium-rootstock = { git = "https://github.com/merely-made/mere.git", branch = "main" }
-cambium = { version = "0.4.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
+cambium = { version = "0.5.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 mere-view = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 # A resident mere's route read as an overmap layer above Knot's catalog graph
 # (knot-editor `mere_overlay`, Mark's ruling 2026-10-15).

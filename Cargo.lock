@@ -7440,7 +7440,7 @@ dependencies = [
 [[package]]
 name = "mere-site"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=4232d56229428b7d3f6b1f7260b45d427618ddc4#4232d56229428b7d3f6b1f7260b45d427618ddc4"
+source = "git+https://github.com/merely-made/mere.git?rev=a845b0b222431fc340ba3e8e59b9f77d44e4545a#a845b0b222431fc340ba3e8e59b9f77d44e4545a"
 dependencies = [
  "blake3",
  "language-tags",

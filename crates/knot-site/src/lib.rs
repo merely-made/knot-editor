@@ -9,6 +9,8 @@
 pub mod export;
 #[cfg(feature = "history")]
 pub mod history;
+#[cfg(feature = "publication")]
+pub mod publication;
 mod local;
 #[cfg(feature = "retinue")]
 pub mod micron_submission;

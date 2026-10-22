@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "recorded_at": "2026-10-22",
+  "receipt_cap_bytes": 100000000,
+  "supplier": "3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab",
+  "donor": {
+    "knot": "cdafbf80758cbc7362d3f6e41ca1ce7a585c3482",
+    "errand": "dce1f08546b8475e42a5a01ca1ea18794c6e9b97",
+    "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --test scroll_wire --offline --locked --quiet",
+    "passed": 2,
+    "failed": 0,
+    "fixture_sha256": "2d702ec604dd7739b4ead0298dc6b0aa4d0f86841e625d12797b98bc84b1352e"
+  },
+  "receiver": {
+    "gates": [
+      {
+        "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --features publication,history --quiet",
+        "passed": 22,
+        "failed": 0
+      },
+      {
+        "command": "cargo check -p knot-site --offline --quiet",
+        "exit_code": 0
+      },
+      {
+        "command": "cargo clippy --manifest-path crates/knot-site/Cargo.toml --features publication,history --lib --bins --offline --no-deps -- -D warnings",
+        "exit_code": 0
+      }
+    ],
+    "fixture_unchanged": true,
+    "source_sha256": {
+      "Cargo.toml": "b4d47d42b268c3a493278c7a333e26cdeb666ca17faf386ea313fdc4527ad750",
+      "Cargo.lock": "6e6d2bc696fb17cd60f7a396436d4547cc1e934c7867739665842a08487e6b95",
+      "crates/knot-site/Cargo.toml": "ead8aa929dfe5b825a0fbc229ec64ef5b0a9d77ced84757dd8084b8df3bac88d",
+      "crates/knot-site/Cargo.lock": "fb6528a64af39636a5d5c8b36c66dfecca7e8ef205683157573a27311a166ee5",
+      "crates/knot-site/src/lib.rs": "10f79be08b3b6d12eaa56c2790ce786b2a9d522270cf812625238ae03c09c625",
+      "crates/knot-site/tests/site.rs": "4114699b91cef2886408d705fd7a70a303a31710b3fc2119e8ad8c371e2ab1da"
+    }
+  },
+  "git_source_comparison": {
+    "Cargo.lock": {
+      "non_errand_unchanged": true,
+      "errand_sources": [
+        "source = \"git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab#3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab\"",
+        "source = \"git+https://github.com/merely-made/errand.git?rev=dce1f08546b8475e42a5a01ca1ea18794c6e9b97#dce1f08546b8475e42a5a01ca1ea18794c6e9b97\""
+      ]
+    },
+    "crates/knot-site/Cargo.lock": {
+      "non_errand_unchanged": true,
+      "errand_sources": [
+        "source = \"git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab#3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab\""
+      ]
+    }
+  },
+  "controls": [
+    "Literal whole native full/abstract responses preserve UDC, language, author, both dates, Unicode and CRLF",
+    "Actual local TLS trusts generated certificate explicitly and checks presented leaf",
+    "Saved replacement, missing/invalid request refusal and listener close",
+    "Original snapshot V1 bytes unchanged through reads",
+    "1024-byte UTF-8 author plus CRLF remains accepted",
+    "Accepted UTC timestamps with long fractional precision retain exact bytes"
+  ],
+  "resources": {
+    "new_worktrees": 0,
+    "new_cargo_homes": 0,
+    "stable_target": "C:\\t\\cargo-targets\\knot-editor"
+  },
+  "boundaries": [
+    "Knot adopts the encoder only; existing blocking TLS host/lifecycle stays owned by Knot",
+    "Native generic-stream server gate is in smolweb supplier receipt; no governed Scroll resident proof added",
+    "Root retains an older Errand transitive source through the existing Mere cohort, alongside the new direct protocol family; no whole-desktop/cohort-unification claim",
+    "All non-Errand Git sources remain identical at both roots, including renderer suppliers",
+    "Standalone site Cargo.lock remains locally retained under existing ignore policy; its exact hash is recorded"
+  ]
+}

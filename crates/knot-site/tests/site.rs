@@ -87,6 +87,56 @@ fn rejects_escape_metadata_injection_and_external_config_changes() {
 }
 
 #[test]
+fn scroll_response_preserves_the_site_metadata_byte_limit() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut site = Site::create(&temp.path().join("site")).unwrap();
+    // The site's public limit counts UTF-8 bytes, excluding the wire CRLF.
+    let author = "é".repeat(512);
+    assert_eq!(author.len(), 1024);
+    site.config.pages[0].author = author.clone();
+    site.save_config_with(|path, _, after| fs::write(path, after).map_err(|e| e.to_string()))
+        .unwrap();
+    let response = site
+        .publication()
+        .unwrap()
+        .response("scroll://localhost:5699/ en\r\n", 5699);
+    let expected = format!("24 text/scroll;charset=utf-8;lang=en\r\n{author}\r\n\r\n\r\n");
+    assert!(response.starts_with(expected.as_bytes()));
+    site.config.pages[0].author.push('a');
+    assert!(site.config.validate().is_err());
+}
+
+#[test]
+fn scroll_response_preserves_accepted_fractional_timestamp_bytes() {
+    let temp = tempfile::tempdir().unwrap();
+    let mut site = Site::create(&temp.path().join("site")).unwrap();
+    let published = format!("2026-10-21T20:00:00.{}Z", "0".repeat(1100));
+    let modified = format!("2026-10-21T20:01:00.{}Z", "1".repeat(1200));
+    site.config.pages[0].published = published.clone();
+    site.config.pages[0].modified = modified.clone();
+    site.save_config_with(|path, _, after| fs::write(path, after).map_err(|e| e.to_string()))
+        .unwrap();
+    let source = "# Saved\r\n";
+    fs::write(site.root().join("index.scroll"), source).unwrap();
+    let publication = site.publication().unwrap();
+    let encoded = publication.to_snapshot_v1().unwrap().encode().unwrap();
+    assert_eq!(
+        knot_site::PublishedSnapshotV1::decode(&encoded)
+            .unwrap()
+            .encode()
+            .unwrap(),
+        encoded
+    );
+    assert_eq!(
+        publication.response("scroll://localhost:5699/ en\r\n", 5699),
+        format!(
+            "24 text/scroll;charset=utf-8;lang=en\r\n\r\n{published}\r\n{modified}\r\n{source}"
+        )
+        .as_bytes()
+    );
+}
+
+#[test]
 fn only_manifest_resources_can_be_requested_and_bounds_are_enforced() {
     let temp = tempfile::tempdir().unwrap();
     let root = temp.path().join("site");

@@ -9,8 +9,6 @@
 pub mod export;
 #[cfg(feature = "history")]
 pub mod history;
-#[cfg(feature = "publication")]
-pub mod publication;
 mod local;
 #[cfg(feature = "retinue")]
 pub mod micron_submission;
@@ -19,6 +17,8 @@ pub mod micron_submission;
 pub mod micron_submission;
 #[cfg(feature = "retinue")]
 mod nomadnet;
+#[cfg(feature = "publication")]
+pub mod publication;
 mod server;
 pub mod submission;
 pub use local::LocalServer;
@@ -153,7 +153,8 @@ impl Site {
     }
 
     pub fn page_path(&self, name: &str) -> Result<PathBuf, String> {
-        if !self.config.pages.iter().any(|p| p.path == name) || !self.config.format.accepts_page_name(name)
+        if !self.config.pages.iter().any(|p| p.path == name)
+            || !self.config.format.accepts_page_name(name)
         {
             return Err("Page is not in this site's manifest".into());
         }
@@ -380,20 +381,34 @@ impl Publication {
         } else {
             format!(";lang={}", metadata.language)
         };
-        let mut response = format!(
-            "2{} text/scroll;charset=utf-8{}\r\n{}\r\n{}\r\n{}\r\n",
-            metadata.classification,
-            language,
-            metadata.author,
-            metadata.published,
-            metadata.modified
-        )
-        .into_bytes();
-        response.extend_from_slice(if request.metadata {
-            metadata.abstract_source.as_bytes()
-        } else {
-            &page.source
-        });
-        response
+        // A snapshot has one declared language per page. Request preferences
+        // do not select variants; retaining that policy is separate from wire
+        // encoding and from a future multilingual content model.
+        let optional = |value: &String| (!value.is_empty()).then(|| value.clone());
+        scroll_protocol::Reply {
+            header: scroll_protocol::Header::Success(scroll_protocol::SuccessHeader {
+                code: 20 + metadata.classification,
+                mimetype: format!("text/scroll;charset=utf-8{language}"),
+                author: optional(&metadata.author),
+                published: optional(&metadata.published),
+                modified: optional(&metadata.modified),
+            }),
+            body: if request.metadata {
+                metadata.abstract_source.as_bytes().to_vec()
+            } else {
+                page.source.clone()
+            },
+        }
+        .encode(scroll_protocol::ResponseLimits {
+            // Authors permit 1024 bytes. Validated UTC timestamps may retain
+            // longer fractional precision; preserve those bytes within the
+            // existing bounded snapshot rather than imposing a new V1 limit.
+            max_header_line_bytes: 1024
+                .max(metadata.published.len())
+                .max(metadata.modified.len())
+                .saturating_add(2),
+            max_body_bytes: MAX_PAGE_BYTES,
+        })
+        .unwrap_or_else(|_| b"40 Invalid response\r\n".to_vec())
     }
 }

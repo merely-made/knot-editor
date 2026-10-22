@@ -113,3 +113,23 @@ exported files. The daemon shut down cleanly. The reproducible harness is
 `tools/knot-nomadnet-go/nomadnet_node_smoke.py --export EXPORT --timeout 25`, run
 with Python containing NomadNet 1.2.0. This closes the static export-to-stock-node
 serving check, not the full reader matrix or missing-page behavior for that node.
+
+## Governed host and browser receiving, 2026-10-22
+
+The ignored `micron_moot_site_runtime` fixture publishes a saved snapshot,
+removes the authoring directory from the serving path, and exercises Djinn's
+current publication authority over native Retinue links. Snapshot V1 is unchanged.
+
+Set `TURNSTONE_MICRON_RECEIVING_TEST_EXE` to the Turnstone library test executable
+to run its exact ignored receiving probe while this fixture owns the live host.
+The hook passes private loopback configuration and expected saved files, requires
+one successful test and its structured proof, and bounds the child and its output.
+Without that variable, the original host qualification runs independently.
+`DJINN_MOOT_SITE_EXE` still selects the governed resident executable.
+
+This receiving gate covers exact index and Resource bytes, product request
+correlation, the standard retained controller, a frame and a same-node link.
+Headed interaction, independent reader implementations, radio qualification and
+client limits keep their separate gates. Compact build and process receipts live
+under `support/receipts/smolweb-browser-receiving/`; an unrun probe does not close
+the receiving gate.

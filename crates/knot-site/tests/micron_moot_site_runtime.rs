@@ -4,8 +4,10 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! Native Retinue-to-Retinue process qualification. This does not qualify
-//! Python/Go readers, browser receiving, public interfaces or radio transport.
+//! Native Retinue-to-Retinue process qualification. The optional
+//! TURNSTONE_MICRON_RECEIVING_TEST_EXE hook additionally qualifies Turnstone's
+//! product receiving/controller path against this governed host. It does not
+//! qualify headed interaction, Python/Go readers, public interfaces or radio.
 
 #![cfg(all(feature = "runtime-acceptance", feature = "retinue"))]
 
@@ -80,7 +82,11 @@ struct Process(Child);
 
 impl Process {
     fn wait(&mut self, label: &str) {
-        let deadline = Instant::now() + Duration::from_secs(30);
+        self.wait_for(label, Duration::from_secs(30));
+    }
+
+    fn wait_for(&mut self, label: &str, timeout: Duration) {
+        let deadline = Instant::now() + timeout;
         loop {
             if let Some(status) = self.0.try_wait().unwrap() {
                 assert!(status.success(), "{label} failed: {status}");
@@ -99,6 +105,88 @@ impl Drop for Process {
             let _ = self.0.wait();
         }
     }
+}
+
+/// The optional browser test runs while this fixture owns the resident. Its
+/// output is read concurrently and capped so a full pipe cannot deadlock wait.
+struct BrowserProbe {
+    process: Process,
+    reader: Option<std::thread::JoinHandle<std::io::Result<Vec<u8>>>>,
+}
+
+impl Drop for BrowserProbe {
+    fn drop(&mut self) {
+        if self.process.0.try_wait().ok().flatten().is_none() {
+            let _ = self.process.0.kill();
+            let _ = self.process.0.wait();
+        }
+        if let Some(reader) = self.reader.take() {
+            let _ = reader.join();
+        }
+    }
+}
+
+fn browser_receiving(root: &Path, status: &Value, destination: [u8; 16]) -> bool {
+    let Some(executable) = std::env::var_os("TURNSTONE_MICRON_RECEIVING_TEST_EXE") else {
+        return false;
+    };
+    let destination = AddressHash::from_bytes(destination);
+    let fixture = root.join("browser-receiving.json");
+    std::fs::write(
+        &fixture,
+        serde_json::to_vec(&json!({
+            "version":1,
+            "tcp":status["address"],
+            "address":format!("{destination}:/page/index.mu"),
+            "expected_index":root.join("offline-authored-site/index.mu"),
+            "resource_address":format!("{destination}:/page/about.mu"),
+            "expected_resource":root.join("offline-authored-site/about.mu"),
+        }))
+        .unwrap(),
+    )
+    .unwrap();
+    let mut process = Process(
+        Command::new(executable)
+            .args([
+                "--ignored",
+                "--exact",
+                "shell::effects::nomadnet_receiving_tests::governed_djinn_native_page_reaches_product_controller",
+                "--nocapture",
+            ])
+            .env("TURNSTONE_MICRON_RECEIVING_FIXTURE", &fixture)
+            .stdin(Stdio::null())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit())
+            .spawn()
+            .expect("Start optional Turnstone receiving test"),
+    );
+    let output = process.0.stdout.take().unwrap();
+    let reader = std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        output.take(65537).read_to_end(&mut bytes)?;
+        Ok(bytes)
+    });
+    let mut probe = BrowserProbe {
+        process,
+        reader: Some(reader),
+    };
+    probe
+        .process
+        .wait_for("Turnstone browser receiving", Duration::from_secs(60));
+    let output = probe.reader.take().unwrap().join().unwrap().unwrap();
+    assert!(output.len() <= 65536, "Browser receiving output exceeded 64 KiB");
+    let output = String::from_utf8(output).expect("Browser receiving output is UTF-8");
+    assert!(
+        output.contains("1 passed; 0 failed"),
+        "Exact browser receiving test did not run successfully: {output}"
+    );
+    let proof = output
+        .lines()
+        .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+        .find(|value| value["governed_micron_browser_receiving"] == true)
+        .unwrap_or_else(|| panic!("Browser receiving proof is missing: {output}"));
+    println!("{proof}");
+    true
 }
 
 struct Resident {
@@ -397,6 +485,7 @@ async fn micron_publication_reopens_and_revalidates_each_request_on_one_link() {
         assert!(!root.join("authored-site").exists());
         drop(session);
         client.close();
+        let browser_receiving_qualified = browser_receiving(root, &status, destination);
         let first_shutdown = resident.finish();
         assert!(first_shutdown["joined"].as_u64().unwrap() >= 1);
 
@@ -491,6 +580,7 @@ async fn micron_publication_reopens_and_revalidates_each_request_on_one_link() {
             "native_page_bytes_exact":true,"resource_body_bytes":large.len(),"snapshot_v1":true,
             "author_directory_unavailable":true,"submission_maps_refused":true,
             "one_link_authority_transitions":true,"replacement":true,"membership_revocation":true,"restoration":true,"withdrawal":true,
+            "browser_receiving_qualified":browser_receiving_qualified,
             "independent_python_go_browser_radio_qualified":false,
         }));
     }).await.expect("Micron process fixture must finish within its whole-case bound");

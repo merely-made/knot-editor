@@ -109,3 +109,9 @@ qualification artifact. The failing real Git consumer control, correction,
 software checks and publication are recorded once in
 `mere/support/family-promotion/pool-cohort-rollout-20261022.json`.
 Checkpoint, native and process acceptance retain their existing scopes.
+
+The same receiving closure also aligns the optional Retinue entry in Knot's
+root lock with qualified Murm `5b1c5cac`. Retinue's package and inherited
+manifest are byte-identical to the older source, and ordinary defaults do not
+select it. This root-lock correction adds no behavior change; consumers retain
+their qualified Knot `f4425996` code input.

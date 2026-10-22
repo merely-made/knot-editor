@@ -58,8 +58,12 @@ checkpoint sealing, renderer release, physical-peer acceptance and the excluded
 
 ### Checkpoint confidentiality repair (2026-10-22)
 
-**Qualification pending:** the current repair contract and receiving results
-belong to the [checkpoint confidentiality receipt](../docs/receipts/2026-10-22_checkpoint_confidentiality/qualification.json).
+**Qualified for local storage and windowless receiving on macOS:** source
+`fc993748d9b56e99eb3a79bf5a07eb5ff371f885` passes the root workspace gate
+(755 passed, six ignored) and the separately enabled resident-retention target
+(one passed). The [checkpoint confidentiality receipt](../docs/receipts/2026-10-22_checkpoint_confidentiality/qualification.json)
+records exact source hashes, failure controls, process reopening and independent
+review. Consumer repins and native/physical-peer acceptance remain separate.
 The user selected both personal and communal storage protection, including
 existing plaintext checkpoints and persisted communal keys, and regeneration
 from authenticated signed history rather than adopting a legacy snapshot as

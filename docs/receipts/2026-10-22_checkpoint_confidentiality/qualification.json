@@ -1,0 +1,309 @@
+{
+  "status": "qualified bounded checkpoint confidentiality and Unix active-file migration",
+  "date": "2026-10-22",
+  "repository": "https://github.com/merely-made/knot-editor",
+  "base_revision": "70576320dffc2c5b4e6d4ab7a31304b348267caf",
+  "source_revision": "fc993748d9b56e99eb3a79bf5a07eb5ff371f885",
+  "source_url": "https://github.com/merely-made/knot-editor/commit/fc993748d9b56e99eb3a79bf5a07eb5ff371f885",
+  "owner_plan": "../../../design_docs/2026-09-30_knot_composition_readings.md",
+  "user_rulings": [
+    "Include communal key custody and checkpoint migration in the same repair pass",
+    "Rebuild legacy checkpoints from authenticated retained history and report changed checkpoint digests"
+  ],
+  "contract": {
+    "profiles": [
+      "PersonalVaultV1",
+      "CommonsDataV1"
+    ],
+    "storage_authority": "Borrow owning unlocked KnotVault per operation; derive a purpose-separated local storage key; store retains no custody key copy",
+    "authenticated_context": [
+      "format",
+      "version",
+      "space",
+      "encryption profile",
+      "record kind"
+    ],
+    "domain_identity": "Canonical plaintext V1 checkpoint BLAKE3 identity; signed operation and assertion identities preserved",
+    "legacy_authority": "Strict signed-history replay including body commitments, causal completeness and exact log/op/topic accounting; no legacy snapshot promotion",
+    "legacy_communal_keys": "Independently authorized supplied keyring must semantically match all persisted legacy state, independent of secret-set order",
+    "replacement": "Closed-store exclusive source lock; same-directory mode-0600 fresh file; sealed protected values before disk writes; byte-exact opaque logical copy; verification; destination fsync; Unix atomic rename while locks held; parent-directory fsync",
+    "report": [
+      "rewritten",
+      "previous_checkpoint",
+      "checkpoint",
+      "preserved_keys"
+    ],
+    "host_wiring": [
+      "StartupUnlockedPersonalVault::open",
+      "StartupUnlockedPersonalVault::open_existing",
+      "personal and communal resident ownership",
+      "guarded synthetic acceptance instrument"
+    ],
+    "public_api_adaptation": "Checkpoint reads/tails and communal checkpoint/keyring/retention APIs now borrow storage vault; save_checkpoint(&vault) remains unchanged"
+  },
+  "tests": {
+    "final_gate": {
+      "label": "workspace-r2",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "--config",
+        "build.build-dir=\"<shared-target>/build\"",
+        "test",
+        "--workspace",
+        "--no-fail-fast",
+        "--locked",
+        "--offline",
+        "--target-dir",
+        "<shared-target>",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 317.1,
+      "host": "Apple M4 Mac, macOS arm64",
+      "architecture": "arm64",
+      "log_sha256": "bf843f26e971bf1fd65edf950d692c4003dfa960664d8963329f79e5abbb4441",
+      "results": [
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s",
+        "test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.70s",
+        "test result: ok. 12 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.25s",
+        "test result: ok. 343 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 26.70s",
+        "test result: ok. 9 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.94s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.89s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.25s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 24.37s",
+        "test result: ok. 4 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 4.66s",
+        "test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.16s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.50s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.44s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 22.05s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 4.91s",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 10.73s",
+        "test result: ok. 168 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 14.70s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.40s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.31s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.37s",
+        "test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 1.36s",
+        "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.79s",
+        "test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.92s",
+        "test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.36s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.25s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.22s",
+        "test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.29s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.54s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.64s",
+        "test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.10s",
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.48s",
+        "test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.55s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s",
+        "test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+        "test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s"
+      ],
+      "role": "Final complete root workspace run after all receiving adaptations",
+      "raw_log": {
+        "name": "workspace-r2.log",
+        "availability": "local only; SHA-256 retained here"
+      }
+    },
+    "final_gate_totals": {
+      "passed": 755,
+      "failed": 0,
+      "ignored": 6
+    },
+    "counting": "Totals are Cargo-reported top-level tests, including one no-op subprocess helper. The ignored confidentiality child is explicitly executed and checked by its parent case. Preliminary and repeated runs are not added as unique tests.",
+    "workspace_members": [
+      "knot-capture",
+      "knot-composition",
+      "knot-desktop",
+      "knot-editor",
+      "knot-file-catalog",
+      "knot-readings"
+    ],
+    "excluded_standalone_workspaces": [
+      "crates/knot-document",
+      "crates/knot-site"
+    ],
+    "environment": {
+      "CARGO_PROFILE_DEV_DEBUG": "0",
+      "CARGO_PROFILE_TEST_DEBUG": "0",
+      "CARGO_INCREMENTAL": "0",
+      "TMPDIR": "/tmp",
+      "target_cache": "shared cache, local only"
+    },
+    "controls": [
+      "Personal and communal checkpoint plaintext and JSON byte-array bodies absent from raw values and whole database files",
+      "Persisted communal epoch secrets and their JSON encodings absent from the database",
+      "Canonical V1 checkpoint and tail identities unchanged by randomized resealing",
+      "Wrong or locked storage vault, wrong event keys, tampered envelope version, space, profile, kind or ciphertext refuse",
+      "Communal rotation, pruning, blank-ring restore, mismatched or stale-ring refusal and explicit membership handoff",
+      "True legacy personal checkpoint and communal checkpoint plus raw keyring rebuilt from authenticated history",
+      "Obsolete overwritten and deleted plaintext pages absent from fresh active database",
+      "Repair advances stale checkpoint frontier and reports old/new canonical digests while preserving signed and assertion identities",
+      "Separate child process reopens authenticated replacement and continues sequence number and backlink without re-authoring assertions",
+      "Revoked historical writer accepted as signed retained history rather than reapplying current membership",
+      "Missing historical epochs, pending causal history, corrupt body commitments, hidden topic associations and swapped log payloads refuse",
+      "Live backend or clone, symlink, hard link, changed inode, unknown protected space and unowned mutation refuse",
+      "Injected copy, preparation, verification and pre-replacement failures preserve original logical values and remove only owned stage",
+      "Post-replacement directory-sync failure reports replacement committed and durability unconfirmed",
+      "Personal resident refuses a legacy store before repair and accepts it afterward",
+      "Existing desktop retention, collection recipes, sealed cache attribution and immutable material checks retain their original assertions"
+    ],
+    "preliminary_gate": {
+      "label": "confidentiality-and-migration-r2",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "--config",
+        "build.build-dir=\"<shared-target>/build\"",
+        "test",
+        "--locked",
+        "--offline",
+        "--target-dir",
+        "<shared-target>",
+        "-j1",
+        "-p",
+        "knot-editor",
+        "--test",
+        "checkpoint_migration",
+        "--test",
+        "checkpoint_confidentiality",
+        "--",
+        "--test-threads=1"
+      ],
+      "exit_code": 0,
+      "seconds": 67.86,
+      "host": "Apple M4 Mac, macOS arm64",
+      "architecture": "arm64",
+      "log_sha256": "c8005468583545d5d3723f3a84e85838ac831e5248d0bd09b8ca0ceec565b33b",
+      "results": [
+        "test result: ok. 8 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 3.94s",
+        "test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 6.36s"
+      ],
+      "role": "Earlier focused gate: 8 confidentiality plus 15 filesystem tests passed; superseded as final-source evidence by complete workspace run",
+      "raw_log": {
+        "name": "confidentiality-and-migration-r2.log",
+        "availability": "local only; SHA-256 retained here"
+      }
+    },
+    "optional_receiving_gate": {
+      "label": "resident-retention",
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "--config",
+        "build.build-dir=\"<shared-target>/build\"",
+        "test",
+        "-p",
+        "knot-desktop",
+        "--features",
+        "resident-retention-tests",
+        "--test",
+        "resident_retention",
+        "--locked",
+        "--offline",
+        "--target-dir",
+        "<shared-target>",
+        "-j1"
+      ],
+      "exit_code": 0,
+      "seconds": 31.51,
+      "host": "Apple M4 Mac, macOS arm64",
+      "architecture": "arm64",
+      "log_sha256": "3532d9da3b84e359d152f46edc8af1ce8973541b193c8e7723db8f9e69e2fdee",
+      "results": [
+        "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.56s"
+      ],
+      "role": "Explicitly enable resident-retention-tests, which is gated out of the default workspace run",
+      "raw_log": {
+        "name": "resident-retention.log",
+        "availability": "local only; SHA-256 retained here"
+      }
+    }
+  },
+  "independent_review": {
+    "mode": "Read-only source review by separate agent; reviewer ran no builds and made no edits",
+    "resolved_findings": [
+      "Pass authorized vault to desktop keyed checkpoint reads",
+      "Validate protected storage before personal resident ownership; regression checks legacy refusal and repaired success",
+      "Adapt all app/crate resident reopen fixtures and guarded collection instrument to authorized repair"
+    ],
+    "remaining_blocking_findings": 0
+  },
+  "dependency_graph": {
+    "manifests_and_locks_unchanged": true,
+    "file_sha256": {
+      "Cargo.lock": "a0d052768f2fdfd1e243395ef330c283a92223f071bf422592bf7d720c4c4b1b",
+      "Cargo.toml": "f95643cc5fc6632f0edb8db12f68737eed93b6823c179b3f32c4c620cae5d60c",
+      "apps/desktop/Cargo.toml": "c4c2559c057c105b5d04c690c993bb6654ef457153b8757b217fb30fd5d7e0aa",
+      "crates/knot-capture/Cargo.toml": "ca935293986eef29f8f7c0bf8b27fd89139b87e19d44115faa946ff4c2d06a16",
+      "crates/knot-composition/Cargo.toml": "5b87be8e43e2f4b08631c45e16dc02559df0173e51481f9301f4ed6b8ede4629",
+      "crates/knot-document/Cargo.toml": "886afd780692d2bc4ed22bc37e9e21ba6a8e4723c5ef267d031add91ffc75a3a",
+      "crates/knot-editor/Cargo.toml": "1ec2edba574ce62b2f29589b38d256a61f7c81ccfcda4f92ec25060c4d274bd4",
+      "crates/knot-file-catalog/Cargo.toml": "c0e969697eaa6b3566675dc1488c3cc996e32d46d3f7f6206538ef460f6bbe19",
+      "crates/knot-readings/Cargo.toml": "d59dcbe43d59b8772e0e11573c593b74ebd8aafc4aa0df6087f6fce8fe83d267",
+      "crates/knot-site/Cargo.toml": "4798931ca7389ec98dccfe703c3f1531217d13f7e777f86e3145101012ba73f8",
+      "docs/receipts/2026-10-07_current_family_repin/desktop-Cargo.toml": "22e5f6921d240114fb91cd8258f0b1746c04b40a07b3ca0498c16a71149b226b",
+      "docs/receipts/2026-10-07_current_family_repin/root-Cargo.lock": "312ba490f88a322b67fe2296882e6c5c679cbfd06c7398e314eee64223545d59",
+      "docs/receipts/2026-10-07_current_family_repin/root-Cargo.toml": "754f5c078fd5fdaa33011ed8baac5d99524f456f755decf6d275348e5361e75e",
+      "docs/receipts/2026-10-07_current_family_repin/standalone-Cargo.lock": "301e56e981f9fabd1f4f21c67e2aeebbe8046ba3bc6993e993d1e7207214c9d8",
+      "docs/receipts/2026-10-07_current_family_repin/standalone-Cargo.toml": "8bf30973e65728a17b3f0541b74ff2712ccc590391771e61949a935b7f0ca333",
+      "docs/receipts/2026-10-07_foreign_accessibility_repin/root-before-Cargo.lock": "312ba490f88a322b67fe2296882e6c5c679cbfd06c7398e314eee64223545d59",
+      "docs/receipts/2026-10-07_foreign_accessibility_repin/standalone-before-Cargo.lock": "301e56e981f9fabd1f4f21c67e2aeebbe8046ba3bc6993e993d1e7207214c9d8"
+    },
+    "eidetic_schema_basis": "34105d63ec17826e0a58a5b461b65150357dd000",
+    "p2panda_basis": "1f69c9bcb9f2a9d798b1c25b2ec2f47c0416bd65",
+    "redb_version": "2.6.4"
+  },
+  "code_sha256": {
+    "apps/desktop/examples/collection_acceptance.rs": "6879fd08ee3acc23274966f7dcc3ec45e7ddcdd9f3e2ff86ec06f1a605e4d614",
+    "apps/desktop/tests/composition_mere.rs": "ada67587dba0ddeeec495ca1c8572b2a3cdec1882c9985a88d3999d64b63ced6",
+    "apps/desktop/tests/resident_retention.rs": "3cb7dbabd6dcd945c2342139668927b4fde1e21dc08230c78cf655b1172a59ba",
+    "crates/knot-editor/src/bin/knot_endpoint.rs": "af6bd5d522b580e8b70fbce5cfa6723f8f365b5f1bc7f2bb379a68c39c4e7548",
+    "crates/knot-editor/src/checkpoint_history.rs": "882e2f8426a9120bba0fc5c394aa2e5f444b961586c4083a50eb0a05f432b24a",
+    "crates/knot-editor/src/checkpoint_migration.rs": "05c3ff58a1e61fca62ac11092478d8ce86944e9dbbcfb484de23265c910d9f94",
+    "crates/knot-editor/src/checkpoint_repair.rs": "27fbc665193f17892b072c2936c734c600ad34ca4a0b37e220dc77d756429491",
+    "crates/knot-editor/src/checkpoint_storage.rs": "6df58065c557207e55cc277c82963e6ace0382d61b31107f77b999e33e87e601",
+    "crates/knot-editor/src/endpoint.rs": "9da374e74b6ef4b17c49dc7267c1ba998f196f74a1e9cb6873f56c5e25c66be3",
+    "crates/knot-editor/src/lib.rs": "3a2e3c058645513b4bfeb38a4d7dca3742cc028a5fff0cd83cd68c3fa1a8340a",
+    "crates/knot-editor/src/startup.rs": "55bfe0dd7a2a05e162a3bdc70cd5d5a55f3ce9fbf32561c343697b1c30734bdb",
+    "crates/knot-editor/src/sync.rs": "552e7db8735aeb16d8fa1c81c5d5753d28f2a7cc69b334eef6d0d92f1df82a78",
+    "crates/knot-editor/src/vault.rs": "fdc151cb2bf18bc2f421ab718890ebda5edf91d9ad45f72fd718ae1f2489d17a",
+    "crates/knot-editor/tests/authored_relations.rs": "1d7c1c364156e2be99d9ec42a4eb9f2f13abc05f6f2b784d2eaf11191ee71913",
+    "crates/knot-editor/tests/capture_retention.rs": "f07c8687e6bb2a9f44e71b2811cc9cf6d4ca3d1c469e8df1851ad1a668ba1ed9",
+    "crates/knot-editor/tests/checkpoint_confidentiality.rs": "596432d43b0d943828e663926019a65fb486785e42c49c38a0a8ec4a644406b6",
+    "crates/knot-editor/tests/checkpoint_migration.rs": "44441a5e6b5b55c6ebfd7eb26425c70d552cb5614ceb79f01e287f46405eb166",
+    "crates/knot-editor/tests/composition_retention.rs": "3d19aabe3a2bd755e31344e6b7cca2124dc6cbfcd304019bfaf68b9d83dc9cbc",
+    "crates/knot-editor/tests/retain_host.rs": "478c156a6dabc9a90b63b9e3ba89a63fda3afdb67797964d291fa96e136bf014"
+  },
+  "superseded_attempts": [
+    "Initial compile found a missing borrow in marker-key formatting; corrected before focused passes",
+    "Initial confidentiality test expected unrelated nonempty keyring replacement; corrected to refusal plus blank-keyring authorized restore",
+    "First full workspace run reached desktop recipe reopening and correctly refused its unmarked raw-open fixture; complete resident callsite review and fixture adaptations preceded final gate"
+  ],
+  "limits": [
+    "Legacy atomic replacement is implemented and exercised on Unix/macOS; other platforms refuse legacy rewrite. Fresh sealed current-format reads and writes remain portable but were exercised only on this Mac.",
+    "Tests use actual redb files and signed synthetic histories, not user vault data. This receipt does not claim bulk migration of every existing user store or historical receipt fixture.",
+    "Legitimate owner unlock or explicit authorized closed-store repair is required; missing epochs/history or mismatched legacy group keys require recovery.",
+    "The clean marker is an owner assertion within a trusted directory. Older writers, raw backend mutations, same-space replay and hostile directory owners remain outside its assurance.",
+    "Replacement excludes obsolete plaintext pages from the new active file. It does not erase backups, snapshots, old copies, SSD remnants or prior encrypted epoch-key pages.",
+    "Only the pinned backend logical table is copied. No support for arbitrary extra raw redb tables is claimed.",
+    "No native GUI, physical-peer/device, independent second-host, non-Unix migration or declared-MSRV run is claimed.",
+    "Mere/product consumer lock repins and receiving qualification remain separate from this Knot supplier repair. Repository scan found no external callsites for the changed keyed checkpoint APIs; Mere has direct resident fixtures to inspect on intake.",
+    "Existing directory.rs unused-variable and desktop Mach-O unwind linker warnings remain; unrelated formatting differences in existing lib/startup/CLI sections were not swept."
+  ]
+}

@@ -1,5 +1,39 @@
 # Native small-web authoring and serving
 
+## Governed native Scroll process receipt (2026-10-22)
+
+**Status:** landed and native qualified against Mere resident `42b683108`.
+
+`crates/knot-site/tests/scroll_moot_site_runtime.rs` extends the opt-in
+`runtime-acceptance` suite with the existing saved-site publisher and separately
+supplied Djinn executable. It checks literal native full/abstract wire bytes,
+UDC/author/language/dates, metadata at existing V1 bounds, explicit persisted
+Scroll transport, replacement, current membership, withdrawal and admitted
+request cancellation/join. The authored site path is absent during serving and
+resident reopen. The original Gemini process fixture stays unchanged and is
+rerun against the new resident.
+
+Set `DJINN_MOOT_SITE_EXE` to the built resident and run both ignored native
+fixtures explicitly with `--features runtime-acceptance`. This is same-machine
+loopback TLS with independent processes and retained owners. Browser adoption,
+MIME/trust propagation, desktop publishing controls and peer acquisition remain
+separate consumer gates. Snapshots and publisher behavior stay unchanged;
+upstream's `7057632` dependency cohort is preserved. The ignored standalone
+lock records the inherited canonical model source at `a07a375e`, matching the
+SDK source correction, with other Git inputs preserved. Retain compact receipts
+under the shared 100 MB cap using stable repository targets.
+The long-date case compares raw trusted TLS bytes. Errand's current client has
+a separate 4096-byte response-line cap; this process gate does not establish
+browser/client acceptance beyond that cap.
+
+Both locked/offline process fixtures pass against the same integrated resident
+executable: the unchanged Gemini fixture and the new Scroll fixture. Scroll
+reports two publisher and three resident processes, exact full/abstract metadata
+and V1 bytes, replacement/current membership/withdrawal, certificate continuity,
+and one cancelled admitted request with zero task panics/rejections. Exact
+source, lock and binary identities plus raw task reports are retained in the
+[process receipt](../support/receipts/scroll-publication-runtime/process.json).
+
 ## Native Scroll wire ownership (2026-10-21)
 
 **Status:** landed and qualified against supplier `3d2ce3a5`. Extract response encoding from Knot into the existing
@@ -27,8 +61,9 @@ than adding multilingual variants or a new fallback policy.
 
 Canonical protocol plan:
 `smolweb/design_docs/implementation_strategy/2026-10-21_native_scroll_server_plan.md`.
-Governed resident Scroll hosting, browser MIME propagation and scoped task
-lifetime retain their separate owner gates in Mere's shared-site plan.
+Governed resident Scroll hosting and scoped task lifetime continue through the
+native process gate above and Mere's shared-site plan. Browser MIME propagation
+retains its separate consumer gate.
 
 The unchanged donor fixtures pass after adoption, within 22 standalone
 publication/history tests. The ordinary root site check and strict library/bin

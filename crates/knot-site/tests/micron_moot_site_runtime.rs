@@ -484,7 +484,12 @@ async fn micron_publication_reopens_and_revalidates_each_request_on_one_link() {
         assert_eq!(std::fs::read(&snapshot_path).unwrap(), frozen_v1);
         assert!(!root.join("authored-site").exists());
         drop(session);
-        client.close();
+        // Dropping the native link queues its final proof/LINKCLOSE. Drain it
+        // within the already-selected grace before handing this resident to
+        // the browser; abrupt close can leave a host admission slot occupied.
+        client
+            .shutdown(Duration::from_millis(policy["shutdown_grace_ms"].as_u64().unwrap()))
+            .await;
         let browser_receiving_qualified = browser_receiving(root, &status, destination);
         let first_shutdown = resident.finish();
         assert!(first_shutdown["joined"].as_u64().unwrap() >= 1);

@@ -2,7 +2,7 @@
 
 # Knot Editor design documents
 
-- [Governed native Scroll process receipt](2026-09-11_small_web_authoring_plan.md#governed-native-scroll-process-receipt-2026-10-22): independent saved-site publisher/resident qualification with native metadata, current authority and joined shutdown; the original Gemini fixture remains unchanged.
+- [Governed native Scroll process receipt](2026-09-11_small_web_authoring_plan.md#governed-native-scroll-process-receipt-2026-10-22): independent saved-site publisher/resident qualification passed with native metadata, current authority and joined shutdown; the original Gemini fixture remains unchanged and passes.
 
 - [Native Scroll wire ownership](2026-09-11_small_web_authoring_plan.md#native-scroll-wire-ownership-2026-10-21): shared native encoder extraction with fixed donor bytes and actual local TLS receiving checks; Knot keeps content and host policy.
 

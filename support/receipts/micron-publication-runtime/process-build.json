@@ -1,0 +1,26 @@
+{
+  "schema": "micron-publication-process-build-v1",
+  "recorded_at_utc": "2026-10-22T19:20:18Z",
+  "repository_head": "98d5212bfe2f773ba9375e4f1a74b47b5aecdb6b",
+  "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --features runtime-acceptance,retinue --test micron_moot_site_runtime --no-run --locked --offline --quiet",
+  "exit_code": 0,
+  "gates": {
+    "native_process_fixture_compiled": true,
+    "native_process_fixture_executed": false,
+    "independent_python_go_browser_radio_qualified": false
+  },
+  "source_sha256": {
+    "crates/knot-site/tests/micron_moot_site_runtime.rs": "131525c220312605bcd08b0a0e88043ee6e94632b40c09694ab8d8b3c2dfb5ef",
+    "crates/knot-site/Cargo.toml": "4798931ca7389ec98dccfe703c3f1531217d13f7e777f86e3145101012ba73f8",
+    "crates/knot-site/Cargo.lock": "cd34f331203d7ef6cd8a7eb24937f018b6c3f3aadc9dd13f5d77bbd9c1fece74"
+  },
+  "resources": {
+    "target": "C:/t/cargo-targets/knot-editor",
+    "build_directory": "C:/t/cargo-targets/knot-editor/build",
+    "isolated_cargo_home": null,
+    "isolated_worktree": null,
+    "full_build_log_retained": false,
+    "receipt_budget_bytes_whole_task": 100000000
+  },
+  "scope": "Fixture compile only. Await the qualified resident executable before native execution. Original and unchanged snapshot V1 admits UTF-8 page source; the large native binary-envelope Resource fixture retains NUL, CRLF and Unicode within that contract."
+}

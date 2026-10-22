@@ -1,5 +1,33 @@
 # Native small-web authoring and serving
 
+## Governed Micron host continuation (2026-10-22)
+
+**Status:** implemented and native process qualified against integrated Djinn
+source `1f660dcb4`. Its optional `moot-site-nomadnet` backend serves retained
+Micron pages through native NomadNet, with its own persistent destination.
+
+`tests/micron_moot_site_runtime.rs` runs two actual Knot publishers and three
+resident processes. It checks exact 128 KiB Resource content and native
+Unicode/CRLF/NUL bytes, unchanged snapshot V1, stable public identity and
+destination after restart, and replacement, membership removal/restoration and
+withdrawal on one reused link. Maps, nonempty data and non-page paths refuse;
+a later inert read on the same link still works. The author path is unavailable
+while the resident serves. Shutdown cancels and joins its admitted idle session,
+closes the listener and reaps the process.
+
+The unchanged Gemini and Scroll fixtures also pass against the same executable,
+SHA-256 `d2ee5884c925d91118efaee712237ab00d78d2c38b02d0684ec6b89f347c5055`.
+[Integrated process receipt](../support/receipts/micron-publication-runtime/integrated-process.json)
+records exact source, lock, binary and client/server Retinue revisions. The
+[initial process proof](../support/receipts/micron-publication-runtime/process.json)
+is retained separately. Set `DJINN_MOOT_SITE_EXE` to the qualified executable and
+run the three ignored process tests with features `runtime-acceptance,retinue`.
+
+Scope and host done-conditions are in Mere's
+[shared site plan](https://github.com/merely-made/mere/blob/main/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md#governed-micron-resident-2026-10-22).
+Browser receiving and client limits, Python/Go, radio and cross-machine acceptance
+remain separate. Whole-task retained evidence is capped at 100 MB across repos.
+
 ## Governed native Scroll process receipt (2026-10-22)
 
 **Status:** landed and native qualified against Mere resident `42b683108`.

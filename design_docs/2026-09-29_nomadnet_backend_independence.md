@@ -133,3 +133,15 @@ Headed interaction, independent reader implementations, radio qualification and
 client limits keep their separate gates. Compact build and process receipts live
 under `support/receipts/smolweb-browser-receiving/`; an unrun probe does not close
 the receiving gate.
+
+The optional probe passes on source `3596dce3`, using Turnstone `cab743c11` and
+the governed resident `1f660dcb4`. It preserves the exact 57-byte index and
+131,072-byte Resource, frames the registered Micron controller and follows its
+same-node link. The authoring directory is unavailable to the resident, and
+the existing V1, authority-transition and restart assertions also pass.
+[The process receipt](../support/receipts/smolweb-browser-receiving/process-graceful.json)
+names both executable hashes and the unchanged limits. The earlier failed
+attempt remains in `process.json`: client teardown dropped queued proof/close
+packets. The browser now drains its endpoint inside the existing deadline;
+this fixture drains its handoff using the already-selected shutdown grace.
+First-phase host shutdown joins all three sessions without cancellation.

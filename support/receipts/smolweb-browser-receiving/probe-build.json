@@ -1,0 +1,9 @@
+{
+  "version": 1,
+  "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --features runtime-acceptance,retinue --test micron_moot_site_runtime --locked --offline --no-run --quiet",
+  "exit_code": 0,
+  "elapsed_seconds": 33.7828948,
+  "source_sha256": "b4112f65312d65e6789707dcf607c0e7091403896651ccf888a4a8228045ef42",
+  "lock_sha256": "cd34f331203d7ef6cd8a7eb24937f018b6c3f3aadc9dd13f5d77bbd9c1fece74",
+  "diagnostics": []
+}

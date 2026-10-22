@@ -1,5 +1,40 @@
 # Native small-web authoring and serving
 
+## Saved-site publication into a Moot (2026-10-21)
+
+**Status:** native qualified; final source recording in progress.
+`knot-site/publication` captures saved source once and
+publishes through the shared model's Eidetic/Gemot owner adapter. The captured
+snapshot accompanies its signed collection receipt for exact local handoff.
+
+The explicit `knot-site-publish SITE_DIR TARGET_JSON` command uses an existing
+Moot/collection, host-selected content database and governed retention settings.
+The target names optional replacement contribution, title and new handoff output
+paths. Its stable identity seed arrives as 32 binary stdin bytes, never in the
+target file, arguments or output. Outputs use create-new semantics; failed
+attempts remain inspectable. Partial community effects are reported explicitly.
+This command does not create a community, open a listener or publish drafts.
+
+Done when exact saved-file publication passes with real owner gates and the
+resident's independent Gemini/TLS process can retain and reopen the handoff with
+Knot absent, then observe replacement and withdrawal. Preserve normal site and
+history cases and existing snapshot V1 bytes. Receipt cap: 100 MB across repos;
+reuse the stable Knot target. Desktop button/identity-picker integration remains
+a separate consumer gate; the explicit CLI is this slice's first product caller.
+
+Canonical runtime plan and findings:
+`mere/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md`.
+
+The opt-in `runtime-acceptance` feature enables
+`tests/moot_site_runtime.rs`. Set `DJINN_MOOT_SITE_EXE` to the built resident and
+run the ignored process receipt explicitly. It starts the real Knot CLI twice
+and the resident three times with independent stores, checks exact Gemini/TLS
+wire bytes and certificate continuity, removes/restores current membership,
+withdraws the contribution, and checks actual Armillary shutdown counts with a
+TLS-admitted stalled request. No renderer, external peer or radio is involved.
+The ordinary root site-library check preserves every Git source except the
+isolated `mere-site` contract pin; no renderer cohort changes are needed.
+
 ## Optional saved-site checkpoints (2026-10-21)
 
 **Status (2026-10-21):** landed. Mark authorized explicit record/list/load site revisions

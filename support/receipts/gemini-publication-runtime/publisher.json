@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "recorded_at": "2026-10-22T00:01:09.9069182Z",
+  "contract_supplier": "a845b0b222431fc340ba3e8e59b9f77d44e4545a",
+  "source_sha256": {
+    "crates/knot-site/Cargo.toml": "ad0ce387fcafff75bc19a02e0792e2731d678616460d7b085496764ffc6221e5",
+    "crates/knot-site/src/lib.rs": "f47201dda5b2894332e06781660c461406a9e052ca600a4d95976dd917be5feb",
+    "crates/knot-site/src/publication.rs": "9c1050d33c99ceaebfca55ebd80864191ed83fc606963f01eed88deebcfbfd9e",
+    "crates/knot-site/src/bin/knot_site_publish.rs": "1b391f632c4dce123e8c0f8587ee717460ee70505cfc84b419b34997fa47fd34",
+    "crates/knot-site/tests/moot_site_runtime.rs": "f3776992a13d3a545efdc8e6e661188a9e4bd6f64a162a04493b3cba329e9a9b"
+  },
+  "root_lock_sha256": "d99c2281beb615daa9aa37ba1b04b07f1073d149764f8639c16eae79d66f1daa",
+  "standalone_lock_sha256": "86bc2dab014a4be4b46544bfbc97ea01368aad20277d88ab13407490bc410045",
+  "commands": [
+    {
+      "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --features publication,history --offline --quiet",
+      "exit_code": 0,
+      "passed": 18
+    },
+    {
+      "exit_code": 0,
+      "command": "cargo check -p knot-site --offline --quiet"
+    },
+    {
+      "exit_code": 0,
+      "command": "cargo clippy --manifest-path crates/knot-site/Cargo.toml --features publication,history --lib --bins --offline --no-deps -- -D warnings"
+    }
+  ],
+  "root_git_source_changes": [
+    "mere-site only; renderer and all other Git suppliers preserved"
+  ],
+  "native_receiving": "The cross-process fixture result and exact resident binary basis are recorded in mere/support/receipts/gemini-publication-runtime/",
+  "scope": "Explicit saved-file CLI publication; desktop controls and identity picker remain separate",
+  "receipt_cap_bytes": 100000000
+}

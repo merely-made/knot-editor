@@ -2,6 +2,8 @@
 
 # Knot Editor design documents
 
+- [Saved-site publication into a Moot](2026-09-11_small_web_authoring_plan.md#saved-site-publication-into-a-moot-2026-10-21): explicit CLI publication and signed local handoff; native publisher/resident process and Gemini/TLS qualification passed, with desktop controls still separate.
+
 - [Optional saved-site checkpoints](2026-09-11_small_web_authoring_plan.md#optional-saved-site-checkpoints-2026-10-21): opt-in host storage, explicit saved-file checkpoints and unchanged shared V1 snapshots; automated site, file-only desktop and CLI gates passed.
 
 The dated plans record Knot's development while it lived in Mere and its move

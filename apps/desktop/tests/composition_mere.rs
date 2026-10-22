@@ -16,7 +16,8 @@ use knot_desktop::{
 };
 use knot_document::KnotDocumentSession;
 use knot_editor::{
-    CompositionGrant, KnotResidentCompositionPort, KnotResidentSource, KnotSyncFileStore, KnotVault,
+    CompositionGrant, KnotResidentCompositionPort, KnotResidentSource, KnotSyncCipher,
+    KnotSyncFileStore, KnotVault,
 };
 use layout_dom_api::LayoutDom;
 use personae::{IdentityProvider, InMemoryProvider};
@@ -142,7 +143,9 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     );
     let operation = items[0].receipt.operation;
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap().operations,
+        pollster::block_on(store.tail_receipt(&read_vault))
+            .unwrap()
+            .operations,
         vec![operation]
     );
     assert!(host.click_on(&Selector::role("button").containing("Archive collection item")));
@@ -242,12 +245,16 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         host
     };
     let open_resident = || {
-        KnotResidentSource::from_synced_vault(
-            KnotVault::open(&vault_path, [0x62; 32]).unwrap(),
-            KnotSyncFileStore::open(&database, [0x63; 32], [writer]).unwrap(),
-            &seed,
-        )
-        .unwrap()
+        let vault = KnotVault::open(&vault_path, [0x62; 32]).unwrap();
+        let (store, _) = pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+            &database,
+            [0x63; 32],
+            [writer],
+            KnotSyncCipher::Personal(&vault),
+            &vault,
+        ))
+        .unwrap();
+        KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap()
     };
     let click = |host: &mut DesktopHarness, label: &str| {
         let selector = Selector::role("button").containing(label);

@@ -102,10 +102,10 @@ fn host_adapter_retains_exact_reviewed_bytes_and_reuses_the_signed_operation() {
 
 #[test]
 fn host_adapter_refuses_target_mismatch_and_live_authority_loss() {
-    let (_root, resident, store, _read_vault, writer, _seed) = resident();
+    let (_root, resident, store, read_vault, writer, _seed) = resident();
     let port = adapter(&resident);
     let target = port.target().clone();
-    let tail_before = pollster::block_on(store.tail_receipt()).unwrap();
+    let tail_before = pollster::block_on(store.tail_receipt(&read_vault)).unwrap();
 
     let mut wrong = target.clone();
     wrong.persona.label = "A different host choice".into();
@@ -121,7 +121,7 @@ fn host_adapter_refuses_target_mismatch_and_live_authority_loss() {
     let narrow = KnotResidentRetainPort::new(persona(), narrow_capture).unwrap();
     assert!(narrow.retain_reviewed(narrow.target(), revision()).is_err());
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap(),
+        pollster::block_on(store.tail_receipt(&read_vault)).unwrap(),
         tail_before
     );
 
@@ -132,30 +132,30 @@ fn host_adapter_refuses_target_mismatch_and_live_authority_loss() {
     resident.session(None).lock_vault();
     assert!(port.retain_reviewed(&target, revision()).is_err());
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap(),
+        pollster::block_on(store.tail_receipt(&read_vault)).unwrap(),
         tail_before
     );
 }
 
 #[test]
 fn revoked_capture_port_cannot_be_reused_by_the_host_adapter() {
-    let (_root, resident, store, _read_vault, _writer, _seed) = resident();
+    let (_root, resident, store, read_vault, _writer, _seed) = resident();
     let capture = resident
         .capture_retention(KnotCaptureGrant::new([revision().document_id], 4096))
         .unwrap();
     let port = KnotResidentRetainPort::new(persona(), capture.clone()).unwrap();
-    let tail_before = pollster::block_on(store.tail_receipt()).unwrap();
+    let tail_before = pollster::block_on(store.tail_receipt(&read_vault)).unwrap();
     capture.revoke();
     assert!(port.retain_reviewed(port.target(), revision()).is_err());
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap(),
+        pollster::block_on(store.tail_receipt(&read_vault)).unwrap(),
         tail_before
     );
 }
 
 #[test]
 fn adapter_clones_share_one_resident_capability_without_opening_another_owner() {
-    let (_root, resident, store, _read_vault, _writer, _seed) = resident();
+    let (_root, resident, store, read_vault, _writer, _seed) = resident();
     let capture = resident
         .capture_retention(KnotCaptureGrant::new([revision().document_id], 4096))
         .unwrap();
@@ -167,7 +167,9 @@ fn adapter_clones_share_one_resident_capability_without_opening_another_owner() 
     assert!(retry.already_retained);
     assert_eq!(retry.operation, receipt.operation);
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap().operations,
+        pollster::block_on(store.tail_receipt(&read_vault))
+            .unwrap()
+            .operations,
         vec![receipt.operation]
     );
 }

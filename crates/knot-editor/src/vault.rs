@@ -22,6 +22,7 @@ const DERIVED_CACHE_PATH_CONTEXT: &str = "mere.knot.derived-cache-path.v1";
 const DERIVED_CACHE_VERSION: u64 = 1;
 const INDEX_VERSION: u64 = 1;
 const SYNC_KEY_CONTEXT: &str = "mere.knot.personal-vault-sync.v1";
+const LOCAL_STORAGE_KEY_CONTEXT: &str = "mere.knot.local-storage-protection.v1";
 
 /// One authored document in the sealed vault.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
@@ -378,6 +379,34 @@ impl KnotVault {
             .ok_or_else(|| "Knot vault is locked".to_string())?;
         seal_bytes(key, aad, plaintext)
             .map_err(|error| format!("could not seal Knot sync payload: {error}"))
+    }
+
+    pub(crate) fn seal_local_storage(
+        &self,
+        aad: &[u8],
+        plaintext: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        let sync_key = self
+            .sync_key
+            .as_ref()
+            .ok_or_else(|| "Knot vault is locked".to_string())?;
+        let key = Zeroizing::new(blake3::derive_key(LOCAL_STORAGE_KEY_CONTEXT, &**sync_key));
+        seal_bytes(&key, aad, plaintext)
+            .map_err(|_| "could not seal Knot local storage".to_string())
+    }
+
+    pub(crate) fn unseal_local_storage(
+        &self,
+        aad: &[u8],
+        ciphertext: &[u8],
+    ) -> Result<Vec<u8>, String> {
+        let sync_key = self
+            .sync_key
+            .as_ref()
+            .ok_or_else(|| "Knot vault is locked".to_string())?;
+        let key = Zeroizing::new(blake3::derive_key(LOCAL_STORAGE_KEY_CONTEXT, &**sync_key));
+        unseal_bytes(&key, aad, ciphertext)
+            .map_err(|_| "could not authenticate Knot local storage".to_string())
     }
 
     pub(crate) fn unseal_sync_payload(

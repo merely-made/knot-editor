@@ -11,7 +11,7 @@ use knot_document::KnotDocumentSession;
 use knot_editor::{
     CompositionGrant, KnotAssertedTime, KnotCorePredicateV1, KnotPredicateRefV1,
     KnotRelationEndpointV1, KnotRelationPositionV1, KnotResidentCompositionPort,
-    KnotResidentSource, KnotSyncEvent, KnotSyncFileStore, KnotVault, VaultDocument,
+    KnotResidentSource, KnotSyncCipher, KnotSyncEvent, KnotSyncFileStore, KnotVault, VaultDocument,
     capture_endpoint_context,
 };
 use personae::{IdentityProvider, InMemoryProvider};
@@ -68,7 +68,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let seed = identity.master_keypair().to_seed();
     let writer = identity.master_public_key().to_bytes();
     let mut vault = KnotVault::open(root.join("vault"), [0x72; 32])?;
-    let mut store = KnotSyncFileStore::open(root.join("sync.redb"), [0x73; 32], [writer])?;
+    let (mut store, _checkpoint_repair) = pollster::block_on(
+        KnotSyncFileStore::open_with_checkpoint_repair(
+            root.join("sync.redb"),
+            [0x73; 32],
+            [writer],
+            KnotSyncCipher::Personal(&vault),
+            &vault,
+        ),
+    )?;
     if opened_link_fixture && mode == "--initialize-opened-link-fixture" {
         let essay_text = "# Night light\nNight light by the river.\n";
         let source_text = "# River notes\nThe river keeps the dusk.\n";
@@ -177,7 +185,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         resident.composition_retention(CompositionGrant::new(8192, 20))?,
     )?;
     if mode == "--inspect-test-fixture" {
-        // Read-only object identity for selecting one immutable test version.
+        // Read-only object identity after authorized fixture storage repair,
+        // for selecting one immutable test version.
         // This mode is guarded by the same public-fixture marker as reopen.
         let recipes: Vec<_> = port.list(port.target())?.into_iter().filter_map(|entry| {
             let material = entry.item.projection_recipe.as_ref()?;

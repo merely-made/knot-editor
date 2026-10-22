@@ -351,15 +351,20 @@ fn communal_fixture_endpoint(
     let local_writer = *SigningKey::from_bytes(&LOCAL_SEED)
         .verifying_key()
         .as_bytes();
-    let store = knot_editor::KnotSyncFileStore::open_commons(
-        root.join("commons.redb"),
-        SPACE,
-        [received_writer, local_writer],
-    )
-    .expect("could not open communal fixture sync store");
     let mut keys = DataKeyring::new();
     keys.rotate_random()
         .expect("could not mint communal fixture data epoch");
+    let vault = knot_editor::KnotVault::open(root.join("vault"), VAULT_KEY)
+        .expect("could not open fixture vault");
+    let (store, _checkpoint_repair) =
+        pollster::block_on(knot_editor::KnotSyncFileStore::open_with_checkpoint_repair(
+            root.join("commons.redb"),
+            SPACE,
+            [received_writer, local_writer],
+            knot_editor::KnotSyncCipher::CommonsData(&keys),
+            &vault,
+        ))
+        .expect("could not open protected communal fixture sync store");
     let source = "\
 # Received calculation
 
@@ -378,8 +383,6 @@ fn communal_fixture_endpoint(
         }),
     ))
     .expect("could not author received communal fixture document");
-    let vault = knot_editor::KnotVault::open(root.join("vault"), VAULT_KEY)
-        .expect("could not open fixture vault");
     let mut endpoint = knot_editor::KnotEndpoint::from_communal_vault(
         vault,
         store,

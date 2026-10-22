@@ -27,8 +27,8 @@ use personae::{Ed25519Keypair, PersonaId};
 use zeroize::Zeroizing;
 
 use crate::{
-    KnotEndpoint, KnotPublishSource, KnotResidentSource, KnotSyncEvent, KnotSyncFileStore,
-    KnotVault, KnotWriteGrant, VaultDocument,
+    KnotCheckpointRepairReceipt, KnotEndpoint, KnotPublishSource, KnotResidentSource,
+    KnotSyncCipher, KnotSyncEvent, KnotSyncFileStore, KnotVault, KnotWriteGrant, VaultDocument,
 };
 
 /// The epoch derivation of a persona's Knot vault key. djinn's release
@@ -151,11 +151,15 @@ pub struct StartupUnlockedPersonalVault {
     vault: KnotVault,
     store: KnotSyncFileStore,
     signing_seed: Zeroizing<[u8; 32]>,
+    checkpoint_repair: KnotCheckpointRepairReceipt,
 }
 
 impl StartupUnlockedPersonalVault {
     /// Attach an explicitly named existing personal mere without creating an
     /// identity/store, migrating documents, or starting network replication.
+    /// After custody releases the vault key, repair existing checkpoint storage
+    /// from authenticated history before exposing the operation store. The
+    /// receipt reports replacement of the derived checkpoint and its frontier.
     /// The store is checked before djinn is asked, so a missing mere costs no
     /// release. Another resident owning the operation store is an error,
     /// never a second owner.
@@ -181,10 +185,18 @@ impl StartupUnlockedPersonalVault {
             .unwrap_or_default();
         let writers = keys.writers(admitted);
         let space_id = blake3::derive_key(SPACE_ID_CONTEXT, persona.as_uuid().as_bytes());
-        let store = KnotSyncFileStore::open(&store_path, space_id, writers).map_err(|error| {
-            format!("could not attach Knot mere; another resident may own it: {error}")
-        })?;
         let vault = KnotVault::open(&vault_root, *keys.vault_key)?;
+        let (store, checkpoint_repair) =
+            pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+                &store_path,
+                space_id,
+                writers,
+                KnotSyncCipher::Personal(&vault),
+                &vault,
+            ))
+            .map_err(|error| {
+                format!("could not attach Knot mere; another resident may own it: {error}")
+            })?;
         let projection = pollster::block_on(store.projection(&vault))
             .map_err(|error| format!("could not inspect existing Knot history: {error}"))?;
         if vault
@@ -197,6 +209,7 @@ impl StartupUnlockedPersonalVault {
             vault,
             store,
             signing_seed: keys.signing_seed,
+            checkpoint_repair,
         })
     }
 
@@ -227,17 +240,26 @@ impl StartupUnlockedPersonalVault {
         let vault = KnotVault::open(&vault_root, *keys.vault_key)?;
         let space_id = blake3::derive_key(SPACE_ID_CONTEXT, persona.as_uuid().as_bytes());
         let writers = keys.writers(admitted);
-        let store = KnotSyncFileStore::open(vault_root.join(KNOT_SYNC_FILE), space_id, writers)
-            .map_err(|error| {
-                format!(
-                    "could not open Knot persona sync store; another resident may already own this persona: {error}"
-                )
-            })?;
+        let (store, checkpoint_repair) = pollster::block_on(
+            KnotSyncFileStore::open_with_checkpoint_repair(
+                vault_root.join(KNOT_SYNC_FILE),
+                space_id,
+                writers,
+                KnotSyncCipher::Personal(&vault),
+                &vault,
+            ),
+        )
+        .map_err(|error| {
+            format!(
+                "could not open Knot persona sync store; another resident may already own this persona: {error}"
+            )
+        })?;
 
         let authority = Self {
             vault,
             store,
             signing_seed: keys.signing_seed,
+            checkpoint_repair,
         };
         authority.migrate_unsynced_vault()?;
         Ok(authority)
@@ -266,6 +288,13 @@ impl StartupUnlockedPersonalVault {
     /// The signed operation store, for binding a transport to it.
     pub fn store(&self) -> &KnotSyncFileStore {
         &self.store
+    }
+
+    /// The storage repair completed before this authority exposed its store.
+    /// Checkpoint replacement does not re-author signed operations or grant
+    /// permission to prune retained history.
+    pub fn checkpoint_repair(&self) -> &KnotCheckpointRepairReceipt {
+        &self.checkpoint_repair
     }
 
     /// Read the authenticated personal projection while this startup authority

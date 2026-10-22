@@ -12,6 +12,8 @@
 //! truth.
 
 mod authority;
+mod checkpoint_migration;
+mod checkpoint_storage;
 mod clip_evidence;
 mod content_classes;
 mod did_key;
@@ -139,11 +141,11 @@ pub use startup::{
 };
 pub use sync::{
     KNOT_COMMONS_ENCRYPTION_PROFILE, KnotAssertedTime, KnotAutomaticTextMerge,
-    KnotCheckpointSnapshot, KnotDocumentConflict, KnotDocumentProjection, KnotDocumentVersion,
-    KnotEncryptionProfile, KnotEpochExecutionReceipt, KnotOfflineMemberEpochHold,
-    KnotOfflineMemberRecovery, KnotProjectionCheckpoint, KnotProjectionStrictness, KnotSyncCipher,
-    KnotSyncError,
-    KnotSyncEvent, KnotSyncExt, KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
+    KnotCheckpointRepairReceipt, KnotCheckpointSnapshot, KnotDocumentConflict,
+    KnotDocumentProjection, KnotDocumentVersion, KnotEncryptionProfile, KnotEpochExecutionReceipt,
+    KnotOfflineMemberEpochHold, KnotOfflineMemberRecovery, KnotProjectionCheckpoint,
+    KnotProjectionStrictness, KnotSyncCipher, KnotSyncError, KnotSyncEvent, KnotSyncExt,
+    KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
 };
 pub use vault::{KnotSealedSearchIndex, KnotVault, VaultDocument};
 pub use watcher::DirectoryWatcher;

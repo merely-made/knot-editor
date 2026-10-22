@@ -145,3 +145,9 @@ attempt remains in `process.json`: client teardown dropped queued proof/close
 packets. The browser now drains its endpoint inside the existing deadline;
 this fixture drains its handoff using the already-selected shutdown grace.
 First-phase host shutdown joins all three sessions without cancellation.
+
+The fixture also passes against the current-code Turnstone port `a622c9607`,
+which preserves upstream `8eebb5a3` and has 70 passing focused product checks.
+[The integrated process receipt](../support/receipts/smolweb-browser-receiving/process-integrated.json)
+records the new browser executable `4ef1b302…61757`, the same governed host,
+exact index/Resource bytes and the same clean three-session handoff.

@@ -1,0 +1,146 @@
+{
+  "status": "qualified bounded canonical Git receiving",
+  "base": "02c5a2d162599a580d667fc86af09e911eb8736c",
+  "cohort": "pool-cohort-20261021",
+  "manifest_changes": [
+    "Four ESP workspace/compatibility rows adopt 6d6ad84b773c9baf2390bd7807a21ca9887e6efd",
+    "Root Cambium constraint 0.5.0 becomes 0.6.0 and Sprigging 0.2.2 becomes 0.3.0 for current SDK compatibility"
+  ],
+  "rust_sources_changed": false,
+  "checkpoint_issue": "Kept in its separate owner lane; no checkpoint source, behavior, native infrastructure or acceptance changes",
+  "source_identity": {
+    "armillary": [
+      {
+        "version": "0.1.1",
+        "source": "git+https://github.com/merely-made/armillary.git?rev=92d5b15cf39aaac40a3f2d863ffee69c9be11bfc#92d5b15cf39aaac40a3f2d863ffee69c9be11bfc"
+      }
+    ],
+    "esp": [
+      {
+        "version": "0.1.0",
+        "source": "git+https://github.com/merely-made/esp.git?rev=6d6ad84b773c9baf2390bd7807a21ca9887e6efd#6d6ad84b773c9baf2390bd7807a21ca9887e6efd"
+      }
+    ],
+    "apparatus-core": [
+      {
+        "version": "0.1.0",
+        "source": "git+https://github.com/merely-made/armillary.git?rev=75643df1f178757bb7b6386913af1a39353f3069#75643df1f178757bb7b6386913af1a39353f3069"
+      }
+    ],
+    "netfetcher": [
+      {
+        "version": "0.1.1",
+        "source": "git+https://github.com/merely-made/genet.git?branch=main#7d1d89dbe729a853cf59c7b3f43ee3d8e494fde8"
+      }
+    ],
+    "murm-wire": [
+      {
+        "version": "0.1.0",
+        "source": "git+https://github.com/merely-made/murm.git?branch=main#5b1c5cac2f5d0e275ead94ae4b8b25c65a183694"
+      }
+    ],
+    "cambium": [
+      {
+        "version": "0.6.0",
+        "source": "git+https://github.com/merely-made/mere.git?branch=main#639e78fc5e903895ff6bf49bde2cbde01deb6738"
+      }
+    ],
+    "sprigging": [
+      {
+        "version": "0.3.0",
+        "source": "git+https://github.com/merely-made/mere.git?branch=main#639e78fc5e903895ff6bf49bde2cbde01deb6738"
+      }
+    ],
+    "normal_tree_inference_packages_absent": true,
+    "lock_sha256": "2c1ece3b29e21fa2ed668a58706396e438a8216e50e4fbff241efb1671d00dd8",
+    "normal_tree_lines": 2067
+  },
+  "mere_sdk_staging": {
+    "commit": "639e78fc5e903895ff6bf49bde2cbde01deb6738",
+    "published_ref": "integration/pool-cohort-20261021",
+    "declaration": "Canonical https://github.com/merely-made/mere.git with existing branch=main selector; lock pins the staged descendant",
+    "merge_contract": "Orchestrator preserves this exact SDK SHA as an ancestor of final Mere main; final root integration follows this Knot publication"
+  },
+  "required_stack_handoff": {
+    "genet": "7d1d89dbe729a853cf59c7b3f43ee3d8e494fde8",
+    "murm": "5b1c5cac2f5d0e275ead94ae4b8b25c65a183694",
+    "reason": "Current Murm uses WebSocket 0.30 while previous Genet Netfetcher named 0.29; align the optional manifest dependency, without Rust source changes",
+    "supplier_tests": 98,
+    "supplier_websocket_tests": 15,
+    "supplier_receipt": "https://github.com/merely-made/genet/blob/7d1d89dbe729a853cf59c7b3f43ee3d8e494fde8/design_docs/receipts/2026-10-21_netfetcher_websocket_cohort/qualification.json"
+  },
+  "preserved": [
+    "Canonical Git URLs and existing explicit rev/branch selectors",
+    "Excluded knot-document/knot-site manifests and immutable source-edit/site-model contract revisions",
+    "Existing Netrender ec15eb269855c798467c93a6d10031100fdfdf65 lock; no renderer intake",
+    "Apparatus-core remains a separate package/source identity at 75643df, independently of repaired Armillary"
+  ],
+  "checks": [
+    {
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-editor",
+        "--test",
+        "search_provider_identity",
+        "-j1"
+      ],
+      "exit": 0,
+      "elapsed_seconds": 88.811,
+      "environment": {
+        "CARGO_PROFILE_DEV_DEBUG": "0",
+        "CARGO_PROFILE_TEST_DEBUG": "0",
+        "CARGO_INCREMENTAL": "0",
+        "CARGO_TARGET_DIR": "/Users/markik/Code/repos/mere/target",
+        "CARGO_BUILD_BUILD_DIR": "/Users/markik/Code/repos/mere/target/build"
+      },
+      "passed": 2,
+      "failed": 0,
+      "tests": [
+        "bert_is_reachable_only_through_verified_writer_custody",
+        "a_changed_preference_is_refused_across_restart_until_the_writer_rebuilds"
+      ],
+      "log_sha256": "bd91ddd14fc96a332e316cfd8583963736f38b301957060ce0f980a084643851"
+    },
+    {
+      "command": [
+        "cargo",
+        "+1.99.1",
+        "tree",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-editor",
+        "--edges",
+        "normal",
+        "--prefix",
+        "none"
+      ],
+      "exit": 0,
+      "lines": 2067,
+      "normal_tree_inference_packages_absent": true
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit": 0
+    }
+  ],
+  "superseded_attempts": [
+    "Old Genet 4a518899 compile failed with nine WebSocket 0.29/0.30 type mismatches before tests; fixed in the published supplier handoff",
+    "Cold Knot-cache compile was interrupted to reuse the current shared cache",
+    "Optional extra embedding unit filter was stopped while waiting for the shared build lock, before any test execution; search unit filter was not started"
+  ],
+  "limits": [
+    "Two actual Knot integration tests, source/feature/lock checks and bounded upstream supplier tests; no full Knot suite claim",
+    "No native GUI, real BERT/accelerator models, physical device or checkpoint acceptance performed",
+    "Registry publication is separate from this canonical Git cohort intake"
+  ]
+}

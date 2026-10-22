@@ -100,3 +100,20 @@ qualification remain distinct from desktop authoring and automatic sync.
 - [Shared source-edit link adapter, October 18](2026-09-29_knot_document_links_slice.md#shared-source-edit-proposal-adapter--2026-10-18): one retained buffer, revision-bound selection proposals, one-step undo, explicit guarded saving; document/model and two-file desktop harness qualification with fresh-process reopening. The follow-on replaces three captured source fields with one shared immutable snapshot and centralizes source checks; 53 default/MSRV, 66 engine, 11 model and four desktop harness cases pass, with two independent reopen helpers. Receiving qualification now uses published [Mere `70deef2c`](https://github.com/merely-made/mere/commit/70deef2c8cf3d3410ae35b496a9396514070b24f) through the canonical Git URL and an authorized exact-revision exception for this contract only; no local overrides or existing supplier repins. This consumer commit records the qualified Git-backed adapter; native GUI review remains separate.
 
 - [Saved-source research note intake](2026-09-05_knot_application_workspace_plan.md#saved-source-research-note-intake--2026-10-18): owner implementation qualified, Turnstone headed acceptance tracked in the consumer receipt; exact scalar citation validation, distinct provenance over shared bytes and owner-verified offline reads through the existing clip authority.
+
+Site-model source correction (2026-10-22): `knot-site` keeps the renderer-free
+portable model and now shares its canonical Mere `branch = "main"` source with
+SDK consumers. The earlier fixed model revision split public snapshot types
+when Cleromancy received the published SDK. Mere `a845b0b` → `a07a375e` changes
+only the model README, with no Rust or manifest change. Root and standalone
+locks qualify the SDK cohort; the standalone lock remains an ignored local
+qualification artifact. The failing real Git consumer control, correction,
+software checks and publication are recorded once in
+`mere/support/family-promotion/pool-cohort-rollout-20261022.json`.
+Checkpoint, native and process acceptance retain their existing scopes.
+
+The same receiving closure also aligns the optional Retinue entry in Knot's
+root lock with qualified Murm `5b1c5cac`. Retinue's package and inherited
+manifest are byte-identical to the older source, and ordinary defaults do not
+select it. This root-lock correction adds no behavior change; consumers retain
+their qualified Knot `f4425996` code input.

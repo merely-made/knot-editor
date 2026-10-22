@@ -6,7 +6,14 @@
 
 //! Causal personal and Commons document replication over Stickleback.
 
+#[path = "checkpoint_history.rs"]
+mod checkpoint_history;
+
+#[path = "checkpoint_repair.rs"]
+mod checkpoint_repair;
+
 use std::collections::{BTreeMap, BTreeSet};
+use std::fs::OpenOptions;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
 
@@ -28,6 +35,8 @@ use stickleback::{
 };
 use tokio::sync::Mutex;
 use zeroize::{Zeroize, Zeroizing};
+
+use crate::checkpoint_storage::{self, RecordKind};
 
 use crate::{
     KnotFileRevisionV1, KnotVault, VaultDocument,
@@ -277,6 +286,12 @@ pub enum KnotSyncError {
     InvalidFileRevision(String),
     #[error("Knot sync has no durable projection checkpoint")]
     MissingCheckpoint,
+    #[error("Knot checkpoint storage requires authorized closed-store repair before use")]
+    CheckpointMigrationRequired,
+    #[error("Knot local storage: {0}")]
+    CheckpointStorage(String),
+    #[error("Knot storage replacement committed, but directory durability is unconfirmed: {0}")]
+    CheckpointReplacementDurability(String),
     #[error("reviewed Knot epoch proposal is stale")]
     StaleRetentionProposal,
     #[error("Knot epoch proposal is blocked")]
@@ -488,6 +503,16 @@ pub struct KnotProjectionCheckpoint {
     pub snapshot: Option<KnotCheckpointSnapshot>,
 }
 
+/// Evidence of authorized local-state repair. Domain checkpoint identities
+/// hash canonical V1 plaintext, independently of randomized storage envelopes.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct KnotCheckpointRepairReceipt {
+    pub rewritten: bool,
+    pub previous_checkpoint: Option<[u8; 32]>,
+    pub checkpoint: Option<[u8; 32]>,
+    pub preserved_keys: usize,
+}
+
 /// Exact retained tail after a durable checkpoint.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct KnotTailReceipt {
@@ -535,6 +560,10 @@ pub struct KnotSyncStore<B> {
     /// Coordinates Knot-managed mutations. Direct writes through [`Self::sync_store`]
     /// remain outside this guarantee.
     mutation_gate: Arc<Mutex<()>>,
+    // Only a newly created file or a memory backend can be free of old redb
+    // pages without an authenticated clean-format marker. Clones retain this
+    // process-local fact; reopened files must authenticate their marker.
+    storage_fresh: bool,
 }
 
 pub type KnotSyncFileStore = KnotSyncStore<RedbBackend>;
@@ -564,6 +593,7 @@ impl KnotSyncStore<MemoryBackend> {
                 encryption,
             },
             mutation_gate: Arc::new(Mutex::new(())),
+            storage_fresh: true,
         }
     }
 }
@@ -601,6 +631,19 @@ impl KnotSyncStore<RedbBackend> {
         writers: impl IntoIterator<Item = [u8; 32]>,
         encryption: KnotEncryptionProfile,
     ) -> Result<Self, KnotSyncError> {
+        let path = path.as_ref();
+        let mut options = OpenOptions::new();
+        options.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            options.mode(0o600);
+        }
+        let fresh = match options.open(path) {
+            Ok(_) => true,
+            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => false,
+            Err(error) => return Err(KnotSyncError::CheckpointStorage(error.to_string())),
+        };
         Ok(Self {
             store: MunimentStore::new(RedbBackend::open(path)?),
             policy: KnotSyncPolicy {
@@ -609,6 +652,7 @@ impl KnotSyncStore<RedbBackend> {
                 encryption,
             },
             mutation_gate: Arc::new(Mutex::new(())),
+            storage_fresh: fresh,
         })
     }
 }
@@ -1573,39 +1617,187 @@ where
         &self,
         vault: &KnotVault,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
-        self.save_checkpoint_with_cipher(KnotSyncCipher::Personal(vault))
+        self.save_checkpoint_with_cipher(KnotSyncCipher::Personal(vault), vault)
             .await
     }
 
     pub async fn save_communal_checkpoint(
         &self,
         keys: &DataKeyring,
+        storage_vault: &KnotVault,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
-        self.save_checkpoint_with_cipher(KnotSyncCipher::CommonsData(keys))
+        self.save_checkpoint_with_cipher(KnotSyncCipher::CommonsData(keys), storage_vault)
             .await
     }
 
     pub async fn save_checkpoint_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
+        storage_vault: &KnotVault,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
         let _gate = self.mutation_gate.lock().await;
+        self.require_cipher(cipher)?;
+        // Authenticate any current value before replacing it, including an
+        // empty-history checkpoint. Legacy plaintext requires a fresh file.
+        self.load_checkpoint(storage_vault).await?;
         let checkpoint = self.build_checkpoint_with_cipher(cipher).await?;
-        let bytes = serde_json::to_vec(&checkpoint)
-            .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
+        let plaintext = Zeroizing::new(
+            serde_json::to_vec(&checkpoint)
+                .map_err(|error| KnotSyncError::Payload(error.to_string()))?,
+        );
+        let sealed = self.seal_local(storage_vault, RecordKind::Checkpoint, &plaintext)?;
+        let mut writes = vec![
+            WriteOp::Put {
+                key: checkpoint_key(self.space_id()),
+                value: sealed,
+            },
+            self.storage_marker_write(storage_vault)?,
+        ];
+        if let KnotSyncCipher::CommonsData(keys) = cipher {
+            self.validate_keyring_matches(storage_vault, keys).await?;
+            let bytes = Zeroizing::new(keys.to_bytes()?);
+            writes.push(WriteOp::Put {
+                key: communal_keyring_key(self.space_id()),
+                value: self.seal_local(storage_vault, RecordKind::CommunalKeyring, &bytes)?,
+            });
+        }
+        self.store.backend().apply(&writes).await?;
+        Ok(checkpoint)
+    }
+
+    fn seal_local(
+        &self,
+        vault: &KnotVault,
+        kind: RecordKind,
+        bytes: &[u8],
+    ) -> Result<Vec<u8>, KnotSyncError> {
+        checkpoint_storage::seal(
+            vault,
+            self.space_id(),
+            self.encryption_profile(),
+            kind,
+            bytes,
+        )
+    }
+
+    fn open_local(
+        &self,
+        vault: &KnotVault,
+        kind: RecordKind,
+        bytes: &[u8],
+    ) -> Result<Zeroizing<Vec<u8>>, KnotSyncError> {
+        checkpoint_storage::open(
+            vault,
+            self.space_id(),
+            self.encryption_profile(),
+            kind,
+            bytes,
+        )
+    }
+
+    fn storage_marker_write(&self, vault: &KnotVault) -> Result<WriteOp, KnotSyncError> {
+        Ok(WriteOp::Put {
+            key: checkpoint_storage::marker_key(self.space_id()),
+            value: self.seal_local(vault, RecordKind::StorageMarker, checkpoint_storage::MARKER)?,
+        })
+    }
+
+    async fn require_clean_storage(&self, vault: &KnotVault) -> Result<(), KnotSyncError> {
+        if vault.is_locked() {
+            return Err(KnotSyncError::CheckpointStorage(
+                "local storage vault is locked".into(),
+            ));
+        }
+        match self
+            .store
+            .backend()
+            .get(&checkpoint_storage::marker_key(self.space_id()))
+            .await?
+        {
+            Some(bytes) => {
+                let marker = self.open_local(vault, RecordKind::StorageMarker, &bytes)?;
+                if marker.as_slice() != checkpoint_storage::MARKER {
+                    return Err(KnotSyncError::CheckpointStorage(
+                        "invalid clean storage marker".into(),
+                    ));
+                }
+                Ok(())
+            },
+            None if self.storage_fresh => Ok(()),
+            None => Err(KnotSyncError::CheckpointMigrationRequired),
+        }
+    }
+
+    async fn validate_existing_keyring(&self, vault: &KnotVault) -> Result<(), KnotSyncError> {
+        if let Some(bytes) = self
+            .store
+            .backend()
+            .get(&communal_keyring_key(self.space_id()))
+            .await?
+        {
+            let plaintext = self.open_local(vault, RecordKind::CommunalKeyring, &bytes)?;
+            DataKeyring::from_bytes(&plaintext)?;
+        }
+        Ok(())
+    }
+
+    async fn validate_keyring_matches(
+        &self,
+        vault: &KnotVault,
+        supplied: &DataKeyring,
+    ) -> Result<(), KnotSyncError> {
+        self.require_clean_storage(vault).await?;
+        if let Some(bytes) = self
+            .store
+            .backend()
+            .get(&communal_keyring_key(self.space_id()))
+            .await?
+        {
+            let plaintext = self.open_local(vault, RecordKind::CommunalKeyring, &bytes)?;
+            let persisted = DataKeyring::from_bytes(&plaintext)?;
+            if !checkpoint_storage::keyrings_match(supplied, &persisted)? {
+                return Err(KnotSyncError::CheckpointStorage(
+                    "membership keys differ from persisted retention state; use the explicit membership handoff".into()));
+            }
+        }
+        Ok(())
+    }
+
+    /// Persist an authorized membership handoff under independent local custody.
+    pub async fn persist_communal_keyring(
+        &self,
+        keys: &DataKeyring,
+        storage_vault: &KnotVault,
+    ) -> Result<(), KnotSyncError> {
+        let _gate = self.mutation_gate.lock().await;
+        if self.encryption_profile() != KnotEncryptionProfile::CommonsDataV1 {
+            return Err(KnotSyncError::WrongEncryptionProfile);
+        }
+        self.require_clean_storage(storage_vault).await?;
+        self.validate_existing_keyring(storage_vault).await?;
+        let plaintext = Zeroizing::new(keys.to_bytes()?);
+        let sealed = self.seal_local(storage_vault, RecordKind::CommunalKeyring, &plaintext)?;
         self.store
             .backend()
-            .put(&checkpoint_key(self.policy.space_id), &bytes)
+            .apply(&[
+                self.storage_marker_write(storage_vault)?,
+                WriteOp::Put {
+                    key: communal_keyring_key(self.space_id()),
+                    value: sealed,
+                },
+            ])
             .await?;
-        Ok(checkpoint)
+        Ok(())
     }
 
     async fn build_checkpoint_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
-        let projection = self.projection_with_cipher(cipher).await?;
-        let records = self.load_operations().await?;
+        let records = self.checkpoint_records(cipher).await?;
+        let projection = self
+            .projection_with_cipher_and_strictness(cipher, KnotProjectionStrictness::Strict)
+            .await?;
         let mut heads = BTreeMap::<([u8; 32], u64), KnotAuthorHead>::new();
         for record in records {
             let operation = &record.operation;
@@ -1659,7 +1851,12 @@ where
         })
     }
 
-    pub async fn load_checkpoint(&self) -> Result<Option<KnotProjectionCheckpoint>, KnotSyncError> {
+    /// Read only under local custody; plaintext legacy state is never trusted.
+    pub async fn load_checkpoint(
+        &self,
+        storage_vault: &KnotVault,
+    ) -> Result<Option<KnotProjectionCheckpoint>, KnotSyncError> {
+        self.require_clean_storage(storage_vault).await?;
         let Some(bytes) = self
             .store
             .backend()
@@ -1668,7 +1865,8 @@ where
         else {
             return Ok(None);
         };
-        let checkpoint: KnotProjectionCheckpoint = serde_json::from_slice(&bytes)
+        let plaintext = self.open_local(storage_vault, RecordKind::Checkpoint, &bytes)?;
+        let checkpoint: KnotProjectionCheckpoint = serde_json::from_slice(&plaintext)
             .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
         if checkpoint.version != 1 || checkpoint.space_id != self.policy.space_id {
             return Err(KnotSyncError::Payload(
@@ -1679,9 +1877,12 @@ where
     }
 
     /// Name the exact operations newer than the last durable checkpoint.
-    pub async fn tail_receipt(&self) -> Result<KnotTailReceipt, KnotSyncError> {
+    pub async fn tail_receipt(
+        &self,
+        storage_vault: &KnotVault,
+    ) -> Result<KnotTailReceipt, KnotSyncError> {
         let checkpoint = self
-            .load_checkpoint()
+            .load_checkpoint(storage_vault)
             .await?
             .ok_or(KnotSyncError::MissingCheckpoint)?;
         let bytes = serde_json::to_vec(&checkpoint)
@@ -1723,6 +1924,7 @@ where
     pub async fn communal_epoch_pruning_proposal(
         &self,
         keys: &DataKeyring,
+        storage_vault: &KnotVault,
         checkpoint_authority_revision: Digest,
         current_authority_revision: Digest,
         authority_reevaluation_epochs: &[GroupSecretId],
@@ -1731,6 +1933,7 @@ where
         if self.policy.encryption != KnotEncryptionProfile::CommonsDataV1 {
             return Err(KnotSyncError::WrongEncryptionProfile);
         }
+        self.validate_keyring_matches(storage_vault, keys).await?;
         let records = self.load_operations().await?;
         let by_operation: BTreeMap<_, _> = records
             .iter()
@@ -1738,8 +1941,8 @@ where
             .collect();
         let mut holds = Vec::new();
 
-        let checkpoint = if let Some(checkpoint) = self.load_checkpoint().await? {
-            let tail = self.tail_receipt().await?;
+        let checkpoint = if let Some(checkpoint) = self.load_checkpoint(storage_vault).await? {
+            let tail = self.tail_receipt(storage_vault).await?;
             // Checkpoints retain relation history for inspection but are not yet
             // executable replay bases. A closed relation or file capture needs
             // its older source revision for quote validation, so preserve every
@@ -1844,6 +2047,7 @@ where
     pub async fn execute_communal_epoch_pruning(
         &self,
         keys: &mut DataKeyring,
+        storage_vault: &KnotVault,
         reviewed: &EpochPruningProposal,
         checkpoint_authority_revision: Digest,
         current_authority_revision: Digest,
@@ -1854,6 +2058,7 @@ where
         let current = self
             .communal_epoch_pruning_proposal(
                 keys,
+                storage_vault,
                 checkpoint_authority_revision.clone(),
                 current_authority_revision,
                 authority_reevaluation_epochs,
@@ -1870,14 +2075,15 @@ where
             .checkpoint
             .clone()
             .ok_or(KnotSyncError::BlockedRetentionProposal)?;
-        let before = keys.to_bytes()?;
+        let before = Zeroizing::new(keys.to_bytes()?);
         let mut reduced = DataKeyring::from_bytes(&before)?;
         for epoch in &current.forget {
             if !reduced.forget_authorized(epoch) {
                 return Err(KnotSyncError::StaleRetentionProposal);
             }
         }
-        let after = reduced.to_bytes()?;
+        let after = Zeroizing::new(reduced.to_bytes()?);
+        let sealed_keyring = self.seal_local(storage_vault, RecordKind::CommunalKeyring, &after)?;
         let receipt = KnotEpochExecutionReceipt {
             version: 1,
             space_id: self.policy.space_id,
@@ -1900,8 +2106,9 @@ where
             .apply(&[
                 WriteOp::Put {
                     key: communal_keyring_key(self.policy.space_id),
-                    value: after,
+                    value: sealed_keyring,
                 },
+                self.storage_marker_write(storage_vault)?,
                 WriteOp::Put {
                     key: communal_epoch_receipt_key(self.policy.space_id),
                     value: serde_json::to_vec(&receipt)
@@ -1916,7 +2123,12 @@ where
     pub async fn restore_communal_keyring(
         &self,
         keys: &mut DataKeyring,
+        storage_vault: &KnotVault,
     ) -> Result<bool, KnotSyncError> {
+        if self.encryption_profile() != KnotEncryptionProfile::CommonsDataV1 {
+            return Err(KnotSyncError::WrongEncryptionProfile);
+        }
+        self.require_clean_storage(storage_vault).await?;
         let Some(bytes) = self
             .store
             .backend()
@@ -1925,7 +2137,16 @@ where
         else {
             return Ok(false);
         };
-        *keys = DataKeyring::from_bytes(&bytes)?;
+        let plaintext = self.open_local(storage_vault, RecordKind::CommunalKeyring, &bytes)?;
+        let restored = DataKeyring::from_bytes(&plaintext)?;
+        if keys.epoch_count() != 0 {
+            if !checkpoint_storage::keyrings_match(keys, &restored)? {
+                return Err(KnotSyncError::CheckpointStorage(
+                    "supplied membership keys differ from persisted retention state; reconcile through the membership owner".into()));
+            }
+            return Ok(true);
+        }
+        *keys = restored;
         Ok(true)
     }
 
@@ -1948,13 +2169,14 @@ where
     pub async fn communal_offline_member_recovery(
         &self,
         keys: &DataKeyring,
+        storage_vault: &KnotVault,
         required_epoch: GroupSecretId,
     ) -> Result<KnotOfflineMemberRecovery, KnotSyncError> {
         if keys.contains(&required_epoch) {
             return Ok(KnotOfflineMemberRecovery::Resume);
         }
         let checkpoint = self
-            .load_checkpoint()
+            .load_checkpoint(storage_vault)
             .await?
             .map(|checkpoint| {
                 serde_json::to_vec(&checkpoint)
@@ -3234,6 +3456,8 @@ mod tests {
 
     #[tokio::test]
     async fn communal_relation_history_holds_all_relation_epochs_after_a_checkpoint() {
+        let storage_directory = tempdir().unwrap();
+        let storage_vault = KnotVault::open(storage_directory.path(), VAULT_KEY).unwrap();
         let alice = InMemoryProvider::from_seed([0x83; 32]);
         let writer = alice.master_public_key().to_bytes();
         let store = KnotSyncStore::in_memory_commons(SPACE, [writer]);
@@ -3286,8 +3510,18 @@ mod tests {
         for _ in 0..7 {
             keys.rotate_random().unwrap();
         }
-        let checkpoint = store.save_communal_checkpoint(&keys).await.unwrap();
-        assert!(store.tail_receipt().await.unwrap().operations.is_empty());
+        let checkpoint = store
+            .save_communal_checkpoint(&keys, &storage_vault)
+            .await
+            .unwrap();
+        assert!(
+            store
+                .tail_receipt(&storage_vault)
+                .await
+                .unwrap()
+                .operations
+                .is_empty()
+        );
         assert_eq!(
             checkpoint.snapshot.as_ref().unwrap().relations[0]
                 .retractions
@@ -3297,7 +3531,14 @@ mod tests {
 
         let revision = Digest::blake3(b"relation epoch holds");
         let proposal = store
-            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision, &[], &[])
+            .communal_epoch_pruning_proposal(
+                &keys,
+                &storage_vault,
+                revision.clone(),
+                revision,
+                &[],
+                &[],
+            )
             .await
             .unwrap();
         for epoch in [document_epoch, assertion_epoch, retraction_epoch] {
@@ -3314,6 +3555,8 @@ mod tests {
 
     #[tokio::test]
     async fn communal_capture_before_any_relation_holds_its_epoch_after_checkpoint() {
+        let storage_directory = tempdir().unwrap();
+        let storage_vault = KnotVault::open(storage_directory.path(), VAULT_KEY).unwrap();
         let alice = InMemoryProvider::from_seed([0x95; 32]);
         let writer = alice.master_public_key().to_bytes();
         let store = KnotSyncStore::in_memory_commons(SPACE, [writer]);
@@ -3330,10 +3573,20 @@ mod tests {
         for _ in 0..7 {
             keys.rotate_random().unwrap();
         }
-        store.save_communal_checkpoint(&keys).await.unwrap();
+        store
+            .save_communal_checkpoint(&keys, &storage_vault)
+            .await
+            .unwrap();
         let revision = Digest::blake3(b"capture epoch holds");
         let proposal = store
-            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision, &[], &[])
+            .communal_epoch_pruning_proposal(
+                &keys,
+                &storage_vault,
+                revision.clone(),
+                revision,
+                &[],
+                &[],
+            )
             .await
             .unwrap();
         assert!(proposal.retain.iter().any(|retained| {
@@ -3487,6 +3740,8 @@ mod tests {
 
     #[tokio::test]
     async fn communal_proposal_keeps_pending_and_policy_held_epochs() {
+        let storage_directory = tempdir().unwrap();
+        let storage_vault = KnotVault::open(storage_directory.path(), VAULT_KEY).unwrap();
         let (alice, bob) = identities();
         let writers = [
             alice.master_public_key().to_bytes(),
@@ -3518,12 +3773,22 @@ mod tests {
         for _ in 0..9 {
             epochs.push(keys.rotate_random().unwrap().id());
         }
-        let checkpoint = receiver.save_communal_checkpoint(&keys).await.unwrap();
+        let checkpoint = receiver
+            .save_communal_checkpoint(&keys, &storage_vault)
+            .await
+            .unwrap();
         assert_eq!(checkpoint.pending[0].0, *child.hash.as_bytes());
 
         let revision = Digest::blake3(b"commons authority");
         let pending = receiver
-            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision.clone(), &[], &[])
+            .communal_epoch_pruning_proposal(
+                &keys,
+                &storage_vault,
+                revision.clone(),
+                revision.clone(),
+                &[],
+                &[],
+            )
             .await
             .unwrap();
         assert!(pending.is_executable());
@@ -3540,6 +3805,7 @@ mod tests {
         let policy_held = receiver
             .communal_epoch_pruning_proposal(
                 &keys,
+                &storage_vault,
                 revision.clone(),
                 revision,
                 &[epochs[1]],
@@ -3556,6 +3822,8 @@ mod tests {
 
     #[tokio::test]
     async fn communal_execution_revalidates_commits_and_reopens() {
+        let storage_directory = tempdir().unwrap();
+        let storage_vault = KnotVault::open(storage_directory.path(), VAULT_KEY).unwrap();
         let directory = tempdir().unwrap();
         let database = directory.path().join("communal-retention.redb");
         let alice = InMemoryProvider::from_seed([0x83; 32]);
@@ -3575,10 +3843,20 @@ mod tests {
             )
             .await
             .unwrap();
-        store.save_communal_checkpoint(&keys).await.unwrap();
+        store
+            .save_communal_checkpoint(&keys, &storage_vault)
+            .await
+            .unwrap();
         let revision = Digest::blake3(b"commons authority");
         let stale = store
-            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision.clone(), &[], &[])
+            .communal_epoch_pruning_proposal(
+                &keys,
+                &storage_vault,
+                revision.clone(),
+                revision.clone(),
+                &[],
+                &[],
+            )
             .await
             .unwrap();
 
@@ -3590,11 +3868,15 @@ mod tests {
             )
             .await
             .unwrap();
-        store.save_communal_checkpoint(&keys).await.unwrap();
+        store
+            .save_communal_checkpoint(&keys, &storage_vault)
+            .await
+            .unwrap();
         assert!(matches!(
             store
                 .execute_communal_epoch_pruning(
                     &mut keys,
+                    &storage_vault,
                     &stale,
                     revision.clone(),
                     revision.clone(),
@@ -3614,12 +3896,20 @@ mod tests {
         assert_eq!(keys.epoch_count(), 10);
 
         let reviewed = store
-            .communal_epoch_pruning_proposal(&keys, revision.clone(), revision.clone(), &[], &[])
+            .communal_epoch_pruning_proposal(
+                &keys,
+                &storage_vault,
+                revision.clone(),
+                revision.clone(),
+                &[],
+                &[],
+            )
             .await
             .unwrap();
         let receipt = store
             .execute_communal_epoch_pruning(
                 &mut keys,
+                &storage_vault,
                 &reviewed,
                 revision.clone(),
                 revision,
@@ -3637,7 +3927,7 @@ mod tests {
         let mut reopened_keys = DataKeyring::new();
         assert!(
             reopened
-                .restore_communal_keyring(&mut reopened_keys)
+                .restore_communal_keyring(&mut reopened_keys, &storage_vault)
                 .await
                 .unwrap()
         );
@@ -3651,14 +3941,14 @@ mod tests {
         );
         assert_eq!(
             reopened
-                .communal_offline_member_recovery(&reopened_keys, epochs[2])
+                .communal_offline_member_recovery(&reopened_keys, &storage_vault, epochs[2])
                 .await
                 .unwrap(),
             KnotOfflineMemberRecovery::Resume
         );
         assert!(matches!(
             reopened
-                .communal_offline_member_recovery(&reopened_keys, epochs[0])
+                .communal_offline_member_recovery(&reopened_keys, &storage_vault, epochs[0])
                 .await
                 .unwrap(),
             KnotOfflineMemberRecovery::BootstrapRequired {
@@ -4319,7 +4609,13 @@ mod tests {
 
         let reopened = KnotSyncFileStore::open(&database, SPACE, [writer]).unwrap();
         assert_eq!(
-            reopened.load_checkpoint().await.unwrap().unwrap().heads[0].operation,
+            reopened
+                .load_checkpoint(&vault)
+                .await
+                .unwrap()
+                .unwrap()
+                .heads[0]
+                .operation,
             *second.hash.as_bytes()
         );
         let third = reopened
@@ -4336,7 +4632,7 @@ mod tests {
             vec![*second.hash.as_bytes()]
         );
         assert_eq!(
-            reopened.tail_receipt().await.unwrap().operations,
+            reopened.tail_receipt(&vault).await.unwrap().operations,
             vec![*third.hash.as_bytes()]
         );
         assert_eq!(

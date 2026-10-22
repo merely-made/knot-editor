@@ -60,7 +60,7 @@ fn retention_preserves_vault_documents_and_retries_after_reopen() {
     assert_eq!(prepared.destination().space_id, space);
     assert_eq!(prepared.destination().writer, writer);
     assert!(
-        pollster::block_on(store.tail_receipt())
+        pollster::block_on(store.tail_receipt(&before))
             .unwrap()
             .operations
             .is_empty()
@@ -82,7 +82,9 @@ fn retention_preserves_vault_documents_and_retries_after_reopen() {
     assert!(retry.already_retained);
     assert_eq!(retry.operation, receipt.operation);
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap().operations,
+        pollster::block_on(store.tail_receipt(&before))
+            .unwrap()
+            .operations,
         vec![receipt.operation]
     );
     let after = KnotVault::open(&vault_path, key).unwrap();

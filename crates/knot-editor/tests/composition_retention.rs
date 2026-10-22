@@ -1,7 +1,8 @@
 use knot_capture::KnotPersonaDisplayV1;
 use knot_composition::{CollectionItem, ItemKind, retention::CompositionRetainPort};
 use knot_editor::{
-    CompositionGrant, KnotResidentCompositionPort, KnotResidentSource, KnotSyncFileStore, KnotVault,
+    CompositionGrant, KnotResidentCompositionPort, KnotResidentSource, KnotSyncCipher,
+    KnotSyncFileStore, KnotVault,
 };
 use personae::{IdentityProvider, InMemoryProvider};
 
@@ -120,7 +121,15 @@ fn organization_is_encrypted_revision_guarded_reversible_and_reopens_without_rew
     }
     assert!(!root.path().join("collection.json").exists());
     let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
-    let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+    let (store, _checkpoint_repair) =
+        pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+            &database,
+            [53; 32],
+            [writer],
+            KnotSyncCipher::Personal(&vault),
+            &vault,
+        ))
+        .unwrap();
     let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     let reopened = port.list(port.target()).unwrap().remove(0);
@@ -206,7 +215,15 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
             .any(|window| window == first.label.as_bytes())
     );
     let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
-    let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+    let (store, _checkpoint_repair) =
+        pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+            &database,
+            [53; 32],
+            [writer],
+            KnotSyncCipher::Personal(&vault),
+            &vault,
+        ))
+        .unwrap();
     let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     let items = port.list(port.target()).unwrap();
@@ -271,7 +288,15 @@ fn encrypted_reopen_retry_and_no_publishing_exposure() {
             .any(|bytes| bytes == item.text.as_bytes())
     );
     let vault = KnotVault::open(root.path().join("vault"), [52; 32]).unwrap();
-    let store = KnotSyncFileStore::open(&path, [53; 32], [writer]).unwrap();
+    let (store, _checkpoint_repair) =
+        pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+            &path,
+            [53; 32],
+            [writer],
+            KnotSyncCipher::Personal(&vault),
+            &vault,
+        ))
+        .unwrap();
     let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     assert_eq!(port.list(port.target()).unwrap()[0].item, item);
@@ -546,7 +571,15 @@ fn typed_metre_versions_reopen_exactly_in_the_sealed_collection() {
         assert!(!raw.windows(secret.len()).any(|w| w == secret.as_bytes()));
     }
     let vault = KnotVault::open(&vault_path, [52; 32]).unwrap();
-    let store = KnotSyncFileStore::open(&database, [53; 32], [writer]).unwrap();
+    let (store, _checkpoint_repair) =
+        pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+            &database,
+            [53; 32],
+            [writer],
+            KnotSyncCipher::Personal(&vault),
+            &vault,
+        ))
+        .unwrap();
     let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
     let port = adapter(&resident);
     let rows = port.list(port.target()).unwrap();

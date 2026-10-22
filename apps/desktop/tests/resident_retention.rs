@@ -177,12 +177,12 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     assert!(harness.click_on(&Selector::role("button").containing("Retain reviewed revision")));
     wait_for_worker(&mut harness);
 
-    let tail = pollster::block_on(store.tail_receipt()).unwrap();
+    let read_vault = KnotVault::open(&vault_root, [0x62; 32]).unwrap();
+    let tail = pollster::block_on(store.tail_receipt(&read_vault)).unwrap();
     assert_eq!(tail.operations.len(), 1);
     let receipt_text = class_text(&harness, "knot-retention-receipt");
     assert!(receipt_text.contains(&document_id));
     assert!(receipt_text.contains(&hex(&tail.operations[0])));
-    let read_vault = KnotVault::open(&vault_root, [0x62; 32]).unwrap();
     let retained =
         pollster::block_on(store.file_revision(&read_vault, &document_id, tail.operations[0]))
             .unwrap();
@@ -195,7 +195,9 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
         class_text(&harness, "knot-retention-error").contains("capture grant has been revoked")
     );
     assert_eq!(
-        pollster::block_on(store.tail_receipt()).unwrap().operations,
+        pollster::block_on(store.tail_receipt(&read_vault))
+            .unwrap()
+            .operations,
         tail.operations
     );
 
@@ -224,7 +226,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     assert!(harness.click_on(&Selector::role("button").containing("Retain reviewed revision")));
     wait_for_worker(&mut harness);
 
-    let retry_tail = pollster::block_on(store.tail_receipt()).unwrap();
+    let retry_tail = pollster::block_on(store.tail_receipt(&read_vault)).unwrap();
     assert_eq!(retry_tail.operations, tail.operations);
     let retry_text = class_text(&harness, "knot-retention-receipt");
     assert!(retry_text.contains("Desktop receipt renewed"));
@@ -240,6 +242,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
 
     let reopened_vault = KnotVault::open(&vault_root, [0x62; 32]).unwrap();
     let reopened_store = KnotSyncFileStore::open(&store_path, [0x63; 32], [writer]).unwrap();
+    let reopened_read_vault = KnotVault::open(&vault_root, [0x62; 32]).unwrap();
     let reopened =
         KnotResidentSource::from_synced_vault(reopened_vault, reopened_store.clone(), &seed)
             .unwrap();
@@ -250,7 +253,7 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     assert!(receipt.already_retained);
     assert_eq!(receipt.operation, tail.operations[0]);
     assert_eq!(
-        pollster::block_on(reopened_store.tail_receipt())
+        pollster::block_on(reopened_store.tail_receipt(&reopened_read_vault))
             .unwrap()
             .operations,
         tail.operations

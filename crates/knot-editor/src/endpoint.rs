@@ -244,11 +244,16 @@ impl KnotResidentSource {
     }
 
     /// Open one personal signed source authority.
+    ///
+    /// Existing file stores must first pass unlocked checkpoint repair; this
+    /// constructor refuses legacy storage rather than adopting its ownership.
     pub fn from_synced_vault(
         vault: KnotVault,
         store: KnotSyncFileStore,
         signing_seed: &[u8; 32],
     ) -> Result<Self, String> {
+        pollster::block_on(store.load_checkpoint(&vault))
+            .map_err(|error| format!("could not open protected Knot checkpoint: {error}"))?;
         let projection = pollster::block_on(store.projection(&vault))
             .map_err(|error| format!("could not project Knot sync store: {error}"))?;
         let mut state = VaultSource {
@@ -270,8 +275,10 @@ impl KnotResidentSource {
         vault: KnotVault,
         store: KnotSyncFileStore,
         signing_seed: &[u8; 32],
-        keys: DataKeyring,
+        mut keys: DataKeyring,
     ) -> Result<Self, String> {
+        pollster::block_on(store.restore_communal_keyring(&mut keys, &vault))
+            .map_err(|error| format!("could not restore protected Commons Knot keys: {error}"))?;
         let projection = pollster::block_on(store.communal_projection(&keys))
             .map_err(|error| format!("could not project Commons Knot store: {error}"))?;
         let mut state = VaultSource {
@@ -869,11 +876,19 @@ impl KnotEndpoint {
                 return Ok(false);
             };
             let mut source = resident.state();
-            let Some(VaultSyncAuthority::Commons { keys: current, .. }) = &mut source.sync else {
+            let VaultSource { vault, sync, .. } = &mut *source;
+            let Some(VaultSyncAuthority::Commons {
+                store,
+                keys: current,
+                ..
+            }) = sync
+            else {
                 return Ok(false);
             };
             let changed = current.epoch_ids() != keys.epoch_ids()
                 || current.current_epoch() != keys.current_epoch();
+            pollster::block_on(store.persist_communal_keyring(&keys, vault))
+                .map_err(|error| format!("could not persist Commons Knot key handoff: {error}"))?;
             *current = keys;
             changed
         };
@@ -4100,7 +4115,15 @@ Fallback.
         drop(endpoint);
 
         let vault = KnotVault::open(vault_dir.path(), key).unwrap();
-        let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
+        let (store, _checkpoint_repair) =
+            pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+                &database,
+                space,
+                [writer],
+                crate::KnotSyncCipher::Personal(&vault),
+                &vault,
+            ))
+            .unwrap();
         let mut reopened =
             KnotEndpoint::from_synced_vault(vault, store, &seed, KnotWriteGrant::new(4096))
                 .unwrap();

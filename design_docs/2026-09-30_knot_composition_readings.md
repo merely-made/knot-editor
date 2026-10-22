@@ -41,18 +41,67 @@ and truthful source availability. The exact IDs survive the separate process.
 Host detail wrapping was corrected after image review; Timeline labels remain
 compact so they do not overlap the compiled row geometry.
 
-**Finding and deferred storage work:** `sync.rs::save_checkpoint_with_cipher`
-currently writes the complete projection checkpoint as JSON to `RedbBackend`.
+**Historical storage finding (2026-10-16):** At that qualified revision,
+`sync.rs::save_checkpoint_with_cipher` wrote the complete projection checkpoint
+as JSON to `RedbBackend`.
 The fixture database contains its qualification text in plaintext. The vault
 and signed operation path do not establish checkpoint confidentiality; this
 receipt qualifies signed history and encrypted-vault reopening only. A separate
-storage change must seal personal checkpoints and define existing-checkpoint
-handling before full at-rest confidentiality is claimed. Opening the store can
-also change database bytes without changing assertion identities.
+storage change was required to seal personal checkpoints and define existing
+checkpoint handling before full at-rest confidentiality could be claimed.
+Opening the store can also change database bytes without changing assertion
+identities.
 
-Automatic relation refresh after startup, authoring UI, checkpoint sealing,
-renderer release, physical-peer acceptance and the excluded `knot-document`/
-`knot-site` standalone workspace gates remain separate work.
+At that qualification, automatic relation refresh after startup, authoring UI,
+checkpoint sealing, renderer release, physical-peer acceptance and the excluded
+`knot-document`/`knot-site` standalone workspace gates remained separate work.
+
+### Checkpoint confidentiality repair (2026-10-22)
+
+**Qualification pending:** the current repair contract and receiving results
+belong to the [checkpoint confidentiality receipt](../docs/receipts/2026-10-22_checkpoint_confidentiality/qualification.json).
+The user selected both personal and communal storage protection, including
+existing plaintext checkpoints and persisted communal keys, and regeneration
+from authenticated signed history rather than adopting a legacy snapshot as
+authority.
+
+Both profiles seal checkpoints under a separate local-purpose key derived from
+the owning unlocked `KnotVault`; persisted communal keyrings use that local
+authority too. Replicated group
+epochs decrypt signed communal events; they do not protect the local checkpoint
+or persisted keyring. Callers borrow the vault for each storage operation, and
+the sync store retains no independent storage-key copy. Authenticated envelopes
+bind their version, space, profile and record kind. The domain checkpoint stays
+V1: its canonical plaintext BLAKE3 identity and tail receipts remain independent
+of randomized storage nonces.
+
+Ordinary reads refuse plaintext. After legitimate custody release, authorized
+startup or an explicit closed-file repair regenerates the checkpoint by strict
+signed-history replay, validating body commitments, causal completeness and
+index accounting. Its receipt reports the previous and regenerated checkpoint
+digests; a stale checkpoint can advance to the current retained frontier.
+Opaque retained values and signed operation, document and assertion identities
+are preserved. Legacy communal repair requires independently authorized group
+keys matching all persisted keyring state, including retention chronology and
+timestamps, independent of secret-set serialization order. Repair seals the
+independently supplied state after that comparison.
+Missing epochs or history, damaged indexes and unowned spaces require recovery
+instead of an empty replacement or promotion of plaintext snapshot contents.
+
+A database without the authenticated clean-storage marker is copied into a
+verified fresh active file even when its live checkpoint is absent, excluding
+obsolete plaintext pages left by earlier overwrites or deletes. Replacement
+refuses live handles and filesystem aliases. Legacy replacement is supported
+on Unix; other platforms return a typed refusal while fresh sealed reads and
+writes remain portable. The containing directory and marker are within the
+trusted owner's control: an older writer or direct raw-backend mutation bypasses
+this storage contract, and the marker does not attest to their later actions.
+
+The fresh active file is not secure erasure of old files, backups, filesystem
+snapshots or device remnants. Likewise, sealing a reduced communal keyring
+establishes protected current custody; it does not prove physical erasure of
+earlier encrypted copies of retired epoch keys. Native UI and physical-peer
+qualification remain separate from this storage repair.
 
 ## Ownership and opt-in behavior
 

@@ -357,7 +357,7 @@ async fn authored_relations_retain_authorship_retraction_replay_and_visibility()
     );
     assert_eq!(
         reopened
-            .load_checkpoint()
+            .load_checkpoint(&reopened_vault)
             .await
             .unwrap()
             .unwrap()
@@ -490,7 +490,7 @@ async fn retraction_times_survive_file_replay_checkpoint_and_reopen() {
     assert_eq!(reopened.projection(&vault).await.unwrap(), projection);
     assert_eq!(
         reopened
-            .load_checkpoint()
+            .load_checkpoint(&vault)
             .await
             .unwrap()
             .unwrap()

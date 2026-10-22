@@ -1,5 +1,43 @@
 # Native small-web authoring and serving
 
+## Native Scroll wire ownership (2026-10-21)
+
+**Status:** landed and qualified against supplier `3d2ce3a5`. Extract response encoding from Knot into the existing
+`scroll-protocol` crate. Knot retains file access, saved content selection,
+loopback request policy, TLS identity and listener lifetime. The new optional
+single-connection protocol server is independently reusable; this adoption
+keeps Knot's current blocking TLS host.
+
+Two frozen donor tests in `crates/knot-site/tests/scroll_wire.rs` pass against
+`cdafbf8` before extraction. They compare literal whole full/abstract responses
+with native metadata, Unicode and CRLF, then exercise trusted local TLS,
+saved replacement, refusal and listener close. Rerun unchanged after adopting
+the supplier. Preserve all existing site/history/publication and snapshot V1
+cases; keep renderer and non-Errand Git suppliers fixed when qualifying roots.
+Retain compact receipts under the shared 100 MB cap, reusing the stable Knot
+target. Source/lock updates are coordinator-owned; the test lane owns only its
+new fixture file and the protocol lane owns only the supplier crate.
+
+The shared encoder counts CRLF within each header-line limit. Knot derives its
+limit from the already validated metadata: the existing model accepts UTC
+timestamps with long fractional precision, so imposing the author's 1024-byte
+cap on dates would reject previously valid snapshots. Keep date bytes exact.
+Request language preferences continue to select the one declared page rather
+than adding multilingual variants or a new fallback policy.
+
+Canonical protocol plan:
+`smolweb/design_docs/implementation_strategy/2026-10-21_native_scroll_server_plan.md`.
+Governed resident Scroll hosting, browser MIME propagation and scoped task
+lifetime retain their separate owner gates in Mere's shared-site plan.
+
+The unchanged donor fixtures pass after adoption, within 22 standalone
+publication/history tests. The ordinary root site check and strict library/bin
+Clippy pass. Both dependency roots preserve every non-Errand Git source,
+including the renderer cohort. The ordinary root still contains the older
+transitive Errand source behind its existing Mere cohort; this slice establishes
+the site consumer rather than a whole-desktop repin. Compact evidence:
+[consumer receipt](../support/receipts/native-scroll-server/consumer.json).
+
 ## Saved-site publication into a Moot (2026-10-21)
 
 **Status:** landed and native qualified in `b37be4f`.

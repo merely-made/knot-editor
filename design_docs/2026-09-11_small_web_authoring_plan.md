@@ -2,7 +2,7 @@
 
 ## Saved-site publication into a Moot (2026-10-21)
 
-**Status:** native qualified; final source recording in progress.
+**Status:** landed and native qualified in `b37be4f`.
 `knot-site/publication` captures saved source once and
 publishes through the shared model's Eidetic/Gemot owner adapter. The captured
 snapshot accompanies its signed collection receipt for exact local handoff.
@@ -34,6 +34,13 @@ withdraws the contribution, and checks actual Armillary shutdown counts with a
 TLS-admitted stalled request. No renderer, external peer or radio is involved.
 The ordinary root site-library check preserves every Git source except the
 isolated `mere-site` contract pin; no renderer cohort changes are needed.
+
+Publisher checks and source hashes are recorded in
+[the publisher receipt](../support/receipts/gemini-publication-runtime/publisher.json).
+The canonical native-process receipt is
+`mere/support/receipts/gemini-publication-runtime/native.json`; Mere integration
+`b775eae24` preserves concurrent owner work and the independently qualified
+resident source `527136589`.
 
 ## Optional saved-site checkpoints (2026-10-21)
 

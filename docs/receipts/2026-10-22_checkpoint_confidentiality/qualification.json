@@ -305,5 +305,20 @@
     "No native GUI, physical-peer/device, independent second-host, non-Unix migration or declared-MSRV run is claimed.",
     "Mere/product consumer lock repins and receiving qualification remain separate from this Knot supplier repair. Repository scan found no external callsites for the changed keyed checkpoint APIs; Mere has direct resident fixtures to inspect on intake.",
     "Existing directory.rs unused-variable and desktop Mach-O unwind linker warnings remain; unrelated formatting differences in existing lib/startup/CLI sections were not swept."
-  ]
+  ],
+  "integration": {
+    "revision": "1ed1f1afce7112c496d2be8f8675974ba5e81b2c",
+    "upstream_main": "19959b9d40cd582747482913c4ac40f4eefb19e0",
+    "upstream_delta_from_original_base": [
+      "crates/knot-site/tests/scroll_moot_site_runtime.rs",
+      "design_docs/2026-09-11_small_web_authoring_plan.md",
+      "design_docs/README.md",
+      "support/receipts/scroll-publication-runtime/process.json"
+    ],
+    "root_workspace_and_local_path_dependency_tree_identical": true,
+    "tree_listing_sha256": "a6f181a33721bd7dc6d4ada50b6ace57cf0ae4143640e461dedc95c167b96c8d",
+    "scope": "All tracked apps, crates, root manifests/lock and .cargo inputs, excluding only the newly added standalone knot-site integration test",
+    "excluded_new_test": "crates/knot-site/tests/scroll_moot_site_runtime.rs",
+    "qualification_transfer": "The root workspace/default and optional receiving gate sources and every manifest/lock are byte-identical to qualified fc993748. Upstream adds only the excluded standalone test, its receipt and owner documentation; no repeat root run or new native claim."
+  }
 }

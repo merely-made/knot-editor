@@ -3981,7 +3981,7 @@ checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
 [[package]]
 name = "esp"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/esp.git?rev=b9f050b2947822aa0e5908a9aaedfc47a4f23930#b9f050b2947822aa0e5908a9aaedfc47a4f23930"
+source = "git+https://github.com/merely-made/esp.git?rev=aaae5d19365adcfa0b0292137eddd71edcb39337#aaae5d19365adcfa0b0292137eddd71edcb39337"
 dependencies = [
  "burn",
  "getrandom 0.4.3",

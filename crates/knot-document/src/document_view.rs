@@ -288,7 +288,7 @@ mod tests {
     ) -> Option<genet_scripted_dom::NodeId> {
         if dom
             .attributes(node)
-            .any(|attribute| attribute.name.local.as_ref() == "data-cambium-text-value")
+            .any(|attribute| &*attribute.name.local == "data-cambium-text-value")
         {
             return Some(node);
         }

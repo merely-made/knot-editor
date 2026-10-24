@@ -8,17 +8,20 @@ remain separately owned. Preserve unrelated desktop/context-navigation work.
 
 Update Knot's root and standalone site Errand source patches coherently while
 keeping registry versions, renderer inputs and all non-Errand Git cohorts
-fixed. The standalone document root retains its own older Mere inputs.
+fixed. The standalone document root retains its independently published inputs.
 The standalone site lock remains locally retained under the existing ignore
 policy; record its exact hash alongside the committed root lock.
 
-The root graph intentionally retains Mere's older Errand `3d2ce3a5` family and
+The root graph intentionally retains Mere's Errand `1155897e` family and
 adds source-qualified `897fb963` identities for Knot's direct Gemini, Scroll
 and Spartan dependencies. Normal offline resolution, after a narrow lock seed,
-adds those three packages and disambiguates their edges. All 1,170 registry and
-113 non-Errand Git package records remain identical. The standalone site lock
-changes only the Errand revision strings. This is Knot host adoption rather
-than a whole-desktop transport unification.
+adds those three packages and disambiguates their edges. All 1,171 registry and
+114 non-Errand Git package records remain identical to the incoming published
+Knot cohort `38fc774`. That cohort landed during qualification; merge it while
+preserving all of its non-Errand sources. The standalone site lock is seeded
+from that same root cohort and pruned through ordinary offline resolution,
+retaining its subset of those sources. This is Knot host adoption rather than
+a whole-desktop transport unification.
 
 `LocalServer::start` remains available for all existing formats. Gemini and
 Spartan use the new supplier's native admission and joined shutdown, with

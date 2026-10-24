@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-23
 
-**Status:** Persistent route restoration and semantic Source/Preview scroll continuation passed focused regressions and fresh-process headed native qualification.
+**Status:** Independent Source/Preview bookmarks and explicit Preview reopen passed the portable gates and fresh-process native qualification.
 **Owner:** Knot Editor
 
 ## Behavior
@@ -47,7 +47,8 @@ value through appearance saves and automatic view bookmarks. It replaces that
 value only after the user accepts a valid route.
 
 Bookmarks carry the source BLAKE3 digest, editor selection including affinity,
-peer view, and semantic scroll position. Source positions are UTF-8 byte
+the last active peer view, and separate Source and Preview semantic positions.
+They also record which panes were present for the document. Source positions are UTF-8 byte
 anchors sampled from the first visible line in the laid-out editor. Preview
 positions use a byte offset in the rendered Preview text plus a digest of that
 rendered text. This works inside long paragraphs when no heading is visible.
@@ -193,7 +194,50 @@ bounds checks cover caption controls at 540, 700, and 1000 pixels, plus full-men
 actions at the 1150-pixel default boundary and at 1000 pixels with a saved
 900-pixel threshold.
 
-This prototype persists one active pane's reading position per route visit.
-The following Preview toggle can coexist with an independently restored,
-document-bound Preview. Independent Source and Preview bookmarks are the next
-bounded change. Workspace tile layout remains transient.
+Each route visit stores independent Source and Preview positions and pane
+presence. Scrolling an inactive pane updates its own bookmark without changing
+the last active view. On return, Knot restores each pane only when the matching
+document and source/rendered-text digests are admitted. A stale Preview
+bookmark cannot displace a foreign pinned reader; if that reader owns the slot,
+Knot returns to Source and keeps the saved Preview anchor for a later explicit
+open. Startup restores the active view and any pane recorded as present, while
+the complete workspace tile layout remains transient.
+
+The toolbar toggle remains specific to the following Preview behavior and is
+labeled “Show following Preview” or “Hide following Preview.” A document-bound
+Preview is restored independently and keeps its own close action. An old
+single-scroll bookmark is migrated to the pane indicated by its saved view.
+
+The final portable lock uses Mere `9e91c7c952a2cd06f23eefe5af4351f4ab398fb6`
+and Genet `4532fe03755bdb61eee7847ebeb8ad47bda37d96`. Locked online and offline
+metadata both passed. The serial Knot library gate passed 362 tests with one
+diagnostic ignored. The `scenario_lane` Source/Preview return integration passed
+1/1, and focused bookmark, pinned-reader, explicit-reopen, and live-scroll tests
+passed. The final native build used that lock and passed from
+`C:/t/cargo-targets/knot-editor`; binary SHA-256 is
+`aad0ccce52f08e7938907e46a7c56b4ff188ab1418e267f1dfe1788de8f6658c`.
+
+On the final binary, the native seed, reopened-and-closed Preview, closed-Preview
+restart, and explicit Preview reopen scenarios passed with 72, 20, 7, and 30
+presented frames. The final explicit-reopen run began with Source target byte
+8133 and Preview target byte 2427. With Preview closed, the live Source range
+contained 8133. After Show following Preview, Preview was open and active, its
+visible range and bookmark both contained byte 2427, and the Source visible
+range still contained 8133. Source's first-visible sample normalized to byte
+8063 after split reflow, 70 bytes before the saved target; the target remained
+inside the visible text range. A separate restart after closing Preview kept
+the pane absent while retaining its byte 2427 bookmark until the explicit Show
+action. The fixture stayed unchanged at SHA-256
+`1af8c05d3fe7c801cb11bb9bff53d3ee2c973830aee92365d56f7c78ee3efcc5`.
+
+The accepted two-pane visual capture was made with the immediately preceding
+`85fd1a3b77908370f2f816465db5aac313498982c2e3894fe529a7b54aa80aa2` build;
+the final postimage run was no-image and used the hash above. The accepted
+capture and final scenario receipts are collected under
+[`pane-continuation-final`](https://github.com/merely-made/mere/tree/main/support/family-promotion/contextual-navigation-publication/knot-native/pane-continuation-final/).
+That directory also preserves the compact-mode setup failure, which is not a
+pass. There are two PNGs total: that failed setup image and the reviewed
+two-pane reopen image. The screenshot is 2400 × 1400; it shows both panes deep
+in the paragraph and the full caption group inside the window. The current
+native profile stays private in ignored `.cargo/local` state. Workspace tile
+layout remains transient.

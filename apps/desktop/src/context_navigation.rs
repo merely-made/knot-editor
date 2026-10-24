@@ -162,8 +162,18 @@ pub(crate) struct ContextAnchor {
     pub(crate) selection: CaretSelectionBookmark,
     #[serde(default)]
     pub(crate) view: ContextView,
+    #[serde(default = "source_is_present")]
+    pub(crate) source_present: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) preview_present: Option<bool>,
     #[serde(default)]
-    pub(crate) scroll: Option<ContextScrollAnchor>,
+    pub(crate) source_scroll: Option<ContextScrollAnchor>,
+    #[serde(default)]
+    pub(crate) preview_scroll: Option<ContextScrollAnchor>,
+    /// The previous one-slot wire value. It is read for migration and omitted
+    /// on the next save so the two independent view anchors become canonical.
+    #[serde(default, rename = "scroll", skip_serializing)]
+    legacy_scroll: Option<ContextScrollAnchor>,
     /// A same-process optimization only. Persistent history resolves its peer
     /// view by kind and the live open document address.
     #[serde(skip)]
@@ -175,16 +185,58 @@ impl ContextAnchor {
         snapshot: &KnotDocumentSnapshotV1,
         view: ContextView,
         active_tile: Option<TileId>,
+        source_present: bool,
+        preview_present: bool,
     ) -> Self {
         Self {
             document_address: snapshot.source.address.clone(),
             source_digest: *blake3::hash(snapshot.text.as_bytes()).as_bytes(),
             selection: snapshot.selection.into(),
             view,
-            scroll: (view == ContextView::Source).then_some(ContextScrollAnchor::SourceByte {
+            source_present,
+            preview_present: Some(preview_present),
+            source_scroll: Some(ContextScrollAnchor::SourceByte {
                 byte: snapshot.selection.focus.byte,
             }),
+            preview_scroll: None,
+            legacy_scroll: None,
             active_tile,
+        }
+    }
+
+    /// Move the previous single scroll value into its view-specific slot.
+    /// Old Preview visits were active visits, so their pane was present; this
+    /// inference does not reopen a Preview from a scroll value in a new-format
+    /// visit whose explicit `preview_present` bit is false.
+    pub(crate) fn migrate_legacy_scroll(&mut self) {
+        let mut legacy_preview = false;
+        if let Some(scroll) = self.legacy_scroll.take() {
+            match scroll {
+                scroll @ ContextScrollAnchor::SourceByte { .. } => {
+                    self.source_scroll.get_or_insert(scroll);
+                },
+                scroll @ (ContextScrollAnchor::PreviewTextByte { .. }
+                | ContextScrollAnchor::PreviewBlock { .. }
+                | ContextScrollAnchor::PreviewHeading { .. }) => {
+                    self.preview_scroll.get_or_insert(scroll);
+                    legacy_preview = true;
+                },
+            }
+        }
+        if self.preview_present.is_none() {
+            self.preview_present = Some(legacy_preview || self.view == ContextView::Preview);
+        }
+        self.source_present = true;
+    }
+
+    pub(crate) fn preview_is_present(&self) -> bool {
+        self.preview_present.unwrap_or(self.view == ContextView::Preview)
+    }
+
+    pub(crate) fn active_scroll(&self) -> Option<&ContextScrollAnchor> {
+        match self.view {
+            ContextView::Preview => self.preview_scroll.as_ref(),
+            _ => self.source_scroll.as_ref(),
         }
     }
 
@@ -192,6 +244,10 @@ impl ContextAnchor {
         self.document_address == snapshot.source.address
             && self.source_digest == *blake3::hash(snapshot.text.as_bytes()).as_bytes()
     }
+}
+
+fn source_is_present() -> bool {
+    true
 }
 
 /// Return each heading's nearest preceding shallower heading, if one exists.
@@ -262,7 +318,13 @@ mod tests {
             "# Original\n",
             knot_document::DocumentFormat::Knot,
         );
-        let anchor = ContextAnchor::from_snapshot(&session.snapshot(), ContextView::Preview, Some(TileId(7)));
+        let anchor = ContextAnchor::from_snapshot(
+            &session.snapshot(),
+            ContextView::Preview,
+            Some(TileId(7)),
+            true,
+            true,
+        );
         let wire = serde_json::to_string(&anchor).unwrap();
         assert!(wire.contains("file:///notes.knot"));
         assert!(!wire.contains("active_tile"));
@@ -270,5 +332,43 @@ mod tests {
         assert_eq!(restored.view, ContextView::Preview);
         assert_eq!(restored.active_tile, None);
         assert!(restored.matches(&session.snapshot()));
+        assert!(restored.source_present);
+        assert!(restored.preview_is_present());
+    }
+
+    #[test]
+    fn legacy_single_scroll_migrates_to_its_pane_and_closed_preview_stays_closed() {
+        let legacy = serde_json::json!({
+            "document_address": "file:///notes.knot",
+            "source_digest": vec![0; 32],
+            "selection": {
+                "anchor": { "byte": 4, "affinity": "Downstream" },
+                "focus": { "byte": 4, "affinity": "Downstream" }
+            },
+            "view": "Source",
+            "scroll": { "SourceByte": { "byte": 88 } }
+        });
+        let mut source: ContextAnchor = serde_json::from_value(legacy.clone()).unwrap();
+        source.migrate_legacy_scroll();
+        assert_eq!(source.source_scroll, Some(ContextScrollAnchor::SourceByte { byte: 88 }));
+        assert!(!source.preview_is_present());
+        let saved = serde_json::to_value(&source).unwrap();
+        assert!(saved.get("scroll").is_none());
+
+        let mut preview: ContextAnchor = serde_json::from_value(serde_json::json!({
+            "document_address": "file:///notes.knot",
+            "source_digest": vec![0; 32],
+            "selection": {
+                "anchor": { "byte": 4, "affinity": "Downstream" },
+                "focus": { "byte": 4, "affinity": "Downstream" }
+            },
+            "view": "Preview",
+            "source_present": true,
+            "preview_present": false,
+            "preview_scroll": { "PreviewTextByte": { "byte": 500, "rendered_digest": vec![0; 32] } }
+        })).unwrap();
+        preview.migrate_legacy_scroll();
+        assert!(!preview.preview_is_present(), "new-format false presence is authoritative");
+        assert!(preview.preview_scroll.is_some());
     }
 }

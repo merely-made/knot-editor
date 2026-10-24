@@ -413,10 +413,11 @@ pub struct DesktopState {
     context_active_tile: Option<workbench::TileId>,
     context_focus_node: Option<NodeId>,
     context_scroll_sample_pending: bool,
+    context_scroll_sample_tile: Option<workbench::TileId>,
     context_scroll_observation: Option<ContextScrollObservation>,
     context_document_admissions: HashMap<DocKey, String>,
     pub(crate) context_site_admissions: HashMap<SiteKey, String>,
-    pending_context_scroll: Option<context_navigation::PendingContextScroll>,
+    pending_context_scroll: Vec<context_navigation::PendingContextScroll>,
     window: WindowCommands,
     pub(crate) pending: Option<PendingAction>,
     discard_close: bool,
@@ -523,10 +524,11 @@ impl DesktopState {
             context_active_tile: None,
             context_focus_node: None,
             context_scroll_sample_pending: false,
+            context_scroll_sample_tile: None,
             context_scroll_observation: None,
             context_document_admissions: HashMap::new(),
             context_site_admissions: HashMap::new(),
-            pending_context_scroll: None,
+            pending_context_scroll: Vec::new(),
             window,
             pending: None,
             discard_close: false,
@@ -1054,7 +1056,7 @@ impl DesktopState {
             .context_navigation
             .current()
             .and_then(|visit| visit.anchor.as_ref())
-            .and_then(|anchor| anchor.scroll.as_ref())
+            .and_then(context_navigation::ContextAnchor::active_scroll)
             .map_or_else(
                 || (String::new(), String::new()),
                 |anchor| match anchor {
@@ -1072,6 +1074,20 @@ impl DesktopState {
                     },
                 },
             );
+        let context_anchor = self
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref());
+        let context_source_scroll_position = context_anchor
+            .and_then(|anchor| anchor.source_scroll.as_ref())
+            .and_then(context_scroll_position_value)
+            .unwrap_or_default();
+        let context_preview_scroll_position = context_anchor
+            .and_then(|anchor| anchor.preview_scroll.as_ref())
+            .and_then(context_scroll_position_value)
+            .unwrap_or_default();
+        let context_source_present = context_anchor.is_some_and(|anchor| anchor.source_present);
+        let context_preview_present = context_anchor.is_some_and(|anchor| anchor.preview_is_present());
         taproot::ProbeSnapshot::default()
             .with_field(
                 "theme_workshop_open",
@@ -1204,6 +1220,10 @@ impl DesktopState {
             .with_field("context_forward", context_forward.to_string())
             .with_field("context_scroll_kind", context_scroll_kind)
             .with_field("context_scroll_position", context_scroll_position)
+            .with_field("context_source_scroll_position", context_source_scroll_position)
+            .with_field("context_preview_scroll_position", context_preview_scroll_position)
+            .with_field("context_source_present", context_source_present.to_string())
+            .with_field("context_preview_present", context_preview_present.to_string())
             .with_field(
                 "preview_open",
                 has_reading(ReadingKind::Preview).to_string(),
@@ -1829,10 +1849,14 @@ impl DesktopState {
     /// this launch. Later opens do not revive an unavailable visit.
     pub(crate) fn restore_persisted_context_navigation(&mut self) {
         let rebound = self.context_navigation.try_map(|visit| {
+            let mut anchor = visit.anchor.clone();
+            if let Some(anchor) = anchor.as_mut() {
+                anchor.migrate_legacy_scroll();
+            }
             Ok(ScopeVisit {
                 place: self.admit_context_place(&visit.place),
                 camera: visit.camera,
-                anchor: visit.anchor.clone(),
+                anchor,
             })
         });
         match rebound {
@@ -1842,14 +1866,27 @@ impl DesktopState {
                 return;
             },
         }
-        let Some(visit) = self.context_navigation.current().cloned() else {
+        let Some(mut visit) = self.context_navigation.current().cloned() else {
             return;
         };
         if !self.context_place_is_valid(&visit.place) {
             return;
         }
+        let mut preview_blocked = false;
+        if let (Some(anchor), Some(document)) = (
+            visit.anchor.as_mut(),
+            self.anchor_document_for_place(&visit.place),
+        ) && self.preview_restore_blocked(document, anchor)
+        {
+            anchor.view = context_navigation::ContextView::Source;
+            anchor.preview_present = Some(false);
+            anchor.active_tile = self.docs.tile_of(document);
+        }
         if let Err(error) = self.restore_context_place(&visit.place, visit.anchor.as_ref()) {
             self.message = Some(error);
+        } else if preview_blocked {
+            self.context_navigation.capture(visit);
+            self.persist_context_navigation();
         }
     }
 
@@ -2092,11 +2129,29 @@ impl DesktopState {
             Some(TileRole::Site(_)) => context_navigation::ContextView::Site,
             _ => context_navigation::ContextView::Other,
         };
+        let preview_tile = self.preview_tile_for_context_document(document);
         Some(context_navigation::ContextAnchor::from_snapshot(
             &entry.document.snapshot(),
             view,
             active_tile,
+            self.docs.tile_of(document).is_some(),
+            preview_tile.is_some(),
         ))
+    }
+
+    fn preview_tile_for_context_document(&self, document: DocKey) -> Option<workbench::TileId> {
+        self.docs.readings().find_map(|(tile, kind, _)| {
+            (kind == ReadingKind::Preview && self.docs.document_for(tile) == Some(document))
+                .then_some(tile)
+        })
+    }
+
+    fn preview_restore_blocked(&self, document: DocKey, anchor: &context_navigation::ContextAnchor) -> bool {
+        anchor.preview_is_present()
+            && self.preview_tile_for_context_document(document).is_none()
+            && self.docs.readings().any(|(_, kind, pinned)| {
+                kind == ReadingKind::Preview && pinned.is_some_and(|owner| owner != document)
+            })
     }
 
     fn tile_shows_context_document(&self, tile: workbench::TileId, document: DocKey) -> bool {
@@ -2108,36 +2163,43 @@ impl DesktopState {
     fn queue_context_scroll(
         &mut self,
         document: DocKey,
-        tile: Option<workbench::TileId>,
         anchor: Option<&context_navigation::ContextAnchor>,
     ) {
-        let Some(tile) = tile else {
-            self.pending_context_scroll = None;
-            return;
-        };
         let Some(anchor) = anchor.filter(|anchor| {
             self.context_document_address(document).as_deref()
                 == Some(anchor.document_address.as_str())
                 && self.docs.doc(document).is_some_and(|entry| anchor.matches(&entry.document.snapshot()))
         }) else {
-            self.pending_context_scroll = None;
+            self.pending_context_scroll.clear();
             return;
         };
-        let Some(scroll @ (context_navigation::ContextScrollAnchor::SourceByte { .. }
-        | context_navigation::ContextScrollAnchor::PreviewTextByte { .. }
-        | context_navigation::ContextScrollAnchor::PreviewBlock { .. }
-        | context_navigation::ContextScrollAnchor::PreviewHeading { .. })) = anchor.scroll.clone()
-        else {
-            self.pending_context_scroll = None;
-            return;
-        };
-        self.pending_context_scroll = Some(context_navigation::PendingContextScroll {
-            document,
-            tile,
-            source_digest: anchor.source_digest,
-            anchor: scroll,
-            attempts: 0,
-        });
+        self.pending_context_scroll.clear();
+        if anchor.source_present
+            && let (Some(tile), Some(context_navigation::ContextScrollAnchor::SourceByte { .. })) =
+                (self.docs.tile_of(document), anchor.source_scroll.clone())
+        {
+            self.pending_context_scroll.push(context_navigation::PendingContextScroll {
+                document,
+                tile,
+                source_digest: anchor.source_digest,
+                anchor: anchor.source_scroll.clone().expect("matched source bookmark"),
+                attempts: 0,
+            });
+        }
+        if anchor.preview_is_present()
+            && let Some(tile) = self.preview_tile_for_context_document(document)
+            && let Some(scroll @ (context_navigation::ContextScrollAnchor::PreviewTextByte { .. }
+            | context_navigation::ContextScrollAnchor::PreviewBlock { .. }
+            | context_navigation::ContextScrollAnchor::PreviewHeading { .. })) = anchor.preview_scroll.clone()
+        {
+            self.pending_context_scroll.push(context_navigation::PendingContextScroll {
+                document,
+                tile,
+                source_digest: anchor.source_digest,
+                anchor: scroll,
+                attempts: 0,
+            });
+        }
     }
 
     fn restore_context_tile(
@@ -2146,11 +2208,31 @@ impl DesktopState {
         anchor: Option<&context_navigation::ContextAnchor>,
     ) -> Option<workbench::TileId> {
         let address = self.context_document_address(document);
+        let matching_anchor = anchor.filter(|anchor| {
+            Some(anchor.document_address.as_str()) == address.as_deref()
+                && self.docs.doc(document).is_some_and(|entry| anchor.matches(&entry.document.snapshot()))
+        });
+        let preview_restore_blocked = matching_anchor
+            .is_some_and(|anchor| self.preview_restore_blocked(document, anchor));
+        if matching_anchor.is_some_and(|anchor| anchor.preview_is_present())
+            && !preview_restore_blocked
+            && self.preview_tile_for_context_document(document).is_none()
+        {
+            self.docs.open_reading(ReadingKind::Preview, Some(document), reading_title(ReadingKind::Preview));
+        }
         let tile = anchor
-            .filter(|anchor| Some(anchor.document_address.as_str()) == address.as_deref())
+            .filter(|anchor| {
+                Some(anchor.document_address.as_str()) == address.as_deref()
+                    && self.docs.doc(document).is_some_and(|entry| anchor.matches(&entry.document.snapshot()))
+            })
             .and_then(|anchor| anchor.active_tile);
+        let allow_preview = matching_anchor.is_some_and(|anchor| anchor.preview_is_present())
+            && !preview_restore_blocked;
         let still_matches = tile.is_some_and(|tile| match self.docs.role(tile) {
             Some(TileRole::Document(key)) => *key == document,
+            Some(TileRole::Reading { kind: ReadingKind::Preview, .. }) => {
+                allow_preview && self.docs.document_for(tile) == Some(document)
+            },
             Some(TileRole::Reading { .. }) => self.docs.document_for(tile) == Some(document),
             _ => false,
         });
@@ -2161,10 +2243,14 @@ impl DesktopState {
             Some(tile)
         } else {
             let view = anchor
-                .filter(|anchor| Some(anchor.document_address.as_str()) == address.as_deref())
+                .filter(|anchor| {
+                    Some(anchor.document_address.as_str()) == address.as_deref()
+                        && self.docs.doc(document).is_some_and(|entry| anchor.matches(&entry.document.snapshot()))
+                })
                 .map_or(context_navigation::ContextView::Source, |anchor| anchor.view);
+            let preview_present = matching_anchor.is_some_and(|anchor| anchor.preview_is_present());
             let reading_kind = match view {
-                context_navigation::ContextView::Preview => Some(ReadingKind::Preview),
+                context_navigation::ContextView::Preview if preview_present => Some(ReadingKind::Preview),
                 context_navigation::ContextView::Outline => Some(ReadingKind::Outline),
                 _ => None,
             };
@@ -2245,9 +2331,9 @@ impl DesktopState {
                 .and_then(|visit| visit.anchor.as_ref()),
         ) && anchor.document_address == previous.document_address
             && anchor.source_digest == previous.source_digest
-            && anchor.view == previous.view
         {
-            anchor.scroll = previous.scroll.clone();
+            anchor.source_scroll = previous.source_scroll.clone().or(anchor.source_scroll.clone());
+            anchor.preview_scroll = previous.preview_scroll.clone();
         }
         if place.document_address().is_some_and(|address| {
             self.focused_key()
@@ -2287,16 +2373,42 @@ impl DesktopState {
         });
     }
 
+    /// Pane presence describes the window, so a Preview pin/close must refresh
+    /// it across saved route bookmarks. Scroll positions stay with each
+    /// document; an inactive pane is never recreated from its stale bookmark.
+    fn refresh_context_preview_presence(&mut self) {
+        let refreshed = self.context_navigation.try_map_bookmarks(|visit| {
+            let mut anchor = visit.anchor.clone();
+            if let Some(anchor) = anchor.as_mut()
+                && let Some(document) = self.context_document_key(&anchor.document_address)
+                && self.docs.doc(document).is_some_and(|entry| anchor.matches(&entry.document.snapshot()))
+            {
+                anchor.preview_present = Some(self.preview_tile_for_context_document(document).is_some());
+            }
+            Ok(ScopeVisit {
+                place: visit.place.clone(),
+                camera: visit.camera,
+                anchor,
+            })
+        });
+        match refreshed {
+            Ok(navigation) => self.context_navigation = navigation,
+            Err(error) => {
+                self.message = Some(format!("Preview presence could not be refreshed: {error}"));
+                return;
+            },
+        }
+        self.persist_context_navigation();
+    }
+
     fn note_context_tile_on_wheel(&mut self, tile: workbench::TileId) {
         if self.docs.document_for(tile).is_some()
             && self.docs.role(tile).is_some_and(|role| {
                 matches!(role, TileRole::Document(_) | TileRole::Reading { .. })
             })
         {
-            self.context_active_tile = Some(tile);
             self.context_scroll_sample_pending = true;
-            self.capture_context_visit();
-            self.persist_context_navigation();
+            self.context_scroll_sample_tile = Some(tile);
         }
     }
 
@@ -2327,8 +2439,8 @@ impl DesktopState {
                         entry.focus_source_requested = true;
                     }
                 }
-                let tile = self.restore_context_tile(key, anchor);
-                self.queue_context_scroll(key, tile, anchor);
+                self.restore_context_tile(key, anchor);
+                self.queue_context_scroll(key, anchor);
             },
             ContextPlace::Heading { address, .. } => {
                 let document = self.context_document_key_for(place).ok_or_else(|| {
@@ -2358,8 +2470,8 @@ impl DesktopState {
                         entry.focus_source_requested = true;
                     }
                 }
-                let tile = self.restore_context_tile(document, anchor);
-                self.queue_context_scroll(document, tile, anchor);
+                self.restore_context_tile(document, anchor);
+                self.queue_context_scroll(document, anchor);
             },
             ContextPlace::Site { root, .. } => {
                 let site = self.context_site_key_for(place).ok_or_else(|| {
@@ -2371,7 +2483,7 @@ impl DesktopState {
                     .ok_or_else(|| "That site is no longer open.".to_owned())?;
                 self.docs.activate(tile);
                 self.context_active_tile = Some(tile);
-                self.pending_context_scroll = None;
+                self.pending_context_scroll.clear();
             },
         }
         Ok(())
@@ -2398,6 +2510,15 @@ impl DesktopState {
             place: place.clone(),
             camera: None,
         });
+        if let (Some(anchor), Some(document)) = (
+            visit.anchor.as_mut(),
+            self.anchor_document_for_place(&visit.place),
+        ) && self.preview_restore_blocked(document, anchor)
+        {
+            anchor.view = context_navigation::ContextView::Source;
+            anchor.preview_present = Some(false);
+            anchor.active_tile = self.docs.tile_of(document);
+        }
         if let Err(error) = self.restore_context_place(&visit.place, visit.anchor.as_ref()) {
             self.message = Some(error);
             return;
@@ -2416,7 +2537,15 @@ impl DesktopState {
             self.message = Some(format!("That heading is no longer available: {error}"));
             return;
         }
+        let saved_anchor = visit.anchor.clone();
         visit.anchor = self.context_anchor(&visit.place);
+        if let (Some(refreshed), Some(saved)) = (visit.anchor.as_mut(), saved_anchor.as_ref())
+            && refreshed.document_address == saved.document_address
+            && refreshed.source_digest == saved.source_digest
+        {
+            refreshed.source_scroll = saved.source_scroll.clone().or(refreshed.source_scroll.clone());
+            refreshed.preview_scroll = saved.preview_scroll.clone();
+        }
         self.context_navigation.visit(visit);
         self.context_navigation_write_blocked = false;
         self.persist_context_navigation();
@@ -2440,11 +2569,25 @@ impl DesktopState {
         {
             visit.anchor = None;
         }
+        let mut preview_blocked = false;
+        if let (Some(anchor), Some(document)) = (
+            visit.anchor.as_mut(),
+            self.anchor_document_for_place(&visit.place),
+        ) && self.preview_restore_blocked(document, anchor)
+        {
+            anchor.view = context_navigation::ContextView::Source;
+            anchor.preview_present = Some(false);
+            anchor.active_tile = self.docs.tile_of(document);
+            preview_blocked = true;
+        }
         if let Err(error) = self.restore_context_place(&visit.place, visit.anchor.as_ref()) {
             self.message = Some(error);
             return;
         }
         if self.context_navigation.step(forward) {
+            if preview_blocked {
+                self.context_navigation.capture(visit);
+            }
             self.message = None;
             self.context_navigation_write_blocked = false;
             self.persist_context_navigation();
@@ -2590,13 +2733,75 @@ impl DesktopState {
                 .focused_key()
                 .and_then(|key| self.docs.active_tile_in_stack(key));
             self.capture_context_visit();
-            self.persist_context_navigation();
+            if kind == ReadingKind::Preview {
+                self.refresh_context_preview_presence();
+            } else {
+                self.persist_context_navigation();
+            }
             return;
         }
+        let reopen_bookmark = if kind == ReadingKind::Preview {
+            let Some(document) = self.focused_key() else {
+                return;
+            };
+            let already_has_document_preview =
+                self.preview_tile_for_context_document(document).is_some();
+            (!already_has_document_preview)
+                .then(|| {
+                    self.context_navigation
+                        .current()
+                        .filter(|visit| {
+                            self.context_document_key_for(&visit.place) == Some(document)
+                        })
+                        .and_then(|visit| visit.anchor.clone())
+                        .filter(|anchor| {
+                            self.context_document_address(document).as_deref()
+                                == Some(anchor.document_address.as_str())
+                                && self.docs.doc(document).is_some_and(|entry| {
+                                    anchor.matches(&entry.document.snapshot())
+                                })
+                        })
+                        .map(|mut anchor| {
+                            // A new pane already starts at its origin. Avoid
+                            // queuing zero-offset no-op restores that delay the
+                            // first live focus/scroll observation.
+                            if anchor.source_scroll.as_ref().is_some_and(|scroll| {
+                                matches!(scroll, context_navigation::ContextScrollAnchor::SourceByte { byte: 0 })
+                            }) {
+                                anchor.source_scroll = None;
+                            }
+                            if anchor.preview_scroll.as_ref().is_some_and(|scroll| match scroll {
+                                context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. } => *byte == 0,
+                                context_navigation::ContextScrollAnchor::PreviewBlock { index } => *index == 0,
+                                context_navigation::ContextScrollAnchor::PreviewHeading { start, .. } => *start == 0,
+                                context_navigation::ContextScrollAnchor::SourceByte { .. } => true,
+                            }) {
+                                anchor.preview_scroll = None;
+                            }
+                            // An explicit Show action may recreate a closed
+                            // Preview. Queue its old semantic position and the
+                            // Source position after the split has laid out.
+                            // Existing document-bound Preview tiles keep their
+                            // own presentation and are not retargeted here.
+                            anchor.preview_present = Some(true);
+                            (document, anchor)
+                        })
+                })
+                .flatten()
+        } else {
+            None
+        };
         let tile = self.docs.open_reading(kind, None, reading_title(kind));
+        if let Some((document, anchor)) = reopen_bookmark.as_ref() {
+            self.queue_context_scroll(*document, Some(anchor));
+        }
         self.context_active_tile = Some(tile);
         self.capture_context_visit();
-        self.persist_context_navigation();
+        if kind == ReadingKind::Preview {
+            self.refresh_context_preview_presence();
+        } else {
+            self.persist_context_navigation();
+        }
         self.collapse_reveal = Some(tile);
         match kind {
             ReadingKind::Outline => {
@@ -2649,6 +2854,8 @@ impl DesktopState {
         self.docs.set_pinned(tile, next);
         self.sync_outline_snapshot();
         self.sync_fold_snapshots();
+        self.capture_context_visit();
+        self.refresh_context_preview_presence();
     }
 
     /// Make `key` the focused document, as activating its tab does.
@@ -2667,7 +2874,18 @@ impl DesktopState {
                 let Some(place) = self.context_document_place(key) else {
                     return;
                 };
-                let anchor = self.context_anchor(&place);
+                let mut anchor = self.context_anchor(&place);
+                if let (Some(refreshed), Some(saved)) = (
+                    anchor.as_mut(),
+                    self.context_navigation
+                        .saved_matching(|candidate| candidate == &place)
+                        .and_then(|visit| visit.anchor.as_ref()),
+                ) && refreshed.document_address == saved.document_address
+                    && refreshed.source_digest == saved.source_digest
+                {
+                    refreshed.source_scroll = saved.source_scroll.clone().or(refreshed.source_scroll.clone());
+                    refreshed.preview_scroll = saved.preview_scroll.clone();
+                }
                 self.context_navigation.visit(ScopeVisit {
                     place,
                     camera: None,
@@ -4143,7 +4361,15 @@ impl DesktopState {
             },
             Some(TileRole::Site(site)) => self.request_close_site(site),
             _ => {
+                let preview = matches!(
+                    self.docs.role(tile),
+                    Some(TileRole::Reading { kind: ReadingKind::Preview, .. })
+                );
                 self.docs.close(tile);
+                if preview {
+                    self.capture_context_visit();
+                    self.refresh_context_preview_presence();
+                }
             },
         }
     }
@@ -6506,7 +6732,7 @@ pub fn after_wake(
 pub fn context_navigation_after_frame(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
 ) {
-    if let Some(pending) = ctx.runner.state().pending_context_scroll.clone() {
+    if let Some(pending) = ctx.runner.state().pending_context_scroll.first().cloned() {
         if let Some(node) = context_scroll_target(ctx, &pending) {
             match pending.anchor {
                 context_navigation::ContextScrollAnchor::SourceByte { byte } => {
@@ -6520,16 +6746,21 @@ pub fn context_navigation_after_frame(
                     ctx.scroll_into_view(node, ScrollAlign::Start);
                 },
             }
-            ctx.runner.update(|state| state.pending_context_scroll = None);
+            ctx.runner.update(|state| {
+                if !state.pending_context_scroll.is_empty() {
+                    state.pending_context_scroll.remove(0);
+                }
+            });
             return;
         }
         ctx.runner.update(|state| {
-            let Some(pending) = state.pending_context_scroll.as_mut() else {
+            let Some(pending) = state.pending_context_scroll.first_mut() else {
                 return;
             };
             pending.attempts = pending.attempts.saturating_add(1);
-            if pending.attempts >= 5 {
-                state.pending_context_scroll = None;
+            let remove = pending.attempts >= 5;
+            if remove {
+                state.pending_context_scroll.remove(0);
             }
         });
         return;
@@ -6574,7 +6805,7 @@ pub fn context_navigation_after_frame(
     let active_tile = if focus_changed {
         focused_tile
     } else if wheel_changed {
-        ctx.runner.state().context_active_tile
+        ctx.runner.state().context_scroll_sample_tile
     } else if source_changed && !preview_changed {
         observation.as_ref().and_then(|value| value.source.tile)
     } else if preview_changed && !source_changed {
@@ -6585,9 +6816,10 @@ pub fn context_navigation_after_frame(
     ctx.runner.update(|state| {
         state.context_focus_node = focused_node;
         state.context_scroll_sample_pending = false;
+        state.context_scroll_sample_tile = None;
         state.context_scroll_observation = observation;
     });
-    capture_context_scroll(ctx, active_tile);
+    capture_context_scroll(ctx, active_tile, focus_changed);
 }
 
 fn context_rendered_text<D: LayoutDom>(dom: &D, node: D::NodeId) -> String {
@@ -6596,6 +6828,17 @@ fn context_rendered_text<D: LayoutDom>(dom: &D, node: D::NodeId) -> String {
         text.push_str(&context_rendered_text(dom, child));
     }
     text
+}
+
+fn context_scroll_position_value(
+    anchor: &context_navigation::ContextScrollAnchor,
+) -> Option<String> {
+    Some(match anchor {
+        context_navigation::ContextScrollAnchor::SourceByte { byte }
+        | context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. } => byte.to_string(),
+        context_navigation::ContextScrollAnchor::PreviewBlock { index } => index.to_string(),
+        context_navigation::ContextScrollAnchor::PreviewHeading { start, .. } => start.to_string(),
+    })
 }
 
 fn context_rendered_text_digest<D: LayoutDom>(dom: &D, node: D::NodeId) -> [u8; 32] {
@@ -6769,9 +7012,10 @@ fn context_scroll_target(
 
 fn capture_context_scroll(
     ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
-    focused_tile: Option<workbench::TileId>,
+    sample_tile: Option<workbench::TileId>,
+    update_active_view: bool,
 ) {
-    if let Some(tile) = focused_tile {
+    if update_active_view && let Some(tile) = sample_tile {
         ctx.runner.update(|state| {
             if let Some(document) = state.docs.document_for(tile)
                 && state.docs.role(tile).is_some_and(|role| {
@@ -6782,6 +7026,7 @@ fn capture_context_scroll(
                 // Ordinary focus in another peer view is a view change, not a
                 // new route. The visit keeps its current contextual place.
                 state.capture_context_visit();
+                state.persist_context_navigation();
             }
         });
     }
@@ -6804,7 +7049,7 @@ fn capture_context_scroll(
     if !anchor.matches(&snapshot) {
         return;
     }
-    let Some(tile) = anchor.active_tile else {
+    let Some(tile) = sample_tile else {
         return;
     };
     let mut scroll = None;
@@ -6937,7 +7182,16 @@ fn capture_context_scroll(
     let Some(scroll) = scroll else {
         return;
     };
-    if anchor.scroll.as_ref() == Some(&scroll) {
+    let is_source = matches!(
+        ctx.runner.state().docs.role(tile),
+        Some(TileRole::Document(key)) if *key == document
+    );
+    let current_scroll = if is_source {
+        anchor.source_scroll.as_ref()
+    } else {
+        anchor.preview_scroll.as_ref()
+    };
+    if current_scroll == Some(&scroll) {
         return;
     }
     ctx.runner.update(|state| {
@@ -6947,7 +7201,28 @@ fn capture_context_scroll(
         let Some(mut anchor) = current.anchor.clone() else {
             return;
         };
-        anchor.scroll = Some(scroll);
+        if matches!(
+            state.docs.role(tile),
+            Some(TileRole::Document(key)) if *key == document
+        ) {
+            if matches!(&scroll, context_navigation::ContextScrollAnchor::SourceByte { .. }) {
+                anchor.source_scroll = Some(scroll);
+            } else {
+                return;
+            }
+        } else if matches!(state.docs.role(tile), Some(TileRole::Reading { kind: ReadingKind::Preview, .. }))
+            && matches!(
+                &scroll,
+                context_navigation::ContextScrollAnchor::PreviewTextByte { .. }
+                    | context_navigation::ContextScrollAnchor::PreviewBlock { .. }
+                    | context_navigation::ContextScrollAnchor::PreviewHeading { .. }
+            )
+        {
+            anchor.preview_scroll = Some(scroll);
+            anchor.preview_present = Some(true);
+        } else {
+            return;
+        }
         state.context_navigation.capture(ScopeVisit {
             place: current.place,
             camera: current.camera,
@@ -9695,6 +9970,12 @@ mod tests {
 
     type DesktopHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
 
+    fn settle_context_scroll(host: &mut DesktopHarness) {
+        host.after_frame();
+        host.relayout();
+        host.after_frame();
+    }
+
     fn insert(host: &mut DesktopHarness, text: &str) {
         host.update(|state| {
             state
@@ -10450,7 +10731,7 @@ mod tests {
             .context_navigation
             .current()
             .and_then(|visit| visit.anchor.as_ref())
-            .and_then(|anchor| anchor.scroll.as_ref())
+            .and_then(|anchor| anchor.source_scroll.as_ref())
             .cloned();
         assert!(matches!(saved_scroll, Some(context_navigation::ContextScrollAnchor::SourceByte { byte }) if byte > 1000));
         let saved_viewport = host.element_scroll(pane).1;
@@ -10462,14 +10743,14 @@ mod tests {
             state.navigate_context_to(tail);
             state.navigate_context_history(false);
         });
-        assert!(host.state().pending_context_scroll.is_some());
+        assert!(!host.state().pending_context_scroll.is_empty());
         host.after_frame();
         host.relayout();
         assert!(host.element_scroll(pane).1 > 0.0);
-        assert!(host.state().pending_context_scroll.is_none());
+        assert!(host.state().pending_context_scroll.is_empty());
         let anchor = host.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
         assert!(anchor.matches(&host.state().docs.doc(key).unwrap().document.snapshot()));
-        assert_eq!(anchor.scroll, saved_scroll);
+        assert_eq!(anchor.source_scroll, saved_scroll);
     }
 
     #[test]
@@ -10498,6 +10779,7 @@ mod tests {
             "opening Preview stores the peer view"
         );
         host.layout_at(900.0, 640.0);
+        settle_context_scroll(&mut host);
         let pane = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
@@ -10551,7 +10833,7 @@ mod tests {
             .context_navigation
             .current()
             .and_then(|visit| visit.anchor.as_ref())
-            .and_then(|anchor| anchor.scroll.as_ref())
+            .and_then(|anchor| anchor.preview_scroll.as_ref())
             .cloned();
         let Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, rendered_digest }) = saved.clone() else {
             panic!("measurable Djot Preview should use its rendered text anchor, got {saved:?}");
@@ -10564,12 +10846,13 @@ mod tests {
             state.navigate_context_to(first_section);
             state.navigate_context_history(false);
         });
-        assert!(host.state().pending_context_scroll.is_some());
+        assert!(!host.state().pending_context_scroll.is_empty());
         host.after_frame();
         host.relayout();
-        assert!(host.state().pending_context_scroll.is_none());
+        host.after_frame();
+        assert!(host.state().pending_context_scroll.is_empty());
         let current = host.state().context_navigation.current().unwrap();
-        assert_eq!(current.anchor.as_ref().and_then(|anchor| anchor.scroll.as_ref()), saved.as_ref());
+        assert_eq!(current.anchor.as_ref().and_then(|anchor| anchor.preview_scroll.as_ref()), saved.as_ref());
     }
 
     #[test]
@@ -10589,6 +10872,7 @@ mod tests {
             state.toggle_reading(ReadingKind::Preview);
         });
         host.layout_at(900.0, 640.0);
+        settle_context_scroll(&mut host);
         let source_field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
@@ -10616,14 +10900,18 @@ mod tests {
             .current()
             .and_then(|visit| visit.anchor.as_ref())
             .unwrap();
-        assert_eq!(preview_anchor.view, context_navigation::ContextView::Preview);
+        assert_eq!(preview_anchor.view, context_navigation::ContextView::Source, "scroll sampling does not change which pane was last focused");
         assert!(matches!(
-            preview_anchor.scroll,
+            preview_anchor.preview_scroll,
             Some(
                 context_navigation::ContextScrollAnchor::PreviewTextByte { .. }
                     | context_navigation::ContextScrollAnchor::PreviewHeading { .. }
                     | context_navigation::ContextScrollAnchor::PreviewBlock { .. }
             )
+        ));
+        assert!(matches!(
+            preview_anchor.source_scroll,
+            Some(context_navigation::ContextScrollAnchor::SourceByte { .. })
         ));
         assert_eq!(host.state().docs.doc(key).unwrap().document.snapshot().selection, selection);
 
@@ -10643,9 +10931,202 @@ mod tests {
             .and_then(|visit| visit.anchor.as_ref())
             .unwrap();
         assert_eq!(source_anchor.view, context_navigation::ContextView::Source);
-        assert!(matches!(source_anchor.scroll, Some(context_navigation::ContextScrollAnchor::SourceByte { .. })));
+        assert!(matches!(source_anchor.source_scroll, Some(context_navigation::ContextScrollAnchor::SourceByte { .. })));
+        assert!(matches!(
+            source_anchor.preview_scroll,
+            Some(context_navigation::ContextScrollAnchor::PreviewTextByte { .. })
+        ), "source scrolling preserves the independent Preview bookmark");
         assert_eq!(host.state().docs.doc(key).unwrap().document.snapshot().selection, selection);
         assert_eq!(host.state().docs.doc(key).unwrap().document.snapshot().text, source);
+    }
+
+    #[test]
+    fn a_closed_preview_waits_for_explicit_reopen_and_restores_both_bookmarks() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Root\n"));
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.capture_context_visit();
+            let visit = state.context_navigation.current().cloned().unwrap();
+            let mut anchor = visit.anchor.unwrap();
+            anchor.view = context_navigation::ContextView::Source;
+            anchor.preview_present = Some(false);
+            anchor.preview_scroll = Some(context_navigation::ContextScrollAnchor::PreviewTextByte {
+                byte: 900,
+                rendered_digest: [4; 32],
+            });
+            state.context_navigation.capture(ScopeVisit {
+                place: visit.place,
+                camera: visit.camera,
+                anchor: Some(anchor.clone()),
+            });
+            let source_tile = state.restore_context_tile(key, Some(&anchor)).unwrap();
+            assert!(matches!(state.docs.role(source_tile), Some(TileRole::Document(source)) if *source == key));
+            assert!(state.preview_tile_for_context_document(key).is_none());
+            state.queue_context_scroll(key, Some(&anchor));
+            assert_eq!(state.pending_context_scroll.len(), 1);
+            assert!(matches!(state.pending_context_scroll[0].anchor, context_navigation::ContextScrollAnchor::SourceByte { .. }));
+
+            state.toggle_reading(ReadingKind::Preview);
+            let reopened = state
+                .context_navigation
+                .current()
+                .and_then(|visit| visit.anchor.as_ref())
+                .unwrap();
+            assert!(reopened.preview_is_present());
+            assert_eq!(reopened.source_scroll, anchor.source_scroll);
+            assert_eq!(reopened.preview_scroll, anchor.preview_scroll);
+            assert_eq!(state.pending_context_scroll.len(), 2);
+            assert!(state.pending_context_scroll.iter().any(|pending| {
+                pending.document == key
+                    && matches!(pending.anchor, context_navigation::ContextScrollAnchor::SourceByte { .. })
+            }));
+            assert!(state.pending_context_scroll.iter().any(|pending| {
+                pending.document == key
+                    && matches!(pending.anchor, context_navigation::ContextScrollAnchor::PreviewTextByte { .. })
+            }));
+        });
+    }
+
+    #[test]
+    fn back_falls_back_to_source_when_a_foreign_pinned_preview_owns_the_reader_slot() {
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# First\n"));
+        let first = host.state().focused_key().unwrap();
+        let preview_scroll = context_navigation::ContextScrollAnchor::PreviewTextByte {
+            byte: 900,
+            rendered_digest: [9; 32],
+        };
+        host.update(|state| {
+            state.capture_context_visit();
+            let preview = state.docs.open_reading(ReadingKind::Preview, Some(first), "Preview");
+            state.context_active_tile = Some(preview);
+            state.capture_context_visit();
+            state.open_behind(
+                vec![KnotDocumentSession::scratch("scratch:foreign-reader", "# Foreign\n")],
+                &[],
+            );
+            let foreign = state
+                .docs
+                .docs()
+                .find(|(_, entry)| entry.document.snapshot().source.address == "scratch:foreign-reader")
+                .map(|(key, _)| key)
+                .unwrap();
+            state.docs.set_pinned(preview, Some(foreign));
+            state.focus_document(foreign);
+
+            let first_address = state.context_document_address(first).unwrap();
+            state.context_navigation = state.context_navigation.try_map(|visit| {
+                let mut anchor = visit.anchor.clone();
+                if let Some(anchor) = anchor.as_mut()
+                    && anchor.document_address == first_address
+                {
+                    anchor.view = context_navigation::ContextView::Preview;
+                    anchor.preview_present = Some(true); // model a pre-migration saved visit
+                    anchor.preview_scroll = Some(preview_scroll.clone());
+                }
+                Ok(ScopeVisit {
+                    place: visit.place.clone(),
+                    camera: visit.camera,
+                    anchor,
+                })
+            }).unwrap();
+
+            state.navigate_context_history(false);
+            let visit = state.context_navigation.current().unwrap();
+            let anchor = visit.anchor.as_ref().unwrap();
+            assert_eq!(anchor.document_address, first_address);
+            assert_eq!(anchor.view, context_navigation::ContextView::Source);
+            assert!(!anchor.preview_is_present());
+            assert_eq!(anchor.preview_scroll, Some(preview_scroll.clone()));
+            let previews = state.docs.readings().filter(|(_, kind, _)| *kind == ReadingKind::Preview).collect::<Vec<_>>();
+            assert_eq!(previews.len(), 1, "Back does not replace the foreign pinned Preview");
+            assert_eq!(previews[0].2, Some(foreign));
+
+            state.toggle_reading(ReadingKind::Preview);
+            assert!(state.docs.following_reading(ReadingKind::Preview).is_some(), "the explicit following action can create the fallback Preview");
+        });
+    }
+
+    #[test]
+    fn focusing_a_peer_without_scrolling_persists_the_last_active_view() {
+        let temp = tempfile::tempdir().unwrap();
+        let preferences = temp.path().join("preferences.json");
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# Root\n\nBody.\n"));
+        host.update(|state| {
+            state.set_preferences_path(Some(preferences.clone()));
+            state.capture_context_visit();
+            state.persist_context_navigation();
+            state.toggle_reading(ReadingKind::Preview);
+        });
+        host.layout_at(900.0, 640.0);
+        settle_context_scroll(&mut host);
+        let source = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            cambium_text_field(&dom, dom.document()).unwrap()
+        };
+        let (x, y, width, height) = host.visible_rect(source).expect("source remains visible beside Preview");
+        host.click_at(x + 4.0, y + 4.0);
+        host.after_frame();
+        let current = host.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
+        assert_eq!(current.view, context_navigation::ContextView::Source);
+        let saved: ScopeNavigation<context_navigation::ContextPlace, context_navigation::ContextAnchor> = host
+            .state()
+            .preferences
+            .as_ref()
+            .unwrap()
+            .context_navigation()
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            saved.current().and_then(|visit| visit.anchor.as_ref()).map(|anchor| anchor.view),
+            Some(context_navigation::ContextView::Source),
+            "a view-only switch is durable even when the source byte bookmark is unchanged"
+        );
+    }
+
+    #[test]
+    fn focusing_back_to_a_document_keeps_its_two_scroll_slots_and_live_preview() {
+        let first_session = KnotDocumentSession::scratch(SCRATCH_ADDRESS, "# First\n");
+        let mut host = harness(first_session);
+        let first = host.state().focused_key().unwrap();
+        let saved_source = context_navigation::ContextScrollAnchor::SourceByte { byte: 700 };
+        let saved_preview = context_navigation::ContextScrollAnchor::PreviewTextByte {
+            byte: 900,
+            rendered_digest: [8; 32],
+        };
+        host.update(|state| {
+            state.capture_context_visit();
+            let preview = state.docs.open_reading(ReadingKind::Preview, Some(first), "Preview");
+            state.context_active_tile = Some(preview);
+            state.capture_context_visit();
+            let current = state.context_navigation.current().cloned().unwrap();
+            let mut anchor = current.anchor.unwrap();
+            anchor.source_scroll = Some(saved_source.clone());
+            anchor.preview_scroll = Some(saved_preview.clone());
+            anchor.preview_present = Some(true);
+            state.context_navigation.capture(ScopeVisit {
+                place: current.place,
+                camera: current.camera,
+                anchor: Some(anchor),
+            });
+            state.open_behind(
+                vec![KnotDocumentSession::scratch("scratch:focus-return", "# Second\n")],
+                &[],
+            );
+            let second = state
+                .docs
+                .docs()
+                .find(|(_, entry)| entry.document.snapshot().source.address == "scratch:focus-return")
+                .map(|(key, _)| key)
+                .unwrap();
+            state.focus_document(second);
+            state.focus_document(first);
+        });
+        let restored = host.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
+        assert_eq!(restored.view, context_navigation::ContextView::Source, "an explicit document focus returns to Source");
+        assert_eq!(restored.source_scroll, Some(saved_source));
+        assert_eq!(restored.preview_scroll, Some(saved_preview));
+        assert!(restored.preview_is_present(), "the live pinned Preview remains part of the restored document context");
     }
 
     #[test]
@@ -10659,11 +11140,37 @@ mod tests {
         let mut first = harness(KnotDocumentSession::open(&path).unwrap());
         first.update(|state| state.set_preferences_path(Some(preferences.clone())));
         first.layout_at(900.0, 640.0);
+        first.update(|state| state.capture_context_visit());
+        let source_pane = {
+            let dom = first.runner().dom();
+            let dom = dom.borrow();
+            let field = cambium_text_field(&dom, dom.document()).unwrap();
+            let mut node = field;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("source editor is inside its scrollport");
+            }
+        };
+        let (sx, sy, sw, sh) = first.visible_rect(source_pane).unwrap();
+        first.move_to(sx + sw / 2.0, sy + sh / 2.0);
+        first.wheel(0.0, 2_000.0);
+        first.layout_at(900.0, 640.0);
+        first.after_frame();
+        let source_scroll = first
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.source_scroll.as_ref())
+            .cloned();
+        assert!(matches!(source_scroll, Some(context_navigation::ContextScrollAnchor::SourceByte { byte }) if byte > 500));
         first.update(|state| {
-            state.capture_context_visit();
             state.toggle_reading(ReadingKind::Preview);
         });
         first.layout_at(900.0, 640.0);
+        settle_context_scroll(&mut first);
         let pane = {
             let dom = first.runner().dom();
             let dom = dom.borrow();
@@ -10686,13 +11193,16 @@ mod tests {
             .context_navigation
             .current()
             .and_then(|visit| visit.anchor.as_ref())
-            .and_then(|anchor| anchor.scroll.as_ref())
+            .and_then(|anchor| anchor.preview_scroll.as_ref())
             .cloned();
         let Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, rendered_digest }) = saved.clone() else {
             panic!("long paragraph should yield a rendered preview byte anchor, got {saved:?}");
         };
         assert!(byte > 500, "the anchor reaches into the long paragraph: {byte}");
         assert_ne!(rendered_digest, [0; 32]);
+        let both = first.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
+        assert_eq!(both.source_scroll, source_scroll, "Preview scrolling retains the source bookmark");
+        assert!(both.source_present && both.preview_is_present());
         assert_eq!(
             first.state().context_navigation.current().and_then(|visit| visit.anchor.as_ref()).map(|anchor| anchor.view),
             Some(context_navigation::ContextView::Preview)
@@ -10719,18 +11229,67 @@ mod tests {
             state.navigate_context_to(root);
             state.navigate_context_history(false);
         });
-        assert!(first.state().pending_context_scroll.is_some());
+        assert!(!first.state().pending_context_scroll.is_empty());
         first.after_frame();
         first.relayout();
         first.after_frame();
-        assert!(first.state().pending_context_scroll.is_none());
-        assert!(first.element_scroll(pane).1 > 0.0, "Back restores the deep paragraph position");
+        first.relayout();
+        first.after_frame();
+        assert!(first.state().pending_context_scroll.is_empty());
+        let restored_source_pane = {
+            let dom = first.runner().dom();
+            let dom = dom.borrow();
+            let field = cambium_text_field(&dom, dom.document()).unwrap();
+            let mut node = field;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).unwrap();
+            }
+        };
+        let restored_preview_pane = {
+            let dom = first.runner().dom();
+            let dom = dom.borrow();
+            let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+            let mut node = preview;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).unwrap();
+            }
+        };
+        assert!(first.element_scroll(restored_source_pane).1 > 0.0, "Back restores Source independently");
+        assert!(first.element_scroll(restored_preview_pane).1 > 0.0, "Back restores the deep paragraph position");
+        first.update(|state| {
+            let document_place = state.context_navigation.current().unwrap().place.clone();
+            let outline = state.live_outline(state.focused_key().unwrap()).unwrap();
+            let root = state.section_place(state.focused_key().unwrap(), &outline, 0).unwrap();
+            state.navigate_context_to(root);
+            state.navigate_context_to(document_place);
+        });
+        let revisited = first.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
+        assert_eq!(revisited.source_scroll, source_scroll, "direct revisit retains the source bookmark");
+        assert!(revisited.preview_is_present());
+        assert!(matches!(
+            revisited.preview_scroll,
+            Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. }) if byte > 500
+        ), "direct revisit retains the Preview bookmark");
+        first.after_frame();
+        first.relayout();
+        first.after_frame();
+        first.relayout();
+        first.after_frame();
+        assert!(first.state().pending_context_scroll.is_empty());
+        assert!(first.element_scroll(restored_source_pane).1 > 0.0);
+        assert!(first.element_scroll(restored_preview_pane).1 > 0.0);
         let saved = first
             .state()
             .context_navigation
             .current()
             .and_then(|visit| visit.anchor.as_ref())
-            .and_then(|anchor| anchor.scroll.as_ref())
+            .and_then(|anchor| anchor.preview_scroll.as_ref())
             .cloned();
         assert!(matches!(saved, Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. }) if byte > 500));
         drop(first);
@@ -10745,12 +11304,31 @@ mod tests {
             next.state().context_navigation.current().and_then(|visit| visit.anchor.as_ref()).map(|anchor| anchor.view),
             Some(context_navigation::ContextView::Preview)
         );
-        assert!(next.state().pending_context_scroll.is_some());
+        let restored_presence = next.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
+        assert!(restored_presence.source_present && restored_presence.preview_is_present());
+        assert_eq!(restored_presence.source_scroll, source_scroll);
+        assert_eq!(restored_presence.preview_scroll, saved);
+        assert!(!next.state().pending_context_scroll.is_empty());
         next.layout_at(900.0, 640.0);
         next.after_frame();
         next.relayout();
         next.after_frame();
-        assert!(next.state().pending_context_scroll.is_none());
+        next.relayout();
+        next.after_frame();
+        assert!(next.state().pending_context_scroll.is_empty());
+        let reopened_source = {
+            let dom = next.runner().dom();
+            let dom = dom.borrow();
+            let field = cambium_text_field(&dom, dom.document()).unwrap();
+            let mut node = field;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("reopened source has a scrollport");
+            }
+        };
+        assert!(next.element_scroll(reopened_source).1 > 0.0, "Source restores after reopening");
         let pane = {
             let dom = next.runner().dom();
             let dom = dom.borrow();
@@ -10783,7 +11361,7 @@ mod tests {
             .context_navigation
             .current()
             .and_then(|visit| visit.anchor.as_ref())
-            .and_then(|anchor| anchor.scroll.as_ref());
+            .and_then(|anchor| anchor.preview_scroll.as_ref());
         assert_eq!(restored, saved.as_ref());
     }
 

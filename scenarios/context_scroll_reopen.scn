@@ -2,4 +2,8 @@ assert snap context_location == context_scroll.djot
 assert snap context_view == preview
 assert snap context_scroll_kind == preview-byte
 assert snap context_scroll_position >= 500
+assert snap context_source_present == true
+assert snap context_preview_present == true
+assert snap context_source_scroll_position >= 500
+assert snap context_preview_scroll_position >= 500
 capture reopened-preview-scroll

@@ -7,6 +7,8 @@
 //! with no scenario named the desktop runs as usual.
 
 use cambium_genet_winit_host::AppCtx;
+use genet_scripted_dom::NodeId;
+use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use taproot::ProbeSnapshot;
 
 use crate::workspace::{DesktopState, DesktopView};
@@ -87,6 +89,7 @@ impl mesquite::Product for KnotLane {
         let (positions, steps, position) = ctx.runner.state().composition.scene_scenario_fields();
         let resident = ctx.runner.state().graph.model(&ctx.runner.state().graph_open_nodes());
         let source = ctx.runner.state().document().session().input().text();
+        let (source_visible_bytes, preview_visible_bytes) = visible_context_text_ranges(ctx);
         let mut snapshot = ctx
             .runner
             .state()
@@ -109,6 +112,22 @@ impl mesquite::Product for KnotLane {
                 ctx.runner.state().composition.scene_positions_digest(),
             )
             .with_field("source_bytes", source.len().to_string())
+            .with_field(
+                "context_source_live_byte_start",
+                source_visible_bytes.map_or_else(|| "unavailable".into(), |range| range.0.to_string()),
+            )
+            .with_field(
+                "context_source_live_byte_end",
+                source_visible_bytes.map_or_else(|| "unavailable".into(), |range| range.1.to_string()),
+            )
+            .with_field(
+                "context_preview_live_byte_start",
+                preview_visible_bytes.map_or_else(|| "unavailable".into(), |range| range.0.to_string()),
+            )
+            .with_field(
+                "context_preview_live_byte_end",
+                preview_visible_bytes.map_or_else(|| "unavailable".into(), |range| range.1.to_string()),
+            )
             .with_field(
                 "source_blake3",
                 blake3::hash(source.as_bytes()).to_hex().to_string(),
@@ -230,6 +249,63 @@ impl mesquite::Product for KnotLane {
         let state = ctx.runner.state();
         Some(capture_pending || state.background_busy())
     }
+}
+
+fn visible_context_text_ranges(
+    ctx: &AppCtx<'_, DesktopState, DesktopLogic, DesktopView>,
+) -> (Option<(usize, usize)>, Option<(usize, usize)>) {
+    fn collect<D: LayoutDom<NodeId = NodeId>>(
+        dom: &D,
+        node: NodeId,
+        sources: &mut Vec<NodeId>,
+        previews: &mut Vec<NodeId>,
+    ) {
+        let namespace = Namespace::from("");
+        if dom.attribute(node, &namespace, &LocalName::from("aria-label")) == Some("Document text") {
+            sources.push(node);
+        }
+        if dom.has_class(node, "knot-document-preview")
+            && dom.attribute(node, &namespace, &LocalName::from("data-knot-preview-document")).is_some()
+        {
+            previews.push(node);
+        }
+        for child in dom.dom_children(node) {
+            collect(dom, child, sources, previews);
+        }
+    }
+
+    fn range(
+        ctx: &AppCtx<'_, DesktopState, DesktopLogic, DesktopView>,
+        node: NodeId,
+    ) -> Option<(usize, usize)> {
+        let (x, y, width, height) = ctx.visible_rect(node)?;
+        let x_offsets = [8.0, width * 0.2, width * 0.5, width * 0.8];
+        let y_offsets = [1.0, 10.0, height * 0.5, (height - 2.0).max(1.0)];
+        let mut positions = Vec::new();
+        for y_offset in y_offsets.into_iter().filter(|offset| *offset < height) {
+            for x_offset in x_offsets.into_iter().filter(|offset| *offset < width) {
+                if let Some(byte) = ctx.text_position_at(node, (x + x_offset, y + y_offset)) {
+                    positions.push(byte);
+                }
+            }
+        }
+        Some((*positions.iter().min()?, *positions.iter().max()?))
+    }
+
+    let (sources, previews) = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        let mut sources = Vec::new();
+        let mut previews = Vec::new();
+        collect(&*dom, dom.document(), &mut sources, &mut previews);
+        (sources, previews)
+    };
+    let source = sources.into_iter().find(|node| ctx.visible_rect(*node).is_some());
+    let preview = previews.into_iter().find(|node| ctx.visible_rect(*node).is_some());
+    (
+        source.and_then(|node| range(ctx, node)),
+        preview.and_then(|node| range(ctx, node)),
+    )
 }
 
 /// A retained tab is not a presented graph: match Workbench's active content

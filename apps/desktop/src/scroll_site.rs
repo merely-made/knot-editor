@@ -3921,8 +3921,36 @@ mod tests {
             host.resolve(&prompt).is_some(),
             "the site's own page lost its Spartan presentation"
         );
+        let index = host.state().focused_key().unwrap();
+        let loose_address = host
+            .state()
+            .docs
+            .docs()
+            .find(|(_, entry)| entry.document.snapshot().display_label == "loose.gmi")
+            .map(|(_, entry)| entry.document.snapshot().source.address.clone())
+            .unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Pin")));
+        let old_loose_visit = host
+            .state()
+            .context_navigation
+            .visits()
+            .find(|visit| {
+                visit.anchor.as_ref().is_some_and(|anchor| anchor.document_address == loose_address)
+            })
+            .expect("the loose document remains in contextual history");
+        assert!(
+            !old_loose_visit.anchor.as_ref().unwrap().preview_is_present(),
+            "pinning Preview to the site page clears the former following pane from the loose route"
+        );
         assert!(host.click_on(&Selector::role("tab").containing("loose.gmi")));
+        let previews = host
+            .state()
+            .docs
+            .readings()
+            .filter(|(_, kind, _)| *kind == ReadingKind::Preview)
+            .collect::<Vec<_>>();
+        assert_eq!(previews.len(), 1, "restoring loose.gmi does not create a replacement Preview");
+        assert_eq!(previews[0].2, Some(index), "the original Preview remains pinned to the site page");
         assert!(
             host.resolve(&prompt).is_some(),
             "a pinned Preview stopped presenting its Spartan page"

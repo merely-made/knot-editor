@@ -21,7 +21,7 @@ mod nomadnet;
 pub mod publication;
 mod server;
 pub mod submission;
-pub use local::LocalServer;
+pub use local::{LocalServer, LocalServerConfig};
 #[cfg(feature = "retinue")]
 pub use nomadnet::NomadNetServerConfig;
 

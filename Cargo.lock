@@ -3947,15 +3947,15 @@ version = "0.4.0"
 source = "git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab#3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab"
 dependencies = [
  "finger-protocol",
- "gemini-protocol",
+ "gemini-protocol 0.1.7 (git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab)",
  "gopher-protocol",
  "guppy-protocol",
  "misfin",
  "nex-protocol",
  "quick-xml 0.39.4",
  "rustls",
- "scroll-protocol",
- "spartan-protocol",
+ "scroll-protocol 0.1.0 (git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab)",
+ "spartan-protocol 0.1.1 (git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab)",
  "tokio",
  "tokio-rustls",
  "tracing",
@@ -4439,6 +4439,18 @@ dependencies = [
 name = "gemini-protocol"
 version = "0.1.7"
 source = "git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab#3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab"
+dependencies = [
+ "ring",
+ "rustls",
+ "tokio",
+ "tokio-rustls",
+ "url",
+]
+
+[[package]]
+name = "gemini-protocol"
+version = "0.1.7"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
 dependencies = [
  "log",
  "ring",
@@ -6738,17 +6750,17 @@ name = "knot-site"
 version = "0.0.1"
 dependencies = [
  "blake3",
- "gemini-protocol",
+ "gemini-protocol 0.1.7 (git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763)",
  "getrandom 0.2.17",
  "mere-site",
  "muniment",
  "rcgen 0.13.2",
  "retinue",
  "rustls",
- "scroll-protocol",
+ "scroll-protocol 0.1.0 (git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763)",
  "serde",
  "serde_json",
- "spartan-protocol",
+ "spartan-protocol 0.1.1 (git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763)",
  "tempfile",
  "tokio",
  "url",
@@ -11320,10 +11332,15 @@ name = "scroll-protocol"
 version = "0.1.0"
 source = "git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab#3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab"
 dependencies = [
- "gemini-protocol",
+ "gemini-protocol 0.1.7 (git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab)",
  "tokio",
  "url",
 ]
+
+[[package]]
+name = "scroll-protocol"
+version = "0.1.0"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
 
 [[package]]
 name = "sctk-adwaita"
@@ -11813,6 +11830,18 @@ dependencies = [
 name = "spartan-protocol"
 version = "0.1.1"
 source = "git+https://github.com/merely-made/errand.git?rev=3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab#3d2ce3a568ffd63a98c0057fc5c798f3c999d2ab"
+dependencies = [
+ "idna",
+ "log",
+ "percent-encoding",
+ "tokio",
+ "url",
+]
+
+[[package]]
+name = "spartan-protocol"
+version = "0.1.1"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
 dependencies = [
  "idna",
  "log",
@@ -14731,3 +14760,43 @@ dependencies = [
  "syn 3.0.6",
  "winnow",
 ]
+
+[[patch.unused]]
+name = "errand"
+version = "0.4.0"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "errand"
+version = "0.4.0"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "errand"
+version = "0.4.0"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "finger-protocol"
+version = "0.1.1"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "gopher-protocol"
+version = "0.2.0"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "guppy-protocol"
+version = "0.1.1"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "misfin"
+version = "0.0.4"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"
+
+[[patch.unused]]
+name = "nex-protocol"
+version = "0.1.1"
+source = "git+https://github.com/merely-made/errand.git?rev=897fb963d184f0e379ab9041d68e17e726cb7763#897fb963d184f0e379ab9041d68e17e726cb7763"

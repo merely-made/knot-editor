@@ -1,5 +1,55 @@
 # Native small-web authoring and serving
 
+## Knot Errand host adoption (2026-10-24)
+
+**Status:** implementation and consumer qualification in progress against
+Errand `897fb963`. This slice stays in Knot; Mere/Djinn and Turnstone adoption
+remain separately owned. Preserve unrelated desktop/context-navigation work.
+
+Update Knot's root and standalone site Errand source patches coherently while
+keeping registry versions, renderer inputs and all non-Errand Git cohorts
+fixed. The standalone document root retains its own older Mere inputs.
+The standalone site lock remains locally retained under the existing ignore
+policy; record its exact hash alongside the committed root lock.
+
+The root graph intentionally retains Mere's older Errand `3d2ce3a5` family and
+adds source-qualified `897fb963` identities for Knot's direct Gemini, Scroll
+and Spartan dependencies. Normal offline resolution, after a narrow lock seed,
+adds those three packages and disambiguates their edges. All 1,170 registry and
+113 non-Errand Git package records remain identical. The standalone site lock
+changes only the Errand revision strings. This is Knot host adoption rather
+than a whole-desktop transport unification.
+
+`LocalServer::start` remains available for all existing formats. Gemini and
+Spartan use the new supplier's native admission and joined shutdown, with
+`LocalServerConfig` supplied through `start_with_config`. Defaults are 32
+admitted connections, a 5-second fixed shutdown grace and Knot's existing
+2-second native I/O timeout. A zero grace requests immediate cancellation.
+Invalid policy refuses before binding, certificates or runtime creation.
+Startup readiness follows the native server future's first pending poll;
+immediate native failure or premature completion refuses startup.
+The configured API is specific to Gemini/Spartan; Scroll and Micron keep their
+separate host policy. Host settings do not enter saved manifests or snapshot V1.
+Desktop controls are outside this slice because they have concurrent work;
+existing desktop callers acquire the native defaults through the unchanged API.
+
+Stop admission, close the listener, allow one fixed drain window, then abort
+and join outstanding tasks before joining the dedicated host thread.
+`LocalServer::stop` reports native serve errors or host-thread panics. `Drop`
+performs the same native wait but cannot report errors. Synchronous handler
+work remains cooperative; a grace timer cannot preempt it. Preserve native
+Gemini TLS/read timing and Spartan request/body timing, loopback authority,
+explicit submission refusal and exact saved response bytes.
+
+Done when actual native TLS/TCP fixtures qualify admission saturation and slot
+reuse, graceful completion during stop, immediate/expired-grace cancellation,
+listener closure and joined teardown, while saved replacement, V1 and native
+Scroll donor fixtures remain unchanged. Run standalone site/history/publication
+tests, independent host compilation and strict native Clippy. Check the normal
+Knot dependency root against the same supplier without absorbing unrelated
+desktop changes. Retain compact source/lock and command receipts under the shared
+100 MB cap, reusing `C:\t\cargo-targets\knot-editor` and its `build` subdirectory.
+
 ## Governed Micron host continuation (2026-10-22)
 
 **Status:** implemented and native process qualified against integrated Djinn

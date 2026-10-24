@@ -2,8 +2,8 @@
 
 ## Knot Errand host adoption (2026-10-24)
 
-**Status:** implementation and consumer qualification in progress against
-Errand `897fb963`. This slice stays in Knot; Mere/Djinn and Turnstone adoption
+**Status:** implemented and qualified at Knot `2474686` against Errand
+`897fb963`. This slice stays in Knot; Mere/Djinn and Turnstone adoption
 remain separately owned. Preserve unrelated desktop/context-navigation work.
 
 Update Knot's root and standalone site Errand source patches coherently while
@@ -33,8 +33,9 @@ Startup readiness follows the native server future's first pending poll;
 immediate native failure or premature completion refuses startup.
 The configured API is specific to Gemini/Spartan; Scroll and Micron keep their
 separate host policy. Host settings do not enter saved manifests or snapshot V1.
-Desktop controls are outside this slice because they have concurrent work;
-existing desktop callers acquire the native defaults through the unchanged API.
+Settings are exposed through the host API. Existing desktop callers acquire
+the native defaults through the unchanged API; desktop configuration controls
+remain a separate UI gate.
 
 Stop admission, close the listener, allow one fixed drain window, then abort
 and join outstanding tasks before joining the dedicated host thread.
@@ -52,6 +53,21 @@ tests, independent host compilation and strict native Clippy. Check the normal
 Knot dependency root against the same supplier without absorbing unrelated
 desktop changes. Retain compact source/lock and command receipts under the shared
 100 MB cap, reusing `C:\t\cargo-targets\knot-editor` and its `build` subdirectory.
+
+Qualification passes 37 tests: one startup unit control, 14 new native lifecycle
+cases and 22 existing site/history/publication, native authority/submission,
+snapshot V1 and frozen Scroll donor cases. Strict all-target Clippy and locked
+checks at the normal root and independent standalone root pass on the merged
+cohort. Graceful completion, immediate cancellation and nonzero grace expiry
+are tested through actual loopback TCP/TLS; explicit stop and Drop each join
+both native hosts. These are production host APIs in one Windows process,
+rather than installed GUI or independent-peer qualification.
+The [consumer receipt](../support/receipts/errand-adoption/consumer.json) records
+exact source/lock identities, cohort-preservation audits, preliminary recovery
+and the concurrent merge. Native code and test files remain unchanged through
+integration of the separately published Knot SDK cohort. Unrelated desktop,
+navigation, documentation and scenario work remains uncommitted and untouched.
+No new worktree, isolated target or Cargo home was required.
 
 ## Governed Micron host continuation (2026-10-22)
 

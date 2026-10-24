@@ -1,0 +1,204 @@
+{
+  "schema": "knot-errand-host-adoption-v1",
+  "date": "2026-10-24",
+  "owner": "Knot native Gemini and Spartan loopback hosts",
+  "qualified_source": "2474686bc8dd6b7648caba0a2e88b535373c25de",
+  "qualified_tree": "1b96745262c8c184a43279acfaf7764b68b34fb9",
+  "site_crate_tree": "236f0388e000cb003a60b0f4c873f56e0e010d9a",
+  "implementation_source": "a5aaeb9d65e279bdd8fbb686981e0fd2b0d44585",
+  "initial_base": "4dafff1f591c18a5b4d20e987054722d01406613",
+  "integrated_published_base": "38fc774ea35252502c6553848d40437491474913",
+  "supplier": {
+    "repository": "https://github.com/merely-made/errand.git",
+    "revision": "897fb963d184f0e379ab9041d68e17e726cb7763",
+    "native_lifecycle_receipt": "smolweb/support/receipts/tcp-listener-lifecycle/supplier.json"
+  },
+  "native_sha256": {
+    "Cargo.toml": "b9a77777477332c13f6495e1a0f1c217bb7154abc9977c94759edac0ea9f7858",
+    "Cargo.lock": "c037a96802cc718be264fc2cff07f7fb453ec25203b607c19c7a2a68ff97860f",
+    "crates/knot-site/Cargo.toml": "5360b2fd7da66dfdae30605c1eb863e07c62442d1d5aa9864b71c38ea61f335c",
+    "crates/knot-site/Cargo.lock": "78c6139e75efba94ec3ef5e5faa2dd20188592d47365844507754c3647112127",
+    "crates/knot-site/src/local.rs": "3af05a918560a5192f9de35e2edff5d09f80320daf5b2208e7279a3eae74c285",
+    "crates/knot-site/src/lib.rs": "a0737e5f8865bedb0b8986d3cc0a4596894fe3f1323d34e8e4d21043e1705c7f",
+    "crates/knot-site/tests/local_lifecycle.rs": "805dd4aaae377c843af621e1d423f845b634228318579906bfc48b8f7bb06cc4",
+    "crates/knot-site/tests/native.rs": "8b4e35bc77bff5918e754b1f2f8aabd9e5adac06c4edd06df5f125e72ac8749f",
+    "crates/knot-site/tests/scroll_wire.rs": "2d702ec604dd7739b4ead0298dc6b0aa4d0f86841e625d12797b98bc84b1352e",
+    "crates/knot-site/tests/snapshot.rs": "a71e92f360407468f8b5b6f534df56e29d42b06095c3ba9019f2726992063076",
+    "crates/knot-site/tests/site.rs": "4114699b91cef2886408d705fd7a70a303a31710b3fc2119e8ad8c371e2ab1da"
+  },
+  "root_lock_git_blob": "631a6a4e8ffa2df6beed4feeed0cc0cc0a0352cc",
+  "toolchain": [
+    "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+    "cargo 1.99.1 (5f94df478 2026-08-27)"
+  ],
+  "environment": {
+    "CARGO_TARGET_DIR": "C:\\t\\cargo-targets\\knot-editor",
+    "CARGO_BUILD_BUILD_DIR": "C:\\t\\cargo-targets\\knot-editor\\build",
+    "note": "Root alone ran Cargo; both stable directories explicitly set for every gate. Luna lanes ran no Cargo."
+  },
+  "commands": [
+    {
+      "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --features history,publication --locked --offline --quiet",
+      "exit_code": 0,
+      "unit_passed": 1,
+      "integration_passed": 36,
+      "doctests": 0,
+      "failed": 0,
+      "ignored": 0,
+      "note": "Final merged cohort, normal parallel harness. Includes 14 new native lifecycle integration tests, one new startup unit control, unchanged Scroll donor tests, native authority/submission, snapshot V1, saved history/publication and existing site tests. Governed Djinn process fixtures need runtime-acceptance and are not selected in this Knot-only gate."
+    },
+    {
+      "command": "cargo clippy --manifest-path crates/knot-site/Cargo.toml --features history,publication --all-targets --locked --offline --quiet --no-deps -- -D warnings",
+      "exit_code": 0,
+      "strict": true
+    },
+    {
+      "command": "cargo check -p knot-site --locked --offline --quiet",
+      "exit_code": 0,
+      "note": "Normal Knot dependency root, not an isolated site-only source override. Direct native protocol dependencies use the new supplier while imported Mere's old transport identities stay fixed."
+    },
+    {
+      "command": "cargo check --manifest-path crates/knot-site/Cargo.toml --no-default-features --locked --offline --quiet",
+      "exit_code": 0,
+      "note": "Independent default-free standalone native host graph."
+    },
+    {
+      "command": "rustfmt --edition 2024 --config skip_children=true --check crates/knot-site/src/local.rs crates/knot-site/tests/local_lifecycle.rs",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --cached --check",
+      "exit_code": 0
+    }
+  ],
+  "host_policy": {
+    "api": "Public LocalServerConfig and LocalServer::start_with_config configure only Gemini/Spartan. Existing start(publication,port) stays available and selects native defaults; existing Scroll/Micron paths remain separate.",
+    "defaults": {
+      "max_connections": 32,
+      "shutdown_grace_ms": 5000,
+      "native_io_timeout_ms": 2000
+    },
+    "validation": "Reject zero admission, zero/unrepresentable timeout and unrepresentable grace before bind/certificate/runtime construction; zero grace is allowed. The configured entry point refuses non-Gemini/Spartan formats before binding.",
+    "timing": "Gemini retains native TLS/request-read timing; Spartan retains native request/body-read timing. The existing Knot 2s allowance is configurable and independent from the new fixed shutdown grace; this is not a new whole-handler deadline.",
+    "startup": "Readiness is sent only after the native server future first returns Pending. Immediate native failure or premature successful completion refuses startup. Startup errors join the worker before returning.",
+    "shutdown": "Signal the supplier, stop admission and close listener, drain for one fixed grace, abort remaining native connection futures and await terminal joins, then join the dedicated runtime thread. stop(self) returns native serve errors or worker panic; Drop waits the same native path but suppresses errors.",
+    "limits": "Synchronous handler/carrier work remains cooperative. Stop/Drop are synchronous and can wait through grace/cleanup; no hard preemption or UI latency claim. Emitted bytes/effects cannot be undone. Host settings do not enter saved site manifests or snapshot V1.",
+    "caller_control": "Settings are exposed through the host API. Concurrent desktop control work is preserved; this slice does not add configuration widgets or persistence."
+  },
+  "dependency_audit": {
+    "baseline": "38fc774ea35252502c6553848d40437491474913",
+    "root_manifests": {
+      "root_errand_revision_rows": 11,
+      "standalone_site_errand_revision_rows": 14,
+      "only_change_from_incoming": "Errand revision 1155897e -> 897fb963. All incoming non-Errand manifest identities retained."
+    },
+    "root_lock": {
+      "registry": {
+        "before": 1171,
+        "after": 1171,
+        "added": 0,
+        "removed": 0,
+        "changed_records": 0
+      },
+      "non_errand_git": {
+        "before": 114,
+        "after": 114,
+        "added": 0,
+        "removed": 0,
+        "changed_records": 0
+      },
+      "method": "Python tomllib package maps keyed by name/version/source, comparing complete package records including checksum and dependency edges for registry/non-Errand Git packages.",
+      "new_active_packages": [
+        "gemini-protocol 0.1.7",
+        "scroll-protocol 0.1.0",
+        "spartan-protocol 0.1.1"
+      ],
+      "new_active_source": "Errand 897fb963",
+      "preserved_transport_source": "Errand 1155897e behind imported Mere 4c13036a: errand, finger, gemini, gopher, guppy, misfin, nex, scroll and spartan.",
+      "graph_delta": "Three direct native protocol package identities are added; old transport identities remain and old/new dependency edges are source-qualified. Unused Errand patch candidates remain explicit in the lock. This is not whole-desktop transport unification."
+    },
+    "standalone_lock": {
+      "tracked": false,
+      "policy": ".gitignore keeps crates/knot-site/Cargo.lock locally retained.",
+      "registry_packages": 519,
+      "non_errand_git_packages": 43,
+      "resolution": "Seeded from the incoming root cohort, substituted the new Errand source, then pruned through ordinary offline standalone check. It retains the matching subset of incoming source revisions; no broad cargo update.",
+      "sources": {
+        "mere": "4c13036a",
+        "eidetic": "aa94fe22",
+        "gemot": "8ffdc9a5",
+        "dramatis": "d508a0f",
+        "murm": "9ea81db",
+        "p2panda": "1f69c9b",
+        "errand": "897fb963"
+      }
+    },
+    "unmodified_owners": "No Mere/Djinn, Turnstone or supplier repository edits/repins. Published Knot upstream changes to its SDK/source-edit/test cohorts were integrated rather than rolled back."
+  },
+  "coverage": {
+    "new_unit_cases": 1,
+    "new_native_integration_cases": 14,
+    "controls": [
+      "Defaults and source-compatible legacy Scroll start; unsupported native-config formats and invalid policies refuse before bind.",
+      "Actual trusted loopback TLS serves exact saved Gemini bytes, explicit saved replacement and format-change refusal.",
+      "Gemini cap-one saturation uses a completed first TLS handshake and a known-connected second peer; queued TLS only progresses after the first request releases its slot.",
+      "Spartan cap-one saturation uses an incomplete declared body and a queued read; slot release preserves exact read-only submission refusal and native success.",
+      "Graceful stop closes listener while admitted Gemini/Spartan requests can finish; captured saved source stays distinct from later filesystem edits.",
+      "Zero grace cancels both native protocols without a successful partial reply; admitted carriers are closed before stop returns.",
+      "Nonzero 200ms grace expiry, separately through explicit stop and Drop, closes both native protocols and queued peers while the native I/O timeout remains 10s.",
+      "Gemini request and Spartan body reads obey configured 500ms I/O timing independently of 3s shutdown grace.",
+      "Immediate native startup error/completion cannot produce a falsely healthy handle."
+    ],
+    "preservation": "The original native.rs, scroll_wire.rs, snapshot.rs and site.rs are unchanged from incoming baseline. lib.rs changes only the LocalServerConfig re-export; publication encoders/authority and snapshot functions remain unchanged.",
+    "qualification_limits": "Actual native TCP/TLS over the production LocalServer API and dedicated runtime/thread in one process on Windows. Spartan admission fixtures infer the held slot through ordered real TCP requests and queued-response controls; no new public diagnostic counter is added. No installed GUI, UI settings, independent process/peer/radio, Misfin or optional Micron host qualification."
+  },
+  "preliminary": {
+    "initial_qualified_cohort": {
+      "implementation": "a5aaeb9d65e279bdd8fbb686981e0fd2b0d44585",
+      "base": "4dafff1f591c18a5b4d20e987054722d01406613",
+      "tests_passed": 37,
+      "strict_clippy_recovery_passed": true,
+      "registry_records_unchanged": 1170,
+      "non_errand_git_records_unchanged": 113,
+      "note": "Superseded by complete repeated final gates on integrated 38fc774 cohort; not additional unique tests."
+    },
+    "supplier_cache": {
+      "command": "cargo test --manifest-path crates/knot-site/Cargo.toml --test local_lifecycle --locked --offline --no-run --quiet",
+      "exit_code": 1,
+      "reason": "Qualified supplier revision was not yet in Cargo's Git cache.",
+      "recovery": "Same locked no-run command online fetched the exact revision; subsequent gates use locked/offline."
+    },
+    "lock_seed": {
+      "command": "cargo check -p knot-site --locked --offline --quiet",
+      "exit_code": 1,
+      "reason": "A revision-string-only seed did not represent the required split-source dependency graph.",
+      "recovery": "Ordinary offline check resolved the narrow graph; package audits verify registry and non-Errand records preserved. No broad cargo update."
+    },
+    "clippy": {
+      "exit_code": 101,
+      "diagnostic": "clippy::needless_update in local_lifecycle.rs:452; redundant Default update after specifying all three config fields.",
+      "failed_fixture_native_sha256": "9e1a76b0d37e284bfcb51fe8e45dfc10606b3efc366c568be10b0fc20f50a778",
+      "recovery": "Remove the redundant test struct update; full tests and strict Clippy pass before and after integration."
+    },
+    "concurrent_integration": {
+      "incoming": "38fc774ea35252502c6553848d40437491474913",
+      "conflicts": [
+        "Cargo.toml",
+        "crates/knot-site/Cargo.toml"
+      ],
+      "resolution": "Commit only the owned host implementation first, merge published main in place, retain incoming manifests wholesale except intended Errand revision, seed/re-resolve locks, re-audit and repeat all final gates. Native implementation/test files remain identical to a5aaeb9. No stashing, worktree or unrelated dirty-file rewrite."
+    }
+  },
+  "review": "Bounded Luna native-fixture lane and independent read-only dependency/lifecycle lane; root reviewed/corrected fixtures, closed the startup-readiness race, added grace-expiry/Drop controls and owned all integration, Cargo and publication.",
+  "resources": {
+    "shared_retained_byte_cap": 100000000,
+    "retained": "Compact JSON plus byte-preserving attribute; no binary, key material, capture or full log copied.",
+    "stable_target": "C:\\t\\cargo-targets\\knot-editor",
+    "stable_build_directory": "C:\\t\\cargo-targets\\knot-editor\\build",
+    "new_worktrees": [],
+    "new_isolated_targets": [],
+    "new_cargo_homes": [],
+    "concurrent_wip": "Pre-existing desktop/context-navigation and documentation/scenario edits remain uncommitted and excluded. No other repository was modified."
+  },
+  "byte_convention": "SHA256 covers exact native filesystem bytes; Git source/tree/blob identifies normalized repository content. Receipt and attribute use UTF-8 LF under -text. The qualification commit changes documentation/receipt only."
+}

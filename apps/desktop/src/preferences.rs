@@ -45,6 +45,10 @@ pub struct DesktopPreferences {
     /// A knot-editor `KnotEmbeddingPreference`, uninterpreted here.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub embedding: Option<Value>,
+    /// Local contextual navigation state. Its payload is versioned by the
+    /// shared scope history model and remains separate from document content.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_navigation: Option<Value>,
     /// Top-level keys this build does not know.
     #[serde(flatten)]
     pub other: Map<String, Value>,
@@ -71,6 +75,7 @@ impl Default for DesktopPreferences {
             graph_folds: Default::default(),
             recovery_days: 30,
             embedding: None,
+            context_navigation: None,
             other: Map::new(),
         }
     }
@@ -157,6 +162,34 @@ impl PreferencesStore {
 
     pub fn preferences(&self) -> &DesktopPreferences {
         &self.saved
+    }
+
+    pub fn context_navigation<T: serde::de::DeserializeOwned>(&self) -> Result<Option<T>, String> {
+        self.saved
+            .context_navigation
+            .as_ref()
+            .map(|value| {
+                serde_json::from_value(value.clone())
+                    .map_err(|error| format!("{}: invalid context navigation: {error}", self.path.display()))
+            })
+            .transpose()
+    }
+
+    pub fn save_context_navigation<T: Serialize>(&mut self, navigation: &T) -> Result<bool, String> {
+        let value = serde_json::to_value(navigation).map_err(|error| error.to_string())?;
+        if self.saved.context_navigation.as_ref() == Some(&value) {
+            return Ok(false);
+        }
+        if let Some(why) = &self.unreadable {
+            return Err(format!(
+                "the preferences file could not be read ({why}); reset it in Appearance to save again"
+            ));
+        }
+        let mut next = self.saved.clone();
+        next.context_navigation = Some(value);
+        next.save(&self.path)?;
+        self.saved = next;
+        Ok(true)
     }
 
     pub fn unreadable(&self) -> Option<&str> {
@@ -397,7 +430,7 @@ mod tests {
         let path = root.path().join(PREFERENCES_FILE);
         std::fs::write(&path, r#"{"version":3,"later":{"flag":true},"collapse":{"reading-min-width":310,"later-rule":{"priority":2}}}"#).unwrap();
         let mut store = PreferencesStore::open(path.clone());
-        assert_eq!(store.preferences().collapse.menu_below, 700);
+        assert_eq!(store.preferences().collapse.menu_below, 1150);
         let mut collapse = store.preferences().collapse.clone();
         collapse.menu_below = 760;
         collapse.drawer_below = 480;

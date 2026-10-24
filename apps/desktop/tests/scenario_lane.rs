@@ -40,6 +40,9 @@ const STEP_9_SCENARIOS: &[&str] = &[
     "research_with_references.scn",
     "last_tab_graph.scn",
     "two_sites.scn",
+    "context_navigation.scn",
+    "context_scroll.scn",
+    "context_scroll_reopen.scn",
 ];
 
 fn scenario_path(name: &str) -> std::path::PathBuf {
@@ -489,7 +492,11 @@ fn run_without_native_capture_at_size_with_chrome_and_sheet(
     )
     .unwrap();
     let mut hooks = host_hooks();
-    hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
+    let mut app_after_frame = hooks.after_frame;
+    hooks.after_frame = Box::new(move |ctx| {
+        app_after_frame(ctx);
+        lane.after_frame(ctx);
+    });
     let mut h = Harness::with_hooks(
         Init {
             state,
@@ -611,6 +618,37 @@ fn every_step_9_scenario_passes_through_the_real_desktop_controls() {
 }
 
 #[test]
+fn contextual_navigation_scenario_uses_the_visible_shared_controls() {
+    let root = tempdir().unwrap();
+    let fixture = scenario_path("fixtures/context_navigation.djot");
+    let original = std::fs::read(&fixture).unwrap();
+    let state = DesktopState::with_path(
+        KnotDocumentSession::open(&fixture).unwrap(),
+        WindowCommands::new(),
+        Some(fixture.clone()),
+    );
+    let receipt = run_without_native_capture(state, "context_navigation.scn", &root);
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+    assert_eq!(std::fs::read(&fixture).unwrap(), original);
+}
+
+#[test]
+fn contextual_scroll_scenario_returns_to_source_and_preview_positions() {
+    let root = tempdir().unwrap();
+    let fixture = scenario_path("fixtures/context_scroll.djot");
+    let original = std::fs::read(&fixture).unwrap();
+    let mut state = DesktopState::with_path(
+        KnotDocumentSession::open(&fixture).unwrap(),
+        WindowCommands::new(),
+        Some(fixture.clone()),
+    );
+    state.set_preferences_path(Some(root.path().join("preferences.json")));
+    let receipt = run_without_native_capture(state, "context_scroll.scn", &root);
+    assert!(receipt.starts_with("RESULT ok"), "{receipt}");
+    assert_eq!(std::fs::read(&fixture).unwrap(), original);
+}
+
+#[test]
 fn the_lane_drives_the_desktop_by_role_and_label() {
     let root = tempdir().unwrap();
     let document = root.path().join("field_notes.djot");
@@ -630,7 +668,11 @@ fn the_lane_drives_the_desktop_by_role_and_label() {
     )
     .unwrap();
     let mut hooks = host_hooks();
-    hooks.after_frame = Box::new(move |ctx| lane.after_frame(ctx));
+    let mut app_after_frame = hooks.after_frame;
+    hooks.after_frame = Box::new(move |ctx| {
+        app_after_frame(ctx);
+        lane.after_frame(ctx);
+    });
     let mut state = DesktopState::with_path(
         KnotDocumentSession::open(&document).unwrap(),
         WindowCommands::new(),

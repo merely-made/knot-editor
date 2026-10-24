@@ -15,22 +15,29 @@ use crate::recovery_runtime::RecoveryRuntime;
 mod commands;
 #[path = "catalog_folds.rs"]
 mod catalog_folds;
+#[path = "context_navigation.rs"]
+mod context_navigation;
 use cambium::{
     AnyView, CommandEvent, CommandMenuBarState, CommandState, GenetCtx, GenetElement, Keyed,
     Popover, PopoverEvent, PopoverPlacement, PopoverState, Slot, TextInput, WorkspaceModel, button,
-    el, lens, map_action, on_click, on_key, popover, span, text_field_typed,
+    el, lens, map_action, on_click, on_key, on_wheel, popover, span, text_field_typed,
     workspace_view_presented_with_marks,
+};
+use cambium::scope_navigation::{
+    ScopeCommand, ScopeControls, ScopeCrumb, ScopeDirection, ScopeNavigation, ScopeVisit,
+    scope_controls, scope_trail_with_location_edit,
 };
 use cambium_genet_winit_host::{
     AppCtx, CloseDisposition, CloseRequest, FocusedTextSlot, HostWake, Key, KeyPress, Runner,
-    ScrollAlign, WindowCommands,
+    ScrollAlign, WindowCommands, WindowFrame,
 };
 use genet_scripted_dom::NodeId;
 use knot_capture::{KnotRetainError, KnotRetainPort, KnotRetainReceiptV1, KnotRetainTargetV1};
 use knot_document::{
     KnotDiskComparisonV1, KnotDocumentIntentErrorV1, KnotDocumentIntentV1, KnotDocumentRefusalV1,
-    KnotDocumentSession, KnotDocumentStatus, KnotDocumentSurfaceState, KnotOutlineItemV1,
-    KnotOutlineSnapshotV1, knot_document_refusal_label, knot_document_view_with_status,
+    KnotDocumentSession, KnotDocumentStatus, KnotDocumentSurfaceState,
+    KnotDocumentWritePostureV1, KnotOutlineItemV1, KnotOutlineSnapshotV1,
+    knot_document_refusal_label, knot_document_view_with_status,
 };
 use knot_file_catalog::{KnotFileCatalog, KnotFileCatalogAvailability, KnotFileRevisionV1};
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
@@ -163,6 +170,25 @@ const MAX_READING_SOURCE_BYTES: usize = 64 * 1024;
 pub type DesktopView = Box<dyn AnyView<DesktopState, (), GenetCtx, GenetElement>>;
 pub type DesktopRunner = Runner<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
 
+#[derive(Clone, Debug, PartialEq)]
+struct ContextPaneObservation {
+    tile: Option<workbench::TileId>,
+    text_node: Option<NodeId>,
+    text_scroll: Option<(f32, f32)>,
+    text_rect: Option<(f32, f32, f32, f32)>,
+    viewport_node: Option<NodeId>,
+    viewport_scroll: Option<(f32, f32)>,
+    viewport_rect: Option<(f32, f32, f32, f32)>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+struct ContextScrollObservation {
+    document: DocKey,
+    source_digest: [u8; 32],
+    source: ContextPaneObservation,
+    preview: ContextPaneObservation,
+}
+
 /// The platform command chrome, overridable by a headless receipt.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CommandChrome {
@@ -172,10 +198,9 @@ pub enum CommandChrome {
 
 impl Default for CommandChrome {
     fn default() -> Self {
-        if cfg!(target_os = "macos") {
-            Self::PlainRow
-        } else {
-            Self::ClientTitlebar
+        match cambium_genet_winit_host::platform_window_frame() {
+            WindowFrame::Host => Self::PlainRow,
+            WindowFrame::App => Self::ClientTitlebar,
         }
     }
 }
@@ -378,6 +403,20 @@ pub struct DesktopState {
     /// The script each Readings tile has chosen, by name, so a refresh that
     /// adds or drops a file cannot silently arm a different reading.
     pub(crate) reading_scripts: HashMap<workbench::TileId, String>,
+    /// Transient app scope and temporal history. Source anchors are bookmarks,
+    /// never saved copies of document contents.
+    pub(crate) context_navigation:
+        ScopeNavigation<context_navigation::ContextPlace, context_navigation::ContextAnchor>,
+    pub(crate) context_navigation_hint: Option<ScopeDirection>,
+    context_navigation_restoring: bool,
+    context_navigation_write_blocked: bool,
+    context_active_tile: Option<workbench::TileId>,
+    context_focus_node: Option<NodeId>,
+    context_scroll_sample_pending: bool,
+    context_scroll_observation: Option<ContextScrollObservation>,
+    context_document_admissions: HashMap<DocKey, String>,
+    pub(crate) context_site_admissions: HashMap<SiteKey, String>,
+    pending_context_scroll: Option<context_navigation::PendingContextScroll>,
     window: WindowCommands,
     pub(crate) pending: Option<PendingAction>,
     discard_close: bool,
@@ -477,6 +516,17 @@ impl DesktopState {
             knot_relations: None,
             readings_load_notes: Vec::new(),
             reading_scripts: HashMap::new(),
+            context_navigation: Default::default(),
+            context_navigation_hint: None,
+            context_navigation_restoring: false,
+            context_navigation_write_blocked: false,
+            context_active_tile: None,
+            context_focus_node: None,
+            context_scroll_sample_pending: false,
+            context_scroll_observation: None,
+            context_document_admissions: HashMap::new(),
+            context_site_admissions: HashMap::new(),
+            pending_context_scroll: None,
             window,
             pending: None,
             discard_close: false,
@@ -525,7 +575,10 @@ impl DesktopState {
                 if let Some(port) = site.config.format.default_port() {
                     self.scroll.port = TextInput::new(port.to_string());
                 }
-                self.hold_site(site);
+                let key = self.hold_site(site);
+                self.context_site_admissions
+                    .entry(key)
+                    .or_insert_with(|| uuid::Uuid::new_v4().to_string());
                 page
             },
             Err(error) => {
@@ -539,6 +592,8 @@ impl DesktopState {
     /// which stays in front, and say which paths would not open.
     pub fn open_behind(&mut self, sessions: Vec<KnotDocumentSession>, failures: &[String]) {
         let front = self.focused_key();
+        let restoring_context = self.context_navigation_restoring;
+        self.context_navigation_restoring = true;
         for session in sessions {
             self.open_entry(DocumentEntry::new(session));
         }
@@ -546,6 +601,7 @@ impl DesktopState {
             self.docs.focus(key);
         }
         self.after_focus_change();
+        self.context_navigation_restoring = restoring_context;
         if !failures.is_empty() {
             let line = format!("Not opened: {}", failures.join("; "));
             self.message = Some(match self.message.take() {
@@ -633,6 +689,8 @@ impl DesktopState {
             .map_or(fallback_identity, |record| DocIdentity::Catalog(record.id));
         let (key, inserted) = self.docs.open(identity, title, entry);
         if inserted {
+            self.context_document_admissions
+                .insert(key, uuid::Uuid::new_v4().to_string());
             self.sync_catalog_for(key);
         }
         self.bind_site_page_for(key);
@@ -949,6 +1007,71 @@ impl DesktopState {
             .map(|result| result.rows.len())
             .max()
             .unwrap_or(0);
+        let context_trail = self
+            .current_context_place()
+            .map(|current| {
+                let mut places = vec![current.clone()];
+                let mut parent = self.parent_context_place(&current);
+                while let Some(place) = parent {
+                    if places.contains(&place) {
+                        break;
+                    }
+                    places.push(place.clone());
+                    parent = self.parent_context_place(&place);
+                }
+                places.reverse();
+                places
+                    .iter()
+                    .map(|place| self.context_label(place))
+                    .collect::<Vec<_>>()
+                    .join(" > ")
+            })
+            .unwrap_or_default();
+        let context_location = self
+            .current_context_place()
+            .map(|place| self.context_label(&place))
+            .unwrap_or_default();
+        let context_view = self
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .map_or_else(String::new, |anchor| match anchor.view {
+                context_navigation::ContextView::Source => "source".to_owned(),
+                context_navigation::ContextView::Preview => "preview".to_owned(),
+                context_navigation::ContextView::Outline => "outline".to_owned(),
+                context_navigation::ContextView::Site => "site".to_owned(),
+                context_navigation::ContextView::Other => "other".to_owned(),
+            });
+        let context_back = self
+            .context_navigation
+            .destination(false)
+            .is_some_and(|visit| self.context_place_is_valid(&visit.place));
+        let context_forward = self
+            .context_navigation
+            .destination(true)
+            .is_some_and(|visit| self.context_place_is_valid(&visit.place));
+        let (context_scroll_kind, context_scroll_position) = self
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.scroll.as_ref())
+            .map_or_else(
+                || (String::new(), String::new()),
+                |anchor| match anchor {
+                    context_navigation::ContextScrollAnchor::SourceByte { byte } => {
+                        ("source-byte".to_owned(), byte.to_string())
+                    },
+                    context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. } => {
+                        ("preview-byte".to_owned(), byte.to_string())
+                    },
+                    context_navigation::ContextScrollAnchor::PreviewBlock { index } => {
+                        ("preview-block".to_owned(), index.to_string())
+                    },
+                    context_navigation::ContextScrollAnchor::PreviewHeading { start, .. } => {
+                        ("preview-heading".to_owned(), start.to_string())
+                    },
+                },
+            );
         taproot::ProbeSnapshot::default()
             .with_field(
                 "theme_workshop_open",
@@ -1074,6 +1197,13 @@ impl DesktopState {
             )
             .with_field("document_count", self.docs.len().to_string())
             .with_field("reading_count", self.docs.readings().count().to_string())
+            .with_field("context_location", context_location)
+            .with_field("context_view", context_view)
+            .with_field("context_trail", context_trail)
+            .with_field("context_back", context_back.to_string())
+            .with_field("context_forward", context_forward.to_string())
+            .with_field("context_scroll_kind", context_scroll_kind)
+            .with_field("context_scroll_position", context_scroll_position)
             .with_field(
                 "preview_open",
                 has_reading(ReadingKind::Preview).to_string(),
@@ -1460,6 +1590,898 @@ impl DesktopState {
         self.entry_mut().focus_source_requested = true;
     }
 
+    fn live_outline(&self, key: DocKey) -> Option<KnotOutlineSnapshotV1> {
+        self.docs
+            .doc(key)
+            .map(|entry| entry.document.session().outline_snapshot())
+    }
+
+    fn site_for_document(&self, key: DocKey) -> Option<SiteKey> {
+        let site = self.docs.doc(key)?.site.page.as_ref()?.site;
+        (self.scroll.site(site).is_some() && self.docs.site_tile(site).is_some()).then_some(site)
+    }
+
+    fn context_document_address(&self, key: DocKey) -> Option<String> {
+        self.docs
+            .doc(key)
+            .map(|entry| entry.document.snapshot().source.address)
+    }
+
+    fn context_document_key(&self, address: &str) -> Option<DocKey> {
+        self.docs.docs().find_map(|(key, entry)| {
+            (entry.document.snapshot().source.address == address).then_some(key)
+        })
+    }
+
+    fn context_document_admission(&self, key: DocKey) -> String {
+        let same_document = |place: &context_navigation::ContextPlace| match place {
+            context_navigation::ContextPlace::Document { binding, .. }
+            | context_navigation::ContextPlace::Heading { binding, .. } => {
+                *binding == Some(context_navigation::ContextBinding::Document(key))
+            },
+            context_navigation::ContextPlace::Site { .. } => false,
+        };
+        self.context_navigation
+            .current()
+            .filter(|visit| same_document(&visit.place))
+            .map(|visit| match &visit.place {
+                context_navigation::ContextPlace::Document { admission_id, .. }
+                | context_navigation::ContextPlace::Heading { admission_id, .. } => admission_id.clone(),
+                context_navigation::ContextPlace::Site { .. } => unreachable!(),
+            })
+            .or_else(|| {
+                self.context_navigation
+                    .saved_matching(same_document)
+                    .map(|visit| match &visit.place {
+                        context_navigation::ContextPlace::Document { admission_id, .. }
+                        | context_navigation::ContextPlace::Heading { admission_id, .. } => admission_id.clone(),
+                        context_navigation::ContextPlace::Site { .. } => unreachable!(),
+                    })
+            })
+            .or_else(|| self.context_document_admissions.get(&key).cloned())
+            .unwrap_or_default()
+    }
+
+    fn context_site_admission(&self, key: SiteKey) -> String {
+        self.context_navigation
+            .current()
+            .filter(|visit| {
+                matches!(&visit.place, context_navigation::ContextPlace::Site { binding: Some(context_navigation::ContextBinding::Site(site)), .. } if *site == key)
+            })
+            .and_then(|visit| match &visit.place {
+                context_navigation::ContextPlace::Site { admission_id, .. } => Some(admission_id.clone()),
+                _ => None,
+            })
+            .or_else(|| {
+                self.context_navigation
+                    .saved_matching(|place| {
+                        matches!(place, context_navigation::ContextPlace::Site { binding: Some(context_navigation::ContextBinding::Site(site)), .. } if *site == key)
+                    })
+                    .and_then(|visit| match &visit.place {
+                        context_navigation::ContextPlace::Site { admission_id, .. } => Some(admission_id.clone()),
+                        _ => None,
+                    })
+            })
+            .or_else(|| self.context_site_admissions.get(&key).cloned())
+            .unwrap_or_default()
+    }
+
+    fn context_document_key_for(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<DocKey> {
+        use context_navigation::{ContextBinding, ContextPlace};
+        let (address, binding) = match place {
+            ContextPlace::Document { address, binding, .. }
+            | ContextPlace::Heading { address, binding, .. } => (address, binding),
+            ContextPlace::Site { .. } => return None,
+        };
+        let Some(ContextBinding::Document(key)) = *binding else {
+            return None;
+        };
+        self.docs
+            .doc(key)
+            .filter(|entry| entry.document.snapshot().source.address == *address)
+            .map(|_| key)
+    }
+
+    fn context_site_key_for(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<SiteKey> {
+        use context_navigation::{ContextBinding, ContextPlace};
+        let ContextPlace::Site { root, binding, .. } = place else {
+            return None;
+        };
+        let Some(ContextBinding::Site(site)) = *binding else {
+            return None;
+        };
+        (self.scroll.root_address(site).as_deref() == Some(root.as_str())
+            && self.docs.site_tile(site).is_some())
+        .then_some(site)
+    }
+
+    fn admit_context_place(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> context_navigation::ContextPlace {
+        use context_navigation::{ContextBinding, ContextPlace};
+        match place {
+            ContextPlace::Document { address, admission_id, .. } => ContextPlace::Document {
+                address: address.clone(),
+                admission_id: if admission_id.is_empty() {
+                    self.context_document_key(address)
+                        .map(|key| self.context_document_admission(key))
+                        .unwrap_or_default()
+                } else {
+                    admission_id.clone()
+                },
+                binding: self.context_document_key(address).and_then(|key| {
+                    let snapshot = &self.docs.doc(key)?.document.snapshot();
+                    (snapshot.write_posture != KnotDocumentWritePostureV1::Scratch)
+                        .then_some(ContextBinding::Document(key))
+                }),
+            },
+            ContextPlace::Heading { address, admission_id, start, end, label, source_digest, .. } => {
+                ContextPlace::Heading {
+                    address: address.clone(),
+                    admission_id: if admission_id.is_empty() {
+                        self.context_document_key(address)
+                            .map(|key| self.context_document_admission(key))
+                            .unwrap_or_default()
+                    } else {
+                        admission_id.clone()
+                    },
+                    start: *start,
+                    end: *end,
+                    label: label.clone(),
+                    source_digest: *source_digest,
+                    binding: self.context_document_key(address).and_then(|key| {
+                        let snapshot = self.docs.doc(key)?.document.snapshot();
+                        (snapshot.write_posture != KnotDocumentWritePostureV1::Scratch)
+                            .then_some(ContextBinding::Document(key))
+                    }),
+                }
+            },
+            ContextPlace::Site { root, admission_id, .. } => ContextPlace::Site {
+                root: root.clone(),
+                admission_id: if admission_id.is_empty() {
+                    self.context_site_key(root)
+                        .map(|site| self.context_site_admission(site))
+                        .unwrap_or_default()
+                } else {
+                    admission_id.clone()
+                },
+                binding: self.context_site_key(root).map(ContextBinding::Site),
+            },
+        }
+    }
+
+    fn context_document_place(&self, key: DocKey) -> Option<context_navigation::ContextPlace> {
+        Some(context_navigation::ContextPlace::Document {
+            address: self.context_document_address(key)?,
+            admission_id: self.context_document_admission(key),
+            binding: Some(context_navigation::ContextBinding::Document(key)),
+        })
+    }
+
+    fn context_site_place(&self, site: SiteKey) -> Option<context_navigation::ContextPlace> {
+        Some(context_navigation::ContextPlace::Site {
+            root: self.scroll.root_address(site)?,
+            admission_id: self.context_site_admission(site),
+            binding: Some(context_navigation::ContextBinding::Site(site)),
+        })
+    }
+
+    fn context_site_key(&self, root: &str) -> Option<SiteKey> {
+        let site = self.scroll.key_for_root_address(root)?;
+        self.docs.site_tile(site).map(|_| site)
+    }
+
+    fn persist_context_navigation(&mut self) {
+        if self.context_navigation_write_blocked {
+            return;
+        }
+        let durable = self.context_navigation.try_map(|visit| {
+            let place = match &visit.place {
+                context_navigation::ContextPlace::Document { address, admission_id, .. } => {
+                    context_navigation::ContextPlace::Document {
+                        address: address.clone(),
+                        admission_id: admission_id.clone(),
+                        binding: None,
+                    }
+                },
+                context_navigation::ContextPlace::Heading {
+                    address, admission_id, start, end, label, source_digest, ..
+                } => context_navigation::ContextPlace::Heading {
+                    address: address.clone(),
+                    admission_id: admission_id.clone(),
+                    start: *start,
+                    end: *end,
+                    label: label.clone(),
+                    source_digest: *source_digest,
+                    binding: None,
+                },
+                context_navigation::ContextPlace::Site { root, admission_id, .. } => {
+                    context_navigation::ContextPlace::Site {
+                        root: root.clone(),
+                        admission_id: admission_id.clone(),
+                        binding: None,
+                    }
+                },
+            };
+            Ok(ScopeVisit {
+                place,
+                camera: visit.camera,
+                anchor: visit.anchor.clone(),
+            })
+        });
+        let result = self.preferences.as_mut().map(|store| {
+            let durable = durable.map_err(|error| error.to_owned())?;
+            store.save_context_navigation(&durable)
+        });
+        if let Some(Err(error)) = result {
+            self.message = Some(format!("Context history could not be saved: {error}"));
+        }
+    }
+
+    /// Rebind durable routes only against the documents and sites admitted by
+    /// this launch. Later opens do not revive an unavailable visit.
+    pub(crate) fn restore_persisted_context_navigation(&mut self) {
+        let rebound = self.context_navigation.try_map(|visit| {
+            Ok(ScopeVisit {
+                place: self.admit_context_place(&visit.place),
+                camera: visit.camera,
+                anchor: visit.anchor.clone(),
+            })
+        });
+        match rebound {
+            Ok(navigation) => self.context_navigation = navigation,
+            Err(error) => {
+                self.message = Some(format!("Context history could not be rebound: {error}"));
+                return;
+            },
+        }
+        let Some(visit) = self.context_navigation.current().cloned() else {
+            return;
+        };
+        if !self.context_place_is_valid(&visit.place) {
+            return;
+        }
+        if let Err(error) = self.restore_context_place(&visit.place, visit.anchor.as_ref()) {
+            self.message = Some(error);
+        }
+    }
+
+    fn context_label(&self, place: &context_navigation::ContextPlace) -> String {
+        use context_navigation::ContextPlace;
+        match place {
+            ContextPlace::Document { .. } => self
+                .context_document_key_for(place)
+                .and_then(|key| self.docs.doc(key))
+                .map(|entry| entry.document.snapshot().display_label)
+                .unwrap_or_else(|| "Unavailable document".to_owned()),
+            ContextPlace::Heading { label, .. } => label.clone(),
+            ContextPlace::Site { .. } => self
+                .context_site_key_for(place)
+                .and_then(|key| self.scroll.site(key))
+                .map(|site| site.name())
+                .unwrap_or_else(|| "Unavailable site".to_owned()),
+        }
+    }
+
+    fn current_context_place(&self) -> Option<context_navigation::ContextPlace> {
+        use context_navigation::ContextPlace;
+        if let Some(visit) = self.context_navigation.current()
+            && self.context_place_is_valid(&visit.place)
+            && (matches!(&visit.place, ContextPlace::Site { .. })
+                || visit.place.document_address().is_some_and(|address| {
+                    self.focused_key()
+                        .and_then(|key| self.context_document_address(key))
+                        .as_deref()
+                        == Some(address)
+                }))
+        {
+            return Some(visit.place.clone());
+        }
+        self.focused_key()
+            .and_then(|key| self.context_document_place(key))
+    }
+
+    fn section_place(
+        &self,
+        document: DocKey,
+        snapshot: &KnotOutlineSnapshotV1,
+        index: usize,
+    ) -> Option<context_navigation::ContextPlace> {
+        let heading = snapshot.items.get(index)?;
+        Some(context_navigation::ContextPlace::Heading {
+            address: snapshot.address.clone(),
+            admission_id: self.context_document_admission(document),
+            start: heading.start,
+            end: heading.end,
+            label: heading.label.clone(),
+            source_digest: *blake3::hash(snapshot.source_text.as_bytes()).as_bytes(),
+            binding: Some(context_navigation::ContextBinding::Document(document)),
+        })
+    }
+
+    fn section_index(
+        &self,
+        document: DocKey,
+        snapshot: &KnotOutlineSnapshotV1,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<usize> {
+        use context_navigation::ContextPlace::Heading;
+        let Heading {
+            address,
+            start,
+            end,
+            label,
+            source_digest,
+            ..
+        } = place
+        else {
+            return None;
+        };
+        let digest = *blake3::hash(snapshot.source_text.as_bytes()).as_bytes();
+        (*address == snapshot.address && *source_digest == digest).then_some(())?;
+        snapshot
+            .items
+            .iter()
+            .position(|item| item.start == *start && item.end == *end && item.label == *label)
+    }
+
+    fn context_place_is_valid(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> bool {
+        use context_navigation::ContextPlace;
+        match place {
+            ContextPlace::Document { .. } => self.context_document_key_for(place).is_some(),
+            ContextPlace::Heading { .. } => self
+                .context_document_key_for(place)
+                .is_some_and(|document| self.live_outline(document).is_some_and(|outline| self.section_index(document, &outline, place).is_some())),
+            ContextPlace::Site { .. } => self.context_site_key_for(place).is_some(),
+        }
+    }
+
+    fn parent_context_place(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<context_navigation::ContextPlace> {
+        use context_navigation::ContextPlace;
+        match place {
+            ContextPlace::Heading { address, .. } => {
+                let document = self.context_document_key_for(place)?;
+                let outline = self.live_outline(document)?;
+                let index = self.section_index(document, &outline, place)?;
+                let parents = context_navigation::heading_parents(&outline.items);
+                parents[index]
+                    .and_then(|parent| self.section_place(document, &outline, parent))
+                    .or(Some(ContextPlace::Document {
+                        address: address.clone(),
+                        admission_id: self.context_document_admission(document),
+                        binding: Some(context_navigation::ContextBinding::Document(document)),
+                    }))
+            },
+            ContextPlace::Document { .. } => self
+                .context_document_key_for(place)
+                .and_then(|key| self.site_for_document(key))
+                .and_then(|site| self.context_site_place(site)),
+            ContextPlace::Site { .. } => None,
+        }
+    }
+
+    fn heading_at_position(
+        snapshot: &KnotOutlineSnapshotV1,
+        position: usize,
+        parent: Option<usize>,
+    ) -> Option<usize> {
+        let parents = context_navigation::heading_parents(&snapshot.items);
+        let candidates = snapshot
+            .items
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| parents[*index] == parent)
+            .collect::<Vec<_>>();
+        candidates.iter().find_map(|(index, heading)| {
+            let end = snapshot.items[index + 1..]
+                .iter()
+                .find(|next| next.level <= heading.level)
+                .map_or(snapshot.source_text.len(), |next| next.start);
+            (heading.start <= position && position < end).then_some(*index)
+        })
+    }
+
+    fn child_context_place(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<context_navigation::ContextPlace> {
+        use context_navigation::ContextPlace;
+        match place {
+            ContextPlace::Heading { .. } => {
+                let document = self.context_document_key_for(place)?;
+                let outline = self.live_outline(document)?;
+                let parent = self.section_index(document, &outline, place)?;
+                let position = self.docs.doc(document)?.document.snapshot().selection.focus.byte;
+                let index = Self::heading_at_position(&outline, position, Some(parent))
+                    .or_else(|| {
+                        context_navigation::heading_parents(&outline.items)
+                            .iter()
+                            .position(|candidate| *candidate == Some(parent))
+                    })?;
+                self.section_place(document, &outline, index)
+            },
+            ContextPlace::Document { .. } => {
+                let document = self.context_document_key_for(place)?;
+                let outline = self.live_outline(document)?;
+                let position = self.docs.doc(document)?.document.snapshot().selection.focus.byte;
+                let index = Self::heading_at_position(&outline, position, None)
+                    .or_else(|| (!outline.items.is_empty()).then_some(0))?;
+                self.section_place(document, &outline, index)
+            },
+            ContextPlace::Site { root, .. } => {
+                let site = self.context_site_key_for(place)?;
+                let preferred = self
+                    .context_navigation
+                    .saved_matching(|candidate| {
+                        candidate.document_address().is_some_and(|address| {
+                            self.context_document_key_for(candidate)
+                                .is_some_and(|key| self.site_for_document(key) == Some(site))
+                        })
+                    })
+                    .and_then(|visit| self.context_document_key_for(&visit.place));
+                preferred
+                    .or_else(|| {
+                        self.docs.docs().find_map(|(key, _)| {
+                            (self.site_for_document(key) == Some(site)).then_some(key)
+                        })
+                    })
+                    .and_then(|key| self.context_document_place(key))
+            },
+        }
+    }
+
+    fn anchor_document_for_place(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<DocKey> {
+        use context_navigation::ContextPlace;
+        if place.document_address().is_some() {
+            return self.context_document_key_for(place);
+        }
+        let ContextPlace::Site { root, .. } = place else {
+            return None;
+        };
+        let site = self.context_site_key_for(place)?;
+        self.context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .map(|anchor| anchor.document_address.as_str())
+            .and_then(|address| self.context_document_key(address))
+            .filter(|key| self.site_for_document(*key) == Some(site))
+            .or_else(|| {
+                self.docs.docs().find_map(|(key, _)| {
+                    (self.site_for_document(key) == Some(site)).then_some(key)
+                })
+            })
+    }
+
+    fn context_anchor(
+        &self,
+        place: &context_navigation::ContextPlace,
+    ) -> Option<context_navigation::ContextAnchor> {
+        let document = self.anchor_document_for_place(place)?;
+        let entry = self.docs.doc(document)?;
+        let active_tile = match place {
+            context_navigation::ContextPlace::Site { .. } => self
+                .context_site_key_for(place)
+                .and_then(|site| self.docs.site_tile(site)),
+            _ => self
+                .context_active_tile
+                .filter(|tile| self.tile_shows_context_document(*tile, document))
+                .or_else(|| self.docs.active_tile_in_stack(document).filter(|tile| {
+                    self.tile_shows_context_document(*tile, document)
+                })),
+        };
+        let view = match active_tile.and_then(|tile| self.docs.role(tile)) {
+            Some(TileRole::Document(_)) => context_navigation::ContextView::Source,
+            Some(TileRole::Reading { kind: ReadingKind::Preview, .. }) => context_navigation::ContextView::Preview,
+            Some(TileRole::Reading { kind: ReadingKind::Outline, .. }) => context_navigation::ContextView::Outline,
+            Some(TileRole::Site(_)) => context_navigation::ContextView::Site,
+            _ => context_navigation::ContextView::Other,
+        };
+        Some(context_navigation::ContextAnchor::from_snapshot(
+            &entry.document.snapshot(),
+            view,
+            active_tile,
+        ))
+    }
+
+    fn tile_shows_context_document(&self, tile: workbench::TileId, document: DocKey) -> bool {
+        matches!(self.docs.role(tile), Some(TileRole::Document(key)) if *key == document)
+            || (matches!(self.docs.role(tile), Some(TileRole::Reading { .. }))
+                && self.docs.document_for(tile) == Some(document))
+    }
+
+    fn queue_context_scroll(
+        &mut self,
+        document: DocKey,
+        tile: Option<workbench::TileId>,
+        anchor: Option<&context_navigation::ContextAnchor>,
+    ) {
+        let Some(tile) = tile else {
+            self.pending_context_scroll = None;
+            return;
+        };
+        let Some(anchor) = anchor.filter(|anchor| {
+            self.context_document_address(document).as_deref()
+                == Some(anchor.document_address.as_str())
+                && self.docs.doc(document).is_some_and(|entry| anchor.matches(&entry.document.snapshot()))
+        }) else {
+            self.pending_context_scroll = None;
+            return;
+        };
+        let Some(scroll @ (context_navigation::ContextScrollAnchor::SourceByte { .. }
+        | context_navigation::ContextScrollAnchor::PreviewTextByte { .. }
+        | context_navigation::ContextScrollAnchor::PreviewBlock { .. }
+        | context_navigation::ContextScrollAnchor::PreviewHeading { .. })) = anchor.scroll.clone()
+        else {
+            self.pending_context_scroll = None;
+            return;
+        };
+        self.pending_context_scroll = Some(context_navigation::PendingContextScroll {
+            document,
+            tile,
+            source_digest: anchor.source_digest,
+            anchor: scroll,
+            attempts: 0,
+        });
+    }
+
+    fn restore_context_tile(
+        &mut self,
+        document: DocKey,
+        anchor: Option<&context_navigation::ContextAnchor>,
+    ) -> Option<workbench::TileId> {
+        let address = self.context_document_address(document);
+        let tile = anchor
+            .filter(|anchor| Some(anchor.document_address.as_str()) == address.as_deref())
+            .and_then(|anchor| anchor.active_tile);
+        let still_matches = tile.is_some_and(|tile| match self.docs.role(tile) {
+            Some(TileRole::Document(key)) => *key == document,
+            Some(TileRole::Reading { .. }) => self.docs.document_for(tile) == Some(document),
+            _ => false,
+        });
+        if still_matches {
+            let tile = tile.expect("validated tile");
+            self.docs.activate(tile);
+            self.context_active_tile = Some(tile);
+            Some(tile)
+        } else {
+            let view = anchor
+                .filter(|anchor| Some(anchor.document_address.as_str()) == address.as_deref())
+                .map_or(context_navigation::ContextView::Source, |anchor| anchor.view);
+            let reading_kind = match view {
+                context_navigation::ContextView::Preview => Some(ReadingKind::Preview),
+                context_navigation::ContextView::Outline => Some(ReadingKind::Outline),
+                _ => None,
+            };
+            let reading = reading_kind.and_then(|kind| {
+                self.docs.readings().find_map(|(tile, open_kind, _)| {
+                    (open_kind == kind && self.docs.document_for(tile) == Some(document))
+                        .then_some(tile)
+                })
+            });
+            if let Some(tile) = reading {
+                self.docs.activate(tile);
+                self.context_active_tile = Some(tile);
+                Some(tile)
+            } else if let Some(kind) = reading_kind {
+                let tile = self.docs.open_reading(kind, Some(document), reading_title(kind));
+                self.context_active_tile = Some(tile);
+                Some(tile)
+            } else if let Some(tile) = self.docs.tile_of(document) {
+                self.docs.activate(tile);
+                self.context_active_tile = Some(tile);
+                Some(tile)
+            } else {
+                None
+            }
+        }
+    }
+
+    /// Restore a source anchor without treating navigation as a text edit.
+    /// Writable sessions retain direction and affinity; the document API's
+    /// read-only range selector can restore the selected bytes but normalizes
+    /// direction and affinity to its forward range convention.
+    fn restore_context_selection(
+        entry: &mut DocumentEntry,
+        document: DocKey,
+        snapshot: &knot_document::KnotDocumentSnapshotV1,
+        anchor: &context_navigation::ContextAnchor,
+    ) {
+        if !anchor.matches(snapshot)
+            || anchor.selection.anchor.byte > snapshot.text.len()
+            || anchor.selection.focus.byte > snapshot.text.len()
+            || !snapshot.text.is_char_boundary(anchor.selection.anchor.byte)
+            || !snapshot.text.is_char_boundary(anchor.selection.focus.byte)
+        {
+            return;
+        }
+        let session = entry.document.session_mut();
+        if snapshot.write_posture == KnotDocumentWritePostureV1::ReadOnly {
+            let start = anchor
+                .selection
+                .anchor
+                .byte
+                .min(anchor.selection.focus.byte);
+            let end = anchor
+                .selection
+                .anchor
+                .byte
+                .max(anchor.selection.focus.byte);
+            let _ = session.select_source_span(&snapshot.source.address, &snapshot.text, start, end);
+        } else if let Ok(input) = session.input_mut() {
+            input.set_caret_selection(anchor.selection.into());
+        }
+    }
+
+    fn capture_context_visit(&mut self) {
+        let place = self
+            .context_navigation
+            .current()
+            .map(|visit| visit.place.clone())
+            .or_else(|| self.focused_key().and_then(|key| self.context_document_place(key)));
+        let Some(place) = place else {
+            return;
+        };
+        let mut anchor = self.context_anchor(&place);
+        if let (Some(anchor), Some(previous)) = (
+            anchor.as_mut(),
+            self.context_navigation
+                .current()
+                .and_then(|visit| visit.anchor.as_ref()),
+        ) && anchor.document_address == previous.document_address
+            && anchor.source_digest == previous.source_digest
+            && anchor.view == previous.view
+        {
+            anchor.scroll = previous.scroll.clone();
+        }
+        if place.document_address().is_some_and(|address| {
+            self.focused_key()
+                .and_then(|key| self.context_document_address(key))
+                .as_deref()
+                != Some(address)
+        })
+            && let (Some(anchor), Some(previous)) = (
+                anchor.as_mut(),
+                self.context_navigation
+                    .current()
+                    .and_then(|visit| visit.anchor.as_ref()),
+            )
+            && previous.document_address == anchor.document_address
+        {
+            anchor.active_tile = previous.active_tile.filter(|tile| {
+                self.docs.role(*tile).is_some_and(|role| match role {
+                    TileRole::Document(key) => {
+                        self.context_document_address(*key).as_deref()
+                            == Some(anchor.document_address.as_str())
+                    },
+                    TileRole::Reading { .. } => {
+                        self.docs
+                            .document_for(*tile)
+                            .and_then(|key| self.context_document_address(key))
+                            .as_deref()
+                            == Some(anchor.document_address.as_str())
+                    },
+                    _ => false,
+                })
+            });
+        }
+        self.context_navigation.capture(ScopeVisit {
+            place,
+            camera: None,
+            anchor,
+        });
+    }
+
+    fn note_context_tile_on_wheel(&mut self, tile: workbench::TileId) {
+        if self.docs.document_for(tile).is_some()
+            && self.docs.role(tile).is_some_and(|role| {
+                matches!(role, TileRole::Document(_) | TileRole::Reading { .. })
+            })
+        {
+            self.context_active_tile = Some(tile);
+            self.context_scroll_sample_pending = true;
+            self.capture_context_visit();
+            self.persist_context_navigation();
+        }
+    }
+
+    fn restore_context_place(
+        &mut self,
+        place: &context_navigation::ContextPlace,
+        anchor: Option<&context_navigation::ContextAnchor>,
+    ) -> Result<(), String> {
+        use context_navigation::ContextPlace;
+        if !self.context_place_is_valid(place) {
+            return Err("That scope route is no longer available.".to_owned());
+        }
+        match place {
+            ContextPlace::Document { address, .. } => {
+                let key = self.context_document_key_for(place).ok_or_else(|| {
+                    "That document is not open in this session.".to_owned()
+                })?;
+                self.context_navigation_restoring = true;
+                self.focus_document(key);
+                self.context_navigation_restoring = false;
+                if let Some(anchor) = anchor
+                    && anchor.document_address == *address
+                    && let Some(entry) = self.docs.doc_mut(key)
+                {
+                    let snapshot = entry.document.snapshot();
+                    Self::restore_context_selection(entry, key, &snapshot, anchor);
+                    if anchor.view == context_navigation::ContextView::Source {
+                        entry.focus_source_requested = true;
+                    }
+                }
+                let tile = self.restore_context_tile(key, anchor);
+                self.queue_context_scroll(key, tile, anchor);
+            },
+            ContextPlace::Heading { address, .. } => {
+                let document = self.context_document_key_for(place).ok_or_else(|| {
+                    "That document is not open in this session.".to_owned()
+                })?;
+                self.context_navigation_restoring = true;
+                self.focus_document(document);
+                self.context_navigation_restoring = false;
+                let outline = self.live_outline(document).ok_or_else(|| {
+                    "That document is no longer open.".to_owned()
+                })?;
+                let index = self
+                    .section_index(document, &outline, place)
+                    .ok_or_else(|| "That heading no longer belongs to this source.".to_owned())?;
+                let entry = self.docs.doc_mut(document).ok_or_else(|| {
+                    "That document is no longer open.".to_owned()
+                })?;
+                let snapshot = entry.document.snapshot();
+                if !anchor.is_some_and(|anchor| anchor.matches(&snapshot)) {
+                    entry
+                        .document
+                        .session_mut()
+                        .select_outline_item(&outline, index)?;
+                } else if let Some(anchor) = anchor {
+                    Self::restore_context_selection(entry, document, &snapshot, anchor);
+                    if anchor.view == context_navigation::ContextView::Source {
+                        entry.focus_source_requested = true;
+                    }
+                }
+                let tile = self.restore_context_tile(document, anchor);
+                self.queue_context_scroll(document, tile, anchor);
+            },
+            ContextPlace::Site { root, .. } => {
+                let site = self.context_site_key_for(place).ok_or_else(|| {
+                    "That site is not open in this session.".to_owned()
+                })?;
+                let tile = self
+                    .docs
+                    .site_tile(site)
+                    .ok_or_else(|| "That site is no longer open.".to_owned())?;
+                self.docs.activate(tile);
+                self.context_active_tile = Some(tile);
+                self.pending_context_scroll = None;
+            },
+        }
+        Ok(())
+    }
+
+    fn navigate_context_to(&mut self, place: context_navigation::ContextPlace) {
+        self.capture_context_visit();
+        self.navigate_context_to_after_capture(place);
+    }
+
+    fn navigate_context_to_after_capture(&mut self, place: context_navigation::ContextPlace) {
+        if !self.context_place_is_valid(&place) {
+            self.message = Some("That scope route is no longer available.".to_owned());
+            return;
+        }
+        let saved = self
+            .context_navigation
+            .saved_matching(|candidate| candidate == &place)
+            .cloned();
+        let new_heading_route = saved.is_none()
+            && matches!(&place, context_navigation::ContextPlace::Heading { .. });
+        let mut visit = saved.unwrap_or_else(|| ScopeVisit {
+            anchor: self.context_anchor(&place),
+            place: place.clone(),
+            camera: None,
+        });
+        if let Err(error) = self.restore_context_place(&visit.place, visit.anchor.as_ref()) {
+            self.message = Some(error);
+            return;
+        }
+        if new_heading_route
+            && let context_navigation::ContextPlace::Heading { address, .. } = &visit.place
+            && let Some(document) = self.context_document_key(address)
+            && let Some(outline) = self.live_outline(document)
+            && let Some(index) = self.section_index(document, &outline, &visit.place)
+            && let Some(entry) = self.docs.doc_mut(document)
+            && let Err(error) = entry
+                .document
+                .session_mut()
+                .select_outline_item(&outline, index)
+        {
+            self.message = Some(format!("That heading is no longer available: {error}"));
+            return;
+        }
+        visit.anchor = self.context_anchor(&visit.place);
+        self.context_navigation.visit(visit);
+        self.context_navigation_write_blocked = false;
+        self.persist_context_navigation();
+    }
+
+    fn navigate_context_history(&mut self, forward: bool) {
+        self.capture_context_visit();
+        let Some(mut visit) = self.context_navigation.destination(forward).cloned() else {
+            return;
+        };
+        if !self.context_place_is_valid(&visit.place) {
+            self.message = Some("That navigation destination is unavailable or stale.".to_owned());
+            return;
+        }
+        if let Some(anchor) = visit.anchor.as_ref()
+            && self
+                .anchor_document_for_place(&visit.place)
+                .and_then(|key| self.context_document_address(key))
+                .as_deref()
+                .is_some_and(|address| address != anchor.document_address)
+        {
+            visit.anchor = None;
+        }
+        if let Err(error) = self.restore_context_place(&visit.place, visit.anchor.as_ref()) {
+            self.message = Some(error);
+            return;
+        }
+        if self.context_navigation.step(forward) {
+            self.message = None;
+            self.context_navigation_write_blocked = false;
+            self.persist_context_navigation();
+        }
+    }
+
+    fn dispatch_context_command(&mut self, command: ScopeCommand<context_navigation::ContextPlace>) {
+        match command {
+            ScopeCommand::Navigate(ScopeDirection::Back) => self.navigate_context_history(false),
+            ScopeCommand::Navigate(ScopeDirection::Forward) => self.navigate_context_history(true),
+            ScopeCommand::Navigate(ScopeDirection::Up) => {
+                if let Some(parent) = self
+                    .current_context_place()
+                    .and_then(|place| self.parent_context_place(&place))
+                {
+                    self.navigate_context_to(parent);
+                }
+            },
+            ScopeCommand::Navigate(ScopeDirection::Down) => {
+                if let Some(child) = self
+                    .current_context_place()
+                    .and_then(|place| self.child_context_place(&place))
+                {
+                    self.navigate_context_to(child);
+                }
+            },
+            ScopeCommand::To(place) => self.navigate_context_to(place),
+            ScopeCommand::Hint(direction) => self.context_navigation_hint = direction,
+            ScopeCommand::EditLocation => {
+                self.message = Some(
+                    "Knot locations follow the live document source and cannot be renamed here."
+                        .to_owned(),
+                );
+            },
+        }
+    }
+
     /// `key`'s entry while `action_snapshot` is still its fold snapshot. A
     /// stale one brings the snapshot up to date and says so instead.
     fn fold_target(
@@ -1560,10 +2582,22 @@ impl DesktopState {
     /// Show or hide the reading of `kind` that follows the focused document.
     pub(crate) fn toggle_reading(&mut self, kind: ReadingKind) {
         if let Some(tile) = self.docs.following_reading(kind) {
+            self.context_active_tile = Some(tile);
+            self.capture_context_visit();
+            self.persist_context_navigation();
             self.docs.close(tile);
+            self.context_active_tile = self
+                .focused_key()
+                .and_then(|key| self.docs.active_tile_in_stack(key));
+            self.capture_context_visit();
+            self.persist_context_navigation();
             return;
         }
-        self.collapse_reveal = Some(self.docs.open_reading(kind, None, reading_title(kind)));
+        let tile = self.docs.open_reading(kind, None, reading_title(kind));
+        self.context_active_tile = Some(tile);
+        self.capture_context_visit();
+        self.persist_context_navigation();
+        self.collapse_reveal = Some(tile);
         match kind {
             ReadingKind::Outline => {
                 self.entry_mut().outline_error = None;
@@ -1620,8 +2654,28 @@ impl DesktopState {
     /// Make `key` the focused document, as activating its tab does.
     pub(crate) fn focus_document(&mut self, key: DocKey) {
         if self.docs.focused() != Some(key) {
+            let already_restoring = self.context_navigation_restoring;
+            if !already_restoring {
+                self.capture_context_visit();
+            }
+            self.context_navigation_restoring = true;
             self.docs.focus(key);
+            self.context_active_tile = self.docs.tile_of(key);
             self.after_focus_change();
+            self.context_navigation_restoring = already_restoring;
+            if !already_restoring {
+                let Some(place) = self.context_document_place(key) else {
+                    return;
+                };
+                let anchor = self.context_anchor(&place);
+                self.context_navigation.visit(ScopeVisit {
+                    place,
+                    camera: None,
+                    anchor,
+                });
+                self.context_navigation_write_blocked = false;
+                self.persist_context_navigation();
+            }
         }
     }
 
@@ -1636,6 +2690,7 @@ impl DesktopState {
     /// file that cannot be read leaves defaults and says why, and a file a
     /// newer Knot wrote loads what this one knows and says that.
     pub fn set_preferences_path(&mut self, path: Option<PathBuf>) {
+        self.context_navigation_write_blocked = false;
         self.composition = crate::composition::CompositionState::configured(
             path.as_ref()
                 .and_then(|path| path.parent())
@@ -1645,6 +2700,14 @@ impl DesktopState {
         let Some(store) = &self.preferences else {
             return;
         };
+        match store.context_navigation() {
+            Ok(Some(navigation)) => self.context_navigation = navigation,
+            Ok(None) => {},
+            Err(error) => {
+                self.context_navigation_write_blocked = true;
+                self.message = Some(format!("Context history could not be loaded: {error}"));
+            },
+        }
         self.appearance = store.preferences().appearance.known.clone();
         self.theme_session.load_font_preferences(&self.appearance);
         self.collapse = store.preferences().collapse.clone();
@@ -2370,6 +3433,7 @@ impl DesktopState {
         heading: &KnotOutlineItemV1,
         index: usize,
     ) {
+        self.capture_context_visit();
         if let Some(key) = document {
             self.focus_document(key);
         }
@@ -2386,38 +3450,83 @@ impl DesktopState {
                 .select_preview_heading(&snapshot, index)
         });
         match result {
-            Ok(()) => self.entry_mut().focus_source_requested = true,
+            Ok(()) => {
+                self.entry_mut().focus_source_requested = true;
+                if let Some(key) = self.focused_key() {
+                    self.record_heading_context(key, index);
+                }
+            },
             Err(error) => self.message = Some(format!("Preview heading selection failed: {error}")),
         }
     }
 
     /// Select an outline row's source range in `key`'s document, focusing
     /// that document first.
-    fn select_outline_item_in(&mut self, key: DocKey, index: usize) {
-        self.focus_document(key);
-        self.select_outline_item(index);
-    }
-
-    fn select_outline_item(&mut self, index: usize) {
-        let Some(snapshot) = self.entry().outline_snapshot.clone() else {
-            self.entry_mut().outline_error =
-                Some("Outline is not ready; show it again.".to_owned());
+    fn select_outline_item_in(
+        &mut self,
+        key: DocKey,
+        index: usize,
+        action_snapshot: &KnotOutlineSnapshotV1,
+    ) {
+        let Some(entry) = self.docs.doc(key) else {
             return;
         };
+        let current = entry.document.snapshot();
+        if action_snapshot.address != current.source.address
+            || action_snapshot.source_text != current.text
+        {
+            let error = "That outline row belongs to an older source revision.".to_owned();
+            if let Some(entry) = self.docs.doc_mut(key) {
+                entry.outline_error = Some(error.clone());
+            }
+            self.message = Some(format!("Outline selection failed: {error}"));
+            return;
+        }
+        self.capture_context_visit();
+        self.focus_document(key);
+        if self.select_outline_item(index, action_snapshot) {
+            self.record_heading_context(key, index);
+        }
+    }
+
+    fn select_outline_item(
+        &mut self,
+        index: usize,
+        snapshot: &KnotOutlineSnapshotV1,
+    ) -> bool {
         let result = self
             .document_mut()
             .session_mut()
-            .select_outline_item(&snapshot, index);
+            .select_outline_item(snapshot, index);
         match result {
             Ok(()) => {
                 self.entry_mut().outline_error = None;
                 self.entry_mut().focus_source_requested = true;
+                true
             },
             Err(error) => {
                 self.entry_mut().outline_error = Some(error.clone());
                 self.message = Some(format!("Outline selection failed: {error}"));
+                false
             },
         }
+    }
+
+    fn record_heading_context(&mut self, key: DocKey, index: usize) {
+        let Some(outline) = self.live_outline(key) else {
+            return;
+        };
+        let Some(place) = self.section_place(key, &outline, index) else {
+            return;
+        };
+        let visit = ScopeVisit {
+            anchor: self.context_anchor(&place),
+            place,
+            camera: None,
+        };
+        self.context_navigation.visit(visit);
+        self.context_navigation_write_blocked = false;
+        self.persist_context_navigation();
     }
 
     /// Compare the focused document with disk, and show the result in a
@@ -2573,6 +3682,25 @@ impl DesktopState {
     /// Readings and bindings follow the focused document: bring them up to
     /// date after the focus moves. Each document holds its own site page.
     fn after_focus_change(&mut self) {
+        if !self.context_navigation_restoring
+            && let Some(key) = self.focused_key()
+            && self
+                .context_navigation
+                .current()
+                .is_none_or(|visit| self.context_document_place(key).as_ref() != Some(&visit.place))
+        {
+            self.capture_context_visit();
+            let Some(place) = self.context_document_place(key) else {
+                return;
+            };
+            let anchor = self.context_anchor(&place);
+            self.context_navigation.visit(ScopeVisit {
+                place,
+                camera: None,
+                anchor,
+            });
+            self.persist_context_navigation();
+        }
         self.sync_outline_snapshot();
         self.sync_fold_snapshots();
         self.sync_catalog();
@@ -2939,9 +4067,46 @@ impl DesktopState {
         match &event {
             WorkspaceEvent::Tile(TileEvent::Activated(tile)) => {
                 let before = self.focused_key();
+                let activated_role = self.docs.role(*tile).cloned();
+                let target = match activated_role.as_ref() {
+                    Some(TileRole::Site(site)) => {
+                        self.context_site_place(*site)
+                    },
+                    Some(TileRole::Document(key)) => {
+                        self.context_document_place(*key)
+                    },
+                    Some(TileRole::Reading { .. }) => self
+                        .docs
+                        .document_for(*tile)
+                        .and_then(|key| self.context_document_place(key)),
+                    _ => None,
+                };
+                let current = self.current_context_place();
+                let route_change = target.as_ref().is_some_and(|target| match target {
+                    context_navigation::ContextPlace::Site { .. } => current.as_ref() != Some(target),
+                    context_navigation::ContextPlace::Document { address, .. } => current.as_ref().is_none_or(
+                        |place| {
+                            matches!(place, context_navigation::ContextPlace::Site { .. })
+                                || place.document_address() != Some(address.as_str())
+                        },
+                    ),
+                    context_navigation::ContextPlace::Heading { .. } => false,
+                });
+                if route_change {
+                    self.capture_context_visit();
+                    self.context_navigation_restoring = true;
+                }
                 self.docs.activate(*tile);
+                self.context_active_tile = Some(*tile);
                 if self.focused_key() != before {
                     self.after_focus_change();
+                }
+                if route_change {
+                    self.context_navigation_restoring = false;
+                    self.navigate_context_to_after_capture(target.expect("route change target"));
+                } else {
+                    self.capture_context_visit();
+                    self.persist_context_navigation();
                 }
             },
             WorkspaceEvent::Tile(TileEvent::Closed(tile)) => self.request_close_tile(*tile),
@@ -3010,6 +4175,7 @@ impl DesktopState {
         if let Some(tile) = self.docs.tile_of(key) {
             self.docs.close(tile);
         }
+        self.context_document_admissions.remove(&key);
         if self.focused_key() != before {
             self.after_focus_change();
         }
@@ -3845,6 +5011,7 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                 "nav",
                 (
                     crate::scroll_site::site_popover(state),
+                    scope_context_view(state),
                     command_menu_bar_view(state),
                 ),
             )
@@ -3860,13 +5027,14 @@ pub fn desktop_view(state: &DesktopState) -> DesktopView {
                         "div",
                         (
                             crate::scroll_site::site_popover(state),
+                            scope_context_view(state),
                             button("Commands", |state: &mut DesktopState, _| {
                                 state.activate_command(commands::PALETTE)
                             })
                             .attr("id", "knot-command-palette-trigger"),
                         ),
                     )
-                    .attr("class", "knot-command-entry"),
+                    .attr("class", "knot-command-entry knot-context-entry"),
                     command_button(state, commands::NEW, "New"),
                     path_popover(state, PathCommand::Open, false),
                     command_button(state, commands::SAVE, "Save"),
@@ -3963,6 +5131,77 @@ fn command_button(state: &DesktopState, id: &'static str, label: &'static str) -
         control = control.attr("aria-description", reason);
     }
     Box::new(control)
+}
+
+/// The contextual route controls sit beside the command chrome. Their routes
+/// follow live document ancestry; Source, Preview and Outline remain peer views.
+fn scope_context_view(state: &DesktopState) -> DesktopView {
+    use context_navigation::ContextPlace;
+    let Some(current) = state.current_context_place() else {
+        return Box::new(el("div", ())) as DesktopView;
+    };
+    let route_label = |place: &ContextPlace| state.context_label(place);
+    let history_label = |forward: bool| {
+        state
+            .context_navigation
+            .destination(forward)
+            .filter(|visit| state.context_place_is_valid(&visit.place))
+            .map(|visit| route_label(&visit.place))
+    };
+    let up = state
+        .parent_context_place(&current)
+        .filter(|place| state.context_place_is_valid(place))
+        .map(|place| route_label(&place));
+    let down = state
+        .child_context_place(&current)
+        .filter(|place| state.context_place_is_valid(place))
+        .map(|place| route_label(&place));
+    let controls = scope_controls::<DesktopState, (), ContextPlace, ()>(
+        ScopeControls {
+            back: history_label(false),
+            forward: history_label(true),
+            up,
+            down,
+            hint: state.context_navigation_hint,
+        },
+        |state, command| {
+            state.dispatch_context_command(command);
+            ()
+        },
+    );
+    let mut chain = vec![current.clone()];
+    let mut next = state.parent_context_place(&current);
+    while let Some(place) = next {
+        if chain.contains(&place) {
+            break;
+        }
+        chain.push(place.clone());
+        next = state.parent_context_place(&place);
+    }
+    chain.reverse();
+    let last_crumb = chain.len();
+    let crumbs = chain
+        .into_iter()
+        .enumerate()
+        .map(|(index, place)| ScopeCrumb {
+            label: route_label(&place),
+            target: place,
+            current: index + 1 == last_crumb,
+        })
+        .collect();
+    let trail = scope_trail_with_location_edit::<DesktopState, (), ContextPlace, ()>(
+        crumbs,
+        false,
+        |state, command| {
+            state.dispatch_context_command(command);
+            ()
+        },
+    );
+    Box::new(
+        el("div", (controls, trail))
+            .attr("class", "knot-context-navigation")
+            .attr("aria-label", "Document context navigation"),
+    )
 }
 
 /// A command-row button that shows or hides the reading of `kind` following
@@ -4194,13 +5433,16 @@ fn command_menu_bar_view(state: &DesktopState) -> DesktopView {
 
 fn client_titlebar(state: &DesktopState) -> DesktopView {
     let title = state.document().snapshot().display_label;
+    let show_outline_action = !state.command_menu_compact && state.viewport.0 > 1050.0;
+    let show_readings_action = !state.command_menu_compact && state.viewport.0 > 1200.0;
     let actions: DesktopView = Box::new(
         el(
             "div",
             (
                 command_menu_bar_view(state),
+                scope_context_view(state),
                 command_button(state, commands::SAVE, "Save"),
-                if state.command_menu_compact {
+                if !show_outline_action {
                     Box::new(el("div", ())) as DesktopView
                 } else {
                     reading_toggle(
@@ -4218,13 +5460,13 @@ fn client_titlebar(state: &DesktopState) -> DesktopView {
                         state,
                         ReadingKind::Preview,
                         commands::PREVIEW,
-                        "Preview",
-                        "Hide Preview",
+                        "Show following Preview",
+                        "Hide following Preview",
                     )
                 } else {
                     Box::new(el("div", ())) as DesktopView
                 },
-                if state.command_menu_compact {
+                if !show_readings_action {
                     Box::new(el("div", ())) as DesktopView
                 } else {
                     reading_toggle(
@@ -4239,19 +5481,27 @@ fn client_titlebar(state: &DesktopState) -> DesktopView {
         )
         .attr("class", "knot-titlebar-actions"),
     );
-    let captions = cambium_genet_winit_host::window_caption_controls(
+    let captions = cambium_genet_winit_host::caption_controls_for_frame(
         &state.window,
         &crate::theme_session::caption_labels(),
+        WindowFrame::App,
     );
+    let mark: DesktopView = if cambium_genet_winit_host::platform_window_frame()
+        == WindowFrame::App
+    {
+        Box::new(
+            span("K")
+                .attr("class", "knot-titlebar-mark")
+                .attr("aria-label", "Knot"),
+        )
+    } else {
+        Box::new(el("div", ()))
+    };
     Box::new(
         el(
             "div",
             cambium::title_bar(
-                Box::new(
-                    span("K")
-                        .attr("class", "knot-titlebar-mark")
-                        .attr("aria-label", "Knot"),
-                ),
+                mark,
                 Box::new(
                     span(title)
                         .attr("class", "knot-client-titlebar-title")
@@ -4322,14 +5572,20 @@ fn document_tile(state: &DesktopState, key: DocKey) -> DesktopView {
                 .appearance
                 .writing_style(&state.surface_for(key).snapshot().text),
         );
-    Box::new(
+    let tile = state.docs.tile_of(key);
+    Box::new(on_wheel(
         el(
             "div",
             el("div", source_wrapper).attr("class", "knot-writing-area"),
         )
         .attr("class", "knot-document-tile")
         .attr("data-knot-document", key.0.to_string()),
-    )
+        move |state: &mut DesktopState, _event: cambium::WheelEvent| {
+            if let Some(tile) = tile {
+                state.note_context_tile_on_wheel(tile);
+            }
+        },
+    ))
 }
 
 fn graph_view(state: &DesktopState) -> DesktopView {
@@ -4477,7 +5733,7 @@ fn reading_tile(
         ReadingKind::Links => crate::link_workflow::reading_view(state, key),
         ReadingKind::Submit => crate::scroll_site::submit_view(state, key),
     };
-    Box::new(
+    Box::new(on_wheel(
         el("section", (header, body))
             .attr("class", "knot-reading")
             .attr("id", reading_region_id(tile))
@@ -4491,7 +5747,10 @@ fn reading_tile(
                     label_for_region = state.surface_for(key).snapshot().display_label
                 ),
             ),
-    )
+        move |state: &mut DesktopState, _event: cambium::WheelEvent| {
+            state.note_context_tile_on_wheel(tile);
+        },
+    ))
 }
 
 /// The outline of `key`'s document: a row per heading that selects its
@@ -4516,6 +5775,7 @@ fn outline_body(state: &DesktopState, key: DocKey) -> DesktopView {
             Box::new(span("No headings in this document."))
         },
         Some(snapshot) => {
+            let snapshot = Arc::new(snapshot.clone());
             let rows = snapshot
                 .items
                 .iter()
@@ -4524,10 +5784,11 @@ fn outline_body(state: &DesktopState, key: DocKey) -> DesktopView {
                     let label = item.label.clone();
                     let level = item.level;
                     let accessible_label = format!("Heading level {level}: {label}");
+                    let action_snapshot = Arc::clone(&snapshot);
                     (
                         item.start,
                         button(label, move |state: &mut DesktopState, _| {
-                            state.select_outline_item_in(key, index);
+                            state.select_outline_item_in(key, index, &action_snapshot);
                         })
                         .attr("class", "knot-outline-row")
                         .attr("data-outline-index", index.to_string())
@@ -4603,7 +5864,7 @@ fn is_cambium_textbox<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
 
 fn is_text_control<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
     LayoutDom::element_name(dom, node)
-        .is_some_and(|name| matches!(name.local.as_ref(), "input" | "textarea"))
+        .is_some_and(|name| matches!(std::convert::AsRef::<str>::as_ref(&name.local), "input" | "textarea"))
         || is_cambium_textbox(dom, node)
 }
 
@@ -4611,7 +5872,7 @@ fn is_text_control<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
 /// legacy textarea while a surface is transitioning between host versions).
 fn is_source_text_field<D: LayoutDom>(dom: &D, node: D::NodeId) -> bool {
     let is_legacy_textarea =
-        LayoutDom::element_name(dom, node).is_some_and(|name| name.local.as_ref() == "textarea");
+        LayoutDom::element_name(dom, node).is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "textarea");
     (is_legacy_textarea || is_cambium_textbox(dom, node))
         && ancestor_has_class(dom, node, "knot-document-body")
         && document_key_of(dom, node).is_some()
@@ -5240,6 +6501,462 @@ pub fn after_wake(
     }
 }
 
+/// Capture semantic reading positions after layout, and apply queued restores
+/// only after the destination tile has a live rendered target.
+pub fn context_navigation_after_frame(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+) {
+    if let Some(pending) = ctx.runner.state().pending_context_scroll.clone() {
+        if let Some(node) = context_scroll_target(ctx, &pending) {
+            match pending.anchor {
+                context_navigation::ContextScrollAnchor::SourceByte { byte } => {
+                    ctx.scroll_text_position(node, byte, ScrollAlign::Start);
+                },
+                context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. } => {
+                    ctx.scroll_text_position(node, byte, ScrollAlign::Start);
+                },
+                context_navigation::ContextScrollAnchor::PreviewBlock { .. }
+                | context_navigation::ContextScrollAnchor::PreviewHeading { .. } => {
+                    ctx.scroll_into_view(node, ScrollAlign::Start);
+                },
+            }
+            ctx.runner.update(|state| state.pending_context_scroll = None);
+            return;
+        }
+        ctx.runner.update(|state| {
+            let Some(pending) = state.pending_context_scroll.as_mut() else {
+                return;
+            };
+            pending.attempts = pending.attempts.saturating_add(1);
+            if pending.attempts >= 5 {
+                state.pending_context_scroll = None;
+            }
+        });
+        return;
+    }
+
+    let focused_node = ctx.runner.focus();
+    let focused_tile = focused_node
+        .filter(|node| ctx.visible_rect(*node).is_some())
+        .and_then(|focused| {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        ancestor_attribute(&*dom, focused, "data-tile")
+            .and_then(|value| value.parse::<u64>().ok())
+            .map(workbench::TileId)
+        });
+    let focus_changed = ctx.runner.state().context_focus_node != focused_node;
+    let wheel_changed = ctx.runner.state().context_scroll_sample_pending;
+    let observation = context_scroll_observation(
+        ctx,
+        focused_tile
+            .filter(|_| focus_changed)
+            .or(ctx.runner.state().context_active_tile),
+    );
+    let previous = ctx.runner.state().context_scroll_observation.as_ref();
+    let changed_document = match (&observation, previous) {
+        (Some(observed), Some(previous)) => {
+            observed.document != previous.document || observed.source_digest != previous.source_digest
+        },
+        (Some(_), None) | (None, Some(_)) => true,
+        (None, None) => false,
+    };
+    let source_changed = changed_document
+        || observation.as_ref().map(|value| &value.source)
+            != previous.map(|value| &value.source);
+    let preview_changed = changed_document
+        || observation.as_ref().map(|value| &value.preview)
+            != previous.map(|value| &value.preview);
+    let sample_scroll = focus_changed || wheel_changed || source_changed || preview_changed;
+    if !sample_scroll {
+        return;
+    }
+    let active_tile = if focus_changed {
+        focused_tile
+    } else if wheel_changed {
+        ctx.runner.state().context_active_tile
+    } else if source_changed && !preview_changed {
+        observation.as_ref().and_then(|value| value.source.tile)
+    } else if preview_changed && !source_changed {
+        observation.as_ref().and_then(|value| value.preview.tile)
+    } else {
+        ctx.runner.state().context_active_tile.or(focused_tile)
+    };
+    ctx.runner.update(|state| {
+        state.context_focus_node = focused_node;
+        state.context_scroll_sample_pending = false;
+        state.context_scroll_observation = observation;
+    });
+    capture_context_scroll(ctx, active_tile);
+}
+
+fn context_rendered_text<D: LayoutDom>(dom: &D, node: D::NodeId) -> String {
+    let mut text = dom.text(node).unwrap_or_default().to_owned();
+    for child in dom.dom_children(node) {
+        text.push_str(&context_rendered_text(dom, child));
+    }
+    text
+}
+
+fn context_rendered_text_digest<D: LayoutDom>(dom: &D, node: D::NodeId) -> [u8; 32] {
+    *blake3::hash(context_rendered_text(dom, node).as_bytes()).as_bytes()
+}
+
+fn context_scroll_observation(
+    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+    candidate_tile: Option<workbench::TileId>,
+) -> Option<ContextScrollObservation> {
+    let state = ctx.runner.state();
+    let document = candidate_tile
+        .and_then(|tile| state.docs.document_for(tile))
+        .or_else(|| {
+            state
+                .context_navigation
+                .current()
+                .and_then(|visit| state.anchor_document_for_place(&visit.place))
+        })
+        .or_else(|| state.focused_key())?;
+    let snapshot = state.docs.doc(document)?.document.snapshot();
+    let source_tile = state.docs.tile_of(document);
+    let preview_tile = candidate_tile
+        .filter(|tile| {
+            matches!(state.docs.role(*tile), Some(TileRole::Reading { kind: ReadingKind::Preview, .. }))
+                && state.docs.document_for(*tile) == Some(document)
+        })
+        .or_else(|| {
+            state.docs.readings().find_map(|(tile, kind, _)| {
+                (kind == ReadingKind::Preview && state.docs.document_for(tile) == Some(document))
+                    .then_some(tile)
+            })
+        });
+    let (source_node, source_viewport, preview_node, preview_viewport) = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        fn find_source<D: LayoutDom<NodeId = NodeId>>(
+            dom: &D,
+            node: D::NodeId,
+            document: DocKey,
+            tile: Option<workbench::TileId>,
+        ) -> Option<NodeId> {
+            if tile.is_some_and(|tile| {
+                ancestor_attribute(dom, node, "data-tile").as_deref()
+                    == Some(tile.0.to_string().as_str())
+                    && is_source_text_field(dom, node)
+                    && document_key_of(dom, node) == Some(document)
+            }) {
+                return Some(node);
+            }
+            dom.dom_children(node)
+                .find_map(|child| find_source(dom, child, document, tile))
+        }
+        fn find_preview<D: LayoutDom<NodeId = NodeId>>(
+            dom: &D,
+            node: D::NodeId,
+            document: DocKey,
+            tile: Option<workbench::TileId>,
+        ) -> Option<NodeId> {
+            if dom.has_class(node, "knot-document-preview")
+                && tile.is_some_and(|tile| {
+                    ancestor_attribute(dom, node, "data-tile").as_deref()
+                        == Some(tile.0.to_string().as_str())
+                })
+                && ancestor_attribute(dom, node, "data-knot-preview-document").as_deref()
+                    == Some(document.0.to_string().as_str())
+            {
+                return Some(node);
+            }
+            dom.dom_children(node)
+                .find_map(|child| find_preview(dom, child, document, tile))
+        }
+        fn find_scrollport<D: LayoutDom<NodeId = NodeId>>(
+            dom: &D,
+            mut node: D::NodeId,
+            tile: workbench::TileId,
+        ) -> Option<NodeId> {
+            loop {
+                if dom.has_class(node, "frisket-content")
+                    && dom.attribute(node, &Namespace::from(""), &LocalName::from("data-tile"))
+                        == Some(tile.0.to_string().as_str())
+                {
+                    return Some(node);
+                }
+                node = dom.parent(node)?;
+            }
+        }
+        let source = find_source(&*dom, dom.document(), document, source_tile);
+        let preview = find_preview(&*dom, dom.document(), document, preview_tile);
+        (
+            source,
+            source.and_then(|node| find_scrollport(&*dom, node, source_tile?)),
+            preview,
+            preview.and_then(|node| find_scrollport(&*dom, node, preview_tile?)),
+        )
+    };
+    let pane = |tile, text_node, viewport_node| ContextPaneObservation {
+        tile,
+        text_node,
+        text_scroll: text_node.and_then(|node| ctx.element_scroll(node)),
+        text_rect: text_node.and_then(|node| ctx.visible_rect(node)),
+        viewport_node,
+        viewport_scroll: viewport_node.and_then(|node| ctx.element_scroll(node)),
+        viewport_rect: viewport_node.and_then(|node| ctx.visible_rect(node)),
+    };
+    Some(ContextScrollObservation {
+        document,
+        source_digest: *blake3::hash(snapshot.text.as_bytes()).as_bytes(),
+        source: pane(source_tile, source_node, source_viewport),
+        preview: pane(preview_tile, preview_node, preview_viewport),
+    })
+}
+
+fn context_scroll_target(
+    ctx: &AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+    pending: &context_navigation::PendingContextScroll,
+) -> Option<NodeId> {
+    let valid = ctx.runner.state().docs.doc(pending.document).is_some_and(|entry| {
+        let snapshot = entry.document.snapshot();
+        *blake3::hash(snapshot.text.as_bytes()).as_bytes() == pending.source_digest
+    }) && ctx.runner.state().docs.role(pending.tile).is_some_and(|role| match role {
+        TileRole::Document(key) => *key == pending.document,
+        TileRole::Reading { .. } => ctx.runner.state().docs.document_for(pending.tile) == Some(pending.document),
+        _ => false,
+    });
+    if !valid {
+        return None;
+    }
+    let nodes = {
+        let dom = ctx.runner.dom();
+        let dom = dom.borrow();
+        fn collect<D: LayoutDom>(dom: &D, node: D::NodeId, out: &mut Vec<D::NodeId>) {
+            out.push(node);
+            for child in dom.dom_children(node) {
+                collect(dom, child, out);
+            }
+        }
+        let mut nodes = Vec::new();
+        collect(&*dom, dom.document(), &mut nodes);
+        nodes.into_iter().filter(|node| {
+            ancestor_attribute(&*dom, *node, "data-tile").as_deref()
+                == Some(pending.tile.0.to_string().as_str())
+                && match pending.anchor {
+                    context_navigation::ContextScrollAnchor::SourceByte { .. } => {
+                        is_source_text_field(&*dom, *node)
+                            && document_key_of(&*dom, *node) == Some(pending.document)
+                    },
+                    context_navigation::ContextScrollAnchor::PreviewTextByte { rendered_digest, .. } => {
+                        dom.has_class(*node, "knot-document-preview")
+                            && ancestor_attribute(&*dom, *node, "data-knot-preview-document").as_deref()
+                                == Some(pending.document.0.to_string().as_str())
+                            && context_rendered_text_digest(&*dom, *node) == rendered_digest
+                    },
+                    context_navigation::ContextScrollAnchor::PreviewBlock { .. }
+                    | context_navigation::ContextScrollAnchor::PreviewHeading { .. } => {
+                        ancestor_attribute(&*dom, *node, "data-knot-preview-document").as_deref()
+                            == Some(pending.document.0.to_string().as_str())
+                            && match (&pending.anchor, dom.attribute(*node, &Namespace::from(""), &LocalName::from("data-block-index")), dom.attribute(*node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-start")), dom.attribute(*node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-end"))) {
+                                (context_navigation::ContextScrollAnchor::PreviewBlock { index }, Some(found), _, _) => found.parse::<usize>().ok() == Some(*index),
+                                (context_navigation::ContextScrollAnchor::PreviewHeading { start, end }, _, Some(found_start), Some(found_end)) => found_start.parse::<usize>().ok() == Some(*start) && found_end.parse::<usize>().ok() == Some(*end),
+                                _ => false,
+                            }
+                    },
+                }
+        }).collect::<Vec<_>>()
+    };
+    // Restoration targets may be completely offscreen. Paint geometry proves
+    // the live semantic node exists; visible geometry is used for capture.
+    nodes.into_iter().find(|node| ctx.painted_rect(*node).is_some())
+}
+
+fn capture_context_scroll(
+    ctx: &mut AppCtx<'_, DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>,
+    focused_tile: Option<workbench::TileId>,
+) {
+    if let Some(tile) = focused_tile {
+        ctx.runner.update(|state| {
+            if let Some(document) = state.docs.document_for(tile)
+                && state.docs.role(tile).is_some_and(|role| {
+                    matches!(role, TileRole::Document(_) | TileRole::Reading { .. })
+                })
+            {
+                state.context_active_tile = Some(tile);
+                // Ordinary focus in another peer view is a view change, not a
+                // new route. The visit keeps its current contextual place.
+                state.capture_context_visit();
+            }
+        });
+    }
+
+    let Some(visit) = ctx.runner.state().context_navigation.current().cloned() else {
+        return;
+    };
+    if !ctx.runner.state().context_place_is_valid(&visit.place) {
+        return;
+    }
+    let Some(document) = ctx.runner.state().anchor_document_for_place(&visit.place) else {
+        return;
+    };
+    let Some(anchor) = visit.anchor.as_ref() else {
+        return;
+    };
+    let Some(snapshot) = ctx.runner.state().docs.doc(document).map(|entry| entry.document.snapshot()) else {
+        return;
+    };
+    if !anchor.matches(&snapshot) {
+        return;
+    }
+    let Some(tile) = anchor.active_tile else {
+        return;
+    };
+    let mut scroll = None;
+    match ctx.runner.state().docs.role(tile) {
+        Some(TileRole::Document(key)) if *key == document => {
+            let text_field = {
+                let dom = ctx.runner.dom();
+                let dom = dom.borrow();
+                fn find<D: LayoutDom>(dom: &D, node: D::NodeId, document: DocKey, tile: workbench::TileId) -> Option<D::NodeId> {
+                    if ancestor_attribute(dom, node, "data-tile").as_deref() == Some(tile.0.to_string().as_str())
+                        && is_source_text_field(dom, node)
+                        && document_key_of(dom, node) == Some(document)
+                    {
+                        return Some(node);
+                    }
+                    dom.dom_children(node).find_map(|child| find(dom, child, document, tile))
+                }
+                find(&*dom, dom.document(), document, tile)
+            };
+            if let Some(node) = text_field
+                && let Some((x, y, width, height)) = ctx.visible_rect(node)
+            {
+                let line = (ctx.runner.state().appearance.font_size as f32 * 1.5).max(1.0);
+                let point = (x + (width.min(4.0) / 2.0), (y + line / 2.0).min(y + height.max(1.0) - 1.0));
+                scroll = ctx.text_position_at(node, point).map(|byte| {
+                    context_navigation::ContextScrollAnchor::SourceByte { byte }
+                });
+            }
+        },
+        Some(TileRole::Reading { kind: ReadingKind::Preview, .. }) => {
+            let preview_root = {
+                let dom = ctx.runner.dom();
+                let dom = dom.borrow();
+                fn find<D: LayoutDom>(
+                    dom: &D,
+                    node: D::NodeId,
+                    tile: workbench::TileId,
+                    document: DocKey,
+                ) -> Option<D::NodeId> {
+                    if dom.has_class(node, "knot-document-preview")
+                        && ancestor_attribute(dom, node, "data-tile").as_deref()
+                            == Some(tile.0.to_string().as_str())
+                        && ancestor_attribute(dom, node, "data-knot-preview-document").as_deref() == Some(document.0.to_string().as_str())
+                    {
+                        return Some(node);
+                    }
+                    dom.dom_children(node)
+                        .find_map(|child| find(dom, child, tile, document))
+                }
+                find(&*dom, dom.document(), tile, document)
+            };
+            let text_anchor = preview_root.and_then(|node| {
+                let (x, y, width, height) = ctx.visible_rect(node)?;
+                let rendered_digest = {
+                    let dom = ctx.runner.dom();
+                    let dom = dom.borrow();
+                    context_rendered_text_digest(&*dom, node)
+                };
+                let line = (ctx.runner.state().appearance.font_size as f32 * 1.5).max(1.0);
+                let x_offsets = [8.0, 24.0, 48.0, width * 0.25, width * 0.5];
+                let y_offsets = [1.0, 8.0, line * 0.5, line, line * 1.5, line * 2.0];
+                let mut candidates = Vec::new();
+                for y_offset in y_offsets.into_iter().filter(|offset| *offset < height) {
+                    for x_offset in x_offsets.into_iter().filter(|offset| *offset < width) {
+                        if let Some(byte) = ctx.text_position_at(node, (x + x_offset, y + y_offset)) {
+                            candidates.push((y_offset, byte));
+                        }
+                    }
+                    if !candidates.is_empty() {
+                        break;
+                    }
+                }
+                candidates
+                    .into_iter()
+                    .min_by_key(|(_, byte)| *byte)
+                    .map(|(_, byte)| {
+                        context_navigation::ContextScrollAnchor::PreviewTextByte {
+                            byte,
+                            rendered_digest,
+                        }
+                    })
+            });
+            scroll = text_anchor.or_else(|| {
+                let candidates = {
+                    let dom = ctx.runner.dom();
+                    let dom = dom.borrow();
+                    fn collect<D: LayoutDom>(
+                        dom: &D,
+                        node: D::NodeId,
+                        tile: workbench::TileId,
+                        document: DocKey,
+                        out: &mut Vec<D::NodeId>,
+                    ) {
+                        if ancestor_attribute(dom, node, "data-tile").as_deref()
+                            == Some(tile.0.to_string().as_str())
+                            && ancestor_attribute(dom, node, "data-knot-preview-document").as_deref()
+                                == Some(document.0.to_string().as_str())
+                        {
+                            let has_heading = dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-start")).is_some()
+                                && dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-end")).is_some();
+                            let has_block = dom.attribute(node, &Namespace::from(""), &LocalName::from("data-block-index")).is_some();
+                            if has_heading || has_block { out.push(node); }
+                        }
+                        for child in dom.dom_children(node) { collect(dom, child, tile, document, out); }
+                    }
+                    let mut nodes = Vec::new();
+                    collect(&*dom, dom.document(), tile, document, &mut nodes);
+                    nodes
+                };
+                let mut visible = candidates.into_iter().filter_map(|node| {
+                    let rect = ctx.visible_rect(node)?;
+                    let dom = ctx.runner.dom();
+                    let dom = dom.borrow();
+                    let start = dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-start")).and_then(|value| value.parse::<usize>().ok());
+                    let end = dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-end")).and_then(|value| value.parse::<usize>().ok());
+                    let index = dom.attribute(node, &Namespace::from(""), &LocalName::from("data-block-index")).and_then(|value| value.parse::<usize>().ok());
+                    let anchor = match (start, end, index) {
+                        (Some(start), Some(end), _) => context_navigation::ContextScrollAnchor::PreviewHeading { start, end },
+                        (_, _, Some(index)) => context_navigation::ContextScrollAnchor::PreviewBlock { index },
+                        _ => return None,
+                    };
+                    Some((rect.1, anchor))
+                }).collect::<Vec<_>>();
+                visible.sort_by(|left, right| left.0.total_cmp(&right.0));
+                visible.into_iter().next().map(|(_, anchor)| anchor)
+            });
+        },
+        _ => {}
+    }
+    let Some(scroll) = scroll else {
+        return;
+    };
+    if anchor.scroll.as_ref() == Some(&scroll) {
+        return;
+    }
+    ctx.runner.update(|state| {
+        let Some(current) = state.context_navigation.current().cloned() else {
+            return;
+        };
+        let Some(mut anchor) = current.anchor.clone() else {
+            return;
+        };
+        anchor.scroll = Some(scroll);
+        state.context_navigation.capture(ScopeVisit {
+            place: current.place,
+            camera: current.camera,
+            anchor: Some(anchor),
+        });
+        state.persist_context_navigation();
+    });
+}
+
 /// The desktop's frame hook: measure any recipe cards waiting on the previous
 /// layout, then the graph tile.
 pub fn graph_frame(
@@ -5439,12 +7156,25 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-workspace [role=\"textbox\"][data-cambium-text-value]:not([aria-multiline=\"true\"]) { padding:4px 6px; border:1px solid; border-radius:4px; box-sizing:border-box; background:transparent; color:inherit; }",
     ".knot-workspace { display:flex; flex-direction:column; gap:12px; padding:20px 20px 0; height:100vh; box-sizing:border-box; }",
     ".knot-workspace-toolbar { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }",
+    ".knot-context-navigation { display:flex; align-items:center; gap:6px; flex:0 0 320px; width:320px; min-width:0; max-width:320px; padding:0 2px; }",
+    ".knot-context-navigation .cambium-scope-trail { flex:1 1 auto; min-width:0; max-width:100%; overflow:hidden; }",
+    ".knot-context-navigation .cambium-scope-trail > button { flex:0 1 auto; min-width:0; max-width:92px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }",
+    ".knot-context-navigation .cambium-scope-trail [aria-current=location] { flex:1 1 0; min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; }",
+    ".knot-context-navigation .scope-control { cursor:pointer; }",
     ".knot-command-entry { display:flex; align-items:center; gap:8px; }",
     ".knot-client-titlebar { --app-region:drag; display:flex; align-items:center; gap:8px; min-height:36px; margin:-20px -20px 0; padding:0 8px; border-bottom:1px solid; box-sizing:border-box; }",
     ".knot-client-titlebar-title { --app-region:drag; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:center; }",
     ".knot-client-titlebar button { --app-region:no-drag; flex:none; }",
     ".knot-client-titlebar [data-window-action] { width:30px; min-width:30px; padding:4px; box-sizing:border-box; }",
     ".knot-client-titlebar .command-menu-bar { --app-region:no-drag; flex:none; }",
+    ".knot-titlebar-actions { display:flex; align-items:center; gap:8px; min-width:0; max-width:100%; white-space:nowrap; }",
+    ".knot-client-titlebar > .title-bar-actions { flex:1 1 auto; min-width:0; }",
+    ".knot-client-titlebar > .title-bar-captions { flex:0 0 auto; }",
+    ".knot-client-titlebar .title-bar-captions { margin-right:12px; }",
+    ".knot-titlebar-actions > .command-menu-bar { flex:0 0 auto; }",
+    ".knot-client-titlebar .command-menu-bar { display:flex; flex-direction:row; align-items:center; flex:0 0 auto; }",
+    ".knot-titlebar-actions > .knot-context-navigation { flex:0 1 180px; width:180px; min-width:0; max-width:180px; }",
+    "@media (max-width:700px) { .knot-titlebar-actions > .knot-context-navigation { flex:0 1 120px; width:120px; max-width:120px; } }",
     ".knot-client-command-popovers { position:relative; height:0; width:0; overflow:visible; }",
     ".knot-command-backdrop { position:fixed; left:0; top:0; right:0; bottom:0; z-index:199; background:#0004; }",
     ".knot-command-palette { position:fixed; top:58px; left:0; right:0; margin:0 auto; z-index:200; display:flex; flex-direction:column; gap:8px; width:560px; max-width:88vw; max-height:72vh; box-sizing:border-box; overflow:visible; padding:12px; border:1px solid; border-radius:8px; box-shadow:0 12px 30px #0004; }",
@@ -5554,7 +7284,7 @@ pub const DESKTOP_CSS: &str = concat!(
     ".knot-comparison-version { flex:1 1 360px; min-width:0; }",
     ".knot-comparison-version pre { max-height:240px; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; user-select:text; }",
     "@media (max-width:700px) { .knot-workspace { padding:12px 12px 0; } .knot-workspace > .status-bar { margin:0 -12px; padding:4px 12px; } .knot-path-field [role=\"textbox\"][data-cambium-text-value] { min-width:160px; } .knot-writing-area { flex-direction:column; align-items:stretch; } }",
-    "@media (max-height:320px) { .knot-workspace { gap:4px; padding-top:4px; } .knot-workspace-toolbar { flex:none; } .knot-workspace > .status-bar { padding-top:2px; padding-bottom:2px; min-height:24px; } .knot-frame .frisket-content { padding-top:4px; padding-bottom:4px; } .knot-writing-area { padding-top:4px; padding-bottom:4px; } .knot-appearance-panel { padding:4px; max-height:20vh; } .knot-workspace > [id=knot-link-form], .knot-confirm { max-height:25vh; overflow:auto; min-height:0; flex:none; } }",
+    "@media (max-height:320px) { .knot-workspace { gap:4px; padding-top:4px; } .knot-workspace-toolbar { flex:none; gap:4px; } .knot-context-navigation { flex:0 0 auto; width:auto; max-width:100%; padding:0; gap:2px; } .knot-context-navigation .cambium-scope-trail { display:none; } .knot-workspace [role=\"textbox\"][data-cambium-text-value] { min-height:24px; } .knot-workspace > .status-bar { padding-top:2px; padding-bottom:2px; min-height:24px; } .knot-frame .frisket-content { padding-top:4px; padding-bottom:4px; } .knot-writing-area { padding-top:4px; padding-bottom:4px; } .knot-appearance-panel { padding:4px; max-height:18vh; } .knot-workspace > [id=knot-link-form], .knot-confirm { max-height:25vh; overflow:auto; min-height:0; flex:none; } }",
 );
 
 #[cfg(test)]
@@ -5958,6 +7688,7 @@ mod tests {
             {
                 let mut hooks = inert_hooks();
                 hooks.frame = Box::new(graph_frame);
+                hooks.after_frame = Box::new(context_navigation_after_frame);
                 hooks.after_dispatch = Box::new(after_dispatch);
                 hooks.after_wake = Box::new(after_wake);
                 hooks.close_request = Box::new(|ctx, request| close_request(ctx.runner, request));
@@ -6568,7 +8299,7 @@ mod tests {
     ) -> Option<genet_scripted_dom::NodeId> {
         if dom
             .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "input")
+            .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "input")
             || is_cambium_textbox(dom, node)
         {
             return Some(node);
@@ -6584,7 +8315,7 @@ mod tests {
     ) -> Option<genet_scripted_dom::NodeId> {
         if dom
             .element_name(node)
-            .is_some_and(|element| element.local.as_ref() == name)
+            .is_some_and(|element| std::convert::AsRef::<str>::as_ref(&element.local) == name)
         {
             return Some(node);
         }
@@ -6600,7 +8331,7 @@ mod tests {
     ) -> Option<genet_scripted_dom::NodeId> {
         if dom
             .attributes(node)
-            .any(|attribute| attribute.name.local.as_ref() == "data-cambium-text-value")
+            .any(|attribute| std::convert::AsRef::<str>::as_ref(&attribute.name.local) == "data-cambium-text-value")
         {
             return Some(node);
         }
@@ -8281,7 +10012,7 @@ mod tests {
         ));
         host.layout_at(900.0, 640.0);
         assert!(host.click_on(&Selector::role("button").containing("Show Outline")));
-        assert!(host.click_on(&Selector::role("button").containing("Café")));
+        assert!(host.click_on(&Selector::class("knot-outline-row").containing("Café")));
         let snapshot = host.state().document().session().outline_snapshot();
         let item = snapshot
             .items
@@ -8316,9 +10047,9 @@ mod tests {
         assert_eq!(host.focus(), Some(folder_input));
         // The folder field sits in the Site popover: a click outside closes it
         // first, and the next reaches the outline.
-        assert!(host.click_on(&Selector::role("button").containing("Second heading")));
+        assert!(host.click_on(&Selector::class("knot-outline-row").containing("Second heading")));
         assert!(!host.state().scroll.popover.open);
-        assert!(host.click_on(&Selector::role("button").containing("Second heading")));
+        assert!(host.click_on(&Selector::class("knot-outline-row").containing("Second heading")));
         let text_field = {
             let dom = host.runner().dom();
             let dom = dom.borrow();
@@ -8382,14 +10113,830 @@ mod tests {
                 .insert_str("changed");
         });
         let before = host.state().document().snapshot();
-        // Deliberately omit the normal after-dispatch refresh: this click uses
-        // the old retained row and exercises the exact-source guard.
-        assert!(host.click_on(&Selector::role("button").containing("First")));
+        // This targets the retained outline row, not the contextual Down
+        // control whose accessible label also contains the heading name.
+        assert!(host.click_on(
+            &Selector::class("knot-outline-row").with_attr("aria-label", "Heading level 1: First")
+        ));
         assert_eq!(host.state().document().snapshot(), before);
         let dom = host.runner().dom();
         let dom = dom.borrow();
         let workspace = class_node(&dom, dom.document(), "knot-workspace").expect("workspace");
         assert!(text_content(&dom, workspace).contains("Outline selection failed:"));
+    }
+
+    #[test]
+    fn contextual_history_restores_selection_without_touching_unsaved_text_or_undo() {
+        let original = "# Root\n\n## Child\n\nBody.\n";
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, original));
+        let key = host.state().focused_key().unwrap();
+        let saved_selection = cambium::CaretSelection {
+            anchor: cambium::CaretPosition {
+                byte: 2,
+                affinity: cambium::CaretAffinity::Upstream,
+            },
+            focus: cambium::CaretPosition {
+                byte: 6,
+                affinity: cambium::CaretAffinity::Downstream,
+            },
+        };
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    " draft".into(),
+                )))
+                .unwrap();
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::SetSelection(
+                    saved_selection,
+                )))
+                .unwrap();
+            state.capture_context_visit();
+            let outline = state.live_outline(key).unwrap();
+            let child = state.section_place(key, &outline, 1).unwrap();
+            state.navigate_context_to(child);
+        });
+        let edited_text = host.state().document().snapshot().text;
+        assert!(edited_text.ends_with(" draft"));
+        assert!(host.state().document().snapshot().dirty);
+
+        host.update(|state| {
+            state.navigate_context_to(state.context_document_place(key).unwrap());
+        });
+        assert_eq!(host.state().document().snapshot().selection, saved_selection);
+        assert_eq!(host.state().document().snapshot().text, edited_text);
+        assert!(host.state().document().snapshot().dirty);
+
+        host.update(|state| state.navigate_context_history(false));
+        assert!(matches!(
+            host.state().context_navigation.current().map(|visit| &visit.place),
+            Some(context_navigation::ContextPlace::Heading { label, .. }) if label == "Child"
+        ));
+        host.update(|state| state.navigate_context_history(true));
+        assert_eq!(host.state().document().snapshot().selection, saved_selection);
+        assert_eq!(host.state().document().snapshot().text, edited_text);
+
+        host.update(|state| {
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+                .unwrap();
+        });
+        assert_eq!(host.state().document().snapshot().text, original);
+    }
+
+    #[test]
+    fn contextual_history_restores_read_only_selection_without_claiming_write_authority() {
+        let source = "# Root\n\n## Child\n\nBody.\n";
+        let mut session = KnotDocumentSession::read_only("memory:context-navigation", source);
+        let snapshot = session.snapshot();
+        session
+            .select_source_span(&snapshot.source.address, &snapshot.text, 2, 6)
+            .unwrap();
+        let selection = session.snapshot().selection;
+        let mut host = harness(session);
+        let key = host.state().focused_key().unwrap();
+
+        host.update(|state| {
+            let outline = state.live_outline(key).unwrap();
+            state.navigate_context_to(state.section_place(key, &outline, 1).unwrap());
+            state.navigate_context_to(state.context_document_place(key).unwrap());
+        });
+
+        let restored = host.state().document().snapshot();
+        assert_eq!(restored.selection, selection);
+        assert_eq!(restored.text, source);
+        assert_eq!(
+            restored.write_posture,
+            KnotDocumentWritePostureV1::ReadOnly
+        );
+        assert_eq!(restored.refusal, None);
+        assert!(!restored.dirty);
+    }
+
+    #[test]
+    fn contextual_history_refuses_a_replaced_heading_without_advancing() {
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Root\n\n## Original child\n",
+        ));
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| {
+            let outline = state.live_outline(key).unwrap();
+            state.navigate_context_to(state.section_place(key, &outline, 1).unwrap());
+            state.navigate_context_to(state.context_document_place(key).unwrap());
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+                .unwrap();
+            state
+                .document_mut()
+                .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert(
+                    "# Root\n\n## Replacement child\n".into(),
+                )))
+                .unwrap();
+        });
+        let current = host.state().context_navigation.current().unwrap().place.clone();
+        assert_eq!(current, host.state().context_document_place(key).unwrap());
+        host.update(|state| state.navigate_context_history(false));
+        assert_eq!(
+            host.state().context_navigation.current().unwrap().place,
+            current,
+            "a stale route must not move the history cursor"
+        );
+        assert!(host
+            .state()
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("unavailable or stale")));
+        assert!(host.state().document().snapshot().text.contains("Replacement child"));
+    }
+
+    #[test]
+    fn a_closed_document_route_does_not_retarget_a_reopened_same_path() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("same-name.djot");
+        std::fs::write(&path, "# Root\n\n## Child\n").unwrap();
+        let mut host = harness(KnotDocumentSession::open(&path).unwrap());
+        let closed = host.state().focused_key().unwrap();
+        host.update(|state| {
+            let outline = state.live_outline(closed).unwrap();
+            state.navigate_context_to(state.section_place(closed, &outline, 1).unwrap());
+            state.navigate_context_to(state.context_document_place(closed).unwrap());
+            state.close_document(closed);
+            let replacement = state.open_entry(DocumentEntry::new(
+                KnotDocumentSession::open(&path).unwrap(),
+            ));
+            assert_ne!(replacement, closed);
+            state.after_focus_change();
+        });
+        let replacement = host.state().focused_key().unwrap();
+        assert_ne!(replacement, closed);
+        host.update(|state| state.navigate_context_history(false));
+        assert_eq!(host.state().focused_key(), Some(replacement));
+        assert_eq!(
+            host.state().context_navigation.current().unwrap().place,
+            context_navigation::ContextPlace::Document {
+                address: host.state().context_document_address(replacement).unwrap(),
+                admission_id: host.state().context_document_admission(replacement),
+                binding: Some(context_navigation::ContextBinding::Document(replacement)),
+            }
+        );
+        assert!(host
+            .state()
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("unavailable or stale")));
+    }
+
+    #[test]
+    fn malformed_context_history_survives_unrelated_preferences_saves_until_new_route() {
+        let temp = tempdir().unwrap();
+        let preferences = temp.path().join("preferences.json");
+        let malformed = serde_json::json!({"format": 999, "opaque": ["keep", 4]});
+        std::fs::write(
+            &preferences,
+            serde_json::to_vec(&serde_json::json!({
+                "version": 1,
+                "context_navigation": malformed,
+            }))
+            .unwrap(),
+        )
+        .unwrap();
+        let mut host = harness(KnotDocumentSession::scratch(
+            SCRATCH_ADDRESS,
+            "# Existing route\n",
+        ));
+        host.update(|state| state.set_preferences_path(Some(preferences.clone())));
+        assert!(host.state().context_navigation_write_blocked);
+        assert!(host
+            .state()
+            .message
+            .as_deref()
+            .is_some_and(|message| message.contains("could not be loaded")));
+
+        host.update(|state| {
+            let store = state.preferences.as_mut().unwrap();
+            store.save_appearance(&state.appearance).unwrap();
+            state.persist_context_navigation();
+        });
+        host.after_frame();
+        host.relayout();
+        let preserved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&preferences).unwrap()).unwrap();
+        assert_eq!(preserved["context_navigation"], malformed);
+
+        host.update(|state| {
+            let key = state.focused_key().unwrap();
+            let route = state.context_document_place(key).unwrap();
+            state.navigate_context_to(route);
+        });
+        assert!(!host.state().context_navigation_write_blocked);
+        let replaced: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&preferences).unwrap()).unwrap();
+        assert!(replaced["context_navigation"].get("lineage").is_some());
+    }
+
+    #[test]
+    fn durable_context_history_rebinds_only_documents_admitted_at_startup() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("restart.djot");
+        let preferences = temp.path().join("preferences.json");
+        let source = "# Root\n\n## Child\n\nBody text stays out of preferences.\n";
+        std::fs::write(&path, source).unwrap();
+        let mut first = harness(KnotDocumentSession::open(&path).unwrap());
+        first.update(|state| state.set_preferences_path(Some(preferences.clone())));
+        let original_key = first.state().focused_key().unwrap();
+        first.update(|state| {
+            let outline = state.live_outline(original_key).unwrap();
+            let child = state.section_place(original_key, &outline, 1).unwrap();
+            state.navigate_context_to(child);
+        });
+        let persisted: serde_json::Value = serde_json::from_slice(
+            &std::fs::read(&preferences).expect("navigation writes preferences"),
+        )
+        .unwrap();
+        assert!(persisted["context_navigation"].get("lineage").is_some());
+        assert!(persisted.to_string().contains("file://"));
+        assert!(!persisted.to_string().contains("Body text stays out"));
+        assert!(!persisted.to_string().contains("\"binding\":"));
+        let visit_count = first.state().context_navigation.visits().count();
+        drop(first);
+
+        // A scratch is present first, so the reopened file receives a new
+        // runtime key. It is bound from its durable source address only after
+        // the launch explicitly opens it.
+        let mut next = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:startup", "local scratch"),
+            WindowCommands::new(),
+        );
+        next.set_preferences_path(Some(preferences));
+        next.open_behind(vec![KnotDocumentSession::open(&path).unwrap()], &[]);
+        let address = next
+            .docs
+            .docs()
+            .find(|(_, entry)| entry.document.snapshot().source.address != "scratch:startup")
+            .unwrap()
+            .1
+            .document
+            .snapshot()
+            .source
+            .address;
+        let reopened = next.context_document_key(&address).unwrap();
+        assert_ne!(reopened, DocKey(1));
+        next.restore_persisted_context_navigation();
+        let current = next.context_navigation.current().unwrap();
+        assert!(matches!(
+            &current.place,
+            context_navigation::ContextPlace::Heading {
+                binding: Some(context_navigation::ContextBinding::Document(key)),
+                label,
+                ..
+            } if *key == reopened && label == "Child"
+        ));
+        assert_eq!(next.context_navigation.visits().count(), visit_count);
+        assert_eq!(next.docs.doc(reopened).unwrap().document.snapshot().text, source);
+        assert_eq!(next.focused_key(), Some(reopened));
+        next.navigate_context_history(false);
+        assert!(matches!(
+            next.context_navigation.current().map(|visit| &visit.place),
+            Some(context_navigation::ContextPlace::Document {
+                binding: Some(context_navigation::ContextBinding::Document(key)),
+                ..
+            }) if *key == reopened
+        ));
+        next.navigate_context_history(true);
+        assert_eq!(next.focused_key(), Some(reopened));
+    }
+
+    #[test]
+    fn source_viewport_scroll_is_a_revision_bound_byte_anchor() {
+        let source = format!(
+            "# Root\n\n{}\n\n## Tail\n\nTail content.\n",
+            (0..180)
+                .map(|index| format!("Paragraph {index}: visible source line.\n"))
+                .collect::<Vec<_>>()
+                .join("")
+        );
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, &source));
+        host.layout_at(900.0, 640.0);
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| state.capture_context_visit());
+        let field = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            cambium_text_field(&dom, dom.document()).expect("source editor")
+        };
+        let pane = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let mut node = field;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("source editor is inside a tile");
+            }
+        };
+        let (x, y, width, height) = host.visible_rect(field).expect("source is visible");
+        host.move_to(x + width / 2.0, y + height / 2.0);
+        host.wheel(0.0, 4_000.0);
+        host.layout_at(900.0, 640.0);
+        host.after_frame();
+        let saved_scroll = host
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.scroll.as_ref())
+            .cloned();
+        assert!(matches!(saved_scroll, Some(context_navigation::ContextScrollAnchor::SourceByte { byte }) if byte > 1000));
+        let saved_viewport = host.element_scroll(pane).1;
+        assert!(saved_viewport > 0.0, "source viewport moved away from the caret");
+
+        host.update(|state| {
+            let outline = state.live_outline(key).unwrap();
+            let tail = state.section_place(key, &outline, 1).unwrap();
+            state.navigate_context_to(tail);
+            state.navigate_context_history(false);
+        });
+        assert!(host.state().pending_context_scroll.is_some());
+        host.after_frame();
+        host.relayout();
+        assert!(host.element_scroll(pane).1 > 0.0);
+        assert!(host.state().pending_context_scroll.is_none());
+        let anchor = host.state().context_navigation.current().unwrap().anchor.as_ref().unwrap();
+        assert!(anchor.matches(&host.state().docs.doc(key).unwrap().document.snapshot()));
+        assert_eq!(anchor.scroll, saved_scroll);
+    }
+
+    #[test]
+    fn preview_scroll_prefers_rendered_text_anchor_for_measurable_djot() {
+        let source = format!(
+            "# Root\n\n{}",
+            (1..80)
+                .map(|index| format!("## Section {index}\n\nSection body {index}.\n\n"))
+                .collect::<Vec<_>>()
+                .join("")
+        );
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, &source));
+        host.layout_at(900.0, 640.0);
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.capture_context_visit();
+            state.toggle_reading(ReadingKind::Preview);
+        });
+        assert_eq!(
+            host.state()
+                .context_navigation
+                .current()
+                .and_then(|visit| visit.anchor.as_ref())
+                .map(|anchor| anchor.view),
+            Some(context_navigation::ContextView::Preview),
+            "opening Preview stores the peer view"
+        );
+        host.layout_at(900.0, 640.0);
+        let pane = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+            let mut node = preview;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("preview is inside a tile");
+            }
+        };
+        let (x, y, width, height) = host.visible_rect(pane).unwrap();
+        host.move_to(x + width / 2.0, y + height / 2.0);
+        host.wheel(0.0, 2_000.0);
+        host.layout_at(900.0, 640.0);
+        let marked_headings = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            fn collect<D: LayoutDom>(dom: &D, node: D::NodeId, out: &mut Vec<D::NodeId>) {
+                if dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-start")).is_some() {
+                    out.push(node);
+                }
+                for child in dom.dom_children(node) { collect(dom, child, out); }
+            }
+            let mut nodes = Vec::new();
+            collect(&*dom, dom.document(), &mut nodes);
+            nodes
+        };
+        assert!(!marked_headings.is_empty(), "preview heading markers render");
+        assert!(marked_headings.iter().any(|node| host.visible_rect(*node).is_some()), "at least one preview heading is visible");
+        let captured_tile = host
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.active_tile)
+            .expect("preview bookmark names its live tile");
+        let scoped_markers = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            marked_headings.iter().filter(|node| {
+                ancestor_attribute(&*dom, **node, "data-tile").as_deref() == Some(captured_tile.0.to_string().as_str())
+                    && ancestor_attribute(&*dom, **node, "data-knot-preview-document").as_deref() == Some(key.0.to_string().as_str())
+            }).count()
+        };
+        assert!(scoped_markers > 0, "preview markers belong to tile {captured_tile:?}, doc {key:?}");
+        host.after_frame();
+        let saved = host
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.scroll.as_ref())
+            .cloned();
+        let Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, rendered_digest }) = saved.clone() else {
+            panic!("measurable Djot Preview should use its rendered text anchor, got {saved:?}");
+        };
+        assert!(byte > 0);
+        assert_ne!(rendered_digest, [0; 32]);
+        host.update(|state| {
+            let outline = state.live_outline(key).unwrap();
+            let first_section = state.section_place(key, &outline, 0).unwrap();
+            state.navigate_context_to(first_section);
+            state.navigate_context_history(false);
+        });
+        assert!(host.state().pending_context_scroll.is_some());
+        host.after_frame();
+        host.relayout();
+        assert!(host.state().pending_context_scroll.is_none());
+        let current = host.state().context_navigation.current().unwrap();
+        assert_eq!(current.anchor.as_ref().and_then(|anchor| anchor.scroll.as_ref()), saved.as_ref());
+    }
+
+    #[test]
+    fn scrolling_a_peer_pane_updates_context_without_moving_keyboard_focus() {
+        let source = format!(
+            "# Root\n\n{}",
+            (1..60)
+                .map(|index| format!("## Section {index}\n\nSection body {index}.\n\n"))
+                .collect::<Vec<_>>()
+                .join("")
+        );
+        let mut host = harness(KnotDocumentSession::scratch(SCRATCH_ADDRESS, &source));
+        host.layout_at(900.0, 640.0);
+        let key = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.capture_context_visit();
+            state.toggle_reading(ReadingKind::Preview);
+        });
+        host.layout_at(900.0, 640.0);
+        let source_field = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            cambium_text_field(&dom, dom.document()).expect("source editor")
+        };
+        let (sx, sy, sw, sh) = host.visible_rect(source_field).expect("source is visible");
+        host.click_at(sx + sw / 2.0, sy + sh / 2.0);
+        host.after_frame();
+        let focused = host.focus().expect("source click focuses the editor");
+        let selection = host.state().docs.doc(key).unwrap().document.snapshot().selection;
+
+        let preview = {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            class_node(&dom, dom.document(), "knot-document-preview").unwrap()
+        };
+        let (px, py, pw, ph) = host.visible_rect(preview).expect("Preview is visible");
+        host.move_to(px + pw / 2.0, py + ph / 2.0);
+        host.wheel(0.0, 1_400.0);
+        host.after_frame();
+        assert_eq!(host.focus(), Some(focused));
+        let preview_anchor = host
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .unwrap();
+        assert_eq!(preview_anchor.view, context_navigation::ContextView::Preview);
+        assert!(matches!(
+            preview_anchor.scroll,
+            Some(
+                context_navigation::ContextScrollAnchor::PreviewTextByte { .. }
+                    | context_navigation::ContextScrollAnchor::PreviewHeading { .. }
+                    | context_navigation::ContextScrollAnchor::PreviewBlock { .. }
+            )
+        ));
+        assert_eq!(host.state().docs.doc(key).unwrap().document.snapshot().selection, selection);
+
+        let (sx, sy, sw, sh) = host.visible_rect(source_field).expect("source remains visible");
+        host.move_to(sx + sw / 2.0, sy + sh / 2.0);
+        host.wheel(0.0, 1_400.0);
+        // Exercise the runtime observation path independently of the explicit
+        // wheel-dirty signal. Scrollbar drags and caret-follow scrolling have
+        // no wheel callback to mark the pane dirty.
+        host.update(|state| state.context_scroll_sample_pending = false);
+        host.after_frame();
+        assert_eq!(host.focus(), Some(focused));
+        let source_anchor = host
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .unwrap();
+        assert_eq!(source_anchor.view, context_navigation::ContextView::Source);
+        assert!(matches!(source_anchor.scroll, Some(context_navigation::ContextScrollAnchor::SourceByte { .. })));
+        assert_eq!(host.state().docs.doc(key).unwrap().document.snapshot().selection, selection);
+        assert_eq!(host.state().docs.doc(key).unwrap().document.snapshot().text, source);
+    }
+
+    #[test]
+    fn persisted_preview_text_scroll_captures_paragraph_without_heading_and_restores_back_and_restart() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("preview-restart.djot");
+        let preferences = temp.path().join("preferences.json");
+        let paragraph = "This long paragraph has no heading breaks and remains one continuous reading block. ";
+        let source = format!("# Root\n\n{}", paragraph.repeat(160));
+        std::fs::write(&path, &source).unwrap();
+        let mut first = harness(KnotDocumentSession::open(&path).unwrap());
+        first.update(|state| state.set_preferences_path(Some(preferences.clone())));
+        first.layout_at(900.0, 640.0);
+        first.update(|state| {
+            state.capture_context_visit();
+            state.toggle_reading(ReadingKind::Preview);
+        });
+        first.layout_at(900.0, 640.0);
+        let pane = {
+            let dom = first.runner().dom();
+            let dom = dom.borrow();
+            let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+            let mut node = preview;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("preview is inside a tile");
+            }
+        };
+        let (x, y, width, height) = first.visible_rect(pane).unwrap();
+        first.move_to(x + width / 2.0, y + height / 2.0);
+        first.wheel(0.0, 2_000.0);
+        first.layout_at(900.0, 640.0);
+        first.after_frame();
+        let saved = first
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.scroll.as_ref())
+            .cloned();
+        let Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, rendered_digest }) = saved.clone() else {
+            panic!("long paragraph should yield a rendered preview byte anchor, got {saved:?}");
+        };
+        assert!(byte > 500, "the anchor reaches into the long paragraph: {byte}");
+        assert_ne!(rendered_digest, [0; 32]);
+        assert_eq!(
+            first.state().context_navigation.current().and_then(|visit| visit.anchor.as_ref()).map(|anchor| anchor.view),
+            Some(context_navigation::ContextView::Preview)
+        );
+
+        let visible_headings = {
+            let dom = first.runner().dom();
+            let dom = dom.borrow();
+            fn collect<D: LayoutDom>(dom: &D, node: D::NodeId, out: &mut Vec<D::NodeId>) {
+                if dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-start")).is_some() {
+                    out.push(node);
+                }
+                for child in dom.dom_children(node) { collect(dom, child, out); }
+            }
+            let mut markers = Vec::new();
+            collect(&*dom, dom.document(), &mut markers);
+            markers.into_iter().filter(|node| first.visible_rect(*node).is_some()).count()
+        };
+        assert_eq!(visible_headings, 0, "the captured reading position is inside a heading-free paragraph");
+
+        first.update(|state| {
+            let outline = state.live_outline(state.focused_key().unwrap()).unwrap();
+            let root = state.section_place(state.focused_key().unwrap(), &outline, 0).unwrap();
+            state.navigate_context_to(root);
+            state.navigate_context_history(false);
+        });
+        assert!(first.state().pending_context_scroll.is_some());
+        first.after_frame();
+        first.relayout();
+        first.after_frame();
+        assert!(first.state().pending_context_scroll.is_none());
+        assert!(first.element_scroll(pane).1 > 0.0, "Back restores the deep paragraph position");
+        let saved = first
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.scroll.as_ref())
+            .cloned();
+        assert!(matches!(saved, Some(context_navigation::ContextScrollAnchor::PreviewTextByte { byte, .. }) if byte > 500));
+        drop(first);
+
+        let mut next = harness(KnotDocumentSession::scratch("scratch:preview-restart", ""));
+        next.update(|state| {
+            state.set_preferences_path(Some(preferences));
+            state.open_behind(vec![KnotDocumentSession::open(&path).unwrap()], &[]);
+            state.restore_persisted_context_navigation();
+        });
+        assert_eq!(
+            next.state().context_navigation.current().and_then(|visit| visit.anchor.as_ref()).map(|anchor| anchor.view),
+            Some(context_navigation::ContextView::Preview)
+        );
+        assert!(next.state().pending_context_scroll.is_some());
+        next.layout_at(900.0, 640.0);
+        next.after_frame();
+        next.relayout();
+        next.after_frame();
+        assert!(next.state().pending_context_scroll.is_none());
+        let pane = {
+            let dom = next.runner().dom();
+            let dom = dom.borrow();
+            let preview = class_node(&dom, dom.document(), "knot-document-preview").unwrap();
+            let mut node = preview;
+            loop {
+                if dom.has_class(node, "frisket-content") {
+                    break node;
+                }
+                node = dom.parent(node).expect("preview is inside a tile");
+            }
+        };
+        assert!(next.element_scroll(pane).1 > 0.0, "preview scroll is restored after the new tile mounts");
+        let visible_headings = {
+            let dom = next.runner().dom();
+            let dom = dom.borrow();
+            fn collect<D: LayoutDom>(dom: &D, node: D::NodeId, out: &mut Vec<D::NodeId>) {
+                if dom.attribute(node, &Namespace::from(""), &LocalName::from("data-knot-context-heading-start")).is_some() {
+                    out.push(node);
+                }
+                for child in dom.dom_children(node) { collect(dom, child, out); }
+            }
+            let mut markers = Vec::new();
+            collect(&*dom, dom.document(), &mut markers);
+            markers.into_iter().filter(|node| next.visible_rect(*node).is_some()).count()
+        };
+        assert_eq!(visible_headings, 0, "reopened position remains in the heading-free paragraph");
+        let restored = next
+            .state()
+            .context_navigation
+            .current()
+            .and_then(|visit| visit.anchor.as_ref())
+            .and_then(|anchor| anchor.scroll.as_ref());
+        assert_eq!(restored, saved.as_ref());
+    }
+
+    #[test]
+    fn owning_site_is_a_live_scope_and_down_returns_to_its_exact_page() {
+        let site_root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../scenarios/fixtures/site-one");
+        let page = site_root.join("index.scroll");
+        let mut host = harness(KnotDocumentSession::open(&page).unwrap());
+        host.layout_at(900.0, 640.0);
+        let document = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.attach_site(&site_root);
+            let site = state.site_for_document(document).expect("bound site page");
+            state.navigate_context_to(state.context_site_place(site).unwrap());
+        });
+        let site = host.state().site_for_document(document).unwrap();
+        assert_eq!(
+            host.state().current_context_place(),
+            Some(host.state().context_site_place(site).unwrap())
+        );
+        let site_tile = host.state().docs.site_tile(site).unwrap();
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let active = attr_node(
+                &dom,
+                dom.document(),
+                "data-tile",
+                &site_tile.0.to_string(),
+            )
+            .expect("the active site tile is visible");
+            assert!(class_node(&dom, active, "knot-site-tile").is_some());
+        }
+        assert!(host.click_on(&Selector::role("tab").containing("index.scroll")));
+        assert_eq!(
+            host.state().current_context_place(),
+            Some(host.state().context_document_place(document).unwrap()),
+            "ordinary document-tab activation leaves the Site route"
+        );
+        host.update(|state| state.navigate_context_history(false));
+        assert_eq!(
+            host.state().current_context_place(),
+            Some(host.state().context_site_place(site).unwrap())
+        );
+        host.update(|state| {
+            let current = state.current_context_place().unwrap();
+            let page = state.child_context_place(&current).unwrap();
+            assert_eq!(page, state.context_document_place(document).unwrap());
+            state.navigate_context_to(page);
+        });
+        assert_eq!(host.state().focused_key(), Some(document));
+        assert_eq!(
+            host.state().current_context_place(),
+            Some(host.state().context_document_place(document).unwrap())
+        );
+        let document_tile = host.state().docs.tile_of(document).unwrap();
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let active = attr_node(
+                &dom,
+                dom.document(),
+                "data-tile",
+                &document_tile.0.to_string(),
+            )
+            .expect("Down activates the source document tile even though focus was unchanged");
+            assert!(class_node(&dom, active, "knot-document-body").is_some());
+            assert!(class_node(&dom, active, "knot-site-tile").is_none());
+        }
+        host.update(|state| state.navigate_context_history(false));
+        assert_eq!(
+            host.state().current_context_place(),
+            Some(host.state().context_site_place(site).unwrap())
+        );
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let active = attr_node(
+                &dom,
+                dom.document(),
+                "data-tile",
+                &site_tile.0.to_string(),
+            )
+            .expect("Back restores the owning site tile");
+            assert!(class_node(&dom, active, "knot-site-tile").is_some());
+        }
+    }
+
+    #[test]
+    fn same_stack_tab_navigation_captures_and_restores_the_visible_document() {
+        let mut host = harness(KnotDocumentSession::scratch("scratch:tab-a", "# A\n"));
+        host.layout_at(900.0, 640.0);
+        let first = host.state().focused_key().unwrap();
+        host.update(|state| {
+            state.open_behind(
+                vec![KnotDocumentSession::scratch("scratch:tab-b", "# B\n")],
+                &[],
+            );
+        });
+        host.relayout();
+        let second = host
+            .state()
+            .docs
+            .docs()
+            .map(|(key, _)| key)
+            .find(|key| *key != first)
+            .expect("second document");
+        assert_eq!(
+            host.state().docs.active_tile_in_stack(first),
+            host.state().docs.tile_of(first),
+            "the first document is active before switching tabs"
+        );
+
+        assert!(host.click_on(&Selector::role("tab").containing("scratch:tab-b")));
+        assert_eq!(host.state().focused_key(), Some(second));
+        assert_eq!(
+            host.state().context_navigation.current().unwrap().place,
+            host.state().context_document_place(second).unwrap()
+        );
+        let second_tile = host.state().docs.tile_of(second).unwrap();
+        {
+            let dom = host.runner().dom();
+            let dom = dom.borrow();
+            let active = attr_node(
+                &dom,
+                dom.document(),
+                "data-tile",
+                &second_tile.0.to_string(),
+            )
+            .expect("the second document tile is visible after tab activation");
+            assert!(class_node(&dom, active, "knot-document-body").is_some());
+        }
+
+        assert!(host.click_on(
+            &Selector::role("button").with_attr("aria-label", "Back: scratch:tab-a")
+        ));
+        assert_eq!(host.state().focused_key(), Some(first));
+        assert_eq!(
+            host.state().context_navigation.current().unwrap().place,
+            host.state().context_document_place(first).unwrap()
+        );
+        let first_tile = host.state().docs.tile_of(first).unwrap();
+        let dom = host.runner().dom();
+        let dom = dom.borrow();
+        let active = attr_node(
+            &dom,
+            dom.document(),
+            "data-tile",
+            &first_tile.0.to_string(),
+        )
+        .expect("Back restores the first document tile");
+        assert!(class_node(&dom, active, "knot-document-body").is_some());
     }
 
     #[test]

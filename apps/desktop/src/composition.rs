@@ -1930,7 +1930,7 @@ mod tests {
             ) {
                 let is_button = dom
                     .element_name(node)
-                    .is_some_and(|name| name.local.as_ref() == "button");
+                    .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button");
                 if is_button && text_content(dom, node).contains(" · token-") {
                     cards.push(node);
                 }
@@ -2251,7 +2251,7 @@ mod tests {
                 );
                 assert!(
                     dom.element_name(*probe)
-                        .is_some_and(|name| name.local.as_ref() == "span")
+                        .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "span")
                 );
             }
             for label in [

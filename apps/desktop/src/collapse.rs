@@ -30,7 +30,7 @@ impl Default for CollapsePreferences {
         Self {
             reading_min_width: 280,
             rail_width: 28,
-            menu_below: 700,
+            menu_below: 1150,
             drawer_below: 500,
             status_below: 700,
             other: Map::new(),

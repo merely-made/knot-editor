@@ -116,6 +116,45 @@ impl mesquite::Product for KnotLane {
             .with_field("scene_selected_position", position)
             .with_field("resident_session_count", resident.sessions.len().to_string())
             .with_field("resident_fork_count", resident.sessions.iter().filter(|session| session.name.starts_with("Session (fork of ")).count().to_string());
+        let (caption_group, controls_group) = {
+            let dom = ctx.runner.dom();
+            let dom = dom.borrow();
+            (
+                taproot::matching_classes(&dom, &taproot::Selector::class("title-bar-captions"))
+                    .into_iter()
+                    .next(),
+                taproot::matching_classes(&dom, &taproot::Selector::class("window-caption-controls"))
+                    .into_iter()
+                    .next(),
+            )
+        };
+        let caption_rect = caption_group.and_then(|node| ctx.painted_rect(node));
+        let controls_rect = controls_group.and_then(|node| ctx.painted_rect(node));
+        let rect_text = |rect: Option<(f32, f32, f32, f32)>| {
+            rect.map_or_else(
+                || "unavailable".to_owned(),
+                |(x, y, width, height)| format!("{x:.1},{y:.1},{width:.1},{height:.1}"),
+            )
+        };
+        snapshot = snapshot
+            .with_field("chrome_host_logical_width", format!("{:.1}", ctx.logical_size.0))
+            .with_field("chrome_host_logical_height", format!("{:.1}", ctx.logical_size.1))
+            .with_field("chrome_caption_group_rect", rect_text(caption_rect))
+            .with_field("chrome_controls_group_rect", rect_text(controls_rect))
+            .with_field(
+                "chrome_caption_group_inside_viewport",
+                caption_rect.is_some_and(|(x, _, width, _)| {
+                    x >= -0.5 && x + width <= ctx.logical_size.0 + 0.5
+                })
+                .to_string(),
+            )
+            .with_field(
+                "chrome_controls_group_inside_viewport",
+                controls_rect.is_some_and(|(x, _, width, _)| {
+                    x >= -0.5 && x + width <= ctx.logical_size.0 + 0.5
+                })
+                .to_string(),
+            );
         for (key, value) in ctx.runner.state().catalog_fold_facts() {
             snapshot = snapshot.with_field(key, value);
         }

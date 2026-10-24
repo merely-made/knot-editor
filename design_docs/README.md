@@ -58,6 +58,8 @@ visual residuals; it does not infer live dynamics or release acceptance.
 
 - [Commands slice](2026-09-29_knot_commands_slice.md): the unified command catalog, configurable native/client chrome, menu and palette routes, and qualified platform-specific evidence.
 
+- [Contextual navigation prototype](2026-10-23_knot_context_navigation.md): shared Cambium Back/Forward and scope controls, nested live-outline ancestry, startup-only rebinding of durable document/site routes, semantic source/preview scroll bookmarks, and current authority limits.
+
 - [Document links slice](2026-09-29_knot_document_links_slice.md): source-authored links, bounded backlinks and product-owned source navigation.
 
 - [Typography slice](2026-09-29_knot_typography_slice.md): bundled writer/reader fonts and font-backed measure; its existing platform receipt remains distinct from the combined diagnostics qualification.

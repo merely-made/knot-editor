@@ -47,8 +47,8 @@ target/debug/knot \
 It selects each site tile, publishes that site's saved snapshot, asserts two
 independent serving owners, and captures the resulting whole frame.
 
-The integration test in `apps/desktop/tests/scenario_lane.rs` runs all five
-scenario action/assertion streams against the real retained desktop controls.
+The integration test in `apps/desktop/tests/scenario_lane.rs` runs scenario
+action/assertion streams against the real retained desktop controls.
 It removes only `capture` lines because the windowless harness has no native
 swapchain. The headed invocation remains the authority for PNG receipts.
 
@@ -59,6 +59,22 @@ matching source text on the global surface. Research asserts both the reading
 result row count and exact labels emitted by `references.rhai`. Open-reading
 snapshot flags count pinned and following tiles alike, and `wait` includes
 graph, publication, retention, and pending capture work.
+
+`context_navigation.scn` opens `fixtures/context_navigation.djot` and drives the
+shared Back, Forward, Up, Down, and breadcrumb controls through a nested outline.
+It asserts the containing heading on Up, history restoration, and the full
+document-to-section trail. The source remains byte-identical. Run it headed with
+the fixture path as the launch document; choose a fresh capture directory as
+for the other scenarios.
+
+`context_scroll.scn` opens `fixtures/context_scroll.djot`, records a manually
+scrolled Source position, then a rendered Preview text byte inside a long
+heading-free paragraph, and restores each with Back. It asserts the Preview
+byte is deep in the rendered text. `context_scroll_reopen.scn` asserts the
+Preview view and text byte persisted into a new process. For the restart pair,
+use the same isolated application settings directory and the fixture as launch
+document for both runs. Keep the fixture unchanged; choose a fresh capture
+directory per process.
 
 `relationship_recipe_compact.scn` launches
 `scenarios/fixtures/composition/selection.djot` with isolated settings. It uses

@@ -1,0 +1,26 @@
+# Navigate the live outline as nested context while retaining one document.
+assert snap context_location == context_navigation.djot
+assert snap context_trail == context_navigation.djot
+click role:button @aria-label=Down: Opening
+settle 1
+assert snap context_location == Opening
+assert snap context_trail == context_navigation.djot > Opening
+click role:button @aria-label=Down: Chapter
+settle 1
+assert snap context_location == Chapter
+assert snap context_trail == context_navigation.djot > Opening > Chapter
+click role:button @aria-label=Down: Deep section
+settle 1
+assert snap context_location == Deep section
+assert snap context_trail == context_navigation.djot > Opening > Chapter > Deep section
+click role:button @aria-label=Up: Chapter
+settle 1
+assert snap context_location == Chapter
+assert snap context_back == true
+click role:button @aria-label=Back: Deep section
+settle 1
+assert snap context_location == Deep section
+click role:button @aria-label=Forward: Chapter
+settle 1
+assert snap context_location == Chapter
+capture nested-context

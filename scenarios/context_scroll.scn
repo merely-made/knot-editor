@@ -1,0 +1,31 @@
+assert snap context_location == context_scroll.djot
+click role:button @aria-label=Down: Root
+settle 4
+click role:button @aria-label=Back: context_scroll.djot
+settle 4
+wheel 0 2800 px on role:textbox @aria-multiline=true
+settle 1
+assert snap context_scroll_kind == source-byte
+assert snap context_scroll_position >= 1
+click role:button @aria-label=Down: Root
+settle 4
+click role:button @aria-label=Back: context_scroll.djot
+settle 4
+assert snap context_location == context_scroll.djot
+assert snap context_scroll_kind == source-byte
+assert snap context_scroll_position >= 1
+click role:button @data-command-id=view.preview
+settle 4
+wheel 0 1800 px on .frisket-content @data-tile=2
+settle 4
+assert snap context_scroll_kind == preview-byte
+assert snap context_scroll_position >= 500
+click role:button @aria-label=Down: Root
+settle 4
+click role:button @aria-label=Back: context_scroll.djot
+settle 4
+assert snap context_location == context_scroll.djot
+assert snap context_view == preview
+assert snap context_scroll_kind == preview-byte
+assert snap context_scroll_position >= 500
+capture source-and-preview-return

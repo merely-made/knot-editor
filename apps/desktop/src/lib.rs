@@ -36,7 +36,7 @@ use cambium::{
     COMMAND_MENU_BAR_CSS, FOLD_ROWS_CSS, FRISKET_CSS, GRAPH_CANVAS_SWATCH_CSS, POPOVER_CSS,
     STATUS_BAR_CSS, WORKSPACE_CSS,
 };
-use cambium_genet_winit_host::{HostHooks, HostOptions, Init, WindowFrame, inert_hooks, run};
+use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
 use knot_capture::KnotRetainPort;
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use knot_file_catalog::KnotFileCatalog;
@@ -66,6 +66,7 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
     });
     hooks.after_frame = Box::new(move |ctx| {
         last_presented.set(ctx.presentation.is_some());
+        workspace::context_navigation_after_frame(ctx);
     });
     hooks.after_dispatch = Box::new(move |ctx| {
         theme_session::after_dispatch(ctx);
@@ -92,8 +93,9 @@ pub fn host_hooks() -> HostHooks<DesktopState, fn(&DesktopState) -> DesktopView,
 /// rules dress it.
 pub fn desktop_sheet() -> String {
     format!(
-        "{}{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{COMMAND_MENU_BAR_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{GRAPH_CANVAS_SWATCH_CSS}{}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
+        "{}{}{FRISKET_CSS}{WORKSPACE_CSS}{POPOVER_CSS}{COMMAND_MENU_BAR_CSS}{STATUS_BAR_CSS}{FOLD_ROWS_CSS}{GRAPH_CANVAS_SWATCH_CSS}{}{DESKTOP_CSS}{KNOT_DOCUMENT_CSS}{}{}{}{}{}{}",
         cambium::TITLE_BAR_CSS,
+        cambium::SHELL_CSS,
         mere_view::MERE_VIEW_CSS,
         appearance::appearance_css(),
         document_folding::CSS,
@@ -209,11 +211,7 @@ pub fn run_desktop_with_targets_and_relations(
     run(
         HostOptions {
             title: "Knot".into(),
-            window_frame: if cfg!(target_os = "macos") {
-                WindowFrame::Host
-            } else {
-                WindowFrame::App
-            },
+            window_frame: cambium_genet_winit_host::platform_window_frame(),
             maximize_control_label: "Maximize window".into(),
             initial_logical_size: (1100.0, 700.0),
             // Explicit acceptance sizes use the host's normal window-size
@@ -256,6 +254,7 @@ pub fn run_desktop_with_targets_and_relations(
             state.set_retention_targets(targets, wake.clone());
             state.set_composition_targets(composition_targets, wake.clone());
             state.open_behind(behind, &failures);
+            state.restore_persisted_context_navigation();
             let sheet = theme_session::stylesheet(&state);
             Init {
                 state,

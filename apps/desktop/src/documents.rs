@@ -238,6 +238,23 @@ impl<D> DocumentWorkspace<D> {
         self.entries.get(&key).map(|entry| entry.tile)
     }
 
+    /// The selected tile in the stack containing this document. A selected
+    /// Outline or Preview in another pane is independent and is left alone.
+    pub fn active_tile_in_stack(&self, key: DocKey) -> Option<TileId> {
+        fn active(tree: &TileTree, target: TileId) -> Option<TileId> {
+            match tree {
+                TileTree::Stack(stack) if stack.tabs.iter().any(|tile| tile.id == target) => {
+                    stack.tabs.get(stack.active).map(|tile| tile.id)
+                },
+                TileTree::Stack(_) => None,
+                TileTree::Split { children, .. } => children
+                    .iter()
+                    .find_map(|branch| active(&branch.tree, target)),
+            }
+        }
+        active(self.workspace.tiled(), self.tile_of(key)?)
+    }
+
     pub fn role(&self, tile: TileId) -> Option<&TileRole> {
         self.roles.get(&tile)
     }

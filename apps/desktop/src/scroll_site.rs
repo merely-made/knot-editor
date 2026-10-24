@@ -158,6 +158,17 @@ impl ScrollWorkspace {
         self.sites.get(&key)
     }
 
+    pub(crate) fn root_address(&self, key: SiteKey) -> Option<String> {
+        self.site(key)
+            .map(|entry| entry.site.root().to_string_lossy().into_owned())
+    }
+
+    pub(crate) fn key_for_root_address(&self, root: &str) -> Option<SiteKey> {
+        self.sites.iter().find_map(|(key, entry)| {
+            (entry.site.root().to_string_lossy() == root).then_some(*key)
+        })
+    }
+
     /// The most recently opened site, for legacy single-site test fixtures.
     /// Product behavior must resolve a site from an explicit key or page.
     #[cfg(test)]
@@ -1255,6 +1266,7 @@ impl DesktopState {
             self.docs.close(tile);
         }
         self.scroll.remove(site);
+        self.context_site_admissions.remove(&site);
         self.bind_site_pages();
         self.message = Some(format!("Closed site {name}."));
     }
@@ -3245,7 +3257,7 @@ mod tests {
     ) {
         if dom
             .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "button")
+            .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button")
         {
             found.push(node);
         }
@@ -3569,7 +3581,7 @@ mod tests {
         ) -> Option<genet_scripted_dom::NodeId> {
             if dom
                 .element_name(node)
-                .is_some_and(|name| name.local.as_ref() == "button")
+                .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button")
                 && text_content(dom, node) == label
             {
                 return Some(node);
@@ -3998,7 +4010,7 @@ mod tests {
         ) {
             if dom
                 .element_name(node)
-                .is_some_and(|name| name.local.as_ref() == "button")
+                .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button")
             {
                 found.push(node);
             }
@@ -4238,7 +4250,7 @@ mod tests {
             }
             if dom
                 .element_name(node)
-                .is_some_and(|name| name.local.as_ref() == "button")
+                .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button")
                 && text_content(dom, node) == "About"
             {
                 *styled_button = dom
@@ -4335,7 +4347,7 @@ mod tests {
         for link in links {
             assert!(
                 dom.element_name(link)
-                    .is_some_and(|name| name.local.as_ref() == "button"),
+                    .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button"),
                 "an in-page link is an activatable control"
             );
             assert!(host.runner().focusables().contains(&link));
@@ -5124,7 +5136,7 @@ mod tests {
     ) -> Option<genet_scripted_dom::NodeId> {
         let native_textarea = dom
             .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "textarea");
+            .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "textarea");
         let app_textarea = is_cambium_textbox(dom, node)
             && dom.attribute(
                 node,
@@ -5144,7 +5156,7 @@ mod tests {
     ) -> Option<genet_scripted_dom::NodeId> {
         let native_input = dom
             .element_name(node)
-            .is_some_and(|name| name.local.as_ref() == "input");
+            .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "input");
         let app_text_input = is_cambium_textbox(dom, node)
             && dom.attribute(
                 node,

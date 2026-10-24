@@ -193,6 +193,8 @@ fn blocks(
                         end: 0,
                     });
                     let label = heading.label.clone();
+                    let heading_start = heading.start;
+                    let heading_end = heading.end;
                     let heading_address = Arc::clone(address);
                     let heading_source = Arc::clone(source_text);
                     Box::new(el(
@@ -213,6 +215,8 @@ fn blocks(
                             )
                         })
                         .attr("class", "knot-document-preview-heading")
+                        .attr("data-knot-context-heading-start", heading_start.to_string())
+                        .attr("data-knot-context-heading-end", heading_end.to_string())
                         .attr("aria-label", format!("Select source heading: {label}")),
                     ))
                 },
@@ -413,6 +417,7 @@ pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> Deskt
             el("div", preview)
                 .attr("id", format!("knot-document-preview-{}", tile.0))
                 .attr("class", "knot-document-preview")
+                .attr("data-knot-preview-document", key.0.to_string())
                 .attr("style", state.appearance.preview_style())
                 .attr("role", "complementary")
                 .attr("aria-label", "Document preview"),

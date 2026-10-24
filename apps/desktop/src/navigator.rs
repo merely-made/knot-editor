@@ -171,7 +171,7 @@ mod tests {
                 let availability = children.next().expect("the availability");
                 let is_button = dom
                     .element_name(path)
-                    .is_some_and(|name| name.local.as_ref() == "button");
+                    .is_some_and(|name| std::convert::AsRef::<str>::as_ref(&name.local) == "button");
                 (text(&dom, path), text(&dom, availability), is_button)
             })
             .collect()

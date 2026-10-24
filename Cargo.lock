@@ -7478,7 +7478,7 @@ dependencies = [
 [[package]]
 name = "mere-source-edit"
 version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?rev=70deef2c8cf3d3410ae35b496a9396514070b24f#70deef2c8cf3d3410ae35b496a9396514070b24f"
+source = "git+https://github.com/merely-made/mere.git?branch=main#4c13036a42c38342a65f4b628eb86a4233191072"
 dependencies = [
  "serde",
 ]

@@ -42,6 +42,19 @@ jobs:
       - name: Test optional Retinue backend
         if: matrix.backend == 'retinue'
         run: cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features --features retinue
+  offline-profile:
+    # Knot builds as an offline application: `knot-desktop --no-default-features`
+    # links no peer transport, HTTP fetch, Reticulum or p2p engine. The positive
+    # control proves the walker sees an optional engine when its feature is on.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        run: rustup show
+      - name: Offline profile links no network engine
+        run: python3 tools/check_profile.py offline
+      - name: Positive control (Retinue appears when its feature is on)
+        run: python3 tools/check_profile.py offline --features retinue --expect retinue
   test:
     runs-on: windows-latest
     env:
@@ -63,3 +76,5 @@ jobs:
         run: cargo test -p knot-desktop
       - name: Check optional desktop Retinue backend
         run: cargo check -p knot-desktop --features retinue
+      - name: Check offline desktop build
+        run: cargo check -p knot-desktop --no-default-features

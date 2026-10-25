@@ -4060,7 +4060,19 @@ Fallback.
         let space = [0x52; 32];
         let database = sync_dir.path().join("knot.redb");
         let vault = KnotVault::open(vault_dir.path(), key).unwrap();
-        let store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
+        // Create the store the way the resident does, so it carries the clean
+        // storage marker and reopens as current. A plain `open` leaves an
+        // unmarked file whose reopen is a legacy rewrite, which Windows refuses.
+        let (store, created) =
+            pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
+                &database,
+                space,
+                [writer],
+                crate::KnotSyncCipher::Personal(&vault),
+                &vault,
+            ))
+            .unwrap();
+        assert!(!created.rewritten);
         pollster::block_on(
             store.author(
                 &seed,
@@ -4115,7 +4127,7 @@ Fallback.
         drop(endpoint);
 
         let vault = KnotVault::open(vault_dir.path(), key).unwrap();
-        let (store, _checkpoint_repair) =
+        let (store, reopen_repair) =
             pollster::block_on(KnotSyncFileStore::open_with_checkpoint_repair(
                 &database,
                 space,
@@ -4124,6 +4136,10 @@ Fallback.
                 &vault,
             ))
             .unwrap();
+        assert!(
+            !reopen_repair.rewritten,
+            "a store created through repair reopens without the Unix-only rewrite"
+        );
         let mut reopened =
             KnotEndpoint::from_synced_vault(vault, store, &seed, KnotWriteGrant::new(4096))
                 .unwrap();

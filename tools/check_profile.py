@@ -25,7 +25,9 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 
 # Network engines an offline Knot must not link. Grouped by the contract each
-# would sit behind, so a failure says what kind of link crept in.
+# would sit behind, so a failure says what kind of link crept in. A crate that
+# is renamed needs its new name listed beside the old one, or the check passes
+# without seeing it.
 FORBIDDEN = {
     "peer transport (mere-transport)": [
         "mere-transport",
@@ -36,6 +38,7 @@ FORBIDDEN = {
         "quinn",
         "snow",
         "mere-webrtc-carrier",
+        "murm-webrtc",  # mere-webrtc-carrier's name after the 2026-10-25 rename
         "stickleback",
     ],
     "Reticulum and mesh engines": [

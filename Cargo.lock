@@ -6570,7 +6570,20 @@ checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 name = "knot-capture"
 version = "0.0.1"
 dependencies = [
- "knot-file-catalog",
+ "knot-catalog",
+]
+
+[[package]]
+name = "knot-catalog"
+version = "0.0.1"
+dependencies = [
+ "muniment",
+ "pollster 0.4.0",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]
@@ -6605,10 +6618,10 @@ dependencies = [
  "genet-scripted-dom",
  "inker",
  "knot-capture",
+ "knot-catalog",
  "knot-composition",
  "knot-document",
  "knot-editor",
- "knot-file-catalog",
  "knot-readings",
  "knot-site",
  "layout-dom-api",
@@ -6676,9 +6689,9 @@ dependencies = [
  "insigne",
  "jotdown",
  "knot-capture",
+ "knot-catalog",
  "knot-composition",
  "knot-document",
- "knot-file-catalog",
  "mere-fetch",
  "mere-overmap",
  "mere-p2panda-net",
@@ -6733,19 +6746,6 @@ dependencies = [
  "inker",
  "nematic",
  "pulldown-cmark",
-]
-
-[[package]]
-name = "knot-file-catalog"
-version = "0.0.1"
-dependencies = [
- "muniment",
- "pollster 0.4.0",
- "serde",
- "serde_json",
- "tempfile",
- "uuid",
- "zeroize",
 ]
 
 [[package]]

@@ -7,4 +7,4 @@ license.workspace = true
 rust-version = "1.97.1"
 
 [dependencies]
-knot-file-catalog.workspace = true
+knot-catalog.workspace = true

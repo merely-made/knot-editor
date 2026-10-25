@@ -25,7 +25,7 @@ curation = { package = "mere-curation", version = "0.1.1", git = "https://github
 # Product crates.
 knot-capture = { version = "0.0.1", path = "crates/knot-capture" }
 knot-document = { version = "0.0.1", path = "crates/knot-document" }
-knot-file-catalog = { version = "0.0.1", path = "crates/knot-file-catalog" }
+knot-catalog = { version = "0.0.1", path = "crates/knot-file-catalog" }
 knot-readings = { version = "0.0.1", path = "crates/knot-readings" }
 knot-composition = { version = "0.0.1", path = "crates/knot-composition" }
 reference-data = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main" }

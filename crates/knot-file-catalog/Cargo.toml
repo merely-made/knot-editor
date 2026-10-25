@@ -1,5 +1,5 @@
 [package]
-name = "knot-file-catalog"
+name = "knot-catalog"
 version = "0.0.1"
 edition.workspace = true
 
@@ -7,6 +7,9 @@ rust-version = "1.97.1"
 license.workspace = true
 repository.workspace = true
 description = "Root-bound durable file bindings for Knot document adoption."
+
+[lib]
+name = "knot_file_catalog"
 
 [dependencies]
 muniment = { workspace = true, features = ["redb"] }

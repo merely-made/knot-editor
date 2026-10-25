@@ -46,7 +46,7 @@ sprigging.workspace = true
 workbench.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
 tinct = { version = "0.2.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
-knot-file-catalog.workspace = true
+knot-catalog.workspace = true
 knot-readings = { workspace = true, features = ["portable-scenes"] }
 knot-composition.workspace = true
 reference-data.workspace = true

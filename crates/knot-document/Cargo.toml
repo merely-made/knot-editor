@@ -27,7 +27,7 @@ engine = [
 [dependencies]
 # Exact published contract intake preserves Knot's qualified rendering family.
 # Canonical Git source; no local patch or other supplier repin.
-mere-source-edit = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
+mere-edit = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 same-file = "1.0.6"
 # The embedded surface uses the widget API shared by the 0.4 through 0.6 cohorts.
 # It implements neither of the contributed-observation callbacks changed in 0.6.

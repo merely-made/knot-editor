@@ -130,6 +130,7 @@ impl KnotVault {
     /// signed source events. It must not take the authoring endpoint's mutable
     /// vault handle, but it does need an independently zeroized copy of the
     /// already-unlocked record-storage handle for the duration of the host.
+    #[cfg(feature = "peers")]
     pub(crate) fn fork_read_handle(&self) -> Result<Self, String> {
         let store = self
             .store

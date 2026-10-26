@@ -10,6 +10,19 @@ The Cargo package is `knot-editor` and the Rust crate is `knot_editor`.
 The resident route and existing document addresses remain `knot` because they
 name the content and protocol, rather than this package.
 
+## Features
+
+`default = []`, so the library is an offline authority: it links no iroh, quinn,
+p2panda-net or reqwest. `tools/check_profile.py library` proves it from
+`cargo metadata` edges, with a positive control that finds the stack again when
+`peers` is on.
+
+| Feature | Adds |
+|---|---|
+| `peers` | Everything that reaches a peer or the network: `mark` (the QUIC read host), `publish_carrier`, `publish_client` and `publish_host`, `KnotSyncStore::join`, `resident` (`KnotSyncHost`), `BlobClipEvidenceStore` and `KnotContentRetentionPort` with `KnotResidentSource::content_blob_store`, `KnotClipEvidenceRef::blob_hash`, the `knot_endpoint` and `knot_sync_host` bins, and the two peer examples. It turns on `stickleback/net`; Djinn and Turnstone opt in by name. |
+| `mere-overlay` | A resident mere's sessions and archive as an overmap layer. |
+| `embed-bert`, `embed-bert-wgpu` | Search embedders beyond the lexical default. |
+
 ## Modules
 
 `src/lib.rs` re-exports everything below.
@@ -25,7 +38,7 @@ name the content and protocol, rather than this package.
 | `vault` | `KnotVault`, `VaultDocument`. Sealed document store on `personae::SealedRecordStorage`, with the Sibylla search index sealed in the same store. |
 | `search` | `KnotSearch`, `SearchConfig`, `SearchHit`, `SearchLane` (`Disk`, `Vault`). Sibylla lexical index over both lanes under separate Servitor caps, `knot/search/disk` and `knot/search/vault`. |
 | `sync` | `KnotSyncStore<B>` and its `KnotSyncFileStore` redb alias, `KnotSyncEvent`, `KnotSyncExt`, `KnotSyncCipher`, `KnotSyncError`, `KnotDocumentProjection`, `KnotDocumentVersion`, `KnotDocumentConflict`, `KnotAutomaticTextMerge`, `KnotEncryptionProfile` (`PersonalVaultV1`, `CommonsDataV1`), `KNOT_COMMONS_ENCRYPTION_PROFILE`, `KnotCheckpointSnapshot`, `KnotProjectionCheckpoint`, `KnotEpochExecutionReceipt`, `KnotOfflineMemberEpochHold`, `KnotOfflineMemberRecovery`, `KnotTailReceipt`. Signed causal events over Stickleback and p2panda; the projection reports same-document conflicts and, where two concurrent versions share a base, a clean three-way text merge. |
-| `resident` | `KnotSyncHost`, `KnotSyncHostConfig`, `KnotSyncHostError`. Keeps a persona's space joined over `transport::P2pandaTransport` without serving a projection. |
+| `resident` (`peers`) | `KnotSyncHost`, `KnotSyncHostConfig`, `KnotSyncHostError`. Keeps a persona's space joined over `transport::P2pandaTransport` without serving a projection. |
 | `settings` | `KnotSettings`, `KnotSyncSettings`, `KnotSettingsError`, `knot_settings_path`, `hex32`, `parse_hex32`. Per-persona `knot-sync.json` holding paired writer keys, relay urls, and peer hints. |
 | `startup` | `StartupUnlockedPersonalVault`, `local_device_root`, `persona_vault_root`. Recovers the persona epoch through session-runtime's wallet and derives the vault key, space id, and device-distinct writer key. |
 
@@ -33,9 +46,9 @@ name the content and protocol, rather than this package.
 
 | Target | Invocation |
 |---|---|
-| `knot_endpoint` | Serves over stdio with `graphshell_endpoint::stdio::serve_resumable_notifying`. Modes: no argument (the deterministic K0 fixture), `[directory]`, `directory <root>`, `directory-write <root> <max-source-bytes>`, `directory-write-effects <root> <max-source-bytes> <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>`, `persona-vault <data-root> <persona-id> <max-source-bytes>`, `persona-vault-effects ...`, `communal-fixture-effects ...`. Effect modes are `auto`, `ask`, `never`. |
-| `knot_sync_host` | `knot_sync_host <data-root> <persona-uuid> [--label <name>] [--log-file <path>]`. Management verbs exit after reporting: `--pair-writer <64-hex>`, `--unpair-writer <64-hex>`, `--pairing-facts`. |
-| `examples/k2_peer.rs` | Two-machine rehearsal for a place-held document. `cargo run -p knot-editor --example k2_peer -- hold --root <vault-dir>` on the holder; `visit --peer <ticket>` or `visit --discover` on the visitor. Env: `K2_OWNER`, `K2_SEED`, `K2_NETWORK`, and `K2_PEER` for `--discover`. It is an example rather than a bin because it uses the `graphshell` dev-dependency. |
+| `knot_endpoint` (`peers`) | Serves over stdio with `graphshell_endpoint::stdio::serve_resumable_notifying`. Modes: no argument (the deterministic K0 fixture), `[directory]`, `directory <root>`, `directory-write <root> <max-source-bytes>`, `directory-write-effects <root> <max-source-bytes> <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>`, `persona-vault <data-root> <persona-id> <max-source-bytes>`, `persona-vault-effects ...`, `communal-fixture-effects ...`. Effect modes are `auto`, `ask`, `never`. |
+| `knot_sync_host` (`peers`) | `knot_sync_host <data-root> <persona-uuid> [--label <name>] [--log-file <path>]`. Management verbs exit after reporting: `--pair-writer <64-hex>`, `--unpair-writer <64-hex>`, `--pairing-facts`. |
+| `examples/k2_peer.rs` (`peers`) | Two-machine rehearsal for a place-held document. `cargo run -p knot-editor --example k2_peer -- hold --root <vault-dir>` on the holder; `visit --peer <ticket>` or `visit --discover` on the visitor. Env: `K2_OWNER`, `K2_SEED`, `K2_NETWORK`, and `K2_PEER` for `--discover`. It is an example rather than a bin because it uses the `graphshell` dev-dependency. |
 
 Integration tests: `tests/place_projection.rs`, `tests/revision_bell.rs`,
 `tests/send_probe.rs`.
@@ -49,10 +62,10 @@ Integration tests: `tests/place_projection.rs`, `tests/revision_bell.rs`,
 - Documents: `inker`, `nematic`, `illume`, `cambium`, `knot-editor-host`,
   `similar`.
 - Storage and identity: `muniment` (`redb`), `personae`, `zeroize`.
-- Sync: `stickleback`, `transport`, `p2panda-core`, `p2panda-net`,
-  `p2panda-store` (all 0.7).
+- Sync: `stickleback` (its `net` half only with `peers`), `p2panda-core`,
+  `p2panda-store` (all 0.7); with `peers`, `transport`, `quinn` and `rustls`.
 - Search: `esp::embed`.
-- Effects: `fetch`, `script-rhai`, `url`.
+- Effects: `script-rhai`, `url`; `fetch` with `peers`.
 - Filesystem and platform: `notify` 8, and `windows-sys` on Windows for file
   identity.
 - Dev-dependencies: `graphshell`, `notochord`,

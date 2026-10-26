@@ -197,6 +197,7 @@ impl KnotPublishCatalog {
 
     /// The holder-local selection for a publication, for the host's final
     /// unpublish check immediately before it writes a response.
+    #[cfg(feature = "peers")]
     pub(crate) fn selection(&self, id: PublicationId) -> Option<&KnotPublication> {
         self.publications.get(&id)
     }
@@ -289,6 +290,7 @@ impl KnotPublishCatalog {
     /// its own explicit export selection and Mark access policy. It does retain
     /// every source-eligibility rule from the native lane, so an unresolved
     /// causal state cannot become a false numeric Mark history.
+    #[cfg(feature = "peers")]
     pub(crate) async fn current_for_mark_export<B>(
         &self,
         store: &KnotSyncStore<B>,

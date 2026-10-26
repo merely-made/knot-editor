@@ -15,6 +15,7 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "peers")]
 use std::sync::Arc;
 
 use graphshell_endpoint::door::app_admission::AppId;
@@ -23,13 +24,17 @@ use graphshell_endpoint::door::custody_client::{
     BlockingCustodyClient, CustodyClient, CustodyClientError,
 };
 use p2panda_core::SigningKey;
-use personae::{Ed25519Keypair, PersonaId};
+#[cfg(feature = "peers")]
+use personae::Ed25519Keypair;
+use personae::PersonaId;
 use zeroize::Zeroizing;
 
 use crate::{
-    KnotCheckpointRepairReceipt, KnotEndpoint, KnotPublishSource, KnotResidentSource,
-    KnotSyncCipher, KnotSyncEvent, KnotSyncFileStore, KnotVault, KnotWriteGrant, VaultDocument,
+    KnotCheckpointRepairReceipt, KnotEndpoint, KnotResidentSource, KnotSyncCipher, KnotSyncEvent,
+    KnotSyncFileStore, KnotVault, KnotWriteGrant, VaultDocument,
 };
+#[cfg(feature = "peers")]
+use crate::KnotPublishSource;
 
 /// The epoch derivation of a persona's Knot vault key. djinn's release
 /// policy names it.
@@ -325,6 +330,7 @@ impl StartupUnlockedPersonalVault {
     /// and the independently retained read-only publishing host. Both handles
     /// retain the same synced source key, but only the endpoint receives the
     /// mutable vault handle and write grant.
+    #[cfg(feature = "peers")]
     pub fn into_endpoint_and_publish_source(
         self,
         grant: KnotWriteGrant,
@@ -335,6 +341,7 @@ impl StartupUnlockedPersonalVault {
 
     /// Split one startup unlock between a cloneable authoring source and the
     /// independently retained read-only publishing source.
+    #[cfg(feature = "peers")]
     pub fn into_resident_source_and_publish_source(
         self,
     ) -> Result<(KnotResidentSource, KnotPublishSource), String> {

@@ -20,7 +20,6 @@ use std::sync::{Arc, RwLock};
 use muniment::{Backend, MemoryBackend, RedbBackend, StoreError, WriteOp};
 use p2panda_core::cbor::{decode_cbor_strict, encode_cbor};
 use p2panda_core::{Body, Hash, Header, Operation, SigningKey, Topic, VerifyingKey};
-use p2panda_net::{Endpoint, Gossip};
 use p2panda_store::topics::TopicStore;
 use proofs::Digest;
 use serde::{Deserialize, Serialize};
@@ -28,11 +27,12 @@ use stickleback::CausalIndex;
 use stickleback::{
     Admission, CausalEntry, CausalError, CausalLimits, DataKeyring, EpochCheckpointBasis,
     EpochHold, EpochHoldReason, EpochPruningProposal, EpochRetentionFacts, GroupCiphertext,
-    GroupCryptoError, GroupEncryptionProfile, GroupSecretId, JoinError, JoinedSpace, MunimentStore,
-    OperationPolicy, OperationProcessor, PendingCausalOperation, ProcessError, Reject, StoreTarget,
-    author_head, causal_projection, observed_frontier, propose_epoch_pruning,
-    validate_causal_metadata,
+    GroupCryptoError, GroupEncryptionProfile, GroupSecretId, MunimentStore, OperationPolicy,
+    OperationProcessor, PendingCausalOperation, ProcessError, Reject, StoreTarget, author_head,
+    causal_projection, observed_frontier, propose_epoch_pruning, validate_causal_metadata,
 };
+#[cfg(feature = "peers")]
+use stickleback::{Endpoint, Gossip, JoinError, JoinedSpace};
 use tokio::sync::Mutex;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -2196,6 +2196,7 @@ where
     }
 }
 
+#[cfg(feature = "peers")]
 impl<B> KnotSyncStore<B>
 where
     B: Backend + Clone + Send + Sync + 'static,
@@ -3041,11 +3042,14 @@ mod coordination_tests;
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "peers")]
     use std::sync::Arc;
+    #[cfg(feature = "peers")]
     use std::time::Duration;
 
     use personae::{IdentityProvider, InMemoryProvider};
     use tempfile::tempdir;
+    #[cfg(feature = "peers")]
     use transport::{P2pandaTransport, PeerID, sync_overlay_topic};
 
     use super::*;
@@ -4641,6 +4645,7 @@ mod tests {
         );
     }
 
+    #[cfg(feature = "peers")]
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn two_instances_converge_over_real_p2panda_logsync() {
         let roots = tempdir().unwrap();

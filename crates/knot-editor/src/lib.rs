@@ -22,16 +22,21 @@ mod djot_merge;
 mod embedding;
 mod endpoint;
 mod file_revision;
+#[cfg(feature = "peers")]
 mod mark;
 #[cfg(feature = "mere-overlay")]
 pub mod mere_overlay;
 mod predicates;
 mod publish;
+#[cfg(feature = "peers")]
 mod publish_carrier;
+#[cfg(feature = "peers")]
 mod publish_client;
+#[cfg(feature = "peers")]
 mod publish_host;
 mod publish_wire;
 mod relations;
+#[cfg(feature = "peers")]
 mod resident;
 mod retain_host;
 mod rosette;
@@ -47,9 +52,11 @@ mod writer;
 pub use authority::{KnotAuthoritySource, KnotSpaceAuthoritySnapshot};
 pub use retain_host::KnotResidentRetainPort;
 pub use endpoint::{CompositionGrant, KnotCompositionPort, KnotResidentCompositionPort};
+#[cfg(feature = "peers")]
+pub use clip_evidence::{BlobClipEvidenceStore, KnotContentRetentionPort};
 pub use clip_evidence::{
-    BlobClipEvidenceStore, FileClipEvidenceStore, KnotClipEvidenceRef, KnotClipEvidenceStore,
-    KnotContentRetentionPort, KnotClipCitation, clip_citations, clip_evidence_references,
+    FileClipEvidenceStore, KnotClipCitation, KnotClipEvidenceRef, KnotClipEvidenceStore,
+    clip_citations, clip_evidence_references,
 };
 pub use content_classes::{
     FILE_CLASS, FILE_DOCUMENT_FACET, KnotContentClasses, NOTE_CLASS, NOTE_DOCUMENT_FACET,
@@ -76,6 +83,7 @@ pub use knot_document::{
 };
 pub use knot_file_catalog::KnotFileRevisionV1;
 pub use knot_file_catalog::{KnotFileCatalog, KnotFileCatalogAvailability, KnotFileCatalogRecord};
+#[cfg(feature = "peers")]
 pub use mark::{
     MARK_ALPN, MARK_DEFAULT_PORT, MARK_MAX_DOCUMENT_BYTES, MARK_MAX_METADATA_BYTES,
     MARK_MAX_REQUEST_BYTES, MarkAdapterError, MarkQuicHost, MarkReadAccess, MarkReadAdapter,
@@ -97,13 +105,16 @@ pub use publish::{
     KnotShareControlError, KnotShareRecipient, KnotShareTicket, PublicationId, publication_path,
     revoke_share,
 };
+#[cfg(feature = "peers")]
 pub use publish_carrier::{
     PublishCarrierError, PublishRefusal, accept_publish_session, publish_alpn, publish_policy,
 };
+#[cfg(feature = "peers")]
 pub use publish_client::{
     KNOT_PUBLISH_READER_KEY_CONTEXT, KnotPublishClientError, decode_share_ticket,
     encode_share_ticket, fetch_published_document,
 };
+#[cfg(feature = "peers")]
 pub use publish_host::{
     KnotPublishHost, KnotPublishHostError, KnotPublishHostLimits, KnotPublishServeOutcome,
     KnotPublishSource,
@@ -120,6 +131,7 @@ pub use relations::{
     KnotRelationPositionV1, KnotRelationRetractionV1, KnotUnverifiedRelationV1,
     capture_endpoint_context,
 };
+#[cfg(feature = "peers")]
 pub use resident::{
     KnotEvidenceFetchReceipt, KnotEvidenceFetchStatus, KnotSyncHost, KnotSyncHostConfig,
     KnotSyncHostError,

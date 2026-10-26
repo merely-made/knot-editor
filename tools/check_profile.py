@@ -1,13 +1,23 @@
 #!/usr/bin/env python3
 """Check which engines a Knot build profile links.
 
-Reads `cargo metadata` for a package at a feature selection, walks its normal
-(non-dev, non-build) dependency edges, and reports the crates found against a
-named set. The offline profile is `knot-desktop --no-default-features`: no peer
+Reads the dependency graph of one package at a feature selection, over its
+normal (non-dev, non-build) edges, and reports the crates found against a named
+set. The live reading is `cargo tree -p <package> -e normal`, which resolves
+features for that package alone. `cargo metadata` does not: it unifies features
+across the whole workspace, dev-dependencies included, so a dev-dependency that
+turns `stickleback/net` on for its own tests would show a network edge under a
+library that never links one. `--metadata` still reads a saved metadata file.
+
+The graph is read, never built. The offline profile is `knot-desktop --no-default-features`: no peer
 transport, no HTTP client, no Reticulum, no p2p stack may be reachable from it.
+The library profile is `knot-editor` at its default features, which leave `peers`
+off: the library alone links no iroh, quinn, p2panda-net or reqwest.
 
     tools/check_profile.py offline
     tools/check_profile.py offline --features retinue --expect retinue
+    tools/check_profile.py library
+    tools/check_profile.py library --features peers --expect mere-p2panda-net
     tools/check_profile.py offline --metadata saved.json
 
 `--expect NAME` is the positive control: it checks only that NAME is reachable,
@@ -32,10 +42,17 @@ FORBIDDEN = {
     "peer transport (mere-transport)": [
         "mere-transport",
         "mere-p2panda-net",
+        "p2panda-sync",
+        "p2panda-discovery",
         "iroh",
+        "iroh-base",
         "iroh-blobs",
         "iroh-gossip",
+        "iroh-relay",
         "quinn",
+        "quinn-proto",
+        "quinn-udp",
+        "h3-quinn",
         "snow",
         "mere-webrtc-carrier",
         "murm-webrtc",  # mere-webrtc-carrier's name after the 2026-10-25 rename
@@ -66,13 +83,25 @@ PROFILES = {
         "manifest": "apps/desktop/Cargo.toml",
         "args": ["--no-default-features"],
     },
-    # The product default (`mere-retention`), for reading what it carries. It is
-    # expected to fail the forbidden check until knot-editor's peer modules sit
-    # behind a feature.
+    # The product default (`mere-retention`): knot-editor without `peers`, so the
+    # desktop with its resident retention is offline too. Stickleback is allowed
+    # for the reason given under `library`.
     "default": {
         "package": "knot-desktop",
         "manifest": "apps/desktop/Cargo.toml",
         "args": [],
+        "allow": ["stickleback"],
+    },
+    # The library at its own defaults. `peers` is off, so mark, publish, resident
+    # sync and the iroh blob store are not compiled. Stickleback is allowed: with
+    # its `net` feature off it is the local half (store, causal index, group
+    # crypto), which holds no p2panda-net. What must stay out is the network
+    # itself, and the p2panda crates that carry it.
+    "library": {
+        "package": "knot-editor",
+        "manifest": "crates/knot-editor/Cargo.toml",
+        "args": [],
+        "allow": ["stickleback"],
     },
 }
 
@@ -80,27 +109,67 @@ PROFILES = {
 # server in knot-site (Gemini and Scroll over rustls) and errand's grammar,
 # which drags the smolweb protocol clients along with it. Printed so a reader
 # sees what the profile still carries.
-KNOWN_INCLUSIONS = ["gemini-protocol", "spartan-protocol", "rustls", "errand"]
+KNOWN_INCLUSIONS = [
+    "gemini-protocol",
+    "spartan-protocol",
+    "rustls",
+    "errand",
+    # The signed-operation, local-store and group-crypto crates stickleback and
+    # knot-editor build on. They hold no sockets; p2panda-net does, and is
+    # forbidden above.
+    "p2panda-core",
+    "p2panda-store",
+    "p2panda-encryption",
+    "stickleback",
+]
 
 
-def load_metadata(profile, features, saved):
-    if saved:
-        return json.loads(Path(saved).read_text(encoding="utf-8"))
+def load_metadata(saved):
+    return json.loads(Path(saved).read_text(encoding="utf-8"))
+
+
+def cargo_tree(profile, features, *extra):
     command = [
         "cargo",
-        "metadata",
-        "--format-version",
-        "1",
+        "tree",
         "--manifest-path",
         str(ROOT / profile["manifest"]),
+        "--package",
+        profile["package"],
+        "--edges",
+        "normal",
+        "--target",
+        "all",
+        "--format",
+        "{p}",
         *profile["args"],
+        *extra,
     ]
     if features:
         command += ["--features", features]
     result = subprocess.run(command, capture_output=True, text=True)
     if result.returncode != 0:
-        sys.exit(f"cargo metadata failed:\n{result.stderr}")
-    return json.loads(result.stdout)
+        sys.exit(f"cargo tree failed:\n{result.stderr}")
+    return result.stdout.splitlines()
+
+
+def tree_reachable(profile, features):
+    """The linked crate names, and a path-to-root explainer, from `cargo tree`."""
+    by_name = collections.defaultdict(list)
+    for line in cargo_tree(profile, features, "--prefix", "none"):
+        if line.strip() and not line.endswith("(*)") and line not in by_name[line.split()[0]]:
+            by_name[line.split()[0]].append(line)
+
+    def path(name):
+        chain = []
+        for line in cargo_tree(profile, features, "--invert", name, "--prefix", "depth"):
+            depth = int(line[: len(line) - len(line.lstrip("0123456789"))])
+            if depth != len(chain):
+                break
+            chain.append(line.lstrip("0123456789").split()[0])
+        return " <- ".join(chain)
+
+    return by_name, path
 
 
 def reachable(metadata, root_name):
@@ -142,8 +211,10 @@ def main():
     args = parser.parse_args()
 
     profile = PROFILES[args.profile]
-    metadata = load_metadata(profile, args.features, args.metadata)
-    by_name, path = reachable(metadata, profile["package"])
+    if args.metadata:
+        by_name, path = reachable(load_metadata(args.metadata), profile["package"])
+    else:
+        by_name, path = tree_reachable(profile, args.features)
     print(f"{profile['package']} {' '.join(profile['args'])}"
           f"{' --features ' + args.features if args.features else ''}: "
           f"{sum(len(v) for v in by_name.values())} packages linked")
@@ -158,6 +229,8 @@ def main():
     if not args.expect:
         for contract, names in FORBIDDEN.items():
             for name in names:
+                if name in profile.get("allow", []):
+                    continue
                 if name in by_name:
                     print(f"  FORBIDDEN {name} [{contract}]: {path(name)}")
                     failed = True

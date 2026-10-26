@@ -59,10 +59,12 @@ use zeroize::Zeroizing;
 
 use crate::{
     CmudictPronunciations, DirectorySource, DirectoryWatcher, DiskDocument, DocumentFormat,
-    KnotClipEvidenceRef, KnotClipEvidenceStore, KnotContentRetentionPort, KnotDocumentProjection,
-    KnotSyncEvent, KnotSyncFileStore, KnotVault, RosetteConfig, RosetteInteriorKind, VaultDocument,
+    KnotClipEvidenceRef, KnotClipEvidenceStore, KnotDocumentProjection, KnotSyncEvent,
+    KnotSyncFileStore, KnotVault, RosetteConfig, RosetteInteriorKind, VaultDocument,
     project_rosette,
 };
+#[cfg(feature = "peers")]
+use crate::KnotContentRetentionPort;
 
 const FIXTURE_SESSION: &str = "loopback:knot:k0";
 const SOURCE_KIND: &str = "knot.file";
@@ -193,6 +195,7 @@ pub struct KnotResidentSource {
 }
 
 struct ResidentVault {
+    #[cfg(feature = "peers")]
     retention: Mutex<Option<KnotContentRetentionPort>>,
     state: Mutex<VaultSource>,
     session_prefix: String,
@@ -224,6 +227,7 @@ impl KnotResidentSource {
         let digest = blake3::hash(state.vault.root().to_string_lossy().as_bytes());
         Self {
             inner: Arc::new(ResidentVault {
+                #[cfg(feature = "peers")]
                 retention: Mutex::new(None),
                 state: Mutex::new(state),
                 session_prefix: format!("knot:vault:{}", &digest.to_hex()[..16]),
@@ -337,6 +341,7 @@ impl KnotResidentSource {
 
     /// Install the one source-owned evidence service cloned into later
     /// sessions and shared with the resident sync host.
+    #[cfg(feature = "peers")]
     pub fn grant_content_retention(&self, port: KnotContentRetentionPort) {
         *self
             .inner
@@ -346,6 +351,7 @@ impl KnotResidentSource {
     }
 
     /// Remove source-owned evidence authority for later sessions.
+    #[cfg(feature = "peers")]
     pub fn revoke_content_retention(&self) -> bool {
         self.inner
             .retention
@@ -356,6 +362,7 @@ impl KnotResidentSource {
     }
 
     /// Shared Murm blob handle for the resident sync host.
+    #[cfg(feature = "peers")]
     pub fn content_blob_store(&self) -> Option<Arc<transport::BlobStore>> {
         self.content_retention()
             .map(|retention| retention.blob_store())
@@ -377,6 +384,7 @@ impl KnotResidentSource {
         Ok(references)
     }
 
+    #[cfg(feature = "peers")]
     fn content_retention(&self) -> Option<KnotContentRetentionPort> {
         self.inner
             .retention
@@ -673,9 +681,12 @@ impl KnotEndpoint {
         session: ProjectionSession,
         write_grant: Option<KnotWriteGrant>,
     ) -> Self {
+        #[cfg(feature = "peers")]
         let clip_evidence = source
             .content_retention()
             .map(|retention| Box::new(retention) as Box<dyn KnotClipEvidenceStore>);
+        #[cfg(not(feature = "peers"))]
+        let clip_evidence: Option<Box<dyn KnotClipEvidenceStore>> = None;
         Self {
             source: Source::Vault(source),
             session,
@@ -3909,6 +3920,7 @@ Fallback.
     fn resident_vault_sessions_share_truth_without_sharing_notice_cursors() {
         let vault_dir = tempdir().unwrap();
         let sync_dir = tempdir().unwrap();
+        #[cfg(feature = "peers")]
         let evidence_dir = tempdir().unwrap();
         let database = sync_dir.path().join("knot.redb");
         let key = [0xa1; 32];
@@ -3930,17 +3942,23 @@ Fallback.
         .unwrap();
 
         let resident = KnotResidentSource::from_synced_vault(vault, store, &seed).unwrap();
-        resident.grant_content_retention(
-            crate::BlobClipEvidenceStore::open(evidence_dir.path(), 4096).unwrap(),
-        );
-        assert!(resident.content_blob_store().is_some());
+        #[cfg(feature = "peers")]
+        {
+            resident.grant_content_retention(
+                crate::BlobClipEvidenceStore::open(evidence_dir.path(), 4096).unwrap(),
+            );
+            assert!(resident.content_blob_store().is_some());
+        }
         let sync_handle = resident.sync_store().expect("resident owns one sync store");
         assert_eq!(sync_handle.space_id(), space);
         let mut ada = resident.session(Some(KnotWriteGrant::new(4096)));
         let mut bo = resident.session(Some(KnotWriteGrant::new(4096)));
         assert_ne!(ada.session(), bo.session());
-        assert!(ada.clip_evidence.is_some());
-        assert!(bo.clip_evidence.is_some());
+        #[cfg(feature = "peers")]
+        {
+            assert!(ada.clip_evidence.is_some());
+            assert!(bo.clip_evidence.is_some());
+        }
 
         let ada_request = ada.describe().projections.remove(0).request;
         let bo_request = bo.describe().projections.remove(0).request;
@@ -4047,6 +4065,7 @@ Fallback.
         let reopened_store = KnotSyncFileStore::open(&database, space, [writer]).unwrap();
         let projection = pollster::block_on(reopened_store.projection(&reopened_vault)).unwrap();
         assert_eq!(projection.documents[0].body, b"# Bo revised\n");
+        #[cfg(feature = "peers")]
         drop(crate::BlobClipEvidenceStore::open(evidence_dir.path(), 4096).unwrap());
     }
 

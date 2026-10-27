@@ -528,7 +528,7 @@ mod tests {
     #[test]
     fn hidden_graph_keeps_owner_facts_but_suppresses_the_presentation_cause() {
         use crate::graph::diagnostics::{CaptureFacts, Installed};
-        let accepted = apparatus::RecordRef {
+        let accepted = apparatus_core::RecordRef {
             run: "capture-test".into(),
             source: "knot.catalog".into(),
             sequence: 6,

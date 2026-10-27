@@ -24,7 +24,7 @@ scenograph.workspace = true
 sceno.workspace = true
 pictograph.workspace = true
 seiche.workspace = true
-apparatus = { package = "mere-apparatus", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["serde"] }
+apparatus-core = { version = "0.1.0", git = "https://github.com/merely-made/armillary.git", rev = "06340b08327b29c3485ecb0089bb5cafed20fd80", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mesquite.workspace = true
 knot-site = { path = "../../crates/knot-site", features = ["history"] }

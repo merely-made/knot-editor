@@ -2,6 +2,8 @@
 
 # Knot Editor design documents
 
+- [Writer ergonomics brief (October 29)](2026-10-29_knot_writer_ergonomics_brief.md): digests Mark's IDE comparison. Knot stays an authoring browser, not an IDE. Records the correction that the desktop already edits several documents as Workbench tiles, the IDE ergonomics worth borrowing (multi-cursor, find and replace, quick open, rename, peek, problems pane), scripts that edit source through pack grants and `mere-source-edit` proposals, and a project as a signed graph record. Nothing scheduled.
+
 - [Governed native Scroll process receipt](2026-09-11_small_web_authoring_plan.md#governed-native-scroll-process-receipt-2026-10-22): independent saved-site publisher/resident qualification passed with native metadata, current authority and joined shutdown; the original Gemini fixture remains unchanged and passes.
 
 - [Native Scroll wire ownership](2026-09-11_small_web_authoring_plan.md#native-scroll-wire-ownership-2026-10-21): shared native encoder extraction with fixed donor bytes and actual local TLS receiving checks; Knot keeps content and host policy.

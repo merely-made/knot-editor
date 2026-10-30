@@ -23,7 +23,7 @@
 use std::collections::BTreeMap;
 
 use chirograph::{CarrierRequestBody, CarrierResponseBody, IntentResult, ProjectionSnapshot};
-use graphshell_endpoint::door::app_admission::{AppId, AppRouteId, configured_app_endpoint};
+use djinn::door::app_admission::{AppId, AppRouteId, configured_app_endpoint};
 use graphshell_endpoint::door::projection::AppBrokerClient;
 use mere_overmap::materialization::{self, GraphRead};
 use mere_overmap::route;
@@ -441,13 +441,13 @@ mod tests {
     #[tokio::test]
     async fn failed_refresh_purges_cached_actions_and_merge_choices() {
         use chirograph::{ProjectionSession, ProtocolVersion, SceneSnapshot};
-        use graphshell_endpoint::door::app_admission::AppHello;
-        use graphshell_endpoint::door::frame::{
+        use djinn::door::app_admission::AppHello;
+        use djinn::door::frame::{
             read_native_message_async, write_native_message_async,
         };
-        use graphshell_endpoint::door::wire::BrowserChallenge;
-        type AppMessage = graphshell_endpoint::door::wire::AppMessage<chirograph::CarrierRequest, ()>;
-        type AppHostMessage = graphshell_endpoint::door::wire::AppHostMessage<
+        use djinn::door::wire::BrowserChallenge;
+        type AppMessage = djinn::door::wire::AppMessage<chirograph::CarrierRequest, ()>;
+        type AppHostMessage = djinn::door::wire::AppHostMessage<
             chirograph::CarrierResponse,
             chirograph::CarrierNotice,
             (),

@@ -351,7 +351,7 @@ fn main() {
 #[cfg(feature = "projection-provider")]
 struct ProjectionProviderArgs {
     root: PathBuf,
-    route: graphshell_endpoint::door::app_admission::AppRouteId,
+    route: djinn::door::app_admission::AppRouteId,
     endpoint: Option<String>,
     max_sessions: usize,
 }
@@ -367,7 +367,7 @@ fn parse_provider_args(args: &[std::ffi::OsString]) -> Result<ProjectionProvider
     let route = route
         .to_str()
         .ok_or("projection-provider route must be valid UTF-8")?;
-    let route = graphshell_endpoint::door::app_admission::AppRouteId::new(route.to_owned())
+    let route = djinn::door::app_admission::AppRouteId::new(route.to_owned())
         .map_err(|error| format!("invalid projection-provider route: {error:?}"))?;
     if route.as_str() == "knot" {
         return Err("projection-provider route `knot` is reserved for Djinn's built-in Knot route".into());
@@ -417,12 +417,8 @@ fn parse_provider_args(args: &[std::ffi::OsString]) -> Result<ProjectionProvider
 
 #[cfg(feature = "projection-provider")]
 fn run_projection_provider(args: ProjectionProviderArgs) {
-    use graphshell_endpoint::door::{
-        app_admission::{AppId, AppRouteId},
-        app_client::AppConnection,
-        projection_offer::PROJECTION_PROVIDER_ROUTE,
-        projection_provider,
-    };
+    use djinn::door::{app_admission::{AppId, AppRouteId}, app_client::AppConnection};
+    use graphshell_endpoint::door::{projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider};
 
     let provider_route = AppRouteId::new(PROJECTION_PROVIDER_ROUTE)
         .expect("the provider protocol route is valid");

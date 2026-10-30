@@ -18,9 +18,9 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "peers")]
 use std::sync::Arc;
 
-use graphshell_endpoint::door::app_admission::AppId;
-use graphshell_endpoint::door::custody::{EpochKeyRequest, ReleasedEpochKey};
-use graphshell_endpoint::door::custody_client::{
+use djinn::door::app_admission::AppId;
+use djinn::door::custody::{EpochKeyRequest, ReleasedEpochKey};
+use djinn::door::custody_client::{
     BlockingCustodyClient, CustodyClient, CustodyClientError,
 };
 use p2panda_core::SigningKey;
@@ -547,7 +547,7 @@ mod dr_c_receipts {
         if mode == "locked" {
             let mut client = BlockingCustodyClient::open(AppId::new(KNOT_APP_ID)).unwrap();
             let status = client.status().unwrap();
-            assert_eq!(status.lock, graphshell_endpoint::door::identity::VaultLockView::Locked);
+            assert_eq!(status.lock, dramatis::view::VaultLockView::Locked);
             assert!(status.persona_public_key.is_none());
             assert!(!client.roster().unwrap().entries.is_empty());
         }

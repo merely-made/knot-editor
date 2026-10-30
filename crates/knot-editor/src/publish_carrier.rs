@@ -11,6 +11,8 @@
 //! application bytes belong to Knot; carrier facts, Noise, and Notochord do
 //! not.
 
+use std::sync::OnceLock;
+
 use insigne::delegation::path_covers;
 use notochord::{
     AdmittedSecureSession, DenyReason, IoHandshakeError, LocalNetworkPolicy, NetworkId, ProfileRef,
@@ -19,7 +21,9 @@ use notochord::{
 };
 use personae::Ed25519Keypair;
 use tokio::io::AsyncWriteExt;
-use transport::noise::{NoiseStream, secure_responder_with_facts};
+use transport::security::{
+    PreparedStream, ServiceSecurityPolicy, SetupError, SetupGate, SetupLimits,
+};
 use transport::{Alpn, Transport, TransportError};
 
 use crate::{
@@ -83,13 +87,15 @@ pub enum PublishCarrierError {
     #[error("Knot publishing Noise handshake failed: {0}")]
     Noise(TransportError),
     #[error(transparent)]
+    Setup(#[from] SetupError),
+    #[error(transparent)]
     Handshake(#[from] IoHandshakeError),
 }
 
 /// Accept, Noise-secure, and Notochord-admit one publishing stream.
 ///
 /// On success, no application byte has been read. The caller owns the returned
-/// `NoiseStream` and may hand it to the private candidate codec exactly once.
+/// bounded stream and may hand it to the private candidate codec exactly once.
 pub async fn accept_publish_session<T: Transport>(
     transport: &T,
     identity: &Ed25519Keypair,
@@ -98,7 +104,40 @@ pub async fn accept_publish_session<T: Transport>(
     now_ms: u64,
     active_sessions: u32,
 ) -> Result<
-    Result<AdmittedSecureSession<NoiseStream<T::Stream>>, PublishRefusal>,
+    Result<AdmittedSecureSession<PreparedStream<T::Stream>>, PublishRefusal>,
+    PublishCarrierError,
+> {
+    accept_publish_session_with_setup(
+        transport,
+        identity,
+        policy,
+        ledger,
+        now_ms,
+        active_sessions,
+        default_publish_setup_gate(),
+        SetupLimits::default(),
+    )
+    .await
+}
+
+pub(crate) fn default_publish_setup_gate() -> &'static SetupGate {
+    static GATE: OnceLock<SetupGate> = OnceLock::new();
+    GATE.get_or_init(|| SetupGate::new(16))
+}
+
+/// Accept with the host's shared setup gate, retaining its lease through admission.
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn accept_publish_session_with_setup<T: Transport>(
+    transport: &T,
+    identity: &Ed25519Keypair,
+    policy: &LocalNetworkPolicy,
+    ledger: &RevocationLedger,
+    now_ms: u64,
+    active_sessions: u32,
+    gate: &SetupGate,
+    limits: SetupLimits,
+) -> Result<
+    Result<AdmittedSecureSession<PreparedStream<T::Stream>>, PublishRefusal>,
     PublishCarrierError,
 > {
     let accepted = transport
@@ -107,38 +146,48 @@ pub async fn accept_publish_session<T: Transport>(
         .map_err(PublishCarrierError::Carrier)?;
     let (stream, facts) = accepted.into_session();
 
-    let (mut stream, noise) = secure_responder_with_facts(identity, stream)
-        .await
-        .map_err(PublishCarrierError::Noise)?;
-    if noise.protocol() != &publish_alpn()
-        || facts
-            .authenticated_initiator
-            .is_some_and(|peer| peer != noise.peer().to_bytes())
+    let security_policy = ServiceSecurityPolicy::noise(publish_alpn(), None, limits);
+    let (mut stream, security, guard) = gate
+        .noise_responder(identity, stream, &security_policy)
+        .await?;
+    if facts
+        .authenticated_initiator
+        .is_some_and(|peer| Some(peer) != security.peer().map(|p| p.to_bytes()))
     {
         let _ = stream.shutdown().await;
+        guard.refused();
         return Ok(Err(PublishRefusal::CarrierNoiseMismatch));
     }
 
-    let admitted = admit_session_secure(
-        stream,
-        policy,
-        ledger,
-        &facts,
-        &noise.secure_channel_facts(),
-        SecureIdentityPolicy::MatchCarrierWhenPresent,
-        now_ms,
-        active_sessions,
-    )
-    .await?;
+    let channel = security
+        .secure_channel_facts()
+        .ok_or(SetupError::Security)?;
+    let admitted = guard
+        .run(admit_session_secure(
+            stream,
+            policy,
+            ledger,
+            &facts,
+            &channel,
+            SecureIdentityPolicy::MatchCarrierWhenPresent,
+            now_ms,
+            active_sessions,
+        ))
+        .await??;
     let mut session = match admitted {
         Ok(session) => session,
-        Err(reason) => return Ok(Err(PublishRefusal::NotAdmitted(reason))),
+        Err(reason) => {
+            guard.refused();
+            return Ok(Err(PublishRefusal::NotAdmitted(reason)));
+        },
     };
     if !serves_publish_action(&session.session.principal) {
         let action = session.session.principal.action.action.clone();
         let _ = session.session.stream.shutdown().await;
+        guard.refused();
         return Ok(Err(PublishRefusal::ActionNotServed(action)));
     }
+    guard.admitted()?;
     Ok(Ok(session))
 }
 

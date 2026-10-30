@@ -17,7 +17,7 @@ use notochord::{
 };
 use personae::{Ed25519Keypair, InMemoryProvider};
 use tokio::io::AsyncWriteExt;
-use transport::noise::secure_initiator_with_facts;
+use transport::security::{ServiceSecurityPolicy, SetupError, SetupLimits};
 use transport::{PeerID, Transport, TransportError};
 
 use crate::{
@@ -49,6 +49,8 @@ pub enum KnotPublishClientError {
     Transport(#[from] TransportError),
     #[error("the publishing Noise handshake failed: {0}")]
     Noise(TransportError),
+    #[error(transparent)]
+    Setup(#[from] SetupError),
     #[error(transparent)]
     Handshake(#[from] HandshakeError),
     #[error(transparent)]
@@ -117,22 +119,31 @@ pub async fn fetch_published_document<T: Transport>(
     let publisher = PeerID::from_bytes(&ticket.publisher)
         .map_err(|_| KnotPublishClientError::PublisherIdentity)?;
 
-    let mut outer = carrier.connect_session(publisher, publish_alpn()).await?;
+    let security_policy =
+        ServiceSecurityPolicy::noise(publish_alpn(), Some(publisher), SetupLimits::default());
+    let guard = crate::publish_carrier::default_publish_setup_gate().reserve(&security_policy)?;
+    let outer = guard
+        .run(carrier.connect_session(publisher, publish_alpn()))
+        .await??;
     if outer
         .authenticated_initiator
         .is_some_and(|peer| peer != reader_peer)
     {
-        let _ = outer.stream.shutdown().await;
+        guard.refused();
         return Err(KnotPublishClientError::CarrierIdentity);
     }
     let carrier_binding = outer.proof_binding();
-    let (mut stream, noise) = secure_initiator_with_facts(reader, outer.stream, &publish_alpn())
-        .await
-        .map_err(KnotPublishClientError::Noise)?;
-    if noise.peer().to_bytes() != publisher.to_bytes() {
-        let _ = stream.shutdown().await;
-        return Err(KnotPublishClientError::PublisherIdentity);
-    }
+    let (mut stream, security, guard) =
+        guard
+            .noise_initiator(reader, outer.stream)
+            .await
+            .map_err(|error| match error {
+                SetupError::PeerOrProtocolMismatch => KnotPublishClientError::PublisherIdentity,
+                other => KnotPublishClientError::Setup(other),
+            })?;
+    let channel = security
+        .secure_channel_facts()
+        .ok_or(SetupError::Security)?;
 
     // SessionHello is signed by a derived session key beneath this reader
     // protocol key. The temporary provider keeps that protocol key only for
@@ -149,14 +160,18 @@ pub async fn fetch_published_document<T: Transport>(
         },
         TrafficClass::Interactive,
         nonce(),
-        &carrier_binding.with_secure_channel(noise.secure_channel_facts()),
+        &carrier_binding.with_secure_channel(channel),
         ticket.delegations.clone(),
     )?;
-    let reply = initiate_session(&mut stream, &hello, &Default::default()).await?;
+    let reply = guard
+        .run(initiate_session(&mut stream, &hello, &Default::default()))
+        .await??;
     if !reply.is_accept() {
         let _ = stream.shutdown().await;
+        guard.refused();
         return Err(KnotPublishClientError::Refused);
     }
+    guard.admitted()?;
 
     let limits = PublishWireLimits::default();
     let request = encode_request(

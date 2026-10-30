@@ -45,6 +45,16 @@ The earlier physical Phase A receipts describe their original admission version
 and do not qualify this new transcript. Native/radio/browser qualification
 retains its separate scope.
 
+**Bounded setup update (2026-10-30):** the client reserves Murm's setup gate
+before connecting; the host shares a gate across accepted streams. One absolute
+deadline and the same byte, frame and work limits cover security and admission.
+The host's configuration selects the pending ceiling and limits. Admission must
+finish before setup limits lift or publication source access begins. Refusal,
+timeout and cancellation release the lease; diagnostics expose counts without
+logging source or credentials. Publishing keeps its Noise profile and current
+identity policy. The shared N2/N3 contract and qualification live in the Murm
+plan named above.
+
 ---
 
 ## 1. What prompted this
@@ -594,6 +604,12 @@ entry? Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/
 - Keep publishing's authenticated carrier/Noise identity equality policy. An
   absent carrier peer is never filled from the proven Noise identity; the
   secure admission transcript binds those separate facts.
+- Hold Murm's shared setup lease from carrier establishment through secure v2
+  admission. The host owns the pending-session ceiling and setup limits;
+  timeout, refusal and cancellation release capacity before source access.
+  Publishing retains its selected Noise profile even on a native secure
+  carrier. Generic security policy and carrier qualification are owned by
+  `murm/design_docs/2026-10-29_secure_sessions_and_live_interaction_plan.md`.
 - Do not fetch transclusions, run code, or persist a derived result merely
   because source crossed this protocol.
 - Do not report a causal operation digest as a sequential document version.

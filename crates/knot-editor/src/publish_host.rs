@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::publish_carrier::accept_publish_session_with_setup;
 use muniment::Backend;
 use notochord::{
     AdmittedSession, AuthorityLapse, FrameError, LocalNetworkPolicy, RetainedAuthority,
@@ -23,12 +24,13 @@ use personae::Ed25519Keypair;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::RwLock;
 use transport::Transport;
+use transport::security::{SetupGate, SetupLimits, SetupStats};
 
 use crate::{
     KnotPublishCandidate, KnotPublishCatalog, KnotPublishError, KnotShareControlError,
     KnotShareRecipient, KnotShareTicket, KnotSyncStore, KnotVault, PublicationId,
     PublishCarrierError, PublishRefusal, PublishRequest, PublishResponse, PublishWireError,
-    PublishWireLimits, accept_publish_session, decode_request, encode_response,
+    PublishWireLimits, decode_request, encode_response,
 };
 
 /// Owner-configurable serving limits. The candidate codec applies its own hard
@@ -83,6 +85,8 @@ pub struct KnotPublishHost<B> {
     revocations: Arc<RwLock<RevocationLedger>>,
     limits: KnotPublishHostLimits,
     active_sessions: Arc<AtomicU32>,
+    setup_gate: SetupGate,
+    setup_limits: SetupLimits,
     now_ms: Arc<dyn Fn() -> u64 + Send + Sync>,
 }
 
@@ -161,6 +165,8 @@ where
             revocations: Arc::new(RwLock::new(RevocationLedger::default())),
             limits,
             active_sessions: Arc::new(AtomicU32::new(0)),
+            setup_gate: SetupGate::new(16),
+            setup_limits: SetupLimits::default(),
             now_ms: Arc::new(system_now_ms),
         }
     }
@@ -169,6 +175,18 @@ where
     pub fn with_clock(mut self, now_ms: impl Fn() -> u64 + Send + Sync + 'static) -> Self {
         self.now_ms = Arc::new(now_ms);
         self
+    }
+
+    /// Configure setup before serving. Cloned hosts retain the same shared gate.
+    pub fn with_secure_setup(mut self, max_pending: usize, limits: SetupLimits) -> Self {
+        self.setup_gate = SetupGate::new(max_pending);
+        self.setup_limits = limits;
+        self
+    }
+
+    /// Counter-only setup diagnostics, separate from admitted serving slots.
+    pub fn setup_stats(&self) -> SetupStats {
+        self.setup_gate.stats()
     }
 
     /// Add one explicit owner selection to the served catalog.
@@ -218,13 +236,15 @@ where
     ) -> Result<KnotPublishServeOutcome, KnotPublishHostError> {
         let now_ms = self.now();
         let admission_ledger = self.revocations.read().await.clone();
-        let admitted = accept_publish_session(
+        let admitted = accept_publish_session_with_setup(
             transport,
             &self.identity,
             &self.policy,
             &admission_ledger,
             now_ms,
             self.active_sessions(),
+            &self.setup_gate,
+            self.setup_limits.clone(),
         )
         .await?;
         let mut session = match admitted {
@@ -691,10 +711,13 @@ mod tests {
             .await
             .fold(revocation.check().expect("the holder's revocation checks"));
         let (outcome, response) = fetch_once(&fixture.host, fixture.publication, certificate).await;
-        assert!(matches!(
-            outcome,
-            KnotPublishServeOutcome::Refused(PublishRefusal::NotAdmitted(_))
-        ));
+        assert!(
+            matches!(
+                outcome,
+                KnotPublishServeOutcome::Refused(PublishRefusal::NotAdmitted(_))
+            ),
+            "unexpected setup outcome: {outcome:?}"
+        );
         assert!(
             response.is_err(),
             "revoked admission reaches no application response"
@@ -899,6 +922,78 @@ mod tests {
                 DenyReason::SessionProofInvalid,
             )),
         );
+    }
+
+    #[tokio::test]
+    async fn stalled_secure_setup_releases_the_host_lease_before_source_disclosure() {
+        let mut fixture = host_and_publication().await;
+        fixture.host = fixture.host.with_secure_setup(
+            1,
+            SetupLimits {
+                timeout: std::time::Duration::from_millis(30),
+                ..SetupLimits::default()
+            },
+        );
+        let holder_peer = PeerID::from_public_key(holder().master_public_key());
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let _stalled = client.connect(holder_peer, publish_alpn()).await.unwrap();
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            fixture.host.accept_and_serve(&server),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            outcome,
+            Err(KnotPublishHostError::Carrier(PublishCarrierError::Setup(
+                transport::security::SetupError::Deadline { .. }
+            )))
+        ));
+        assert_eq!(fixture.host.setup_stats().pending, 0);
+        assert_eq!(fixture.host.setup_stats().timed_out, 1);
+        assert_eq!(fixture.host.active_sessions(), 0);
+    }
+
+    #[tokio::test]
+    async fn the_shared_setup_lease_covers_admission_and_is_released_on_cancellation() {
+        let mut fixture = host_and_publication().await;
+        fixture.host = fixture.host.with_secure_setup(1, SetupLimits::default());
+        let holder_peer = PeerID::from_public_key(holder().master_public_key());
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let host = fixture.host.clone();
+        let server = Arc::new(server);
+        let first_server = Arc::clone(&server);
+        let first = tokio::spawn(async move { host.accept_and_serve(&*first_server).await });
+        let outer = client.connect(holder_peer, publish_alpn()).await.unwrap();
+        let (mut secured, _) =
+            secure_initiator_with_facts(reader().master_keypair(), outer, &publish_alpn())
+                .await
+                .unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while fixture.host.setup_stats().secured == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(fixture.host.setup_stats().pending, 1);
+        assert_eq!(fixture.host.setup_stats().secured, 1);
+        let _second = client.connect(holder_peer, publish_alpn()).await.unwrap();
+        assert!(matches!(
+            fixture.host.accept_and_serve(&*server).await,
+            Err(KnotPublishHostError::Carrier(PublishCarrierError::Setup(
+                transport::security::SetupError::Capacity
+            )))
+        ));
+        first.abort();
+        let _ = first.await;
+        assert_eq!(fixture.host.setup_stats().pending, 0);
+        assert_eq!(fixture.host.setup_stats().cancelled, 1);
+        assert_eq!(fixture.host.setup_stats().capacity_refused, 1);
+        assert_eq!(fixture.host.active_sessions(), 0);
+        assert!(read_frame(&mut secured, 1024).await.is_err());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

@@ -66,7 +66,7 @@ fleece.workspace = true
 # The custody client: Knot reaches its persona keys by calling djinn (dramatis
 # DR-C), through the application door (Mere stack lift plan P1); no
 # `graphshell` in the library.
-graphshell-endpoint = { workspace = true, features = ["door", "stdio"] }
+graphshell-endpoint = { workspace = true, features = ["custody-client", "projection-door", "stdio"] }
 mere-overmap = { workspace = true, optional = true, features = ["resident"] }
 mere-view = { workspace = true, optional = true }
 chirograph.workspace = true
@@ -131,7 +131,7 @@ graphshell-client.workspace = true
 scenomise.workspace = true
 scenograph.workspace = true
 gemot.workspace = true
-graphshell-endpoint = { workspace = true, features = ["local"] }
+graphshell-endpoint = { workspace = true, features = ["local", "door-serve"] }
 rcgen = "0.14"
 taproot = { workspace = true }
 tempfile = "3"

@@ -33,6 +33,18 @@ with another persona without giving that reader a paired-writer grant, a vault
 key, or a replica. Phase A is authenticated, read-only publishing. It does not
 mean anonymous public hosting.
 
+**Secure-channel admission update (2026-10-29):** the current publishing client
+and host adopt N1 from
+`murm/design_docs/2026-10-29_secure_sessions_and_live_interaction_plan.md`.
+Carrier observations remain separate from the verified Noise application
+identity and session binding. Publishing requires the secure Notochord v2 hello;
+there is no fallback to the old v1 admission transcript. Both peers must adopt
+that admission version together. The application payload and
+`mere/knot-publish/v1` ALPN remain unchanged because their grammar is unchanged.
+The earlier physical Phase A receipts describe their original admission version
+and do not qualify this new transcript. Native/radio/browser qualification
+retains its separate scope.
+
 ---
 
 ## 1. What prompted this
@@ -101,7 +113,7 @@ The reusable seam is lower:
 - `transport::AcceptedSession::into_session` is the one audited conversion from
   carrier acceptance into facts.
 - `transport::noise` composes the encrypted inner stream.
-- `notochord::admit_session` owns bounded handshake framing, chain evaluation,
+- `notochord::admit_session_secure` owns bounded handshake framing, chain evaluation,
   refusal completion, and the admitted conclusion.
 
 Knot gets a service-specific wrapper around those primitives. It must not copy
@@ -117,13 +129,22 @@ the same retained conclusion rather than reproducing the lifecycle logic.
 
 Likewise settled and not to be re-litigated:
 
-- **Transport is iroh.** "iroh is the byte plane. Nothing below moves blobs off
-  iroh" (reachability plan). Not raw QUIC or a second carrier abstraction.
-- **Noise is the inner confidential stream.** In Phase A its proved identity is
-  deliberately the same Personae/device key as the carrier identity. Notochord
-  currently enforces that the claimed subject equals an authenticated carrier
-  initiator. A distinct Noise persona or bearer identity is a later Notochord
-  design, not an exception this host may smuggle in.
+- **Murm owns transport.** The initial publisher deployment uses Murm's
+  existing iroh endpoint. Alternate ordered carriers use the same `Transport`
+  contract and require their own routing/ticket adapter and acceptance. The
+  current share ticket's `endpoint_ticket` fallback remains iroh-specific.
+  N1's in-process link-shaped fixture establishes secure binding with absent
+  carrier authentication; it does not qualify live Reticulum publishing or
+  radio carriage.
+- **Noise is the inner confidential stream.** Publishing's explicit
+  `MatchCarrierWhenPresent` admission policy requires equality when the carrier
+  authenticates an initiator. A carrier that authenticates no initiator retains
+  that absent fact; Noise proves the application identity, and Notochord binds
+  it, the Noise handshake/profile, both participant roles and any shared link
+  into the v2 transcript. The verified subject and delegation still decide
+  document access. The client checks the ticket's expected publisher before
+  sending its admission hello. Broader distinct authenticated carrier/application
+  identity modes remain outside Knot's publishing policy.
 - **The served source is authored bytes.** The publisher sends the selected
   djot/Knot source plus declared media type, not a Graphshell card, an
   `EngineDocument`, a derived cache, or a rendered projection. A recipient
@@ -325,12 +346,17 @@ canonical public registration or alias policy before calling either portable.
 For each accepted `mere/knot-publish/v1` transport stream:
 
 1. Call `AcceptedSession::into_session` and retain its observed facts.
-2. Run `transport::noise::secure_responder` with the holder's device identity;
-   require its encrypted ALPN and proven peer key to agree with the outer ALPN
-   and authenticated carrier peer.
-3. Run `notochord::admit_session` over the resulting `NoiseStream`. The client
-   binds its hello to the outer ALPN and carrier peer exactly as the existing
-   carrier does.
+2. Run `transport::noise::secure_responder_with_facts` with the holder's device
+   identity; require its encrypted ALPN to name this publishing service and its
+   proven peer to agree with an authenticated carrier peer when one exists.
+3. Run `notochord::admit_session_secure` over the resulting `NoiseStream` with
+   the original carrier facts and independently verified secure-channel facts.
+   The client gets its carrier binding from `Transport::connect_session` and
+   signs `SessionHello::issue_secure` over that binding and the verified Noise
+   facts. Absent carrier authentication is preserved; a shared link is bound
+   where the carrier supplies one. The secure v2 transcript includes both
+   protocols, security profile/version, handshake hash and participant roles;
+   a new Noise session cannot reuse an old signed hello.
 4. Retain the admitted authority and check it before reading the request and
    after source selection. For the final check, acquire a read guard on the
    revocation ledger and hold it through the complete response write.
@@ -565,8 +591,9 @@ entry? Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/
   protocol just because those already render it locally.
 - Do not depend on Graphshell from the Knot production crate, copy Notochord
   admission/lifecycle code, or hand-build carrier facts.
-- Do not use a distinct Noise identity while Notochord's carrier-subject
-  binding remains the live rule.
+- Keep publishing's authenticated carrier/Noise identity equality policy. An
+  absent carrier peer is never filled from the proven Noise identity; the
+  secure admission transcript binds those separate facts.
 - Do not fetch transclusions, run code, or persist a derived result merely
   because source crossed this protocol.
 - Do not report a causal operation digest as a sequential document version.

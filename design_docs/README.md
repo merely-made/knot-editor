@@ -2,6 +2,8 @@
 
 # Knot Editor design documents
 
+- [Publishing secure-channel admission (October 29)](2026-08-07_knot_publishing_protocol_plan.md): Murm N1/AT1 adoption keeps carrier facts separate from Noise identity, binds the v2 admission proof to the actual secure session and shared link, preserves authenticated-carrier mismatch refusal, and checks the ticket publisher before disclosure. Application payload/ALPN remain v1; admission v1 peers fail closed and must upgrade together. Earlier physical receipts retain their original scope.
+
 - [Writer ergonomics brief (October 29)](2026-10-29_knot_writer_ergonomics_brief.md): digests Mark's IDE comparison. Knot stays an authoring browser, not an IDE. Records the correction that the desktop already edits several documents as Workbench tiles, the IDE ergonomics worth borrowing (multi-cursor, find and replace, quick open, rename, peek, problems pane), scripts that edit source through pack grants and `mere-source-edit` proposals, and a project as a signed graph record. Nothing scheduled.
 
 - [Governed native Scroll process receipt](2026-09-11_small_web_authoring_plan.md#governed-native-scroll-process-receipt-2026-10-22): independent saved-site publisher/resident qualification passed with native metadata, current authority and joined shutdown; the original Gemini fixture remains unchanged and passes.

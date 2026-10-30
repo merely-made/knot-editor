@@ -1,6 +1,6 @@
 # Custody and projection client receiver
 
-Status: Source migrated; focused overlay regression passed.
+Status: Published; focused overlay, peer-enabled host compilation and secure publishing tests passed.
 
 Knot now selects custody-client and projection-door explicitly. Projection
 clients use `door::projection`; the mock server's typed envelopes name their
@@ -36,3 +36,11 @@ notably `root-split-knot-receive-2.log`; resolved-edge audits are under
 `/home/markik/Code/testing/custody-projection-split-20261029`.
 
 Rebased successful run log SHA-256: `b95b73e22abf111f883c7341e2744132d4ba000e7df13d6d8aaf17f81ac03973`.
+
+The additional `root-split-knot-publishing` gate executed
+`cargo test --locked -p knot-editor --features peers --lib publish_host::tests`
+on published `704084d064da886dd14cbe8ac3dd8758af105e1d`. All nine tests passed
+(158 filtered out), including replay, channel-binding, publisher-identity,
+carrier/Noise mismatch and revocation refusals. This qualifies their in-process
+and loopback fixtures, not a deployed peer or Windows runtime.
+Log SHA-256: `8cddceb8446896fd6e79f90d49bfcebd3675a6639f83297b39bcf60f1debb82a`.

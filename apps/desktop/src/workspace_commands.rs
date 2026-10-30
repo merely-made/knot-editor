@@ -22,6 +22,11 @@ pub(super) const REDO: &str = "edit.redo";
 pub(super) const SELECT_ALL: &str = "edit.select-all";
 pub(super) const NAVIGATOR: &str = "view.navigator";
 pub(super) const GRAPH: &str = "view.graph";
+pub(super) const FORME_UNLOCK: &str = "workspace.unlock";
+pub(super) const FORME_APPLY: &str = "workspace.apply";
+pub(super) const FORME_DISCARD: &str = "workspace.discard";
+pub(super) const FORME_MORE: &str = "workspace.first-more";
+pub(super) const FORME_LESS: &str = "workspace.first-less";
 pub(super) const OUTLINE: &str = "view.outline";
 pub(super) const PREVIEW: &str = "view.preview";
 pub(super) const FOLDS: &str = "view.folds";
@@ -183,6 +188,43 @@ pub(super) fn groups(state: &DesktopState) -> Vec<CommandItem> {
                 item(PALETTE, "Command palette", None),
                 item(NAVIGATOR, "Navigator", None),
                 item(GRAPH, "Graph", None),
+                item(
+                    FORME_UNLOCK,
+                    "Unlock workspace layout",
+                    state
+                        .docs
+                        .forme_editing()
+                        .then_some("A workspace draft is already open."),
+                ),
+                item(
+                    FORME_APPLY,
+                    "Apply workspace layout",
+                    (!state.docs.forme_editing())
+                        .then_some("Unlock the workspace layout first.")
+                        .or_else(|| {
+                            state
+                                .preferences
+                                .is_none()
+                                .then_some("No local preferences store is configured.")
+                        }),
+                ),
+                item(
+                    FORME_DISCARD,
+                    "Discard workspace layout",
+                    (!state.docs.forme_editing()).then_some("No workspace draft is open."),
+                ),
+                item(
+                    FORME_MORE,
+                    "Give first pane more space",
+                    (!state.docs.forme_resizable())
+                        .then_some("Unlock a workspace with at least two panes first."),
+                ),
+                item(
+                    FORME_LESS,
+                    "Give first pane less space",
+                    (!state.docs.forme_resizable())
+                        .then_some("Unlock a workspace with at least two panes first."),
+                ),
                 item(OUTLINE, "Outline", no_doc),
                 item(
                     PREVIEW,
@@ -348,6 +390,44 @@ impl DesktopState {
             SELECT_ALL => self.edit_command("Select All", TextCommand::SelectAll),
             NAVIGATOR => self.toggle_navigator(),
             GRAPH => self.toggle_graph(),
+            FORME_UNLOCK => {
+                let saved = self
+                    .preferences
+                    .as_ref()
+                    .and_then(crate::preferences::PreferencesStore::workspace_forme);
+                self.message = Some(match self.docs.unlock_forme(saved) {
+                    Ok(()) => "Workspace layout unlocked. Give the first pane more or less space, then Apply or Discard workspace layout.".into(),
+                    Err(error) => error,
+                });
+            },
+            FORME_MORE | FORME_LESS => {
+                self.message = Some(match self.docs.resize_forme_first(id == FORME_MORE) {
+                    Ok(()) => {
+                        "Workspace layout preview updated. Apply or Discard the draft.".into()
+                    },
+                    Err(error) => error,
+                });
+            },
+            FORME_DISCARD => {
+                self.message = Some(match self.docs.discard_forme() {
+                    Ok(()) => "Workspace layout draft discarded.".into(),
+                    Err(error) => error,
+                });
+            },
+            FORME_APPLY => {
+                let store = &mut self.preferences;
+                self.message = Some(
+                    match self.docs.apply_forme(|baseline, value| {
+                        store
+                            .as_mut()
+                            .ok_or("No local preferences store is configured")?
+                            .save_workspace_forme(baseline, value)
+                    }) {
+                        Ok(()) => "Workspace layout applied and saved locally.".into(),
+                        Err(error) => error,
+                    },
+                );
+            },
             OUTLINE => self.toggle_reading(ReadingKind::Outline),
             PREVIEW => self.toggle_reading(ReadingKind::Preview),
             FOLDS => self.toggle_reading(ReadingKind::Folded),
@@ -605,5 +685,54 @@ mod tests {
                     .contains("Unknown command")
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod forme_command_tests {
+    use super::*;
+    use cambium_genet_winit_host::WindowCommands;
+    use knot_document::KnotDocumentSession;
+
+    #[test]
+    fn forme_commands_route_the_shared_draft_and_acknowledged_local_save() {
+        let temp = tempfile::tempdir().unwrap();
+        let prefs = temp.path().join("preferences.json");
+        let mut state = DesktopState::new(
+            KnotDocumentSession::scratch("scratch:layout-test", "# Writer text"),
+            WindowCommands::new(),
+        );
+        state.set_preferences_path(Some(prefs.clone()));
+        let source_dirty = state.document().snapshot().dirty;
+        state.activate_command(OUTLINE);
+        state.activate_command(FORME_UNLOCK);
+        assert!(state.docs.forme_editing());
+        state.activate_command(FORME_DISCARD);
+        assert!(!state.docs.forme_editing());
+        state.activate_command(FORME_UNLOCK);
+        assert!(state.docs.apply_layout(&workbench::WorkspaceEvent::Tile(
+            workbench::TileEvent::DividerMoved {
+                split: workbench::TilePath(vec![]),
+                fractions: vec![0.6, 0.4],
+            }
+        )));
+        state.activate_command(FORME_APPLY);
+        assert!(!state.docs.forme_editing(), "{:?}", state.message);
+        assert!(
+            state
+                .preferences
+                .as_ref()
+                .unwrap()
+                .workspace_forme()
+                .is_some()
+        );
+        assert_eq!(state.document().snapshot().dirty, source_dirty);
+        assert!(
+            state
+                .message
+                .as_ref()
+                .unwrap()
+                .contains("applied and saved")
+        );
     }
 }

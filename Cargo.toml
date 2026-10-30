@@ -88,6 +88,8 @@ mesquite = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 cambium-desktop = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 sprigging = { version = "0.3.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 workbench = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
+platen = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["workspace-editor"] }
+kernel = { package = "mere-kernel", version = "0.0.2", git = "https://github.com/merely-made/mere.git", branch = "main" }
 backstep = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 fleece = { version = "0.5.0", git = "https://github.com/merely-made/genet.git", branch = "main" }
 genet-host-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }

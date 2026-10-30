@@ -44,6 +44,8 @@ cambium-desktop.workspace = true
 mere-view.workspace = true
 sprigging.workspace = true
 workbench.workspace = true
+platen.workspace = true
+kernel.workspace = true
 knot-document = { workspace = true, features = ["highlight", "engine"] }
 tinct = { version = "0.2.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 knot-catalog.workspace = true

@@ -95,6 +95,11 @@ impl mesquite::Product for KnotLane {
             .state()
             .scenario_snapshot()
             .with_field(
+                "forme_editing",
+                ctx.runner.state().docs.forme_editing().to_string(),
+            )
+            .with_field("forme_first_share", first_share(ctx.runner.state()))
+            .with_field(
                 "source_focused",
                 crate::workspace::source_is_focused(ctx.runner).to_string(),
             )
@@ -358,6 +363,16 @@ fn graph_capture_projection(
     })
 }
 
+fn first_share(state: &DesktopState) -> String {
+    state
+        .docs
+        .workspace()
+        .tiled()
+        .fractions_at(&workbench::TilePath(vec![]))
+        .and_then(|fractions| fractions.first().copied())
+        .map_or_else(|| "none".into(), |share| format!("{share:.2}"))
+}
+
 /// Bounded presentation facts plus role requests/drafts and opaque content
 /// digests. Unlike the general snapshot, this never copies source text or labels.
 fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, String> {
@@ -407,6 +422,8 @@ fn capture_fields(state: &DesktopState) -> std::collections::BTreeMap<String, St
             "scene_positions_blake3",
             state.composition.scene_positions_digest(),
         ),
+        ("forme_editing", state.docs.forme_editing().to_string()),
+        ("forme_first_share", first_share(state)),
         ("document_count", state.docs.len().to_string()),
         ("reading_count", state.docs.readings().count().to_string()),
         ("graph_visible", graph_is_presented(state).to_string()),

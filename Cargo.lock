@@ -6901,6 +6901,8 @@ dependencies = [
  "layout-dom-api",
  "mere-curation",
  "mere-view",
+ "mere-kernel",
+ "platen",
  "mesquite",
  "muniment",
  "nematic",
@@ -15591,3 +15593,31 @@ source = "git+https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d
 name = "stickleback"
 version = "0.1.1"
 source = "git+https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe93298025bf6d65ae310a7cb4270ea52e3"
+
+[[package]]
+name = "platen"
+version = "0.0.1"
+source = "git+https://github.com/merely-made/mere.git?branch=main#b232631f3e5ef30d24b19b3e832ddf225177c381"
+dependencies = [
+ "accesskit",
+ "backstep",
+ "inker",
+ "mere-forme",
+ "mere-kernel",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+ "uxtree",
+ "workbench",
+]
+
+[[package]]
+name = "uxtree"
+version = "0.0.2"
+source = "git+https://github.com/merely-made/mere.git?branch=main#b232631f3e5ef30d24b19b3e832ddf225177c381"
+dependencies = [
+ "accesskit",
+ "inker",
+ "tracing",
+]

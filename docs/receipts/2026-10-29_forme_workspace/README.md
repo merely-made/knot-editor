@@ -14,6 +14,13 @@ baseline, the lockfile adds only `platen` and `uxtree`, plus the desktop depende
 edges. Both use the existing Mere `b232631f3e5ef30d24b19b3e832ddf225177c381`
 source. The incoming publication work's supplier updates are preserved.
 
+The qualified implementation is `2924a5f1571f010bb9eb7692d6767117f3dff8ef`.
+The final source-bound repeat passes all nine Forme model/command cases, both
+menu/production-presentation cases and the locked/offline build; see
+[committed checks](committed-checks.json). All three native processes then pass
+again from that committed source. The executed binary's SHA-256 is
+`1e08379dafdf1c4904fe7b504e61b4655c0d8f1a118bf2c5cc4acb8ebe3b5b00`.
+
 ## Review and source boundaries
 
 Review found a focus mismatch: restoring a saved active tab could show document

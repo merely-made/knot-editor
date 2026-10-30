@@ -1,5 +1,5 @@
 {
-  "source_revision": "bd48817b4e6d2265192fd9b570ccd67e4d71eb89",
+  "source_revision": "2924a5f1571f010bb9eb7692d6767117f3dff8ef",
   "source_hashes": {
     "Cargo.toml": "9fcac20fd50801a2ef611997d793333d05cf6f2bfbe8200896cede45cef33500",
     "Cargo.lock": "e1faea0e90ce3b41af2dc60135e8cba006a87da17c7c02f95406a5c53bd96d00",
@@ -50,16 +50,16 @@
       "name": "seed",
       "command": [
         "/Users/markik/Code/repos/knot-editor/target/debug/knot",
-        "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/field_notes.djot"
+        "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/field_notes.djot"
       ],
       "environment": {
-        "APPDATA": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/profile",
-        "XDG_CONFIG_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/xdg-config",
-        "XDG_DATA_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/xdg-data",
-        "MERE_ROOT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/mere",
+        "APPDATA": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/profile",
+        "XDG_CONFIG_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/xdg-config",
+        "XDG_DATA_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/xdg-data",
+        "MERE_ROOT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/mere",
         "KNOT_SCENARIO": "/Users/markik/Code/repos/knot-editor/scenarios/workspace_forme.scn",
-        "KNOT_CAPTURE_DIR": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/seed",
-        "KNOT_RECEIPT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/seed/scenario.done",
+        "KNOT_CAPTURE_DIR": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/seed",
+        "KNOT_RECEIPT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/seed/scenario.done",
         "KNOT_CAPTURE_CORRELATION": "1",
         "KNOT_TEST_WIDTH": "1100",
         "KNOT_TEST_HEIGHT": "800"
@@ -69,45 +69,83 @@
       "captures": [
         {
           "path": "seed/forme-applied.png",
-          "sha256": "a51e4417b3a156665c463ffb42976bc36f8cebe3a92363a2bfe0ff17c37f74bd",
+          "sha256": "ea526718e057e40842ccdf910a21f7483d99e98332dfd87de1b2ea3eacd27839",
           "pixels": [
             2200,
             1600
-          ]
+          ],
+          "stored_path": "native/seed/forme-applied.png"
         },
         {
           "path": "seed/forme-discarded.png",
-          "sha256": "786e58d71125ebfa0cfd629ea6dded40b6169d62b1a8a4ea9585084fb0e21758",
+          "sha256": "49939e0c45b23ab7ad203ff2deddf03976c53ee51bb999c63967633fdbcb4d95",
+          "pixels": [
+            2200,
+            1600
+          ],
+          "stored_path": "native/seed/forme-discarded.png"
+        },
+        {
+          "path": "seed/forme-draft.png",
+          "sha256": "104494370c09d4545011e740acd9e86a3958237c7f80718f8b134683956fc300",
+          "pixels": [
+            2200,
+            1600
+          ],
+          "stored_path": "native/seed/forme-draft.png"
+        }
+      ],
+      "presentation": "presentation: 40 frames, 41 redraws, 1 unpresented redraws",
+      "paired_facts": [
+        {
+          "label": "forme-draft",
+          "forme_editing": "true",
+          "forme_first_share": "0.55",
+          "source_bytes": "586",
+          "source_blake3": "b1167e64f853b15efb9a573c1ed23c77745a0a31dcc2f4c433a542de9494a678",
           "pixels": [
             2200,
             1600
           ]
         },
         {
-          "path": "seed/forme-draft.png",
-          "sha256": "00cf7b6cf71e8e6904953d3ce4e93b4149980ee320dbad06d9b21c07dfa653df",
+          "label": "forme-discarded",
+          "forme_editing": "false",
+          "forme_first_share": "0.50",
+          "source_bytes": "586",
+          "source_blake3": "b1167e64f853b15efb9a573c1ed23c77745a0a31dcc2f4c433a542de9494a678",
+          "pixels": [
+            2200,
+            1600
+          ]
+        },
+        {
+          "label": "forme-applied",
+          "forme_editing": "false",
+          "forme_first_share": "0.45",
+          "source_bytes": "586",
+          "source_blake3": "b1167e64f853b15efb9a573c1ed23c77745a0a31dcc2f4c433a542de9494a678",
           "pixels": [
             2200,
             1600
           ]
         }
-      ],
-      "presentation": "presentation: 40 frames, 41 redraws, 1 unpresented redraws"
+      ]
     },
     {
       "name": "reopen",
       "command": [
         "/Users/markik/Code/repos/knot-editor/target/debug/knot",
-        "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/field_notes.djot"
+        "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/field_notes.djot"
       ],
       "environment": {
-        "APPDATA": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/profile",
-        "XDG_CONFIG_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/xdg-config",
-        "XDG_DATA_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/xdg-data",
-        "MERE_ROOT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/mere",
+        "APPDATA": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/profile",
+        "XDG_CONFIG_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/xdg-config",
+        "XDG_DATA_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/xdg-data",
+        "MERE_ROOT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/mere",
         "KNOT_SCENARIO": "/Users/markik/Code/repos/knot-editor/scenarios/workspace_forme_reopen.scn",
-        "KNOT_CAPTURE_DIR": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/reopen",
-        "KNOT_RECEIPT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/reopen/scenario.done",
+        "KNOT_CAPTURE_DIR": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/reopen",
+        "KNOT_RECEIPT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/reopen/scenario.done",
         "KNOT_CAPTURE_CORRELATION": "1",
         "KNOT_TEST_WIDTH": "1100",
         "KNOT_TEST_HEIGHT": "800"
@@ -117,29 +155,43 @@
       "captures": [
         {
           "path": "reopen/forme-reopened.png",
-          "sha256": "9c2dd3889cdd1bf16fea642c4c48355a04580d14f00c3f3f8d00c83f6cbbdd86",
+          "sha256": "fab4341503dc659be0a921e1087f63e2c173d3600c805b885cc2e2273ca52c1c",
+          "pixels": [
+            2200,
+            1600
+          ],
+          "stored_path": "native/reopen/forme-reopened.png"
+        }
+      ],
+      "presentation": "presentation: 14 frames, 15 redraws, 1 unpresented redraws",
+      "paired_facts": [
+        {
+          "label": "forme-reopened",
+          "forme_editing": "true",
+          "forme_first_share": "0.45",
+          "source_bytes": "586",
+          "source_blake3": "b1167e64f853b15efb9a573c1ed23c77745a0a31dcc2f4c433a542de9494a678",
           "pixels": [
             2200,
             1600
           ]
         }
-      ],
-      "presentation": "presentation: 14 frames, 15 redraws, 1 unpresented redraws"
+      ]
     },
     {
       "name": "default-compact",
       "command": [
         "/Users/markik/Code/repos/knot-editor/target/debug/knot",
-        "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/field_notes.djot"
+        "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/field_notes.djot"
       ],
       "environment": {
-        "APPDATA": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/profile-default-compact",
-        "XDG_CONFIG_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/xdg-config",
-        "XDG_DATA_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/xdg-data",
-        "MERE_ROOT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/mere",
+        "APPDATA": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/profile-default-compact",
+        "XDG_CONFIG_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/xdg-config",
+        "XDG_DATA_HOME": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/xdg-data",
+        "MERE_ROOT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/mere",
         "KNOT_SCENARIO": "/Users/markik/Code/repos/knot-editor/scenarios/workspace_forme_reopen.scn",
-        "KNOT_CAPTURE_DIR": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/default-compact",
-        "KNOT_RECEIPT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-integrated/default-compact/scenario.done",
+        "KNOT_CAPTURE_DIR": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/default-compact",
+        "KNOT_RECEIPT": "/Users/markik/Code/validation/knot-forme-20261029/review-native-committed/default-compact/scenario.done",
         "KNOT_CAPTURE_CORRELATION": "1",
         "KNOT_TEST_WIDTH": "420",
         "KNOT_TEST_HEIGHT": "800"
@@ -153,17 +205,30 @@
           "pixels": [
             840,
             1600
-          ]
+          ],
+          "stored_path": "native/default-compact/forme-reopened.png"
         }
       ],
-      "presentation": "presentation: 14 frames, 15 redraws, 1 unpresented redraws"
+      "presentation": "presentation: 14 frames, 15 redraws, 1 unpresented redraws",
+      "paired_facts": [
+        {
+          "label": "forme-reopened",
+          "forme_editing": "true",
+          "forme_first_share": "0.45",
+          "source_bytes": "586",
+          "source_blake3": "b1167e64f853b15efb9a573c1ed23c77745a0a31dcc2f4c433a542de9494a678",
+          "pixels": [
+            840,
+            1600
+          ]
+        }
+      ]
     }
   ],
-  "saved_slot_sha256": "a2016c4c47ceeeeb1ed8062503a09fb3b77f8af211c06e4e7fa555af6679428c",
+  "saved_slot_sha256": "19473fe49f1f01d14aa49bea97892dee620d1d597a5e994d6f86951f4cdd2d84",
   "fixture_unchanged": true,
   "source_and_binary_unchanged": true,
-  "phase": "integrated-precommit",
-  "source_revision_note": "Reviewed working-tree source hashes on the integrated base; committed-runtime rerun follows.",
+  "phase": "committed-runtime",
   "visual_review": {
     "reviewed": true,
     "reviewers": [
@@ -178,6 +243,15 @@
     "residuals": [
       "Compact long Unlock status feedback clips horizontally.",
       "Existing Preview inline link-button wrapping remains rough."
-    ]
+    ],
+    "committed_capture_hashes_identical": false,
+    "committed_captures_reviewed": true,
+    "reviewed_changed_images": [
+      "seed/forme-applied.png",
+      "seed/forme-discarded.png",
+      "seed/forme-draft.png",
+      "reopen/forme-reopened.png"
+    ],
+    "review_note": "Four changed wide captures were inspected on committed source; the compact PNG is byte-identical to its approved integrated capture."
   }
 }

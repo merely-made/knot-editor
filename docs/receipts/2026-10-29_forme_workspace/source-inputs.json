@@ -37,5 +37,6 @@
     "apps/desktop/src/workspace_commands.rs": "abe01b33958b7c8cab686d380e82c139d68b3d2b46973e37541ae8ab602586ba",
     "apps/desktop/src/workspace_forme.rs": "f9a18cd070c7b82acacb3e6ad5720d2bea97391500743ff8f5405e82ab59e0ab",
     "apps/desktop/tests/workspace_forme.rs": "580f25499827c00ecfca2337a7a4bc2a17ce0afcc65723bed9e7485c227a809b"
-  }
+  },
+  "qualified_source_revision": "2924a5f1571f010bb9eb7692d6767117f3dff8ef"
 }

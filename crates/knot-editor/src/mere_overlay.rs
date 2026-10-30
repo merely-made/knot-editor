@@ -24,7 +24,7 @@ use std::collections::BTreeMap;
 
 use chirograph::{CarrierRequestBody, CarrierResponseBody, IntentResult, ProjectionSnapshot};
 use graphshell_endpoint::door::app_admission::{AppId, AppRouteId, configured_app_endpoint};
-use graphshell_endpoint::door::app_client::AppBrokerClient;
+use graphshell_endpoint::door::projection::AppBrokerClient;
 use mere_overmap::materialization::{self, GraphRead};
 use mere_overmap::route;
 use mere_overmap::wire::PendingMergeV1;
@@ -445,7 +445,13 @@ mod tests {
         use graphshell_endpoint::door::frame::{
             read_native_message_async, write_native_message_async,
         };
-        use graphshell_endpoint::door::wire::{AppHostMessage, AppMessage, BrowserChallenge};
+        use graphshell_endpoint::door::wire::BrowserChallenge;
+        type AppMessage = graphshell_endpoint::door::wire::AppMessage<chirograph::CarrierRequest, ()>;
+        type AppHostMessage = graphshell_endpoint::door::wire::AppHostMessage<
+            chirograph::CarrierResponse,
+            chirograph::CarrierNotice,
+            (),
+        >;
         use mere_overmap::wire::{MERE_SESSIONS, PENDING_MERGE_SCHEMA};
         use sceno::Scene;
         use scenotime::{Revision, SceneEpoch};

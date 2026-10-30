@@ -20,6 +20,7 @@ p2panda-net or reqwest. `tools/check_profile.py library` proves it from
 | Feature | Adds |
 |---|---|
 | `peers` | Everything that reaches a peer or the network: `mark` (the QUIC read host), `publish_carrier`, `publish_client` and `publish_host`, `KnotSyncStore::join`, `resident` (`KnotSyncHost`), `BlobClipEvidenceStore` and `KnotContentRetentionPort` with `KnotResidentSource::content_blob_store`, `KnotClipEvidenceRef::blob_hash`, the `knot_endpoint` and `knot_sync_host` bins, and the two peer examples. It turns on `stickleback/net`; Djinn and Turnstone opt in by name. |
+| `projection-provider` | Native app-door provider support for the standalone directory mode. Off by default and separate from `peers`. |
 | `mere-overlay` | A resident mere's sessions and archive as an overmap layer. |
 | `embed-bert`, `embed-bert-wgpu` | Search embedders beyond the lexical default. |
 
@@ -46,7 +47,7 @@ p2panda-net or reqwest. `tools/check_profile.py library` proves it from
 
 | Target | Invocation |
 |---|---|
-| `knot_endpoint` (`peers`) | Serves over stdio with `graphshell_endpoint::stdio::serve_resumable_notifying`. Modes: no argument (the deterministic K0 fixture), `[directory]`, `directory <root>`, `directory-write <root> <max-source-bytes>`, `directory-write-effects <root> <max-source-bytes> <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>`, `persona-vault <data-root> <persona-id> <max-source-bytes>`, `persona-vault-effects ...`, `communal-fixture-effects ...`. Effect modes are `auto`, `ask`, `never`. |
+| `knot_endpoint` (`peers`) | Existing directory, vault, and fixture modes serve over stdio with `graphshell_endpoint::stdio::serve_resumable_notifying`. Modes: no argument (the deterministic K0 fixture), `[directory]`, `directory <root>`, `directory-write <root> <max-source-bytes>`, `directory-write-effects <root> <max-source-bytes> <resolve-mode> <run-mode> <schemes> <languages> <max-depth> <max-ops>`, `persona-vault <data-root> <persona-id> <max-source-bytes>`, `persona-vault-effects ...`, `communal-fixture-effects ...`. Effect modes are `auto`, `ask`, `never`. With `--features peers,projection-provider`, `projection-provider <directory> <route> [--endpoint <app-endpoint>] [--max-sessions <1..64>]` offers a read-only directory projection through Djinn as `knot-editor`; each admitted viewer receives a separately opened endpoint. The route is required and cannot be `knot`, which Djinn reserves for its built-in Knot route. Without `--endpoint`, the existing `GRAPHSHELL_APP_ENDPOINT` discovery is used. `--max-sessions` defaults to 8. |
 | `knot_sync_host` (`peers`) | `knot_sync_host <data-root> <persona-uuid> [--label <name>] [--log-file <path>]`. Management verbs exit after reporting: `--pair-writer <64-hex>`, `--unpair-writer <64-hex>`, `--pairing-facts`. |
 | `examples/k2_peer.rs` (`peers`) | Two-machine rehearsal for a place-held document. `cargo run -p knot-editor --example k2_peer -- hold --root <vault-dir>` on the holder; `visit --peer <ticket>` or `visit --discover` on the visitor. Env: `K2_OWNER`, `K2_SEED`, `K2_NETWORK`, and `K2_PEER` for `--discover`. It is an example rather than a bin because it uses the `graphshell` dev-dependency. |
 

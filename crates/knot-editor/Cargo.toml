@@ -52,6 +52,9 @@ mere-overlay = ["dep:mere-overmap", "dep:mere-view"]
 # links no iroh, quinn, p2panda-net or reqwest: Knot is an offline application
 # unless a consumer opts in by name (Djinn, Turnstone). `tools/check_profile.py
 # library` keeps the default honest.
+# The native `knot_endpoint` binary also offers a read-only directory through
+# Djinn's app door. The library default remains free of native provider code.
+projection-provider = ["graphshell-endpoint/projection-provider"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "stickleback/net"]
 
 [dependencies]

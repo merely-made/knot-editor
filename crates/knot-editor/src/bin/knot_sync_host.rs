@@ -239,7 +239,12 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Answers once djinn locks, or once it can no longer be asked.
 async fn until_locked() -> String {
-    let mut client = match CustodyClient::open(AppId::new(knot_editor::KNOT_APP_ID)).await {
+    let mut client = match CustodyClient::open_declared(
+        AppId::new(knot_editor::KNOT_APP_ID),
+        knot_editor::declaration::app_declaration(),
+    )
+    .await
+    {
         Ok(client) => client,
         Err(error) => return error.to_string(),
     };

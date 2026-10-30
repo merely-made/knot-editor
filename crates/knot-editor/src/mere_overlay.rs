@@ -119,7 +119,12 @@ impl MereOverlay {
     pub async fn open_at(endpoint: &str, domain: &str) -> Result<Self, String> {
         let route = AppRouteId::new(format!("mere/{domain}")).map_err(|e| e.to_string())?;
         let mut client =
-            AppBrokerClient::open_route_at(endpoint, AppId::new(MERE_OVERLAY_APP), route)
+            AppBrokerClient::open_declared_route_at(
+                endpoint,
+                AppId::new(MERE_OVERLAY_APP),
+                route,
+                crate::declaration::app_declaration(),
+            )
                 .await
                 .map_err(|e| e.to_string())?;
         let descriptor = client

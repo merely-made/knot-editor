@@ -416,6 +416,9 @@ fn parse_provider_args(args: &[std::ffi::OsString]) -> Result<ProjectionProvider
 }
 
 #[cfg(feature = "projection-provider")]
+const PROVIDER_LABEL: &str = "Knot directory";
+
+#[cfg(feature = "projection-provider")]
 fn run_projection_provider(args: ProjectionProviderArgs) {
     use djinn::door::{app_admission::{AppId, AppRouteId}, app_client::AppConnection};
     use graphshell_endpoint::door::{projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider};
@@ -427,17 +430,20 @@ fn run_projection_provider(args: ProjectionProviderArgs) {
         .build()
         .expect("Knot could not start its app-door runtime");
     runtime.block_on(async move {
-        let app = AppId::new("knot-editor");
+        let app = AppId::new(knot_editor::KNOT_APP_ID);
+        let declaration = knot_editor::declaration::offering(args.route.clone(), PROVIDER_LABEL);
         let connection = match args.endpoint.as_deref() {
-            Some(endpoint) => AppConnection::open_route_at(endpoint, app, provider_route).await,
-            None => AppConnection::open_route(app, provider_route).await,
+            Some(endpoint) => {
+                AppConnection::open_declared_route_at(endpoint, app, provider_route, declaration).await
+            },
+            None => AppConnection::open_declared_route(app, provider_route, declaration).await,
         }
         .expect("Knot could not connect to Djinn's projection-provider route");
         let root = args.root;
         projection_provider::serve(
             connection,
             args.route,
-            "Knot directory".into(),
+            PROVIDER_LABEL.into(),
             args.max_sessions,
             move |_viewer| open_directory_projection(&root),
         )
@@ -516,7 +522,8 @@ mod provider_cli_tests {
         std::fs::write(root.path().join("field.knot"), "# Field\n").unwrap();
         let mut first = open_directory_projection(root.path()).unwrap();
 
-        assert_eq!(first.directory().unwrap().root(), root.path());
+        // The directory canonicalizes its root (`/tmp` is `/private/tmp` on macOS).
+        assert_eq!(first.directory().unwrap().root(), root.path().canonicalize().unwrap());
         let descriptor = first.describe();
         assert_eq!(descriptor.label, "Knot");
         assert_eq!(descriptor.projections[0].label, "Files in place");

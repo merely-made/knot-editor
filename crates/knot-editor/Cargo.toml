@@ -20,6 +20,12 @@ name = "knot_sync_host"
 path = "src/bin/knot_sync_host.rs"
 required-features = ["peers"]
 
+# Hands a completed site to the resident, which keeps serving it.
+[[bin]]
+name = "knot_site"
+path = "src/bin/knot_site.rs"
+required-features = ["site-handoff"]
+
 # Spawns the `knot_endpoint` bin, which needs `peers`.
 [[test]]
 name = "revision_bell"
@@ -55,6 +61,9 @@ mere-overlay = ["dep:mere-overmap", "dep:mere-view"]
 # The native `knot_endpoint` binary also offers a read-only directory through
 # Djinn's app door. The library default remains free of native provider code.
 projection-provider = ["graphshell-endpoint/projection-provider"]
+# The `knot_site` client: hand a completed site to the resident on its
+# published-site route (`knot_site::handoff`).
+site-handoff = ["dep:knot-site"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "stickleback/net"]
 
 [dependencies]
@@ -78,6 +87,7 @@ chirograph.workspace = true
 inker.workspace = true
 jotdown = "0.10"
 knot-document = { workspace = true, features = ["engine"] }
+knot-site = { path = "../knot-site", optional = true }
 knot-catalog.workspace = true
 muniment = { workspace = true, features = ["redb"] }
 mora.workspace = true

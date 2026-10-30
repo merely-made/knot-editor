@@ -234,8 +234,12 @@ The site crate is a separate workspace and does not build the desktop renderer.
 
 ## Application development
 
-The standalone application exposes one document with source editing, New,
-Open, Save, Save As, Reload, Compare, and an unsaved-change prompt. Enter a `.djot` or
+The standalone application keeps multiple documents open as tiles in a
+Workbench tree, with stacks and collapsing. Readings follow the focused
+document or stay pinned to one; opening an already open file activates its
+existing copy. Each document supports source editing, New, Open, Save,
+Save As, Reload, Compare, and an unsaved-change prompt. Each embedded
+`knot-document` surface presents one document. Enter a `.djot` or
 `.knot` path in the toolbar for Open or Save As; Save As requires a new target.
 Saving checks the opened file's identity and bytes for external changes.
 Compare displays read-only snapshots of your buffer and the disk text. Refresh

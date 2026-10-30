@@ -24,11 +24,15 @@ On T-PC, under the shared 3 GiB, zero-swap, single-job gate:
 `cargo test --locked -p knot-editor --features mere-overlay --lib mere_overlay::tests::failed_refresh_purges_cached_actions_and_merge_choices`
 
 passed one test (151 filtered out). The subsequent sync-host check in that
-command bundle omitted its required peers feature and did not execute. A
-separate peers-feature check remains pending; this receipt does not qualify
-peer runtime, the full desktop UI, or Windows. The failed older Eidetic build
+command bundle omitted its required peers feature and did not execute. The
+subsequent `root-split-knot-rebased` run, on upstream secure-channel commit
+`d400d0c` plus this migration, passed both the same focused regression and
+`cargo check --locked -p knot-editor --bin knot_sync_host --features peers`.
+This receipt does not qualify peer runtime, the full desktop UI, or Windows. The failed older Eidetic build
 and the command-selection error are retained in the run logs.
 
 Evidence is retained under `/home/markik/Code/testing/custody-contract-20261029`,
 notably `root-split-knot-receive-2.log`; resolved-edge audits are under
 `/home/markik/Code/testing/custody-projection-split-20261029`.
+
+Rebased successful run log SHA-256: `b95b73e22abf111f883c7341e2744132d4ba000e7df13d6d8aaf17f81ac03973`.

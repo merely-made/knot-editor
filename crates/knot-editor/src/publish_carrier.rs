@@ -13,12 +13,13 @@
 
 use insigne::delegation::path_covers;
 use notochord::{
-    AdmittedSession, DenyReason, IoHandshakeError, LocalNetworkPolicy, NetworkId, ProfileRef,
-    RevocationLedger, ServiceAccess, ServiceRule, TrustedRoot, admit_session,
+    AdmittedSecureSession, DenyReason, IoHandshakeError, LocalNetworkPolicy, NetworkId, ProfileRef,
+    RevocationLedger, SecureIdentityPolicy, ServiceAccess, ServiceRule, TrustedRoot,
+    admit_session_secure,
 };
 use personae::Ed25519Keypair;
 use tokio::io::AsyncWriteExt;
-use transport::noise::{NoiseStream, secure_responder};
+use transport::noise::{NoiseStream, secure_responder_with_facts};
 use transport::{Alpn, Transport, TransportError};
 
 use crate::{
@@ -50,7 +51,9 @@ pub fn publish_policy(
             ServiceAccess::MemberOnly,
             KNOT_PUBLISH_DOMAIN,
             [KNOT_PUBLISH_READ_ACTION],
-            true,
+            // The secure adapter below requires a proven Noise identity.
+            // An underlying carrier may honestly provide no initiator key.
+            false,
             max_sessions,
         ),
     );
@@ -62,7 +65,7 @@ pub fn publish_policy(
 pub enum PublishRefusal {
     /// Notochord refused the signed session hello.
     NotAdmitted(DenyReason),
-    /// The inner encrypted ALPN or identity disagreed with the outer carrier.
+    /// The encrypted ALPN is wrong, or Noise differs from a carrier-proven peer.
     CarrierNoiseMismatch,
     /// A policy may admit a broader action vocabulary than this host serves.
     ActionNotServed(String),
@@ -94,31 +97,46 @@ pub async fn accept_publish_session<T: Transport>(
     ledger: &RevocationLedger,
     now_ms: u64,
     active_sessions: u32,
-) -> Result<Result<AdmittedSession<NoiseStream<T::Stream>>, PublishRefusal>, PublishCarrierError> {
+) -> Result<
+    Result<AdmittedSecureSession<NoiseStream<T::Stream>>, PublishRefusal>,
+    PublishCarrierError,
+> {
     let accepted = transport
         .accept(publish_alpn())
         .await
         .map_err(PublishCarrierError::Carrier)?;
     let (stream, facts) = accepted.into_session();
 
-    let (mut stream, noise_peer, encrypted_alpn) = secure_responder(identity, stream)
+    let (mut stream, noise) = secure_responder_with_facts(identity, stream)
         .await
         .map_err(PublishCarrierError::Noise)?;
-    if encrypted_alpn != publish_alpn()
-        || facts.authenticated_initiator != Some(noise_peer.to_bytes())
+    if noise.protocol() != &publish_alpn()
+        || facts
+            .authenticated_initiator
+            .is_some_and(|peer| peer != noise.peer().to_bytes())
     {
         let _ = stream.shutdown().await;
         return Ok(Err(PublishRefusal::CarrierNoiseMismatch));
     }
 
-    let admitted = admit_session(stream, policy, ledger, &facts, now_ms, active_sessions).await?;
+    let admitted = admit_session_secure(
+        stream,
+        policy,
+        ledger,
+        &facts,
+        &noise.secure_channel_facts(),
+        SecureIdentityPolicy::MatchCarrierWhenPresent,
+        now_ms,
+        active_sessions,
+    )
+    .await?;
     let mut session = match admitted {
         Ok(session) => session,
         Err(reason) => return Ok(Err(PublishRefusal::NotAdmitted(reason))),
     };
-    if !serves_publish_action(&session.principal) {
-        let action = session.principal.action.action.clone();
-        let _ = session.stream.shutdown().await;
+    if !serves_publish_action(&session.session.principal) {
+        let action = session.session.principal.action.action.clone();
+        let _ = session.session.stream.shutdown().await;
         return Ok(Err(PublishRefusal::ActionNotServed(action)));
     }
     Ok(Ok(session))

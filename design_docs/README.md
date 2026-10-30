@@ -2,6 +2,8 @@
 
 # Knot Editor design documents
 
+- [Publishing secure-channel admission (October 29)](2026-08-07_knot_publishing_protocol_plan.md): Murm N1/AT1 adoption keeps carrier facts separate from Noise identity, binds the v2 admission proof to the actual secure session and shared link, preserves authenticated-carrier mismatch refusal, and checks the ticket publisher before disclosure. Application payload/ALPN remain v1; admission v1 peers fail closed and must upgrade together. Earlier physical receipts retain their original scope.
+
 - [Writer ergonomics brief (October 29)](2026-10-29_knot_writer_ergonomics_brief.md): digests Mark's IDE comparison. Knot stays an authoring browser, not an IDE. Records the correction that the desktop already edits several documents as Workbench tiles, the IDE ergonomics worth borrowing (multi-cursor, find and replace, quick open, rename, peek, problems pane), scripts that edit source through pack grants and `mere-source-edit` proposals, and a project as a signed graph record. Nothing scheduled.
 
 - [Writing workspace and mesh publication direction](2026-10-29_knot_writing_workspace_and_mesh.md): corrects the desktop multi-document baseline, records separate writer-invoked macro authority and graph-project direction, and proposes full published-site replicas with resident serving, authenticated discovery, measured availability and an independent-device failover gate. This is a design record, with implementation and qualification still separate.

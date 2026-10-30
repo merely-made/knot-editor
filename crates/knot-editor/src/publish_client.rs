@@ -17,8 +17,8 @@ use notochord::{
 };
 use personae::{Ed25519Keypair, InMemoryProvider};
 use tokio::io::AsyncWriteExt;
-use transport::noise::secure_initiator;
-use transport::{PeerID, Transport, TransportError, initiator_binding};
+use transport::noise::secure_initiator_with_facts;
+use transport::{PeerID, Transport, TransportError};
 
 use crate::{
     KNOT_PUBLISH_DOMAIN, KNOT_PUBLISH_READ_ACTION, KNOT_PUBLISH_SERVICE, KNOT_SHARE_TICKET_VERSION,
@@ -28,9 +28,10 @@ use crate::{
 
 /// Stable derivation label for the reader identity advertised to a publisher.
 ///
-/// A product derives this key from its Personae root, uses it for the outer
-/// carrier and inner Noise handshake, and gives only its public half to the
-/// publisher. It is deliberately distinct from a device or root identity.
+/// A product derives this key from its Personae root, proves it in Noise and
+/// uses it for a carrier that authenticates its initiator. A carrier without
+/// initiator authentication can retain a separate routing identity. The
+/// publisher receives only the public half, distinct from a device or root key.
 pub const KNOT_PUBLISH_READER_KEY_CONTEXT: &[u8] = b"mere/knot-publish/reader/v1";
 
 /// Why a recipient could not import or read one private share.
@@ -93,8 +94,9 @@ pub fn encode_share_ticket(ticket: &KnotShareTicket) -> Result<String, KnotPubli
 /// Read the single current document named by `ticket`.
 ///
 /// `reader` must be the protocol-scoped key whose public half the publisher
-/// certified. The carrier must use that same key, binding the outer P2P peer,
-/// Noise identity, and Notochord session subject together.
+/// certified. An authenticating carrier must use that same key. A carrier
+/// without initiator authentication retains its absent carrier identity and
+/// binds its shared link, while Noise proves this application key separately.
 pub async fn fetch_published_document<T: Transport>(
     carrier: &T,
     reader: &Ed25519Keypair,
@@ -104,9 +106,6 @@ pub async fn fetch_published_document<T: Transport>(
     validate_ticket(ticket)?;
     let reader_peer = PeerID::from_bytes(&reader.public_key().to_bytes())
         .map_err(|_| KnotPublishClientError::CarrierIdentity)?;
-    if carrier.local_peer_id().to_bytes() != reader_peer.to_bytes() {
-        return Err(KnotPublishClientError::CarrierIdentity);
-    }
     let recipient = ticket
         .delegations
         .last()
@@ -118,11 +117,19 @@ pub async fn fetch_published_document<T: Transport>(
     let publisher = PeerID::from_bytes(&ticket.publisher)
         .map_err(|_| KnotPublishClientError::PublisherIdentity)?;
 
-    let outer = carrier.connect(publisher, publish_alpn()).await?;
-    let (mut stream, noise_peer) = secure_initiator(reader, outer, &publish_alpn())
+    let mut outer = carrier.connect_session(publisher, publish_alpn()).await?;
+    if outer
+        .authenticated_initiator
+        .is_some_and(|peer| peer != reader_peer)
+    {
+        let _ = outer.stream.shutdown().await;
+        return Err(KnotPublishClientError::CarrierIdentity);
+    }
+    let carrier_binding = outer.proof_binding();
+    let (mut stream, noise) = secure_initiator_with_facts(reader, outer.stream, &publish_alpn())
         .await
         .map_err(KnotPublishClientError::Noise)?;
-    if noise_peer.to_bytes() != publisher.to_bytes() {
+    if noise.peer().to_bytes() != publisher.to_bytes() {
         let _ = stream.shutdown().await;
         return Err(KnotPublishClientError::PublisherIdentity);
     }
@@ -131,7 +138,7 @@ pub async fn fetch_published_document<T: Transport>(
     // protocol key. The temporary provider keeps that protocol key only for
     // this request and zeroizes its copy on drop.
     let provider = InMemoryProvider::from_seed(reader.to_seed());
-    let hello = SessionHello::issue(
+    let hello = SessionHello::issue_secure(
         &provider,
         ticket.network,
         profile,
@@ -142,7 +149,7 @@ pub async fn fetch_published_document<T: Transport>(
         },
         TrafficClass::Interactive,
         nonce(),
-        &initiator_binding(&publish_alpn(), reader_peer),
+        &carrier_binding.with_secure_channel(noise.secure_channel_facts()),
         ticket.delegations.clone(),
     )?;
     let reply = initiate_session(&mut stream, &hello, &Default::default()).await?;

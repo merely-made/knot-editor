@@ -1,0 +1,25 @@
+{
+  "source_revision": "a256eede2bc7ab8b8fe892c6177b74f50098105b",
+  "upstream": "b161d368a456a05a7c5bbd237a2f57019763fa48",
+  "added_packages": [
+    [
+      "platen",
+      "0.0.1",
+      "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a"
+    ],
+    [
+      "uxtree",
+      "0.0.2",
+      "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a"
+    ]
+  ],
+  "changed_existing_packages": [
+    [
+      "knot-desktop",
+      "0.0.1",
+      null
+    ]
+  ],
+  "all_upstream_pins_preserved": true,
+  "forme_and_docs_unchanged": true
+}

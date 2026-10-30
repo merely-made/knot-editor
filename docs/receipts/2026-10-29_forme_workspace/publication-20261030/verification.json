@@ -1,0 +1,43 @@
+{
+  "source_revision": "a256eede2bc7ab8b8fe892c6177b74f50098105b",
+  "binary_sha256": "14cc4501760d8b55433dd89095a2614755258980c75e707ac4982b05b8eeb39c",
+  "code_checks": "passed",
+  "tests": {
+    "desktop_library_passed": 372,
+    "existing_ignored_timing_probe": 1,
+    "menu_and_responsive_passed": 2
+  },
+  "suppliers": {
+    "mere-forme": "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a",
+    "mere-kernel": "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a",
+    "platen": "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a",
+    "uxtree": "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a",
+    "workbench": "git+https://github.com/merely-made/mere.git?branch=main#c6290142866eefead385e728c5c5da24ac6f624a"
+  },
+  "native_repeat": {
+    "status": "blocked_before_first_presentation",
+    "console_session_locked": true,
+    "direct": {
+      "process_exit": 0,
+      "result_ok": false,
+      "presented_frames": 0,
+      "captures": 0
+    },
+    "launchservices": {
+      "launcher_exit": 0,
+      "runner_exit": 1,
+      "result_ok": false,
+      "presented_frames": 0,
+      "captures": 0
+    },
+    "new_native_acceptance_claimed": false
+  },
+  "prior_completed_native_qualification": {
+    "implementation_revision": "2924a5f1571f010bb9eb7692d6767117f3dff8ef",
+    "receipt_revision": "acd03c3bf003da21b03b2e623c57e5cb83aa7fec",
+    "receipt": "../verification.json",
+    "preserved_unchanged": true
+  },
+  "publication_authorized": true,
+  "publication_uses_force": false
+}

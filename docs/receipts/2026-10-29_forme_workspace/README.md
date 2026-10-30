@@ -153,3 +153,28 @@ layout loading requires an explicit Unlock with matching bindings. The compact
 → wide transition is exercised by production-hook receiving tests; the native
 wide and compact receipts are separate processes. Publication is a separate
 action; this work is committed locally without a push.
+
+## Publication integration check — 2026-10-30
+
+The later push request receives upstream custody/projection-client and secure
+publishing changes through `b161d368`. Integration runtime
+`a256eede2bc7ab8b8fe892c6177b74f50098105b` preserves the Forme implementation,
+writing-workspace notes and earlier qualification record. Its Platen/Uxtree
+additions use the upstream Mere `c6290142` cohort; every other upstream source
+pin is retained. The [integration record](publication-20261030/integration.json)
+accounts for that delta.
+
+On this combined source, locked/offline checks pass 372 desktop library cases
+with the existing ignored timing probe, both menu/responsive cases, the desktop
+all-targets check and the binary build. Commands and real exit statuses are in
+[publication checks](publication-20261030/checks.json).
+
+An additional native repeat is **not qualified**. The console session was
+locked; both direct launch and the normal LaunchServices runner reached zero
+presented frames and produced no captures. The scenario reports presentation
+stall, so process exit zero is not accepted as a pass. The original completed
+native qualification remains bound to `2924a5f`; it is not relabelled as a new
+native acceptance for this supplier cohort. The
+[publication verification](publication-20261030/verification.json) and preserved
+failed attempt records distinguish those outcomes. The user authorized pushing
+the completed work; no force push is used.

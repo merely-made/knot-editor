@@ -1,0 +1,67 @@
+{
+  "source_revision": "a256eede2bc7ab8b8fe892c6177b74f50098105b",
+  "checks": [
+    {
+      "name": "desktop-lib",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--lib"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 75.32,
+      "log": "checks/desktop-lib.log"
+    },
+    {
+      "name": "menu-responsive",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--test",
+        "workspace_forme"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 26.72,
+      "log": "checks/menu-responsive.log"
+    },
+    {
+      "name": "all-targets",
+      "command": [
+        "cargo",
+        "check",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--all-targets"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 17.37,
+      "log": "checks/all-targets.log"
+    },
+    {
+      "name": "desktop-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--bin",
+        "knot"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 3.32,
+      "log": "checks/desktop-build.log"
+    }
+  ]
+}

@@ -26,6 +26,13 @@ pub const PUBLISHED_SITE_ROUTE: &str = "published-site-v1";
 /// (`graphshell_endpoint::door::projection_offer::PROJECTION_PROVIDER_ROUTE`).
 pub const PROJECTION_PROVIDER_ROUTE: &str = "mere.projection-provider";
 
+/// Take the handle Djinn launched this process with, before anything is
+/// spawned (`djinn::door::launch::claim`). Every Knot binary calls this first
+/// in `main`; a process Djinn did not launch has none, and nothing happens.
+pub fn claim_launch() {
+    let _ = djinn::door::launch::claim();
+}
+
 /// Knot's declaration, offering no projection.
 pub fn app_declaration() -> AppDeclaration {
     AppDeclaration {

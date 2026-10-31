@@ -20,7 +20,7 @@ use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 pub(crate) mod diagnostics;
 pub(crate) mod folds;
-use apparatus::{Cursor, OperationId, RecordRef};
+use apparatus_core::{Cursor, OperationId, RecordRef};
 use diagnostics::{Diagnostics, Installed, Observation, Phase, ResultKind};
 
 pub(crate) const LEAF_KEY: u64 = 0x6b6e_6f74_6772_6170;
@@ -568,7 +568,7 @@ impl GraphState {
 
     pub(crate) fn diagnostic_attachment(
         &self,
-    ) -> Result<Option<apparatus::Batch<serde_json::Value>>, String> {
+    ) -> Result<Option<apparatus_core::Batch<serde_json::Value>>, String> {
         let Some(diagnostics) = &self.diagnostics else {
             return Ok(None);
         };
@@ -586,7 +586,7 @@ impl GraphState {
 
     #[cfg(test)]
     pub(crate) fn enable_test_diagnostics(&mut self) {
-        self.diagnostics = Some(Diagnostics::new(apparatus::RetentionLimits {
+        self.diagnostics = Some(Diagnostics::new(apparatus_core::RetentionLimits {
             max_records: 256,
             max_bytes: 262_144,
             max_age: std::time::Duration::from_secs(60),

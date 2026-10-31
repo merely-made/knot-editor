@@ -1,0 +1,177 @@
+warning: patch `chartulary v0.2.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `eidetic v0.0.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `esp v0.1.0 (https://github.com/merely-made/esp.git?rev=bd0468c5c44c0b098494d30b3cfd0aa283cecf48#bd0468c5)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/esp.git
+warning: patch `luggage v0.1.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `mere-proofs v0.1.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `muniment v0.2.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `servitor v0.0.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `stickleback v0.1.1 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `chartulary v0.2.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `eidetic v0.0.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `esp v0.1.0 (https://github.com/merely-made/esp.git?rev=bd0468c5c44c0b098494d30b3cfd0aa283cecf48#bd0468c5)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/esp.git
+warning: patch `luggage v0.1.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `mere-proofs v0.1.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `muniment v0.2.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `servitor v0.0.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `stickleback v0.1.1 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `chartulary v0.2.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `eidetic v0.0.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `esp v0.1.0 (https://github.com/merely-made/esp.git?rev=bd0468c5c44c0b098494d30b3cfd0aa283cecf48#bd0468c5)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/esp.git
+warning: patch `luggage v0.1.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `mere-proofs v0.1.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `muniment v0.2.0 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `servitor v0.0.2 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `stickleback v0.1.1 (https://github.com/merely-made/eidetic.git?rev=f599ffe93298025bf6d65ae310a7cb4270ea52e3#f599ffe9)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `cubecl-runtime v0.11.0 (https://github.com/merely-made/mere.git?branch=main#b232631f)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+warning: unused variable: `path`
+  --> crates/knot-editor/src/directory.rs:53:13
+   |
+53 |     fn read(path: &Path, _metadata: &Metadata) -> io::Result<Self> {
+   |             ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-editor` (lib) generated 1 warning (run `cargo fix --lib -p knot-editor` to apply 1 suggestion)
+warning: variable does not need to be mutable
+    --> apps/desktop/src/workspace.rs:1875:13
+     |
+1875 |         let mut preview_blocked = false;
+     |             ----^^^^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `document`
+    --> apps/desktop/src/workspace.rs:1948:9
+     |
+1948 |         document: DocKey,
+     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_document`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `address`
+    --> apps/desktop/src/workspace.rs:2066:67
+     |
+2066 |                         candidate.document_address().is_some_and(|address| {
+     |                                                                   ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_address`
+
+warning: unused variable: `root`
+    --> apps/desktop/src/workspace.rs:2061:34
+     |
+2061 |             ContextPlace::Site { root, .. } => {
+     |                                  ^^^^ help: try ignoring the field: `root: _`
+
+warning: unused variable: `root`
+    --> apps/desktop/src/workspace.rs:2091:34
+     |
+2091 |         let ContextPlace::Site { root, .. } = place else {
+     |                                  ^^^^ help: try ignoring the field: `root: _`
+
+warning: unused variable: `document`
+    --> apps/desktop/src/workspace.rs:2287:9
+     |
+2287 |         document: DocKey,
+     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_document`
+
+warning: unused variable: `address`
+    --> apps/desktop/src/workspace.rs:2445:37
+     |
+2445 |             ContextPlace::Heading { address, .. } => {
+     |                                     ^^^^^^^ help: try ignoring the field: `address: _`
+
+warning: unused variable: `root`
+    --> apps/desktop/src/workspace.rs:2476:34
+     |
+2476 |             ContextPlace::Site { root, .. } => {
+     |                                  ^^^^ help: try ignoring the field: `root: _`
+
+warning: unused variable: `document`
+    --> apps/desktop/src/workspace.rs:7020:25
+     |
+7020 |             if let Some(document) = state.docs.document_for(tile)
+     |                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_document`
+
+warning: `knot-desktop` (lib) generated 9 warnings (run `cargo fix --lib -p knot-desktop` to apply 9 suggestions)
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `knot-desktop` (bin "knot") generated 1 warning
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.69s

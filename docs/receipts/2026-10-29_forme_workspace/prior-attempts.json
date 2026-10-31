@@ -1,0 +1,46 @@
+{
+  "root": "/Users/markik/Code/validation/knot-forme-20261029",
+  "not_passing_evidence": [
+    {
+      "paths": [
+        "seed",
+        "reopen"
+      ],
+      "finding": "Initial reopen reports RESULT fail despite process exit zero; final runner checks both outcomes."
+    },
+    {
+      "paths": [
+        "seed-r2",
+        "reopen-r2",
+        "seed-r3",
+        "reopen-r3",
+        "reopen-debug"
+      ],
+      "findings": [
+        "Contextual navigation can restore Preview before the scenario starts; opening a duplicate changes the valid tile set.",
+        "Follow-focus Preview is distinct from the pinned Preview restored by contextual navigation. The final seed explicitly pins Preview.",
+        "Runtime tile allocation can differ between processes. The adapter now derives stable members from host bindings and has a positive allocation-drift test."
+      ]
+    },
+    {
+      "path": "/Users/markik/Code/output/knot-forme-pointer.log",
+      "finding": "Frisket has no pointer producer for its separator in this cohort. Pointer dragging remains outside the qualified scope."
+    }
+  ],
+  "superseded_passes": [
+    {
+      "paths": [
+        "seed-r4",
+        "reopen-r4"
+      ],
+      "finding": "Passed before the review focus fix. Preserved, but final evidence reruns the reviewed implementation."
+    },
+    {
+      "paths": [
+        "review-native-precommit",
+        "review-native-final"
+      ],
+      "finding": "Passed on the earlier dependency cohort. Final evidence reruns after preserving concurrent secure-channel work."
+    }
+  ]
+}

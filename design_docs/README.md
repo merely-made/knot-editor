@@ -1,6 +1,14 @@
+- [Forme workspace adoption](2026-09-23_knot_workspace_slice1_plan.md#forme-second-host-adoption-2026-10-29): Platen-backed Unlock, layout preview, Discard and acknowledged local Apply; exact tile-binding checks, independent receiving tests and bounded native save/reopen qualification. Pointer dragging and automatic document-session restoration remain separate.
+
 - [Native metre editing and shared span intents](2026-09-30_knot_composition_readings.md#authored-metre-alignment-2026-10-17) — Qualified on macOS: focused Sound editor, span preview/cancel, keyboard and undo/redo, immutable typed sealed copies and exact fresh reopening. 72 focused cases, two native processes and six reviewed captures on Mere `4c4ea11d8`. [Receipt](../docs/receipts/2026-10-17_metre_editing/README.md).
 
 # Knot Editor design documents
+
+- [Publishing secure-channel admission (October 29)](2026-08-07_knot_publishing_protocol_plan.md): Murm N1/AT1 adoption keeps carrier facts separate from Noise identity, binds the v2 admission proof to the actual secure session and shared link, preserves authenticated-carrier mismatch refusal, and checks the ticket publisher before disclosure. Application payload/ALPN remain v1; admission v1 peers fail closed and must upgrade together. Earlier physical receipts retain their original scope.
+
+- [Writer ergonomics brief (October 29)](2026-10-29_knot_writer_ergonomics_brief.md): digests Mark's IDE comparison. Knot stays an authoring browser, not an IDE. Records the correction that the desktop already edits several documents as Workbench tiles, the IDE ergonomics worth borrowing (multi-cursor, find and replace, quick open, rename, peek, problems pane), scripts that edit source through pack grants and `mere-source-edit` proposals, and a project as a signed graph record. Nothing scheduled.
+
+- [Writing workspace and mesh publication direction](2026-10-29_knot_writing_workspace_and_mesh.md): corrects the desktop multi-document baseline, records separate writer-invoked macro authority and graph-project direction, and proposes full published-site replicas with resident serving, authenticated discovery, measured availability and an independent-device failover gate. This is a design record, with implementation and qualification still separate.
 
 - [Governed native Scroll process receipt](2026-09-11_small_web_authoring_plan.md#governed-native-scroll-process-receipt-2026-10-22): independent saved-site publisher/resident qualification passed with native metadata, current authority and joined shutdown; the original Gemini fixture remains unchanged and passes.
 
@@ -77,7 +85,7 @@ visual residuals; it does not infer live dynamics or release acceptance.
 
 - [Scroll site authoring](2026-09-11_scroll_site_authoring_plan.md): native site files, preview, metadata and explicit loopback publication.
 
-- [Application workspace](2026-09-05_knot_application_workspace_plan.md): single-document lifecycle, live outline, heading-linked Djot/Knot preview, read-only folded source, desktop file catalog and saved-revision review, coordinated resident capture retention, host-injected worker Retain controls, relation model, and the public signed-head revision boundary for projection provenance; the next scoped sequence is a Knot-owned multi-document workspace, one-stack tabs and navigator, then local recovery. Editable folds remain a separate Cambium coordinate-mapping project.
+- [Application workspace](2026-09-05_knot_application_workspace_plan.md): the original document lifecycle, live outline, heading-linked Djot/Knot preview, read-only folded source, desktop file catalog and saved-revision review, coordinated resident capture retention, host-injected worker Retain controls, relation model, and the public signed-head revision boundary for projection provenance. The [workspace slice](2026-09-23_knot_workspace_slice1_plan.md) subsequently delivered the desktop multi-document workspace, tabs and navigator. User-created splits remain follow-up work. Editable folds remain a separate Cambium coordinate-mapping project.
 - [Repository extraction](2026-09-01_knot_editor_repository_extraction_plan.md)
 - [Publishing protocol](2026-08-07_knot_publishing_protocol_plan.md): recipient-bound reading and withdrawal; the October 19 research handoff assessment records the missing source-owner join and durable publication decision before Turnstone cold-reopen acceptance.
 - [Mark read adapter](2026-08-08_knot_mark_read_adapter.md)

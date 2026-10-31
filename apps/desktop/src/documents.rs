@@ -100,6 +100,8 @@ pub struct DocumentWorkspace<D> {
     entries: BTreeMap<DocKey, Entry<D>>,
     roles: HashMap<TileId, TileRole>,
     workspace: Workspace,
+    forme: Option<crate::workspace_forme::WorkspaceForme>,
+    scratch_scope: uuid::Uuid,
     focused: Option<DocKey>,
     /// The reading tile activated or opened last, whose stack the next
     /// reading joins.
@@ -120,6 +122,8 @@ impl<D> DocumentWorkspace<D> {
             entries: BTreeMap::new(),
             roles: HashMap::new(),
             workspace: Workspace::new(TileTree::stack(Vec::new(), 0)),
+            forme: None,
+            scratch_scope: uuid::Uuid::new_v4(),
             focused: None,
             last_reading: None,
             next_doc: 1,
@@ -129,7 +133,124 @@ impl<D> DocumentWorkspace<D> {
 
     /// The tree a frame renders.
     pub fn workspace(&self) -> &Workspace {
-        &self.workspace
+        self.forme
+            .as_ref()
+            .filter(|forme| forme.scope == self.forme_scope())
+            .map_or(&self.workspace, |forme| &forme.preview)
+    }
+
+    fn forme_scope(&self) -> crate::workspace_forme::Scope {
+        let mut scope: Vec<_> = self
+            .roles
+            .iter()
+            .map(|(tile, role)| {
+                let binding = match role {
+                    TileRole::Document(key) => match self.identity(*key) {
+                        Some(DocIdentity::Scratch) => {
+                            format!("scratch:{}:{}", self.scratch_scope, key.0)
+                        },
+                        identity => format!("document:{identity:?}"),
+                    },
+                    TileRole::Reading { kind, pinned } => {
+                        let binding = pinned.map(|key| match self.identity(key) {
+                            Some(DocIdentity::Scratch) => {
+                                format!("scratch:{}:{}", self.scratch_scope, key.0)
+                            },
+                            identity => format!("document:{identity:?}"),
+                        });
+                        format!("reading:{kind:?}:{binding:?}")
+                    },
+                    TileRole::Site(_) | TileRole::Metadata { .. } => {
+                        format!("{}:{role:?}", self.scratch_scope)
+                    },
+                    _ => format!("{role:?}"),
+                };
+                (tile.0, binding)
+            })
+            .collect();
+        // Reading pins refer to runtime document keys; include every document's
+        // identity so identical numeric keys in another launch cannot rebind them.
+        scope.sort_by_key(|(tile, _)| *tile);
+        scope
+    }
+
+    pub fn forme_editing(&self) -> bool {
+        self.forme.is_some()
+    }
+
+    pub fn forme_resizable(&self) -> bool {
+        self.forme_editing()
+            && self
+                .workspace()
+                .tiled()
+                .fractions_at(&workbench::TilePath(vec![]))
+                .is_some_and(|fractions| fractions.len() >= 2)
+    }
+
+    /// A keyboard/menu route until the shared Frisket pointer producer exists.
+    pub fn resize_forme_first(&mut self, more: bool) -> Result<(), String> {
+        if !self.forme_editing() {
+            return Err("Unlock the workspace layout first".into());
+        }
+        let split = workbench::TilePath(vec![]);
+        let mut fractions = self
+            .workspace()
+            .tiled()
+            .fractions_at(&split)
+            .filter(|f| f.len() >= 2)
+            .ok_or("This workspace has no split to resize")?;
+        let pair = fractions[0] + fractions[1];
+        let first = (fractions[0] + if more { 0.05 } else { -0.05 }).clamp(pair * 0.1, pair * 0.9);
+        fractions[0] = first;
+        fractions[1] = pair - first;
+        if self.apply_layout(&WorkspaceEvent::Tile(TileEvent::DividerMoved {
+            split,
+            fractions,
+        })) {
+            Ok(())
+        } else {
+            Err("The workspace draft could not be resized; its open tiles may have changed".into())
+        }
+    }
+
+    pub fn unlock_forme(&mut self, saved: Option<serde_json::Value>) -> Result<(), String> {
+        if self.forme.is_some() {
+            return Err("Apply or discard the open workspace draft first".into());
+        }
+        let mut forme = crate::workspace_forme::WorkspaceForme::begin(
+            self.workspace.tiled(),
+            self.forme_scope(),
+            saved,
+        )?;
+        // Restoring geometry must not hide the document that still receives
+        // the writer's editing, Save and Close commands.
+        if let Some(tile) = self.focused.and_then(|key| self.tile_of(key)) {
+            forme.edit(&WorkspaceEvent::Tile(TileEvent::Activated(tile)))?;
+        }
+        self.forme = Some(forme);
+        Ok(())
+    }
+
+    pub fn discard_forme(&mut self) -> Result<(), String> {
+        let forme = self.forme.as_mut().ok_or("No workspace draft is open")?;
+        forme.discard()?;
+        self.forme = None;
+        Ok(())
+    }
+
+    pub fn apply_forme(
+        &mut self,
+        write: impl FnOnce(Option<&serde_json::Value>, &serde_json::Value) -> Result<(), String>,
+    ) -> Result<(), String> {
+        let scope = self.forme_scope();
+        let forme = self.forme.as_mut().ok_or("No workspace draft is open")?;
+        if forme.scope != scope {
+            return Err("Open tiles changed; discard this workspace draft and unlock again".into());
+        }
+        forme.save(write)?;
+        self.workspace = forme.preview.clone();
+        self.forme = None;
+        Ok(())
     }
 
     /// Open a document, or activate the open entry with the same identity.
@@ -176,6 +297,9 @@ impl<D> DocumentWorkspace<D> {
     /// Make `key` the focused document and its tile the active tab.
     pub fn focus(&mut self, key: DocKey) {
         if let Some(entry) = self.entries.get(&key) {
+            if let Some(forme) = self.forme.as_mut() {
+                let _ = forme.edit(&WorkspaceEvent::Tile(TileEvent::Activated(entry.tile)));
+            }
             self.workspace
                 .apply(&WorkspaceEvent::Tile(TileEvent::Activated(entry.tile)));
             self.focused = Some(key);
@@ -227,6 +351,14 @@ impl<D> DocumentWorkspace<D> {
 
     /// Rename a document's tab.
     pub fn set_title(&mut self, key: DocKey, title: impl Into<String>) {
+        let title = title.into();
+        if let Some(id) = self.tile_of(key) {
+            if let Some(forme) = self.forme.as_mut() {
+                if let Some(tile) = forme.preview.tiled_mut().tile_mut(id) {
+                    tile.title = title.clone();
+                }
+            }
+        }
         if let Some(tile) = self.tile_of(key)
             && let Some(tile) = self.workspace.tiled_mut().tile_mut(tile)
         {
@@ -313,6 +445,9 @@ impl<D> DocumentWorkspace<D> {
 
     /// Activate a tile, focusing its document when it has one.
     pub fn activate(&mut self, tile: TileId) {
+        if let Some(forme) = self.forme.as_mut() {
+            let _ = forme.edit(&WorkspaceEvent::Tile(TileEvent::Activated(tile)));
+        }
         self.workspace
             .apply(&WorkspaceEvent::Tile(TileEvent::Activated(tile)));
         match self.roles.get(&tile) {
@@ -520,17 +655,35 @@ impl<D> DocumentWorkspace<D> {
 
     /// Rename any tile's tab.
     pub fn set_tile_title(&mut self, tile: TileId, title: impl Into<String>) {
+        let title = title.into();
+        if let Some(forme) = self.forme.as_mut() {
+            if let Some(preview) = forme.preview.tiled_mut().tile_mut(tile) {
+                preview.title = title.clone();
+            }
+        }
         if let Some(tile) = self.workspace.tiled_mut().tile_mut(tile) {
             tile.title = title.into();
         }
     }
 
-    /// Apply a divider move. Drags, floats and tearouts are not adopted yet
+    /// Apply a divider move to the Forme preview when unlocked, otherwise
+    /// to the ordinary live layout. Drags, floats and tearouts are not adopted yet
     /// and return `false`, leaving the tree unchanged.
     pub fn apply_layout(&mut self, event: &WorkspaceEvent) -> bool {
+        if self
+            .forme
+            .as_ref()
+            .is_some_and(|forme| forme.scope != self.forme_scope())
+        {
+            return false;
+        }
         match event {
             WorkspaceEvent::Tile(TileEvent::DividerMoved { .. }) => {
-                self.workspace.apply(event).changed()
+                if let Some(forme) = self.forme.as_mut() {
+                    forme.edit(event).unwrap_or(false)
+                } else {
+                    self.workspace.apply(event).changed()
+                }
             },
             _ => false,
         }
@@ -1000,5 +1153,310 @@ mod tests {
         });
         assert!(!space.apply_layout(&drag));
         assert_eq!(tabs(&space), ["a.djot"]);
+    }
+}
+
+#[cfg(test)]
+mod forme_adoption_tests {
+    use super::*;
+    use crate::preferences::PreferencesStore;
+    use cambium::{CaretAffinity, CaretPosition, CaretSelection, TextCommand};
+    use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
+
+    fn workspace() -> (DocumentWorkspace<String>, DocKey) {
+        let mut docs = DocumentWorkspace::new();
+        let (key, _) = docs.open(
+            DocIdentity::Path("/writing/a.djot".into()),
+            "a.djot",
+            "original".to_owned(),
+        );
+        docs.open_reading(ReadingKind::Outline, Some(key), "Outline");
+        (docs, key)
+    }
+    fn resize() -> WorkspaceEvent {
+        WorkspaceEvent::Tile(TileEvent::DividerMoved {
+            split: workbench::TilePath(vec![]),
+            fractions: vec![0.65, 0.35],
+        })
+    }
+
+    fn active_in_stack(tree: &TileTree, target: TileId) -> Option<TileId> {
+        match tree {
+            TileTree::Stack(stack) if stack.tabs.iter().any(|tile| tile.id == target) => {
+                stack.tabs.get(stack.active).map(|tile| tile.id)
+            },
+            TileTree::Stack(_) => None,
+            TileTree::Split { children, .. } => children
+                .iter()
+                .find_map(|branch| active_in_stack(&branch.tree, target)),
+        }
+    }
+
+    #[test]
+    fn forme_restoration_keeps_the_current_focused_document_visible() {
+        let (mut docs, first) = workspace();
+        let (second, _) = docs.open(
+            DocIdentity::Path("/writing/b.djot".into()),
+            "b.djot",
+            "second".into(),
+        );
+        let first_tile = docs.tile_of(first).unwrap();
+        let second_tile = docs.tile_of(second).unwrap();
+        docs.focus(first);
+        docs.unlock_forme(None).unwrap();
+        assert!(docs.apply_layout(&resize()));
+        let mut saved = None;
+        docs.apply_forme(|_, value| {
+            saved = Some(value.clone());
+            Ok(())
+        })
+        .unwrap();
+        assert_eq!(
+            active_in_stack(docs.workspace().tiled(), second_tile),
+            Some(first_tile)
+        );
+
+        docs.focus(second);
+        docs.unlock_forme(saved).unwrap();
+        assert_eq!(docs.focused(), Some(second));
+        assert_eq!(
+            active_in_stack(docs.workspace().tiled(), second_tile),
+            Some(second_tile),
+            "restored geometry cannot select a different command target"
+        );
+        assert_eq!(
+            docs.workspace()
+                .tiled()
+                .fractions_at(&workbench::TilePath(vec![])),
+            Some(vec![0.65, 0.35])
+        );
+        docs.apply_forme(|_, _| Ok(())).unwrap();
+        assert_eq!(docs.focused(), Some(second));
+        assert_eq!(
+            active_in_stack(docs.workspace().tiled(), second_tile),
+            Some(second_tile)
+        );
+        assert_eq!(docs.doc(first).unwrap(), "original");
+        assert_eq!(docs.doc(second).unwrap(), "second");
+    }
+
+    #[test]
+    fn forme_discard_preserves_real_source_selection_and_document_undo() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("writer.djot");
+        let original = "# α\n\nBody.\n";
+        std::fs::write(&path, original).unwrap();
+        let identity = DocIdentity::Path(path.clone());
+        let mut docs = DocumentWorkspace::new();
+        let (key, _) = docs.open(
+            identity.clone(),
+            "writer.djot",
+            KnotDocumentSession::open(&path).unwrap(),
+        );
+        docs.open_reading(ReadingKind::Outline, Some(key), "Outline");
+        let layout = docs.workspace().tiled().clone();
+        docs.unlock_forme(None).unwrap();
+        assert!(docs.apply_layout(&resize()));
+        let selection = CaretSelection {
+            anchor: CaretPosition {
+                byte: 4,
+                affinity: CaretAffinity::Upstream,
+            },
+            focus: CaretPosition {
+                byte: 2,
+                affinity: CaretAffinity::Downstream,
+            },
+        };
+        let session = docs.doc_mut(key).unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::SetSelection(
+                selection,
+            )))
+            .unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Insert("ββ".into())))
+            .unwrap();
+        session
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::SelectAll))
+            .unwrap();
+        let edited = session.snapshot();
+        assert_eq!(edited.text, "# ββ\n\nBody.\n");
+        assert!(edited.dirty);
+
+        docs.discard_forme().unwrap();
+        assert_eq!(docs.workspace().tiled(), &layout);
+        assert_eq!(docs.focused(), Some(key));
+        assert_eq!(docs.identity(key), Some(&identity));
+        assert_eq!(docs.doc(key).unwrap().snapshot(), edited);
+        let undone = docs
+            .doc_mut(key)
+            .unwrap()
+            .apply(KnotDocumentIntentV1::Edit(TextCommand::Undo))
+            .unwrap();
+        assert_eq!(undone.text, original);
+        assert_eq!(undone.selection, selection);
+        assert!(!undone.dirty);
+        assert_eq!(std::fs::read_to_string(path).unwrap(), original);
+    }
+
+    #[test]
+    fn forme_discard_restores_layout_without_undoing_document_edits_or_focus() {
+        let (mut docs, key) = workspace();
+        let before = docs.workspace().tiled().clone();
+        docs.unlock_forme(None).unwrap();
+        assert!(docs.apply_layout(&resize()));
+        assert_ne!(docs.workspace().tiled(), &before);
+        assert_eq!(
+            docs.workspace.tiled(),
+            &before,
+            "draft never replaces live layout"
+        );
+        *docs.doc_mut(key).unwrap() = "writer changed this while arranging".into();
+        docs.focus(key);
+        docs.discard_forme().unwrap();
+        assert_eq!(docs.workspace().tiled(), &before);
+        assert_eq!(
+            docs.doc(key).unwrap(),
+            "writer changed this while arranging"
+        );
+        assert_eq!(docs.focused(), Some(key));
+    }
+
+    #[test]
+    fn forme_failed_apply_retains_draft_then_saved_layout_reopens_for_same_bindings() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("preferences.json");
+        let mut store = PreferencesStore::open(path.clone());
+        let (mut docs, _) = workspace();
+        docs.unlock_forme(store.workspace_forme()).unwrap();
+        docs.apply_layout(&resize());
+        let preview = docs.workspace().tiled().clone();
+        assert!(
+            docs.apply_forme(|_, _| Err("disk unavailable".into()))
+                .is_err()
+        );
+        assert!(docs.forme_editing());
+        assert_eq!(docs.workspace().tiled(), &preview);
+        docs.apply_forme(|base, next| store.save_workspace_forme(base, next))
+            .unwrap();
+        assert!(!docs.forme_editing());
+        assert_eq!(docs.workspace().tiled(), &preview);
+        let reopened = PreferencesStore::open(path);
+        let mut fresh = DocumentWorkspace::new();
+        let (temporary, _) = fresh.open(DocIdentity::Scratch, "Temporary", String::new());
+        fresh.close(fresh.tile_of(temporary).unwrap());
+        let (key, _) = fresh.open(
+            DocIdentity::Path("/writing/a.djot".into()),
+            "a.djot",
+            "original".to_owned(),
+        );
+        fresh.open_reading(ReadingKind::Outline, Some(key), "Outline");
+        fresh.unlock_forme(reopened.workspace_forme()).unwrap();
+        assert_eq!(
+            fresh
+                .workspace()
+                .tiled()
+                .fractions_at(&workbench::TilePath(vec![])),
+            preview.fractions_at(&workbench::TilePath(vec![]))
+        );
+        assert_eq!(fresh.doc(key).unwrap(), "original");
+    }
+
+    #[test]
+    fn forme_changed_open_set_refuses_apply_and_discard_keeps_new_document() {
+        let (mut docs, _) = workspace();
+        docs.unlock_forme(None).unwrap();
+        docs.apply_layout(&resize());
+        let (new, _) = docs.open(DocIdentity::Scratch, "New", "new contents".into());
+        assert!(
+            docs.apply_forme(|_, _| panic!("stale draft must never reach storage"))
+                .is_err()
+        );
+        docs.discard_forme().unwrap();
+        assert_eq!(docs.doc(new).unwrap(), "new contents");
+        assert!(
+            docs.workspace()
+                .tiled()
+                .find(docs.tile_of(new).unwrap())
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn forme_external_slot_change_refuses_save_without_losing_draft() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("preferences.json");
+        let mut store = PreferencesStore::open(path.clone());
+        let (mut docs, _) = workspace();
+        docs.unlock_forme(store.workspace_forme()).unwrap();
+        docs.apply_layout(&resize());
+        let mut external = crate::preferences::DesktopPreferences::default();
+        external.other.insert(
+            "workspace_forme".into(),
+            serde_json::json!({"another": "owner"}),
+        );
+        external.save(&path).unwrap();
+        assert!(
+            docs.apply_forme(|base, next| store.save_workspace_forme(base, next))
+                .is_err()
+        );
+        assert!(docs.forme_editing());
+        assert_eq!(
+            crate::preferences::DesktopPreferences::load(&path).unwrap(),
+            external
+        );
+        docs.discard_forme().unwrap();
+    }
+
+    #[test]
+    fn forme_does_not_restore_a_layout_for_reused_tile_numbers() {
+        let (mut docs, _) = workspace();
+        docs.unlock_forme(None).unwrap();
+        docs.apply_layout(&resize());
+        let mut saved = None;
+        docs.apply_forme(|_, value| {
+            saved = Some(value.clone());
+            Ok(())
+        })
+        .unwrap();
+        let mut other = DocumentWorkspace::new();
+        let (key, _) = other.open(
+            DocIdentity::Path("/writing/b.djot".into()),
+            "b.djot",
+            String::new(),
+        );
+        other.open_reading(ReadingKind::Outline, Some(key), "Outline");
+        let original = other.workspace().tiled().clone();
+        other.unlock_forme(saved).unwrap();
+        assert_eq!(other.workspace().tiled(), &original);
+    }
+
+    #[test]
+    fn forme_does_not_restore_a_layout_for_a_fresh_scratch_instance() {
+        let mut docs = DocumentWorkspace::new();
+        let (key, _) = docs.open(DocIdentity::Scratch, "Untitled", "first draft".to_owned());
+        docs.open_reading(ReadingKind::Outline, Some(key), "Outline");
+        docs.unlock_forme(None).unwrap();
+        assert!(docs.apply_layout(&resize()));
+        let mut saved = None;
+        docs.apply_forme(|_, value| {
+            saved = Some(value.clone());
+            Ok(())
+        })
+        .unwrap();
+
+        let mut fresh = DocumentWorkspace::new();
+        let (other, _) = fresh.open(
+            DocIdentity::Scratch,
+            "Untitled",
+            "different draft".to_owned(),
+        );
+        fresh.open_reading(ReadingKind::Outline, Some(other), "Outline");
+        assert_eq!(fresh.tile_of(other), docs.tile_of(key));
+        let original = fresh.workspace().tiled().clone();
+        fresh.unlock_forme(saved).unwrap();
+        assert_eq!(fresh.workspace().tiled(), &original);
+        assert_eq!(fresh.doc(other).unwrap(), "different draft");
+        assert_eq!(fresh.focused(), Some(other));
     }
 }

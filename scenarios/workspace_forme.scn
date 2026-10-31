@@ -1,0 +1,38 @@
+# Actual host commands; no synthetic pointer or document mutation.
+assert snap dirty == false
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=view.preview
+settle 2
+assert snap reading_count == 1
+click role:button Pin
+assert snap forme_first_share == 0.50
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.unlock
+assert snap forme_editing == true
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.first-more
+assert snap forme_first_share == 0.55
+capture forme-draft
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.discard
+assert snap forme_editing == false
+assert snap forme_first_share == 0.50
+capture forme-discarded
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.unlock
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.first-less
+assert snap forme_first_share == 0.45
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.apply
+assert snap forme_editing == false
+assert snap forme_first_share == 0.45
+assert snap dirty == false
+capture forme-applied

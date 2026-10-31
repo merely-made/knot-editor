@@ -30,9 +30,9 @@
 
 use std::path::{Path, PathBuf};
 
-use graphshell_endpoint::door::identity::VaultLockView;
-use graphshell_endpoint::door::app_admission::AppId;
-use graphshell_endpoint::door::custody_client::CustodyClient;
+use dramatis::view::VaultLockView;
+use djinn::door::app_admission::AppId;
+use djinn::door::custody_client::CustodyClient;
 use knot_editor::{
     KnotSettings, KnotSyncHost, KnotSyncHostConfig, KnotSyncSettings, PersonalVaultKeys,
     StartupUnlockedPersonalVault, knot_settings_path,
@@ -239,7 +239,12 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
 
 /// Answers once djinn locks, or once it can no longer be asked.
 async fn until_locked() -> String {
-    let mut client = match CustodyClient::open(AppId::new(knot_editor::KNOT_APP_ID)).await {
+    let mut client = match CustodyClient::open_declared(
+        AppId::new(knot_editor::KNOT_APP_ID),
+        knot_editor::declaration::app_declaration(),
+    )
+    .await
+    {
         Ok(client) => client,
         Err(error) => return error.to_string(),
     };

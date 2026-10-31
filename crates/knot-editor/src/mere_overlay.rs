@@ -23,8 +23,8 @@
 use std::collections::BTreeMap;
 
 use chirograph::{CarrierRequestBody, CarrierResponseBody, IntentResult, ProjectionSnapshot};
-use graphshell_endpoint::door::app_admission::{AppId, AppRouteId, configured_app_endpoint};
-use graphshell_endpoint::door::app_client::AppBrokerClient;
+use djinn::door::app_admission::{AppId, AppRouteId, configured_app_endpoint};
+use graphshell_endpoint::door::projection::AppBrokerClient;
 use mere_overmap::materialization::{self, GraphRead};
 use mere_overmap::route;
 use mere_overmap::wire::PendingMergeV1;
@@ -119,7 +119,12 @@ impl MereOverlay {
     pub async fn open_at(endpoint: &str, domain: &str) -> Result<Self, String> {
         let route = AppRouteId::new(format!("mere/{domain}")).map_err(|e| e.to_string())?;
         let mut client =
-            AppBrokerClient::open_route_at(endpoint, AppId::new(MERE_OVERLAY_APP), route)
+            AppBrokerClient::open_declared_route_at(
+                endpoint,
+                AppId::new(MERE_OVERLAY_APP),
+                route,
+                crate::declaration::app_declaration(),
+            )
                 .await
                 .map_err(|e| e.to_string())?;
         let descriptor = client
@@ -441,11 +446,17 @@ mod tests {
     #[tokio::test]
     async fn failed_refresh_purges_cached_actions_and_merge_choices() {
         use chirograph::{ProjectionSession, ProtocolVersion, SceneSnapshot};
-        use graphshell_endpoint::door::app_admission::AppHello;
-        use graphshell_endpoint::door::frame::{
+        use djinn::door::app_admission::AppHello;
+        use djinn::door::frame::{
             read_native_message_async, write_native_message_async,
         };
-        use graphshell_endpoint::door::wire::{AppHostMessage, AppMessage, BrowserChallenge};
+        use djinn::door::wire::BrowserChallenge;
+        type AppMessage = djinn::door::wire::AppMessage<chirograph::CarrierRequest, ()>;
+        type AppHostMessage = djinn::door::wire::AppHostMessage<
+            chirograph::CarrierResponse,
+            chirograph::CarrierNotice,
+            (),
+        >;
         use mere_overmap::wire::{MERE_SESSIONS, PENDING_MERGE_SCHEMA};
         use sceno::Scene;
         use scenotime::{Revision, SceneEpoch};

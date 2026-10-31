@@ -1,0 +1,14 @@
+# Same isolated profile and document; Unlock loads the saved matching layout.
+assert snap reading_count == 1
+assert snap forme_first_share == 0.50
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.unlock
+assert snap forme_editing == true
+assert snap forme_first_share == 0.45
+assert snap dirty == false
+capture forme-reopened
+click role:menuitem @data-key=menu
+click role:menuitem @data-key=group.view
+click role:menuitem @data-key=workspace.discard
+assert snap forme_first_share == 0.50

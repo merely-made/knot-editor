@@ -1,0 +1,11 @@
+{
+  "runtime_revision": "2924a5f1571f010bb9eb7692d6767117f3dff8ef",
+  "binary_identical_to_reviewed_integration": true,
+  "changed_images": [
+    "seed/forme-applied.png",
+    "seed/forme-discarded.png",
+    "seed/forme-draft.png",
+    "reopen/forme-reopened.png"
+  ],
+  "all_changed_images_reviewed": true
+}

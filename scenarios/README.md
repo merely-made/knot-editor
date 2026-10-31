@@ -200,3 +200,18 @@ The mere overmap scenarios (`overmap_live.scn`, `overmap_live_reopen.scn`,
 `docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh` starts it,
 runs the three scenarios in order (seed, fresh-process reopen, standalone
 after the fixture stops) and stops every process it started.
+
+
+`workspace_forme.scn` and `workspace_forme_reopen.scn` exercise the shared Platen
+session through the real menu. Run at 1100×800 with one isolated APPDATA profile,
+the field-notes fixture, and a separate capture directory for each process. For
+visible proportions, seed the profile with 12px source text, narrow measure and
+follow-hard-wrap disabled; the normal writer-measure constraints can otherwise
+override small authored ratio changes. The first run opens and pins Preview, drafts a
+0.55 first-pane share, discards to 0.50 and applies 0.45. The second relies on
+context navigation's already-restored pinned Preview and explicitly Unlocks to load
+0.45, then Discards back to the ordinary live arrangement. It does not claim
+automatic document reopening, pointer dragging or saved layout undo controls.
+The [Forme receipt runner](../docs/receipts/2026-10-29_forme_workspace/run_native.py)
+creates the isolated profile and fixture, requires both successful process exit
+and scenario completion, and adds a default-settings compact native check.

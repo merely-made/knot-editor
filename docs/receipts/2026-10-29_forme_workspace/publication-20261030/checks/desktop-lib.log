@@ -1,0 +1,665 @@
+warning: patch `chartulary v0.2.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `eidetic v0.0.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `esp v0.1.0 (https://github.com/merely-made/esp.git?rev=bd0468c5c44c0b098494d30b3cfd0aa283cecf48#bd0468c5)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/esp.git
+warning: patch `luggage v0.1.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `mere-proofs v0.1.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `muniment v0.2.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `servitor v0.0.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `stickleback v0.1.1 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `chartulary v0.2.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `eidetic v0.0.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `esp v0.1.0 (https://github.com/merely-made/esp.git?rev=bd0468c5c44c0b098494d30b3cfd0aa283cecf48#bd0468c5)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/esp.git
+warning: patch `luggage v0.1.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `mere-proofs v0.1.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `muniment v0.2.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `servitor v0.0.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `stickleback v0.1.1 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `chartulary v0.2.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `eidetic v0.0.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `esp v0.1.0 (https://github.com/merely-made/esp.git?rev=bd0468c5c44c0b098494d30b3cfd0aa283cecf48#bd0468c5)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/esp.git
+warning: patch `luggage v0.1.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `mere-proofs v0.1.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `muniment v0.2.0 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `servitor v0.0.2 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `stickleback v0.1.1 (https://github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)` was not used in the crate graph
+  |
+  = help: perhaps you meant one of the following:
+          	https://www.github.com/merely-made/eidetic.git
+warning: patch `cubecl-runtime v0.11.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)` was not used in the crate graph
+warning: patch `genet-taffy v0.14.0 (https://github.com/merely-made/genet.git?branch=main#01d3f528)` was not used in the crate graph
+help: Check that the patched package version and available features are compatible
+      with the dependency requirements. If the patch has a different version from
+      what is locked in the Cargo.lock file, run `cargo update` to use the new
+      version. This may also occur with an optional dependency that is not enabled.
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling accesskit v0.25.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling muniment v0.2.0 (https://www.github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)
+   Compiling layout-dom-api v0.1.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling sceno v0.0.6 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling hest v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-curation v0.1.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling genet-paint-types v0.2.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-text v0.1.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling regress v0.11.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling tinct v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling genet-fontique v0.10.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling workbench v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling livery v0.0.5 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-static-dom v0.1.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-host-api v0.2.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling chartulary v0.2.2 (https://www.github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)
+   Compiling engine-observables-api v0.2.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-flow v0.1.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-parley v0.10.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling document-session-api v0.1.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling scenograph v0.0.5 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling backstep v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling meristem v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling genet-scripted-dom v0.1.2 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling sprigging v0.3.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-surface-api v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling illume v0.0.3 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling cadency v0.0.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-taffy v0.16.0
+   Compiling genet-document-resources v0.2.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling numen v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling webcue v0.1.2
+   Compiling inker v0.1.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling genet-events v0.0.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling scenotime v0.0.4 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-kernel v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling tabard v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling scenomise v0.0.6 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling buckram v0.0.3 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling chirograph v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling eidetic v0.0.2 (https://www.github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)
+   Compiling armillary v0.1.1 (https://www.github.com/merely-made/armillary.git?rev=864f107d44bf759111ad2ea3c9036b2cfbf03f4c#864f107d)
+   Compiling mere-forme v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling seiche v0.0.6 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling genet-presenter v0.2.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-livery v0.0.4 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling incipit v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling fleece v0.5.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling nematic v0.1.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling cambium v0.6.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling accesskit_consumer v0.39.1
+   Compiling knot-catalog v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-file-catalog)
+   Compiling accesskit_macos v0.27.1
+   Compiling mere-edit v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling script-engine-api v0.1.1 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling script-rhai v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mora-cmudict v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling genet-render v0.2.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling taproot v0.1.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling genet-winit v0.2.0 (https://github.com/merely-made/genet.git?branch=main#565458ea)
+   Compiling graphshell-endpoint v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling cambium-winit v0.3.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling cambium-rootstock v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling knot-editor-host v0.1.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling knot-capture v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-capture)
+   Compiling knot-document v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-document)
+   Compiling mere-fleece v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling graphshell-client v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling document-canvas v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-proofs v0.1.0 (https://www.github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)
+   Compiling reference-data v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-site v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling stickleback v0.1.1 (https://www.github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)
+   Compiling knot-composition v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-composition)
+   Compiling mere-lanes v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling cambium-a11y v0.3.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling uxtree v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-alembic v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-cartography v0.0.2 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling pandect v0.1.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling servitor v0.0.2 (https://www.github.com/merely-made/eidetic.git?rev=01ee97b0b95d679430986dffd54c64ce9b3b5ea3#01ee97b0)
+   Compiling cambium-desktop v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mesquite v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling tabard-workshop v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling platen v0.0.1 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling knot-site v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-site)
+   Compiling knot-readings v0.0.1 (/Users/markik/Code/repos/knot-editor/crates/knot-readings)
+   Compiling pictograph v0.2.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-view v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling mere-overmap v0.1.0 (https://github.com/merely-made/mere.git?branch=main#c6290142)
+   Compiling knot-editor v0.0.3 (/Users/markik/Code/repos/knot-editor/crates/knot-editor)
+warning: unused variable: `path`
+  --> crates/knot-editor/src/directory.rs:53:13
+   |
+53 |     fn read(path: &Path, _metadata: &Metadata) -> io::Result<Self> {
+   |             ^^^^ help: if this is intentional, prefix it with an underscore: `_path`
+   |
+   = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `knot-editor` (lib) generated 1 warning (run `cargo fix --lib -p knot-editor` to apply 1 suggestion)
+   Compiling knot-desktop v0.0.1 (/Users/markik/Code/repos/knot-editor/apps/desktop)
+warning: variable does not need to be mutable
+    --> apps/desktop/src/workspace.rs:1875:13
+     |
+1875 |         let mut preview_blocked = false;
+     |             ----^^^^^^^^^^^^^^^
+     |             |
+     |             help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `document`
+    --> apps/desktop/src/workspace.rs:1948:9
+     |
+1948 |         document: DocKey,
+     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_document`
+     |
+     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `address`
+    --> apps/desktop/src/workspace.rs:2066:67
+     |
+2066 |                         candidate.document_address().is_some_and(|address| {
+     |                                                                   ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_address`
+
+warning: unused variable: `root`
+    --> apps/desktop/src/workspace.rs:2061:34
+     |
+2061 |             ContextPlace::Site { root, .. } => {
+     |                                  ^^^^ help: try ignoring the field: `root: _`
+
+warning: unused variable: `root`
+    --> apps/desktop/src/workspace.rs:2091:34
+     |
+2091 |         let ContextPlace::Site { root, .. } = place else {
+     |                                  ^^^^ help: try ignoring the field: `root: _`
+
+warning: unused variable: `document`
+    --> apps/desktop/src/workspace.rs:2287:9
+     |
+2287 |         document: DocKey,
+     |         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_document`
+
+warning: unused variable: `address`
+    --> apps/desktop/src/workspace.rs:2445:37
+     |
+2445 |             ContextPlace::Heading { address, .. } => {
+     |                                     ^^^^^^^ help: try ignoring the field: `address: _`
+
+warning: unused variable: `root`
+    --> apps/desktop/src/workspace.rs:2476:34
+     |
+2476 |             ContextPlace::Site { root, .. } => {
+     |                                  ^^^^ help: try ignoring the field: `root: _`
+
+warning: unused variable: `document`
+    --> apps/desktop/src/workspace.rs:7020:25
+     |
+7020 |             if let Some(document) = state.docs.document_for(tile)
+     |                         ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_document`
+
+warning: unused variable: `width`
+     --> apps/desktop/src/workspace.rs:11067:20
+      |
+11067 |         let (x, y, width, height) = host.visible_rect(source).expect("source remains visible beside Preview");
+      |                    ^^^^^ help: if this is intentional, prefix it with an underscore: `_width`
+
+warning: unused variable: `height`
+     --> apps/desktop/src/workspace.rs:11067:27
+      |
+11067 |         let (x, y, width, height) = host.visible_rect(source).expect("source remains visible beside Preview");
+      |                           ^^^^^^ help: if this is intentional, prefix it with an underscore: `_height`
+
+warning: linker stderr: ld: __eh_frame section too large (max 16MB) to encode dwarf unwind offsets in compact unwind table, performance of exception handling might be affected
+  |
+  = note: `#[warn(linker_messages)]` on by default
+
+warning: `knot-desktop` (lib test) generated 12 warnings (run `cargo fix --lib -p knot-desktop --tests` to apply 11 suggestions)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 43.09s
+     Running unittests src/lib.rs (target/build/debug/deps/knot_desktop-91ef7632d51ba326)
+
+running 373 tests
+test appearance::tests::both_themes_keep_body_and_syntax_legible_on_writing_surface ... ok
+test collapse::tests::plex_measure_uses_real_advance_and_current_frame_insets ... ok
+test collapse::tests::system_measure_uses_host_ch_and_documents_the_pre_layout_fallback ... ok
+test appearance::tests::palette_selection_has_a_contrasting_fill_in_both_themes ... ok
+test appearance::tests::each_theme_has_one_focus_rule_in_its_primary_token ... ok
+test appearance::tests::typography_hard_wrap_measure_changes_only_the_source ... ok
+test collapse::tests::full_measure_keeps_ratios_until_the_configured_drawer_threshold ... ok
+test collapse::tests::navigation_gives_way_reading_narrows_then_folds_and_ratios_restore ... ok
+test composition::recipe::dynamics::tests::authored_positions_reject_nonfinite_or_out_of_plane_values ... ok
+test composition::recipe::dynamics::tests::fixed_plane_inversion_does_not_follow_moving_scene_bounds ... ok
+test composition::recipe::dynamics::tests::cold_runtime_does_not_advance_and_hidden_motion_stays_paused ... ok
+test composition::metre::tests::changed_pronunciation_reading_cannot_receive_an_old_alignment_gesture ... ok
+test composition::metre::tests::native_metre_stale_source_selection_and_resized_gestures_are_atomic ... ok
+test composition::recipe::dynamics::tests::hidden_frame_freezes_real_poses_and_reopening_does_not_resume ... ok
+test composition::recipe::dynamics::tests::authored_pinned_center_is_preserved_while_another_occurrence_moves ... ok
+test composition::recipe::dynamics::tests::frame_advances_one_fixed_tick_without_mutating_retained_material ... ok
+test composition::recipe::dynamics::tests::shared_slot_and_roles_roundtrip_as_durable_material_not_runtime_state ... ok
+test composition::metre::tests::retained_copy_is_explicit_and_cannot_replace_an_unsaved_draft ... ok
+test composition::recipe::dynamics::tests::bounded_preview_uses_the_shared_frame_schedule_and_preserves_its_slot ... ok
+test composition::recipe::dynamics::tests::unknown_shared_channel_refuses_atomically_without_partial_controller ... ok
+test composition::recipe::editor::tests::choice_rows_preserve_catalog_choice_order ... ok
+test composition::recipe::editor::tests::editor_rows_come_from_every_bounded_catalog_family ... ok
+test composition::recipe::editor::tests::measured_defaults_use_the_current_card_measure ... ok
+test composition::recipe::editor::tests::shared_declaration_explains_invalid_drafts ... ok
+test composition::recipe::history::tests::category_undo_clears_only_a_relationship_selection_excluded_by_restored_category ... ok
+test composition::recipe::dynamics::tests::a_failed_tick_preserves_the_last_valid_pose_and_play_rebinds_from_authored ... ok
+test composition::recipe::history::tests::invalid_undo_candidate_does_not_advance_history ... ok
+test composition::recipe::history::tests::selection_only_changes_do_not_create_history_steps ... ok
+test composition::recipe::history::tests::record_rejects_cross_source_changes_and_steps_reject_rebound_material ... ok
+test composition::recipe::history::tests::stale_retention_receipt_does_not_mark_newer_material_saved ... ok
+test composition::recipe::history::tests::undo_and_redo_restore_authored_state_but_keep_current_data_and_anchors ... ok
+test composition::recipe::scene::tests::camera_actions_stay_finite_and_within_persisted_bounds ... ok
+test composition::recipe::scene::tests::background_category_filter_is_presentation_only_and_keeps_foreground_visible ... ok
+test composition::recipe::scene::tests::canvas_activation_updates_only_typed_recipe_selection ... ok
+test composition::recipe::scene::tests::category_controls_follow_the_global_recipe_category_filter ... ok
+test composition::recipe::dynamics::tests::single_step_advances_exactly_once_and_never_starts_continuous_playback ... ok
+test composition::recipe::dynamics::tests::pinned_preview_reports_the_shared_rest_result_without_reseeding ... ok
+test composition::recipe::scene::tests::first_enable_seeds_foreground_without_changing_recipe_selection ... ok
+test composition::recipe::scene::tests::category_and_camera_edits_keep_trace_version_and_positions ... ok
+test composition::recipe::scene::tests::hidden_canvas_targets_are_noops_but_fallback_occurrence_selection_remains_available ... ok
+test composition::recipe::dynamics::tests::stepping_a_completed_crowded_pinned_run_preserves_its_final_pose ... ok
+test composition::recipe::scene::tests::drag_previews_then_commits_one_undoable_source_preserving_placement ... ok
+test composition::recipe::scene::tests::intermediate_drag_event_does_not_change_retained_material ... ok
+test composition::recipe::scene::tests::foreground_edge_survives_category_and_master_background_hides ... ok
+test composition::recipe::scene::tests::invalid_background_category_action_preserves_material ... ok
+test composition::recipe::scene::tests::overview_preserves_distinct_occurrences_and_hides_background_strata ... ok
+test composition::recipe::scene::tests::stale_hidden_invalid_or_click_only_gestures_cannot_author_placements ... ok
+test composition::recipe::tests::altered_occurrence_or_unbound_relation_is_refused ... ok
+test composition::recipe::scene::tests::isolated_background_occurrences_keep_legacy_visibility_until_filtered ... ok
+test composition::recipe::tests::actual_sound_recipe_rebinds_to_woodshed_export_without_borrowing_owner_actions ... ok
+test composition::recipe::scene::tests::reset_clears_presentation_without_changing_source_selection ... ok
+test composition::recipe::tests::mere_shared_fields_do_not_invent_a_relationship ... ok
+test composition::recipe::tests::repeated_words_keep_distinct_source_occurrences_and_explained_actual_edges ... ok
+test composition::recipe::tests::shared_compiler_preserves_duplicate_source_identity_and_refuses_missing_semantics ... ok
+test composition::recipe::tests::analysis_revision_tracks_layer_and_pronunciation_choices_not_only_document_bytes ... ok
+test composition::recipe::tests::undisclosed_category_refuses_atomically ... ok
+test composition::recipe::tests::category_edit_filters_disclosure_and_roundtrips_without_changing_sources ... ok
+test composition::recipe::tests::typed_recipe_roundtrip_keeps_exact_selection_and_spacing ... ok
+test composition::metre::tests::native_metre_body_and_edges_preview_cancel_commit_and_preserve_source ... ok
+test composition::recipe::dynamics::tests::real_sound_consumer_preserves_occurrences_and_disclosed_edges_change_motion ... ok
+test composition::recipe::dynamics::tests::keeping_a_paused_pose_is_one_undoable_edit_and_running_motion_cannot_be_kept ... ok
+test composition::recipe::dynamics::tests::maximum_occurrence_scene_is_deterministic_and_ticks_only_when_presented ... ok
+test composition::tests::configured_storage_is_lazy_and_first_collection_preserves_reading_state ... ok
+test composition::tests::explicit_recipe_rebind_preserves_arrangement_and_refuses_stale_reading ... ok
+test composition::tests::legacy_import_is_explicit_read_only_and_idempotent ... ok
+test composition::tests::malformed_collection_is_not_reset_or_overwritten ... ok
+test composition::metre::tests::production_panel_exposes_a_painted_surface_within_the_reading_width ... ok
+test composition::recipe::tests::compact_occurrence_controls_keep_full_labels_inside_the_flow_list ... ok
+test composition::recipe::tests::a_measured_card_holds_its_label_on_one_line_and_a_narrower_one_wraps ... ok
+test composition::tests::malformed_legacy_import_does_not_write_to_authority_or_reset_source ... ok
+test composition::tests::a_recipe_below_its_minimum_shows_its_refusal_and_no_scene ... ok
+test composition::tests::organization_editor_refuses_changed_destination_and_invalid_order_before_submission ... ok
+test composition::tests::organization_worker_preserves_original_and_filters_archived_and_search ... ok
+test composition::tests::lexical_selection_from_another_document_is_reported_stale ... ok
+test composition::tests::refresh_preserves_unconfirmed_request_identity_until_same_id_is_confirmed ... ok
+test composition::tests::registry_install_is_disabled_then_explicit_query_works_and_reopens ... ok
+test composition::tests::relation_targets_exact_sense_and_collection_keeps_pack_provenance ... ok
+test composition::tests::revoked_refresh_hides_cached_items_and_preserves_unconfirmed_retry ... ok
+test composition::tests::same_id_from_another_writer_or_payload_does_not_confirm_pending_request ... ok
+test composition::tests::a_refused_motion_slot_is_disclosed_and_repair_requires_an_explicit_play ... ok
+test composition::tests::finished_motion_discloses_its_end_and_disables_step_until_restarted ... ok
+test composition::tests::background_category_lenses_preserve_disclosure_and_foreground ... ok
+test composition::tests::selected_material_reloads_from_port_without_mutating_source ... ok
+test composition::tests::recipe_cards_are_measured_once_per_label_set_and_hidden_for_one_frame ... ok
+test composition::tests::scratch_anchor_return_is_refused_without_selecting_another_document ... ok
+test composition::tests::sound_requires_source_opt_in_and_layers_are_independent ... ok
+test composition::tests::sound_collection_cannot_cross_to_new_focused_document ... ok
+test composition::tests::stale_worker_generation_cannot_replace_current_collection_or_notice ... ok
+test composition::tests::supplied_authority_still_requires_explicit_destination_selection ... ok
+test composition::tests::recipe_editor_uses_shared_edits_retains_typed_material_and_reopens_selection ... ok
+test document_folding::tests::a_collapsed_fold_ends_its_opening_line_and_the_outer_one_wins ... ok
+test document_folding::tests::collapsed_folds_follow_their_identity_across_an_edit ... ok
+test document_folding::tests::crossing_ranges_are_dropped_before_projection ... ok
+test document_links::tests::authored_labels_and_relationships_round_trip_through_both_parsers ... ok
+test document_links::tests::empty_selection_uses_label_and_invalid_labels_or_relationships_refuse ... ok
+test document_links::tests::local_resolution_rejects_network_roots_controls_and_malformed_encoding ... ok
+test document_links::tests::non_utf8_paths_refuse ... ok
+test composition::tests::stale_selection_refuses_sound_collection ... ok
+test document_links::tests::relative_urls_encode_unicode_and_syntax_per_component ... ok
+test composition::tests::scene_rebind_preserves_roles_or_refuses_until_explicit_reset ... ok
+test composition::tests::scene_camera_disclosure_is_session_only_and_removes_pan_targets ... ok
+test documents::forme_adoption_tests::forme_changed_open_set_refuses_apply_and_discard_keeps_new_document ... ok
+test documents::forme_adoption_tests::forme_discard_preserves_real_source_selection_and_document_undo ... ok
+test documents::forme_adoption_tests::forme_discard_restores_layout_without_undoing_document_edits_or_focus ... ok
+test documents::forme_adoption_tests::forme_does_not_restore_a_layout_for_a_fresh_scratch_instance ... ok
+test documents::forme_adoption_tests::forme_does_not_restore_a_layout_for_reused_tile_numbers ... ok
+test documents::forme_adoption_tests::forme_external_slot_change_refuses_save_without_losing_draft ... ok
+test documents::forme_adoption_tests::forme_failed_apply_retains_draft_then_saved_layout_reopens_for_same_bindings ... ok
+test documents::forme_adoption_tests::forme_restoration_keeps_the_current_focused_document_visible ... ok
+test document_preview::tests::note_preview_renders_an_in_page_link_as_its_label ... ok
+test documents::tests::a_catalog_identity_outlives_a_rename ... ok
+test documents::tests::a_duplicate_open_activates_the_existing_entry ... ok
+test documents::tests::a_pinned_reading_keeps_its_document_as_the_focus_moves ... ok
+test documents::tests::activating_a_document_tile_focuses_it ... ok
+test documents::tests::closing_a_document_closes_the_readings_pinned_to_it ... ok
+test documents::tests::closing_the_last_document_leaves_an_empty_frame ... ok
+test documents::tests::closing_a_tile_drops_its_entry_and_moves_the_focus ... ok
+test documents::tests::drags_are_declined_until_adopted ... ok
+test documents::tests::metadata_keeps_the_centre_stack_for_new_after_graph_closes ... ok
+test documents::tests::readings_share_a_stack_right_of_the_documents ... ok
+test documents::tests::scratch_documents_never_collide ... ok
+test documents::tests::the_last_reading_closes_its_stack_and_the_next_opens_another ... ok
+test documents::tests::the_navigator_opens_once_in_a_stack_left_of_the_documents ... ok
+test documents::tests::two_files_and_a_scratch_coexist_in_one_stack ... ok
+test documents::tests::graph_is_singleton_in_the_document_stack ... ok
+test graph::diagnostics::tests::retention_loss_is_visible_to_independent_readers_and_zero_still_counts ... ok
+test graph::diagnostics::tests::fixed_payload_and_seal_stats_do_not_consume_a_reader ... ok
+test graph::folds::feedback_tests::fold_feedback_neither_invents_nor_overwrites_a_catalog_failure ... ok
+test graph::tests::a_resident_meres_sessions_show_as_the_overmap_tier_above_the_catalog ... ok
+test graph::folds::tests::selection_refuses_overlap_and_missing_members_without_changing_source ... ok
+test graph::tests::catalog_reading_is_bounded_and_keeps_unavailable_nodes ... ok
+test graph::tests::exhausted_generation_never_aliases_a_request_or_installs_the_pending_result ... ok
+test graph::tests::open_nodes_merge_by_catalog_id_and_no_catalog_stays_truthful ... ok
+test graph::tests::local_targets_cannot_escape_the_catalog ... ok
+test document_preview::tests::pinned_preview_resolves_links_from_its_source_and_activates_existing_target ... ok
+test graph::tests::overlapping_refreshes_run_one_worker_and_coalesce_one_latest_request ... ok
+test graph::tests::read_errors_are_an_explicit_real_worker_outcome_and_the_projection_is_frozen ... ok
+test graph::tests::worker_execution_is_not_installed_early_and_invalidated_interest_discards_it ... ok
+test link_workflow::tests::current_file_permissions_are_checked_again_before_insert ... ok
+test link_workflow::tests::dirty_source_allowed_but_changed_source_refuses_stale_form ... ok
+test link_workflow::tests::follows_exact_owner_source_and_reuses_open_target_key ... ok
+test link_workflow::tests::edit_then_undo_does_not_revive_link_form ... ok
+test link_workflow::tests::forged_snapshot_with_current_stamp_cannot_redirect_selected_text ... ok
+test link_workflow::tests::named_relationship_round_trips_and_link_span_is_source_bound ... ok
+test link_workflow::tests::moved_selection_or_pending_composition_refuses_stale_form ... ok
+test link_workflow::tests::source_save_as_or_closed_source_refuses_without_redirecting ... ok
+test link_workflow::tests::unicode_selection_link_is_one_undo_step_and_only_save_persists ... ok
+test link_workflow::tests::target_close_save_as_and_missing_file_refuse_without_edit ... ok
+test document_links::tests::parsed_link_work_is_bounded ... ok
+test link_workflow::tests::unsaved_and_read_only_sources_refuse_read_only_target_is_allowed ... ok
+test preferences::catalog_fold_tests::catalog_folds_round_trip_per_root_without_dropping_other_preferences ... ok
+test preferences::catalog_fold_tests::malformed_fold_preferences_are_preserved_and_cannot_be_overwritten ... ok
+test preferences::tests::a_malformed_file_yields_defaults_and_refuses_to_save_until_reset ... ok
+test preferences::tests::a_missing_file_yields_defaults_and_writes_nothing ... ok
+test preferences::tests::an_opaque_embedding_section_survives_load_and_save ... ok
+test preferences::tests::an_unknown_key_inside_appearance_survives_an_appearance_change ... ok
+test preferences::tests::an_unknown_top_level_key_survives_a_save ... ok
+test preferences::tests::appearance_round_trips_through_the_file ... ok
+test preferences::tests::collapse_defaults_migrate_and_threshold_changes_keep_unknown_fields ... ok
+test preferences::tests::graph_layout_is_a_persistent_surface_preference ... ok
+test preferences::tests::legacy_width_migrates_without_losing_newer_preferences ... ok
+test preferences::tests::recovery_retention_is_bounded_and_persists_without_changing_other_preferences ... ok
+test composition::tests::shared_motion_is_transient_and_hide_freezes_without_auto_resume ... ok
+test recovery::tests::another_live_session_cannot_be_pruned_or_removed ... ok
+
+running 1 test
+test recovery::tests::concurrent_claims_transfer_a_candidate_to_only_one_live_session ... ok
+test navigator::tests::a_launch_without_a_catalog_says_so_in_the_navigator ... ok
+test recovery::tests::crash_child_writer ... ok
+test recovery::tests::corrupt_newer_and_oversized_records_are_reported_and_preserved ... ok
+test recovery::tests::child_process_crash_preserves_record_and_leaves_claimable_session ... ok
+test recovery::tests::interrupted_temporary_files_are_not_listed_or_removed ... ok
+test recovery::tests::interrupted_sibling_write_does_not_replace_existing_record ... ok
+test recovery::tests::retention_prunes_only_dead_session_records ... ok
+test recovery::tests::retention_expires_dead_records_at_open_and_preserves_live_records ... ok
+test recovery::tests::symlinked_record_and_directory_are_rejected ... ok
+test recovery::tests::upsert_round_trips_text_metadata_and_selection ... ok
+test recovery_runtime::tests::failed_write_is_reported_and_later_edit_can_retry ... ok
+test recovery_runtime::tests::queued_edits_cannot_resurrect_an_explicitly_cleared_id ... ok
+test composition::tests::recipe_editor_history_refuses_invalid_edits_and_tracks_exact_retention ... ok
+test scenario::tests::graph_capture_requires_active_content_and_an_open_collapsed_stack ... ok
+test scenario::tests::hidden_graph_keeps_owner_facts_but_suppresses_the_presentation_cause ... ok
+test scenario_startup::tests::first_failure_retains_grace_and_first_success_restores_once ... ok
+test scenario_startup::tests::grace_defaults_invalid_empty_and_caps_at_sixty ... ok
+test scenario_startup::tests::marker_must_have_the_exact_public_test_contents ... ok
+test scenario_startup::tests::only_a_marked_synthetic_scenario_reads_the_setting ... ok
+test scenario_startup::tests::restoration_callback_runs_before_lane_after_frame_and_only_once ... ok
+test scenario_startup::tests::unmarked_and_default_lanes_never_enter_restoration_state ... ok
+test scenario::tests::capture_projection_reads_current_bounded_facts_without_document_material ... ok
+test navigator::tests::the_navigator_labels_available_and_unavailable_history_without_touching_sources ... ok
+test navigator::tests::selecting_an_available_record_opens_its_document_then_activates_it ... ok
+test scroll_site::tests::a_micron_reply_lands_on_its_page_after_the_focus_moves ... ok
+test recovery::tests::scan_stops_at_entry_budget_and_upsert_fails_closed ... ok
+test composition::tests::realized_label_typography_remeasures_and_resets_only_transient_motion ... ok
+test scroll_site::tests::a_metadata_tile_outlives_its_pages_source_tab ... ok
+test scroll_site::tests::a_composer_stays_with_its_document ... ok
+test scroll_site::tests::a_page_opened_through_another_spelling_of_its_path_is_its_site_page ... ok
+test scroll_site::tests::a_pinned_micron_preview_keeps_its_pages_form ... ok
+test composition::tests::motion_preview_stays_visible_with_its_controls_at_compact_panel_widths ... ok
+test scroll_site::tests::cancelling_micron_request_keeps_its_local_unknown_outcome_status ... ok
+test scroll_site::tests::another_site_opens_alongside_unsaved_work ... ok
+test scroll_site::tests::closing_a_micron_form_drops_the_previous_reply_unless_a_send_is_in_flight ... ok
+test scroll_site::tests::a_gemtext_file_outside_a_spartan_site_keeps_its_presentation ... ok
+test scroll_site::tests::a_pinned_submit_tile_writes_its_own_documents_composer ... ok
+test scroll_site::tests::launch_documents_open_behind_the_first ... ok
+test scroll_site::tests::a_site_tiles_port_field_takes_typing_for_its_site ... ok
+test scroll_site::tests::micron_form_review_is_ephemeral_and_uses_the_declared_action_map ... ok
+test scroll_site::tests::a_site_page_shows_the_serving_chip_and_its_popover_publishes_and_stops ... ok
+test scroll_site::tests::closing_a_clean_site_closes_its_pages_and_stops_its_server ... ok
+test scroll_site::tests::loaded_spartan_site_prompt_opens_composer_without_sending ... ok
+test scroll_site::tests::closing_a_site_asks_once_for_its_unsaved_pages_and_metadata ... ok
+test recovery_runtime::tests::continuous_edits_flush_before_typing_stops ... ok
+test scroll_site::tests::micron_in_page_link_into_two_closed_sections_opens_both_then_scrolls ... ok
+test scroll_site::tests::micron_preview_fold_state_survives_unrelated_edits_and_drops_for_an_edited_heading ... ok
+test scroll_site::tests::micron_preview_links_require_site_manifest_and_matching_authority ... ok
+test scroll_site::tests::micron_preview_link_inside_a_collapsible_heading_does_not_toggle_it ... ok
+test scroll_site::tests::micron_in_page_link_opens_the_closed_section_and_scrolls_its_target_to_the_top ... ok
+test scroll_site::tests::micron_preview_folds_toggle_by_click_and_keyboard_without_writing_source ... ok
+test scroll_site::tests::micron_request_bounds_parse_or_fall_back_and_clamp ... ok
+test scroll_site::tests::micron_preview_renders_in_page_links_as_activatable_links ... ok
+test scroll_site::tests::micron_preview_preserves_styled_link_children_and_section_layout ... ok
+test scroll_site::tests::native_preview_panes_keep_the_theme_background_while_scrolling ... ok
+test scroll_site::tests::micron_result_remains_visible_in_preview_when_site_panel_is_closed ... ok
+test scroll_site::tests::response_display_is_inert_text_and_explicitly_caps_large_bodies ... ok
+test scroll_site::tests::reviewed_submission_is_consumed_before_send_and_cancel_has_no_effect ... ok
+test scroll_site::tests::native_site_selection_opens_gemtext_and_preserves_micron_as_raw_source ... ok
+test scroll_site::tests::selecting_a_spartan_prompt_only_fills_the_local_composer ... ok
+test scroll_site::tests::site_navigation_metadata_and_explicit_publication_keep_separate_authority ... ok
+test scroll_site::tests::stale_micron_completion_does_not_replace_the_visible_page_result ... ok
+test scroll_site::tests::micron_site_preview_renders_native_projection_and_diagnostics ... ok
+test scroll_site::tests::micron_preview_skips_closed_extents_and_marks_collapsible_headings ... ok
+test scroll_site::tests::the_quit_prompt_names_unsaved_metadata_and_save_all_writes_it ... ok
+test scroll_site::tests::titan_token_field_is_password_typed_and_does_not_paint_its_value ... ok
+test scroll_site::tests::the_site_popover_creates_a_site_whose_tile_opens_pages_and_metadata ... ok
+test site_history::tests::checkpoint_command_is_opt_in_refuses_dirty_source_and_never_starts_serving ... ok
+test status::tests::a_refusal_raises_the_save_chip_and_marks_the_tab_before_unsaved_changes ... ok
+test status::tests::catalog_retention_and_serving_chips_read_their_state ... ok
+test status::tests::every_fact_the_surface_row_showed_is_in_a_chip_or_its_popover ... ok
+test workspace::commands::forme_command_tests::forme_commands_route_the_shared_draft_and_acknowledged_local_save ... ok
+test workspace::commands::tests::catalog_ids_are_unique_and_shortcut_labels_match_key_dispatch ... ok
+test scroll_site::tests::spartan_body_injected_text_uses_its_own_clicked_caret_slot ... ok
+test workspace::commands::tests::empty_and_read_only_catalogs_keep_safe_availability ... ok
+test workspace::commands::tests::recovery_candidate_compare_and_reload_need_an_original ... ok
+test workspace::context_navigation::tests::an_up_route_targets_the_containing_section_not_the_previous_outline_row ... ok
+test workspace::context_navigation::tests::bookmark_serializes_stable_address_and_selection_without_runtime_tile_key ... ok
+test workspace::context_navigation::tests::legacy_single_scroll_migrates_to_its_pane_and_closed_preview_stays_closed ... ok
+test workspace::context_navigation::tests::nested_outline_sections_keep_the_nearest_containing_parent ... ok
+test workspace::commands::tests::stale_site_page_and_metadata_ids_cannot_target_another_focused_site ... ok
+test scroll_site::tests::the_site_page_follows_the_focused_tab_and_a_metadata_tile_keeps_its_draft ... ok
+test workspace::tests::a_closed_document_route_does_not_retarget_a_reopened_same_path ... ok
+test workspace::tests::a_closed_preview_waits_for_explicit_reopen_and_restores_both_bookmarks ... ok
+test scroll_site::tests::two_sites_keep_independent_servers_and_submission_state ... ok
+test scroll_site::tests::micron_in_page_link_to_a_missing_target_is_inert ... ok
+test workspace::tests::a_chip_click_switches_popovers_and_a_click_outside_closes_them ... ok
+test workspace::tests::a_duplicate_open_activates_the_existing_tab ... ok
+test workspace::tests::a_following_reading_switches_with_the_focus_and_a_pinned_one_stays ... ok
+test workspace::tests::a_gutter_toggle_folds_its_section_beside_its_heading ... ok
+test scroll_site::tests::a_micron_submission_redraw_keeps_the_scrolled_preview_where_it_was ... ok
+test workspace::tests::a_clean_tab_closes_at_once_and_a_dirty_one_asks ... ok
+test workspace::tests::a_long_document_name_stops_short_of_the_pin_button ... ok
+test workspace::tests::a_pinned_changes_tile_compares_its_own_document ... ok
+test workspace::tests::a_refused_save_raises_its_chip_posts_its_sentence_and_marks_its_tab ... ok
+test workspace::tests::a_pinned_outline_row_selects_in_its_own_document ... ok
+test workspace::tests::a_pinned_folded_tile_folds_its_own_document ... ok
+test workspace::tests::a_pinned_preview_heading_selects_in_its_own_document ... ok
+test workspace::tests::a_short_reading_tile_fills_its_stack ... ok
+test workspace::tests::a_pinned_readings_tile_runs_over_its_own_document ... ok
+test workspace::tests::back_falls_back_to_source_when_a_foreign_pinned_preview_owns_the_reader_slot ... ok
+test workspace::tests::actual_save_flows_through_catalog_worker_acceptance_and_redacted_owner_facts ... ok
+test workspace::tests::an_outline_selection_leaves_the_folded_tile_open ... ok
+test workspace::tests::background_busy_includes_both_retention_states ... ok
+test workspace::tests::a_tall_tile_scrolls_inside_its_stack_and_the_tile_beside_it_stays ... ok
+test workspace::tests::canceled_dirty_close_preserves_the_document ... ok
+test workspace::tests::appearance_controls_preserve_source_selection_and_clean_baseline ... ok
+test workspace::tests::catalog_failure_does_not_block_outside_save_or_dirty_close ... ok
+test workspace::tests::catalog_graph_worker_labels_its_reading_and_activation_opens_the_document ... ok
+test workspace::tests::client_menu_save_as_opens_focused_path_and_escape_returns_to_source ... ok
+test workspace::tests::closing_the_last_tab_shows_the_graph_and_new_refills_the_document_stack ... ok
+test workspace::tests::appearance_settings_persist_through_new_open_and_reload ... ok
+test workspace::tests::catalog_status_uses_source_path_and_save_as_gets_a_new_id ... ok
+test workspace::tests::compare_captures_disk_and_buffer_without_writing_or_mutating_source ... ok
+test workspace::tests::command_shortcuts_reach_save_and_save_as ... ok
+test workspace::tests::contextual_history_refuses_a_replaced_heading_without_advancing ... ok
+test workspace::tests::contextual_history_restores_read_only_selection_without_claiming_write_authority ... ok
+test workspace::tests::contextual_history_restores_selection_without_touching_unsaved_text_or_undo ... ok
+test workspace::tests::compare_leaves_a_pending_dirty_close_untouched ... ok
+test workspace::tests::compare_shows_its_result_in_a_changes_tile ... ok
+test workspace::tests::comparison_renders_markup_as_plain_source_text ... ok
+test workspace::tests::discard_one_dirty_tab_keeps_other_document_recovery ... ok
+test workspace::tests::display_paths_strip_drive_and_unc_verbatim_prefixes ... ok
+test workspace::tests::comparison_refreshes_explicitly_and_stays_with_its_document ... ok
+test workspace::tests::disconnected_worker_completion_releases_the_close_guard ... ok
+test workspace::tests::dirty_native_close_save_writes_and_accepts_queued_close ... ok
+test workspace::tests::dirty_native_close_stays_open_until_discard_and_clean_close_exits ... ok
+test workspace::tests::durable_context_history_rebinds_only_documents_admitted_at_startup ... ok
+test workspace::tests::duplicate_catalog_path_in_one_launch_reuses_one_tab_and_graph_node ... ok
+test workspace::tests::empty_restored_candidate_still_requires_explicit_discard ... ok
+test workspace::tests::dirty_close_save_refreshes_catalog_links_before_the_document_leaves ... ok
+test workspace::tests::drawer_escape_from_retained_scenario_dispatch_restores_source_during_frame ... ok
+test workspace::tests::empty_outline_has_an_accessible_empty_state ... ok
+test workspace::tests::failed_save_and_canceled_close_keep_the_recovery_copy ... ok
+test workspace::tests::every_launch_document_merges_with_its_catalog_node ... ok
+test workspace::tests::failed_actual_save_records_refusal_without_dispatching_a_catalog_worker ... ok
+test workspace::tests::focusing_a_peer_without_scrolling_persists_the_last_active_view ... ok
+test workspace::tests::focusing_back_to_a_document_keeps_its_two_scroll_slots_and_live_preview ... ok
+test workspace::tests::failed_save_keeps_native_close_prompt_open ... ok
+test workspace::tests::each_readings_tile_keeps_its_own_script_and_id ... ok
+test workspace::tests::graph_activation_refuses_a_bound_path_replaced_by_an_out_of_root_symlink ... ok
+test workspace::tests::graph_layout_request_is_host_owned ... ok
+test workspace::tests::folded_row_action_rejects_a_stale_full_snapshot ... ok
+test workspace::tests::last_close_replaces_only_the_document_and_new_preserves_every_surviving_tile ... ok
+test composition::tests::a_probe_that_measures_nothing_keeps_the_scene_hidden ... ok
+test workspace::tests::every_fact_the_retention_and_catalog_blocks_showed_is_in_a_popover ... ok
+test workspace::tests::inner_save_keeps_comparison_disk_text_historical ... ok
+test workspace::tests::last_document_closes_onto_the_shared_mere_view_and_graph_command_is_singleton ... ok
+test workspace::tests::malformed_context_history_survives_unrelated_preferences_saves_until_new_route ... ok
+test workspace::tests::document_link_menu_keeps_selection_and_cancel_escape_restore_source_focus ... ok
+test workspace::tests::native_formats_use_the_standard_preview_tile ... ok
+test workspace::tests::only_the_graph_host_and_shared_view_are_exempt_from_extra_clips ... ok
+test workspace::tests::menu_edit_and_escape_restore_source_focus ... ok
+test workspace::tests::missing_disk_replaces_the_old_comparison_with_an_error ... ok
+test workspace::tests::opening_a_site_at_startup_uses_its_format_and_default_port ... ok
+test workspace::tests::folded_source_is_a_tile_that_leaves_the_source_alone ... ok
+test workspace::tests::open_adds_a_tab_beside_the_dirty_document ... ok
+test workspace::tests::opening_a_path_popover_leaves_the_command_row_in_place ... ok
+test workspace::tests::ordinary_preview_heading_selects_source_and_returns_focus ... ok
+test workspace::tests::outline_long_document_probe ... ignored, diagnostic timing receipt; run with --ignored --nocapture
+test workspace::tests::links_reading_wraps_descriptions_above_actions_and_preserves_exact_accessible_target ... ok
+test workspace::tests::ordinary_preview_tracks_new_open_and_reload ... ok
+test workspace::tests::outline_rows_select_unicode_source_and_return_focus_for_repeat_clicks ... ok
+test workspace::tests::ordinary_document_preview_is_hidden_by_default_and_toggle_preserves_source ... ok
+test workspace::tests::owning_site_is_a_live_scope_and_down_returns_to_its_exact_page ... ok
+test workspace::tests::links_reading_derives_dirty_open_document_backlinks_and_selects_the_owner ... ok
+test scroll_site::tests::micron_in_page_link_activates_with_enter_like_a_click ... ok
+test workspace::tests::ordinary_preview_renders_current_unicode_edit ... ok
+test workspace::tests::reload_after_explicit_discard_opens_original_without_writing_it ... ok
+test workspace::tests::retention_failure_and_disconnect_clear_busy_state_for_an_explicit_retry ... ok
+test workspace::tests::retention_never_auto_selects_or_starts_a_write ... ok
+test workspace::tests::retention_rejects_a_mismatched_receipt_without_creating_a_confirmed_result ... ok
+test workspace::tests::read_only_save_as_refusal_is_visible_and_does_not_write ... ok
+test workspace::tests::outline_tracks_direct_committed_edits_and_excludes_ime_preedit ... ok
+test workspace::tests::retention_worker_freezes_the_review_refuses_duplicates_and_preserves_original_receipts ... ok
+test workspace::tests::retention_without_destinations_offers_no_action ... ok
+test workspace::tests::retention_target_rows_select_the_matching_same_persona_space_and_show_full_detail ... ok
+test workspace::tests::quitting_asks_once_for_every_dirty_document ... ok
+test workspace::tests::restart_restores_exact_document_candidate_without_changing_original ... ok
+test workspace::tests::save_as_over_bound_path_refreshes_graph_digest_and_edges ... ok
+test workspace::tests::same_stack_tab_navigation_captures_and_restores_the_visible_document ... ok
+test workspace::tests::save_as_starts_from_the_documents_own_path ... ok
+test workspace::tests::retry_catalog_recovers_an_in_root_file_without_mutating_document_state ... ok
+test workspace::tests::save_as_takes_its_path_from_a_focused_popover_field ... ok
+test workspace::tests::saved_revision_refuses_a_binding_rebound_away_from_the_session_source ... ok
+test workspace::tests::scenario_snapshot_counts_every_pinned_reading_kind ... ok
+test workspace::tests::saving_a_dirty_tab_on_close_writes_it_and_closes_it ... ok
+test workspace::tests::sealed_style_scratch_and_read_only_projection_are_not_copied ... ok
+test workspace::tests::saved_revision_failed_refresh_replaces_old_bytes_and_preserves_document ... ok
+test workspace::tests::saved_revision_review_excludes_dirty_edits_and_survives_inner_save_until_refresh ... ok
+test composition::tests::typography_observes_every_imported_label_at_the_shared_admission_limit ... ok
+test workspace::tests::stale_outline_activation_reports_refusal_without_changing_selection ... ok
+test workspace::tests::saved_revision_clears_only_after_successful_source_transitions ... ok
+test workspace::tests::preview_scroll_prefers_rendered_text_anchor_for_measurable_djot ... ok
+test workspace::tests::the_editor_fills_its_column_and_no_more ... ok
+test workspace::tests::the_folded_tile_follows_an_edit_and_keeps_its_folds ... ok
+test workspace::tests::short_zoomed_viewport_keeps_source_status_and_drawer_inside_the_window ... ok
+test workspace::tests::two_pinned_previews_keep_their_own_ids ... ok
+test workspace::tests::two_files_and_a_scratch_keep_their_state_across_activation ... ok
+test workspace::tests::the_open_popover_keeps_a_long_path_on_one_line ... ok
+test workspace::tests::typing_after_switching_tabs_edits_the_shown_document ... ok
+test workspace::tests::undo_to_clean_resolves_stale_file_and_scratch_recovery ... ok
+test workspace::tests::source_viewport_scroll_is_a_revision_bound_byte_anchor ... ok
+test workspace::tests::highlighting_toggle_keeps_preedit_unicode_input_and_saved_bytes ... ok
+test workspace::tests::scrolling_a_peer_pane_updates_context_without_moving_keyboard_focus ... ok
+test scroll_site::tests::keyboard_focus_matches_the_one_focus_rule_on_every_kind_of_control ... ok
+test workspace::tests::persisted_preview_text_scroll_captures_paragraph_without_heading_and_restores_back_and_restart ... ok
+test workspace::tests::typography_choices_preserve_preedit_selection_and_saved_baseline ... ok
+
+test result: ok. 372 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 30.46s
+

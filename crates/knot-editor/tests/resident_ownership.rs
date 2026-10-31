@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-use graphshell_endpoint::door::custody::ReleasedEpochKey;
+use djinn::door::custody::ReleasedEpochKey;
 use knot_editor::{PersonalVaultKeys, StartupUnlockedPersonalVault};
 use p2panda_core::SigningKey;
 use personae::PersonaId;

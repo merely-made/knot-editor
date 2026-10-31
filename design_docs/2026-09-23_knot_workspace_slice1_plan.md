@@ -8,6 +8,7 @@ captured frames have been reviewed. See the
 The step 7c scenario-scroll follow-up and the Taproot/Mesquite runner
 unification are recorded below.
 Assessment and initial rulings were made 2026-09-23.
+**Forme continuation (2026-10-29):** implemented; receiving and native qualification are recorded below. Shared Platen sessions own the explicit layout draft lifecycle.
 **Owner:** Knot Editor
 **Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
 which includes the first workspace slice and the navigator slice of
@@ -1606,3 +1607,73 @@ semantic revision and physical-display acknowledgement remain open.
 - `mere/crates/graph/graph-kernel/src/graph/apply.rs` (`add_node`, `assert_relation`)
 - `genet/components/taproot/{lib,scenario}.rs`
 - `crates/knot-readings/src/links.rs`
+
+
+## Forme second-host adoption (2026-10-29)
+
+Knot owns the open documents, tile roles and local preferences store. Platen's
+`workspace-editor` feature owns the layout draft and acknowledged-save lifecycle.
+The adapter names presentation tiles as Forme members; no document text, dirty
+state, source identity, catalog graph or source undo is part of a layout save.
+
+- **Draft and discard:** View and the command palette expose Unlock workspace
+  layout, Apply workspace layout and Discard workspace layout, plus Give first
+  pane more/less space. Root-divider changes preview through
+  `FormeSession::edit`; Discard restores the live layout without
+  undoing source edits. Existing ordinary divider moves remain available outside
+  an explicit layout draft at the reducer boundary. Frisket currently emits no
+  pointer drag for its separator, so pointer resizing, tab drags, new splits
+  and floats remain separate follow-ups.
+- **Apply:** the open tile bindings must still match the draft's scope. Knot
+  writes the prepared record through its local preferences store, refusing a
+  changed saved layout slot. Only a successful write acknowledges the shared
+  session and installs its preview. Failure retains the draft for retry/discard.
+- **Reopen:** Unlock may load the last saved layout for exactly matching tile
+  bindings. Runtime keys alone cannot identify a document; bindings include
+  document identities and scratch-instance nonces. This slice does not reopen
+  document sessions or promise automatic workspace restoration at launch.
+- **Done when:** receiving tests exercise draft/discard, failed and successful
+  Apply, changed tile-set refusal, external saved-slot refusal, document edits
+  surviving Discard, and saved layout loading in a new host instance. The
+  desktop's actual command catalog must route the same actions. A locked
+  desktop check/build must pass. Headed visual acceptance is recorded separately.
+
+### Findings
+
+- 2026-10-29: `documents.rs` keeps document payloads separate from Workbench's
+  tree. A separate layout preview can therefore use the lifted session without
+  snapshotting document contents or weakening the normal close/save checks.
+
+### Progress
+
+- 2026-10-29: shared session adoption implemented in `workspace_forme.rs` and
+  `documents.rs`, with real menu/palette actions and acknowledged local saves.
+  Source ownership was coordinated with the separate writing-workspace design
+  lane; its documentation changes are preserved.
+
+- 2026-10-29: the shared Frisket separator has semantic attributes but no pointer
+  handler in the receiving cohort. Explicit layout commands provide this slice's
+  interactive edits. Responsive collapse intentionally overrides canonical
+  fractions when the writer's measure needs more room; this is presentation,
+  not a failed Forme commit. Native visual review must use enough room for the
+  authored proportions to be visible.
+- 2026-10-29: context navigation can restore Preview before a fresh-process
+  scenario begins. Opening another Preview changes the tile bindings and must
+  not silently restore a layout authored for the earlier open set.
+- 2026-10-29: review found that a saved active tab could hide the document still
+  targeted by Edit, Save and Close. Unlock now activates the current focused
+  document through the shared draft before installing the preview. Regressions
+  cover two-document focus, a real Unicode source edit and ordinary Undo across
+  layout Discard, and refusal to restore a different scratch instance.
+- 2026-10-29: the native pair explicitly pins Preview before authoring, matching
+  the pinned reading restored by contextual navigation. Members derive stable
+  UUIDs from their host-owned bindings, so a fresh process may allocate different
+  runtime tile numbers without confusing document identity. Changing the pin
+  or actual document binding still refuses the old draft.
+- 2026-10-29: the complete desktop library gate passes 372 cases with one existing
+  ignored timing probe; both actual-menu harness cases pass. The second uses
+  production hooks and default appearance, checking canonical and saved-record
+  preservation through 3000px to 320px to 3000px presentation, with the rendered
+  divider restored within one pixel. The locked/offline all-targets check and
+  desktop build pass. [Native evidence and limits](../docs/receipts/2026-10-29_forme_workspace/README.md)
+  record the separate-process save/reopen and default compact review.

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Bounded redacted observations. Catalog and document authority stay in Knot.
-use apparatus::{
+use apparatus_core::{
     Admission, Batch, Cursor, ObservationMetadata, ObservationStore, OperationId, RecordRef,
     RetentionLimits, SourceId, StoreStats,
 };

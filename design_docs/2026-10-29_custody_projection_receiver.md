@@ -1,0 +1,46 @@
+# Custody and projection client receiver
+
+Status: Published; focused overlay, peer-enabled host compilation and secure publishing tests passed.
+
+Knot now selects custody-client and projection-door explicitly. Projection
+clients use `door::projection`; the mock server's typed envelopes name their
+payload slots, and its dev dependency selects door-serve for nonce generation.
+The old mixed-client import is removed.
+
+The lock receives Mere `c6290142866eefead385e728c5c5da24ac6f624a` and preserves upstream
+Dramatis `051e95a68011072f172b9ec4c0f04d4e5259df5b` and Murm
+`1f601488f851c4e54672cd439b7c45728255ea65` for the newly landed secure-channel
+publishing admission. Current Mere's
+Genet contracts select `565458ea3ab816940484079330eb165a878a22e0`, including the
+new events package and Taffy 0.16. Eidetic is aligned to Mere's tested
+`01ee97b0b95d679430986dffd54c64ce9b3b5ea3`: the prior f599 supplier lacked
+`Journal::prefix_digest`, required by the receiving Pandect implementation.
+Unrelated registry selections and NetRender remain at the upstream baseline.
+The newer Dramatis and Murm revisions arrived with upstream `d400d0c`; the
+receiving change preserves that work.
+
+On T-PC, under the shared 3 GiB, zero-swap, single-job gate:
+
+`cargo test --locked -p knot-editor --features mere-overlay --lib mere_overlay::tests::failed_refresh_purges_cached_actions_and_merge_choices`
+
+passed one test (151 filtered out). The subsequent sync-host check in that
+command bundle omitted its required peers feature and did not execute. The
+subsequent `root-split-knot-rebased` run, on upstream secure-channel commit
+`d400d0c` plus this migration, passed both the same focused regression and
+`cargo check --locked -p knot-editor --bin knot_sync_host --features peers`.
+This receipt does not qualify peer runtime, the full desktop UI, or Windows. The failed older Eidetic build
+and the command-selection error are retained in the run logs.
+
+Evidence is retained under `/home/markik/Code/testing/custody-contract-20261029`,
+notably `root-split-knot-receive-2.log`; resolved-edge audits are under
+`/home/markik/Code/testing/custody-projection-split-20261029`.
+
+Rebased successful run log SHA-256: `b95b73e22abf111f883c7341e2744132d4ba000e7df13d6d8aaf17f81ac03973`.
+
+The additional `root-split-knot-publishing` gate executed
+`cargo test --locked -p knot-editor --features peers --lib publish_host::tests`
+on published `704084d064da886dd14cbe8ac3dd8758af105e1d`. All nine tests passed
+(158 filtered out), including replay, channel-binding, publisher-identity,
+carrier/Noise mismatch and revocation refusals. This qualifies their in-process
+and loopback fixtures, not a deployed peer or Windows runtime.
+Log SHA-256: `8cddceb8446896fd6e79f90d49bfcebd3675a6639f83297b39bcf60f1debb82a`.

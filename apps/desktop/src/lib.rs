@@ -31,6 +31,7 @@ pub mod site_history;
 pub mod status;
 pub mod theme_session;
 pub mod workspace;
+mod workspace_forme;
 
 use cambium::{
     COMMAND_MENU_BAR_CSS, FOLD_ROWS_CSS, FRISKET_CSS, GRAPH_CANVAS_SWATCH_CSS, POPOVER_CSS,

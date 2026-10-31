@@ -14,6 +14,23 @@ use stickleback::DataKeyring;
 
 fn main() {
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
+    #[cfg(feature = "projection-provider")]
+    if args
+        .first()
+        .is_some_and(|mode| mode == "projection-provider")
+    {
+        let provider = parse_provider_args(&args)
+            .unwrap_or_else(|message| panic!("{message}\nusage: knot_endpoint projection-provider <directory> <route> [--endpoint <app-endpoint>] [--max-sessions <1..64>]"));
+        run_projection_provider(provider);
+        return;
+    }
+    #[cfg(not(feature = "projection-provider"))]
+    if args
+        .first()
+        .is_some_and(|mode| mode == "projection-provider")
+    {
+        panic!("projection-provider mode requires --features peers,projection-provider");
+    }
     let mut endpoint = match args.as_slice() {
         [] => knot_editor::KnotEndpoint::fixture(),
         [root] => knot_editor::KnotEndpoint::open(PathBuf::from(root))
@@ -329,6 +346,197 @@ fn main() {
         Duration::from_millis(100),
     )
     .expect("Knot Graphshell endpoint failed");
+}
+
+#[cfg(feature = "projection-provider")]
+struct ProjectionProviderArgs {
+    root: PathBuf,
+    route: djinn::door::app_admission::AppRouteId,
+    endpoint: Option<String>,
+    max_sessions: usize,
+}
+
+#[cfg(feature = "projection-provider")]
+fn parse_provider_args(args: &[std::ffi::OsString]) -> Result<ProjectionProviderArgs, String> {
+    let [mode, root, route, options @ ..] = args else {
+        return Err("projection-provider expects a directory, route, and optional options".into());
+    };
+    if mode != "projection-provider" {
+        return Err("expected projection-provider mode".into());
+    }
+    let route = route
+        .to_str()
+        .ok_or("projection-provider route must be valid UTF-8")?;
+    let route = djinn::door::app_admission::AppRouteId::new(route.to_owned())
+        .map_err(|error| format!("invalid projection-provider route: {error:?}"))?;
+    if route.as_str() == "knot" {
+        return Err("projection-provider route `knot` is reserved for Djinn's built-in Knot route".into());
+    }
+    let mut endpoint = None;
+    let mut max_sessions = 8usize;
+    let mut max_sessions_seen = false;
+    let mut index = 0;
+    while index < options.len() {
+        match options[index].to_str() {
+            Some("--endpoint") if endpoint.is_none() => {
+                index += 1;
+                let value = options
+                    .get(index)
+                    .ok_or("--endpoint requires an app endpoint")?
+                    .to_str()
+                    .ok_or("projection-provider app endpoint must be valid UTF-8")?;
+                endpoint = Some(value.to_owned());
+            },
+            Some("--max-sessions") if !max_sessions_seen => {
+                max_sessions_seen = true;
+                index += 1;
+                let value = options
+                    .get(index)
+                    .ok_or("--max-sessions requires an integer")?
+                    .to_str()
+                    .ok_or("--max-sessions must be valid UTF-8")?;
+                max_sessions = value
+                    .parse::<usize>()
+                    .map_err(|_| "--max-sessions must be an integer".to_owned())?;
+                if !(1..=64).contains(&max_sessions) {
+                    return Err("--max-sessions must be between 1 and 64".into());
+                }
+            },
+            Some(option) => return Err(format!("unknown projection-provider option: {option}")),
+            None => return Err("projection-provider options must be valid UTF-8".into()),
+        }
+        index += 1;
+    }
+    Ok(ProjectionProviderArgs {
+        root: PathBuf::from(root),
+        route,
+        endpoint,
+        max_sessions,
+    })
+}
+
+#[cfg(feature = "projection-provider")]
+const PROVIDER_LABEL: &str = "Knot directory";
+
+#[cfg(feature = "projection-provider")]
+fn run_projection_provider(args: ProjectionProviderArgs) {
+    use djinn::door::{app_admission::{AppId, AppRouteId}, app_client::AppConnection};
+    use graphshell_endpoint::door::{projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider};
+
+    let provider_route = AppRouteId::new(PROJECTION_PROVIDER_ROUTE)
+        .expect("the provider protocol route is valid");
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Knot could not start its app-door runtime");
+    runtime.block_on(async move {
+        let app = AppId::new(knot_editor::KNOT_APP_ID);
+        let declaration = knot_editor::declaration::offering(args.route.clone(), PROVIDER_LABEL);
+        let connection = match args.endpoint.as_deref() {
+            Some(endpoint) => {
+                AppConnection::open_declared_route_at(endpoint, app, provider_route, declaration).await
+            },
+            None => AppConnection::open_declared_route(app, provider_route, declaration).await,
+        }
+        .expect("Knot could not connect to Djinn's projection-provider route");
+        let root = args.root;
+        projection_provider::serve(
+            connection,
+            args.route,
+            PROVIDER_LABEL.into(),
+            args.max_sessions,
+            move |_viewer| open_directory_projection(&root),
+        )
+        .await
+        .expect("Knot projection-provider session failed");
+    });
+}
+
+#[cfg(feature = "projection-provider")]
+fn open_directory_projection(root: &Path) -> Result<knot_editor::KnotEndpoint, String> {
+    knot_editor::KnotEndpoint::open(root)
+        .map_err(|error| format!("Knot could not open the offered directory: {error}"))
+}
+
+#[cfg(test)]
+#[cfg(feature = "projection-provider")]
+mod provider_cli_tests {
+    use super::*;
+
+    #[test]
+    fn provider_mode_requires_root_and_a_non_builtin_route() {
+        let args = [
+            "projection-provider".into(),
+            "/tmp/knot-documents".into(),
+            "knot-documents".into(),
+        ];
+        let parsed = parse_provider_args(&args).expect("valid provider arguments");
+        assert_eq!(parsed.root, PathBuf::from("/tmp/knot-documents"));
+        assert_eq!(parsed.route.as_str(), "knot-documents");
+        assert_eq!(parsed.endpoint, None);
+        assert_eq!(parsed.max_sessions, 8);
+
+        let colliding = [
+            "projection-provider".into(),
+            "/tmp/knot-documents".into(),
+            "knot".into(),
+        ];
+        assert!(parse_provider_args(&colliding).is_err());
+    }
+
+    #[test]
+    fn provider_mode_accepts_an_explicit_app_endpoint() {
+        let args = [
+            "projection-provider".into(),
+            "/tmp/knot-documents".into(),
+            "knot-documents".into(),
+            "--endpoint".into(),
+            "/tmp/djinn-app.sock".into(),
+            "--max-sessions".into(),
+            "12".into(),
+        ];
+        let parsed = parse_provider_args(&args).expect("valid provider arguments");
+        assert_eq!(parsed.endpoint.as_deref(), Some("/tmp/djinn-app.sock"));
+        assert_eq!(parsed.max_sessions, 12);
+    }
+
+    #[test]
+    fn provider_mode_rejects_session_limits_outside_the_bounded_range() {
+        for count in ["0", "65"] {
+            let args = [
+                "projection-provider".into(),
+                "/tmp/knot-documents".into(),
+                "knot-documents".into(),
+                "--max-sessions".into(),
+                count.into(),
+            ];
+            assert!(parse_provider_args(&args).is_err());
+        }
+    }
+
+    #[test]
+    fn provider_factory_opens_a_real_read_only_directory_endpoint() {
+        use graphshell_endpoint::{ProjectionCatalog, ProjectionSource};
+
+        let root = tempfile::tempdir().unwrap();
+        std::fs::write(root.path().join("field.knot"), "# Field\n").unwrap();
+        let mut first = open_directory_projection(root.path()).unwrap();
+
+        // The directory canonicalizes its root (`/tmp` is `/private/tmp` on macOS).
+        assert_eq!(first.directory().unwrap().root(), root.path().canonicalize().unwrap());
+        let descriptor = first.describe();
+        assert_eq!(descriptor.label, "Knot");
+        assert_eq!(descriptor.projections[0].label, "Files in place");
+        let snapshot = first
+            .snapshot(descriptor.projections[0].request.clone())
+            .unwrap();
+        assert!(snapshot
+            .presentation
+            .offers
+            .values()
+            .flatten()
+            .all(|offer| offer.codec != chirograph::PresentationCodec::EditableTextV1));
+    }
 }
 
 /// Process-only received-content fixture. Its keys are minted inside the

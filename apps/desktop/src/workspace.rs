@@ -784,7 +784,7 @@ impl DesktopState {
         self.refresh_graph_with_cause(None);
     }
 
-    fn refresh_graph_with_cause(&mut self, cause: Option<apparatus::RecordRef>) {
+    fn refresh_graph_with_cause(&mut self, cause: Option<apparatus_core::RecordRef>) {
         let catalog = self.catalog.as_ref().map(KnotFileCatalog::snapshot);
         self.graph
             .start_with_cause(catalog, self.capture_limit, cause);
@@ -800,7 +800,7 @@ impl DesktopState {
 
     pub(crate) fn graph_diagnostic_attachment(
         &self,
-    ) -> Result<Option<apparatus::Batch<serde_json::Value>>, String> {
+    ) -> Result<Option<apparatus_core::Batch<serde_json::Value>>, String> {
         self.graph.diagnostic_attachment()
     }
 
@@ -1556,7 +1556,7 @@ impl DesktopState {
     fn after_successful_document_write_with_cause(
         &mut self,
         key: DocKey,
-        cause: Option<apparatus::RecordRef>,
+        cause: Option<apparatus_core::RecordRef>,
     ) {
         self.clear_recovery_for(key);
         self.sync_catalog_for(key);

@@ -18,9 +18,9 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "peers")]
 use std::sync::Arc;
 
-use graphshell_endpoint::door::app_admission::AppId;
-use graphshell_endpoint::door::custody::{EpochKeyRequest, ReleasedEpochKey};
-use graphshell_endpoint::door::custody_client::{
+use djinn::door::app_admission::AppId;
+use djinn::door::custody::{EpochKeyRequest, ReleasedEpochKey};
+use djinn::door::custody_client::{
     BlockingCustodyClient, CustodyClient, CustodyClientError,
 };
 use p2panda_core::SigningKey;
@@ -94,7 +94,8 @@ impl PersonalVaultKeys {
     /// identity is refused. Never call this from inside a tokio runtime.
     pub fn from_djinn(persona: PersonaId, device_label: Option<&str>) -> Result<Self, String> {
         let mut client =
-            BlockingCustodyClient::open(AppId::new(KNOT_APP_ID)).map_err(custody_error)?;
+            BlockingCustodyClient::open_declared(AppId::new(KNOT_APP_ID), crate::declaration::app_declaration())
+                .map_err(custody_error)?;
         let keys = client
             .release_epoch_keys(
                 *persona.as_uuid(),
@@ -110,7 +111,7 @@ impl PersonalVaultKeys {
         persona: PersonaId,
         device_label: Option<&str>,
     ) -> Result<Self, String> {
-        let mut client = CustodyClient::open(AppId::new(KNOT_APP_ID))
+        let mut client = CustodyClient::open_declared(AppId::new(KNOT_APP_ID), crate::declaration::app_declaration())
             .await
             .map_err(custody_error)?;
         let keys = client
@@ -545,9 +546,13 @@ mod dr_c_receipts {
         let mode = std::env::var("DR_C_RECEIPT_MODE").expect("receipt mode");
         assert!(mode == "absent" || mode == "locked");
         if mode == "locked" {
-            let mut client = BlockingCustodyClient::open(AppId::new(KNOT_APP_ID)).unwrap();
+            let mut client = BlockingCustodyClient::open_declared(
+                AppId::new(KNOT_APP_ID),
+                crate::declaration::app_declaration(),
+            )
+            .unwrap();
             let status = client.status().unwrap();
-            assert_eq!(status.lock, graphshell_endpoint::door::identity::VaultLockView::Locked);
+            assert_eq!(status.lock, dramatis::view::VaultLockView::Locked);
             assert!(status.persona_public_key.is_none());
             assert!(!client.roster().unwrap().entries.is_empty());
         }

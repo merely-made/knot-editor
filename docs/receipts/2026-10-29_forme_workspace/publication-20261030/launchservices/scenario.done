@@ -1,0 +1,5 @@
+RESULT fail
+frames: 0 captured, 0 blank, 0 distinct digests
+presentation: 0 frames, 290 redraws, 290 unpresented redraws
+a11y-publication {"sampled_at_lane_frame":0,"snapshot":{"host":1,"publication":{"adapter":"installed","outcome":{"contribution_issues":0,"nodes":49,"phase":"submitted"}},"sequence":291}}
+FAIL: native presentation stalled for 10000 ms (290 redraws, 0 presented frames)

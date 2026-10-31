@@ -1,0 +1,53 @@
+{
+  "source_revision": "2924a5f1571f010bb9eb7692d6767117f3dff8ef",
+  "checks": [
+    {
+      "name": "committed-forme",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--lib",
+        "forme_"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.14,
+      "log": "checks/committed-forme.log"
+    },
+    {
+      "name": "committed-menu",
+      "command": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--test",
+        "workspace_forme"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.12,
+      "log": "checks/committed-menu.log"
+    },
+    {
+      "name": "committed-build",
+      "command": [
+        "cargo",
+        "build",
+        "--locked",
+        "--offline",
+        "-p",
+        "knot-desktop",
+        "--bin",
+        "knot"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.73,
+      "log": "checks/committed-build.log"
+    }
+  ]
+}

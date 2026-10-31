@@ -192,6 +192,34 @@ impl PreferencesStore {
         Ok(true)
     }
 
+    /// The workspace layout is host-local presentation, separate from source.
+    pub fn workspace_forme(&self) -> Option<Value> {
+        self.saved.other.get("workspace_forme").cloned()
+    }
+
+    pub fn save_workspace_forme(
+        &mut self,
+        baseline: Option<&Value>,
+        value: &Value,
+    ) -> Result<(), String> {
+        if let Some(why) = &self.unreadable {
+            return Err(format!("Preferences could not be read: {why}"));
+        }
+        // Preserve unrelated changes made since this store was opened, and
+        // refuse an overwritten layout instead of acknowledging a stale draft.
+        let mut next = DesktopPreferences::load(&self.path)?;
+        if next.other.get("workspace_forme") != baseline {
+            self.saved = next;
+            return Err(
+                "The saved workspace changed elsewhere; discard this draft and unlock again".into(),
+            );
+        }
+        next.other.insert("workspace_forme".into(), value.clone());
+        next.save(&self.path)?;
+        self.saved = next;
+        Ok(())
+    }
+
     pub fn unreadable(&self) -> Option<&str> {
         self.unreadable.as_deref()
     }

@@ -14,6 +14,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::publish_carrier::accept_publish_session_with_setup;
 use muniment::Backend;
 use notochord::{
     AdmittedSession, AuthorityLapse, FrameError, LocalNetworkPolicy, RetainedAuthority,
@@ -23,12 +24,13 @@ use personae::Ed25519Keypair;
 use tokio::io::{AsyncRead, AsyncWrite, AsyncWriteExt};
 use tokio::sync::RwLock;
 use transport::Transport;
+use transport::security::{SetupGate, SetupLimits, SetupStats};
 
 use crate::{
     KnotPublishCandidate, KnotPublishCatalog, KnotPublishError, KnotShareControlError,
     KnotShareRecipient, KnotShareTicket, KnotSyncStore, KnotVault, PublicationId,
     PublishCarrierError, PublishRefusal, PublishRequest, PublishResponse, PublishWireError,
-    PublishWireLimits, accept_publish_session, decode_request, encode_response,
+    PublishWireLimits, decode_request, encode_response,
 };
 
 /// Owner-configurable serving limits. The candidate codec applies its own hard
@@ -83,6 +85,8 @@ pub struct KnotPublishHost<B> {
     revocations: Arc<RwLock<RevocationLedger>>,
     limits: KnotPublishHostLimits,
     active_sessions: Arc<AtomicU32>,
+    setup_gate: SetupGate,
+    setup_limits: SetupLimits,
     now_ms: Arc<dyn Fn() -> u64 + Send + Sync>,
 }
 
@@ -161,6 +165,8 @@ where
             revocations: Arc::new(RwLock::new(RevocationLedger::default())),
             limits,
             active_sessions: Arc::new(AtomicU32::new(0)),
+            setup_gate: SetupGate::new(16),
+            setup_limits: SetupLimits::default(),
             now_ms: Arc::new(system_now_ms),
         }
     }
@@ -169,6 +175,18 @@ where
     pub fn with_clock(mut self, now_ms: impl Fn() -> u64 + Send + Sync + 'static) -> Self {
         self.now_ms = Arc::new(now_ms);
         self
+    }
+
+    /// Configure setup before serving. Cloned hosts retain the same shared gate.
+    pub fn with_secure_setup(mut self, max_pending: usize, limits: SetupLimits) -> Self {
+        self.setup_gate = SetupGate::new(max_pending);
+        self.setup_limits = limits;
+        self
+    }
+
+    /// Counter-only setup diagnostics, separate from admitted serving slots.
+    pub fn setup_stats(&self) -> SetupStats {
+        self.setup_gate.stats()
     }
 
     /// Add one explicit owner selection to the served catalog.
@@ -218,13 +236,15 @@ where
     ) -> Result<KnotPublishServeOutcome, KnotPublishHostError> {
         let now_ms = self.now();
         let admission_ledger = self.revocations.read().await.clone();
-        let admitted = accept_publish_session(
+        let admitted = accept_publish_session_with_setup(
             transport,
             &self.identity,
             &self.policy,
             &admission_ledger,
             now_ms,
             self.active_sessions(),
+            &self.setup_gate,
+            self.setup_limits.clone(),
         )
         .await?;
         let mut session = match admitted {
@@ -233,13 +253,15 @@ where
         };
 
         let Some(_slot) = self.reserve_slot() else {
-            let _ = session.stream.shutdown().await;
+            let _ = session.session.stream.shutdown().await;
             return Ok(KnotPublishServeOutcome::Refused(
                 PublishRefusal::CapacityExhausted,
             ));
         };
-        let authority = RetainedAuthority::from_admitted(&session);
-        self.serve_admitted(&mut session, authority).await
+        let authority = RetainedAuthority::from_admitted(&session.session);
+        // Keep the verified channel facts alongside the admitted authority
+        // for the complete response/revocation lifetime.
+        self.serve_admitted(&mut session.session, authority).await
     }
 
     async fn serve_admitted<S>(
@@ -269,7 +291,7 @@ where
             Err(error) => {
                 let _ = session.stream.shutdown().await;
                 return Err(error.into());
-            }
+            },
         };
         let requested_publication = match request {
             PublishRequest::List => None,
@@ -337,7 +359,7 @@ where
                 }) =>
             {
                 response
-            }
+            },
             (Some(_), _) => PublishResponse::NotAvailable,
         };
         let encoded = match encode_response(&response, self.limits.wire) {
@@ -346,7 +368,7 @@ where
             // body. It joins other unavailable source states on the wire.
             Err(PublishWireError::ResponseLimit | PublishWireError::TooLarge) => {
                 encode_response(&PublishResponse::NotAvailable, self.limits.wire)?
-            }
+            },
             Err(error) => return Err(error.into()),
         };
         write_frame(
@@ -416,16 +438,19 @@ mod tests {
         SignedDelegationCertificate, SignedDelegationRevocation,
     };
     use notochord::{
-        NetworkId, ProfileRef, RequestedAction, SessionHello, TrafficClass, TrustedRoot,
-        initiate_session, read_frame, write_frame,
+        DenyReason, NetworkId, ProfileRef, RequestedAction, SessionHello, TrafficClass,
+        TrustedRoot, initiate_session, read_frame, write_frame,
     };
     use personae::delegation::Issue;
     use personae::{IdentityProvider, InMemoryProvider};
     use tempfile::tempdir;
     use transport::memory::MemoryTransport;
-    use transport::noise::secure_initiator;
+    use transport::noise::{secure_initiator_with_facts, secure_responder_with_facts};
     use transport::p2panda_transport::P2pandaTransport;
-    use transport::{PeerID, Transport, initiator_binding};
+    use transport::{
+        AcceptedSession, Alpn, IngressContext, IngressInterfaceId, OutboundSession, PeerID,
+        Transport, TransportError,
+    };
 
     const NETWORK: NetworkId = NetworkId([0xa1; 32]);
     const ROOT: [u8; 32] = [0xa2; 32];
@@ -520,6 +545,79 @@ mod tests {
         }
     }
 
+    /// Ordered in-process fixture for Reticulum's honest carrier facts. This
+    /// models the absent initiator identity and shared link; it is not a live
+    /// Reticulum or radio qualification.
+    struct LinkCarrier {
+        inner: MemoryTransport,
+        link: [u8; 16],
+    }
+
+    impl Transport for LinkCarrier {
+        type Stream = <MemoryTransport as Transport>::Stream;
+
+        fn local_peer_id(&self) -> PeerID {
+            self.inner.local_peer_id()
+        }
+
+        async fn connect(&self, peer: PeerID, alpn: Alpn) -> Result<Self::Stream, TransportError> {
+            self.inner.connect(peer, alpn).await
+        }
+
+        async fn connect_session(
+            &self,
+            peer: PeerID,
+            alpn: Alpn,
+        ) -> Result<OutboundSession<Self::Stream>, TransportError> {
+            Ok(OutboundSession {
+                stream: self.connect(peer, alpn.clone()).await?,
+                protocol: alpn,
+                authenticated_initiator: None,
+                shared_link: Some(self.link),
+            })
+        }
+
+        async fn accept(
+            &self,
+            alpn: Alpn,
+        ) -> Result<AcceptedSession<Self::Stream>, TransportError> {
+            let mut accepted = self.inner.accept(alpn).await?;
+            accepted.peer = None;
+            accepted.ingress = IngressContext::reticulum(IngressInterfaceId(7), self.link);
+            Ok(accepted)
+        }
+    }
+
+    fn link_carriers(
+        holder: PeerID,
+        reader: PeerID,
+        server_link: [u8; 16],
+        client_link: [u8; 16],
+    ) -> (LinkCarrier, LinkCarrier) {
+        let (server, client) = MemoryTransport::pair(holder, reader);
+        (
+            LinkCarrier {
+                inner: server,
+                link: server_link,
+            },
+            LinkCarrier {
+                inner: client,
+                link: client_link,
+            },
+        )
+    }
+
+    fn share_ticket(fixture: &HostFixture) -> crate::KnotShareTicket {
+        crate::KnotShareTicket::new(
+            holder().master_public_key().to_bytes(),
+            "in-process-carrier",
+            NETWORK,
+            fixture.publication,
+            vec![grant(fixture.publication)],
+            None,
+        )
+    }
+
     async fn fetch_once(
         host: &KnotPublishHost<muniment::MemoryBackend>,
         publication: PublicationId,
@@ -531,17 +629,21 @@ mod tests {
         let server_future = host.accept_and_serve(&server);
         let client_future = async move {
             let outer = client
-                .connect(holder_peer, publish_alpn())
+                .connect_session(holder_peer, publish_alpn())
                 .await
                 .map_err(|error| error.to_string())?;
-            let (mut stream, peer) =
-                secure_initiator(reader().master_keypair(), outer, &publish_alpn())
-                    .await
-                    .map_err(|error| error.to_string())?;
-            if peer.to_bytes() != holder_peer.to_bytes() {
+            let carrier_binding = outer.proof_binding();
+            let (mut stream, noise) = secure_initiator_with_facts(
+                reader().master_keypair(),
+                outer.stream,
+                &publish_alpn(),
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+            if noise.peer().to_bytes() != holder_peer.to_bytes() {
                 return Err("Noise peer differs from the carrier holder".into());
             }
-            let hello = SessionHello::issue(
+            let hello = SessionHello::issue_secure(
                 &reader(),
                 NETWORK,
                 profile(),
@@ -552,7 +654,7 @@ mod tests {
                 },
                 TrafficClass::Interactive,
                 [0xa7; 32],
-                &initiator_binding(&publish_alpn(), reader_peer),
+                &carrier_binding.with_secure_channel(noise.secure_channel_facts()),
                 vec![certificate],
             )
             .map_err(|error| error.to_string())?;
@@ -609,10 +711,13 @@ mod tests {
             .await
             .fold(revocation.check().expect("the holder's revocation checks"));
         let (outcome, response) = fetch_once(&fixture.host, fixture.publication, certificate).await;
-        assert!(matches!(
-            outcome,
-            KnotPublishServeOutcome::Refused(PublishRefusal::NotAdmitted(_))
-        ));
+        assert!(
+            matches!(
+                outcome,
+                KnotPublishServeOutcome::Refused(PublishRefusal::NotAdmitted(_))
+            ),
+            "unexpected setup outcome: {outcome:?}"
+        );
         assert!(
             response.is_err(),
             "revoked admission reaches no application response"
@@ -646,6 +751,249 @@ mod tests {
         };
         assert_eq!(document.publication, ticket.publication);
         assert_eq!(document.body, b"private source");
+    }
+
+    #[tokio::test]
+    async fn ticket_client_binds_noise_identity_without_inventing_a_carrier_peer() {
+        let fixture = host_and_publication().await;
+        let ticket = share_ticket(&fixture);
+        let holder_peer = PeerID::from_bytes(&ticket.publisher).unwrap();
+        // The carrier-local routing identity is deliberately not the reader
+        // application identity, and the carrier does not authenticate it.
+        let routing_peer =
+            PeerID::from_public_key(InMemoryProvider::from_seed([0xb1; 32]).master_public_key());
+        let (server, client) = link_carriers(holder_peer, routing_peer, [0xb2; 16], [0xb2; 16]);
+        assert_ne!(
+            client.local_peer_id().to_bytes(),
+            reader().master_public_key().to_bytes()
+        );
+
+        let reader = reader();
+        let (served, read) = tokio::join!(
+            fixture.host.accept_and_serve(&server),
+            crate::fetch_published_document(&client, reader.master_keypair(), profile(), &ticket),
+        );
+        assert_eq!(served.unwrap(), KnotPublishServeOutcome::Responded);
+        let KnotPublishRead::Document(document) = read.unwrap() else {
+            panic!("the bound, granted Noise reader receives its publication")
+        };
+        assert_eq!(document.publication, ticket.publication);
+        assert_eq!(document.body, b"private source");
+    }
+
+    #[tokio::test]
+    async fn ticket_client_cannot_rebind_the_secure_proof_to_another_link() {
+        let fixture = host_and_publication().await;
+        let ticket = share_ticket(&fixture);
+        let holder_peer = PeerID::from_bytes(&ticket.publisher).unwrap();
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = link_carriers(holder_peer, reader_peer, [0xb3; 16], [0xb4; 16]);
+        let reader = reader();
+        let (served, read) = tokio::join!(
+            fixture.host.accept_and_serve(&server),
+            crate::fetch_published_document(&client, reader.master_keypair(), profile(), &ticket),
+        );
+        assert_eq!(
+            served.unwrap(),
+            KnotPublishServeOutcome::Refused(PublishRefusal::NotAdmitted(
+                DenyReason::SessionProofInvalid,
+            )),
+        );
+        assert!(matches!(read, Err(crate::KnotPublishClientError::Refused)));
+    }
+
+    #[tokio::test]
+    async fn authenticated_carrier_and_noise_reader_mismatch_still_refuses() {
+        let fixture = host_and_publication().await;
+        let holder_peer = PeerID::from_public_key(holder().master_public_key());
+        let different_carrier_peer =
+            PeerID::from_public_key(InMemoryProvider::from_seed([0xb5; 32]).master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, different_carrier_peer);
+        let server_future = fixture.host.accept_and_serve(&server);
+        let client_future = async {
+            let outer = client.connect(holder_peer, publish_alpn()).await.unwrap();
+            let (mut stream, _) =
+                secure_initiator_with_facts(reader().master_keypair(), outer, &publish_alpn())
+                    .await
+                    .unwrap();
+            assert!(read_frame(&mut stream, 1024).await.is_err());
+        };
+        let (served, ()) = tokio::join!(server_future, client_future);
+        assert_eq!(
+            served.unwrap(),
+            KnotPublishServeOutcome::Refused(PublishRefusal::CarrierNoiseMismatch),
+        );
+    }
+
+    #[tokio::test]
+    async fn ticket_client_checks_the_noise_publisher_before_sending_its_hello() {
+        let fixture = host_and_publication().await;
+        let ticket = share_ticket(&fixture);
+        let holder_peer = PeerID::from_bytes(&ticket.publisher).unwrap();
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let server_future = async {
+            let accepted = server.accept(publish_alpn()).await.unwrap();
+            let impostor = InMemoryProvider::from_seed([0xb6; 32]);
+            let (mut stream, _) =
+                secure_responder_with_facts(impostor.master_keypair(), accepted.stream)
+                    .await
+                    .unwrap();
+            assert!(
+                read_frame(&mut stream, 1024).await.is_err(),
+                "an unexpected publisher gets no admission hello or application request",
+            );
+        };
+        let reader = reader();
+        let ((), read) = tokio::join!(
+            server_future,
+            crate::fetch_published_document(&client, reader.master_keypair(), profile(), &ticket),
+        );
+        assert!(matches!(
+            read,
+            Err(crate::KnotPublishClientError::PublisherIdentity)
+        ));
+    }
+
+    #[tokio::test]
+    async fn a_prior_noise_session_hello_cannot_read_a_publication_after_reconnect() {
+        let fixture = host_and_publication().await;
+        let holder_peer = PeerID::from_public_key(holder().master_public_key());
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let capture = async {
+            let accepted = server.accept(publish_alpn()).await.unwrap();
+            let (mut stream, _) =
+                secure_responder_with_facts(holder().master_keypair(), accepted.stream)
+                    .await
+                    .unwrap();
+            let bytes = read_frame(&mut stream, 64 * 1024).await.unwrap();
+            SessionHello::decode(&bytes, &Default::default()).unwrap()
+        };
+        let mint = async {
+            let outer = client
+                .connect_session(holder_peer, publish_alpn())
+                .await
+                .unwrap();
+            let binding = outer.proof_binding();
+            let (mut stream, noise) = secure_initiator_with_facts(
+                reader().master_keypair(),
+                outer.stream,
+                &publish_alpn(),
+            )
+            .await
+            .unwrap();
+            let hello = SessionHello::issue_secure(
+                &reader(),
+                NETWORK,
+                profile(),
+                RequestedAction {
+                    domain: KNOT_PUBLISH_DOMAIN.into(),
+                    path: publication_path(fixture.publication),
+                    action: KNOT_PUBLISH_READ_ACTION.into(),
+                },
+                TrafficClass::Interactive,
+                [0xb7; 32],
+                &binding.with_secure_channel(noise.secure_channel_facts()),
+                vec![grant(fixture.publication)],
+            )
+            .unwrap();
+            let bytes = hello.encode(&Default::default()).unwrap();
+            write_frame(&mut stream, &bytes, 64 * 1024).await.unwrap();
+        };
+        let (captured, ()) = tokio::join!(capture, mint);
+
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let replay = async {
+            let outer = client.connect(holder_peer, publish_alpn()).await.unwrap();
+            let (mut stream, _) =
+                secure_initiator_with_facts(reader().master_keypair(), outer, &publish_alpn())
+                    .await
+                    .unwrap();
+            let reply = initiate_session(&mut stream, &captured, &Default::default())
+                .await
+                .unwrap();
+            assert!(!reply.is_accept());
+        };
+        let (served, ()) = tokio::join!(fixture.host.accept_and_serve(&server), replay);
+        assert_eq!(
+            served.unwrap(),
+            KnotPublishServeOutcome::Refused(PublishRefusal::NotAdmitted(
+                DenyReason::SessionProofInvalid,
+            )),
+        );
+    }
+
+    #[tokio::test]
+    async fn stalled_secure_setup_releases_the_host_lease_before_source_disclosure() {
+        let mut fixture = host_and_publication().await;
+        fixture.host = fixture.host.with_secure_setup(
+            1,
+            SetupLimits {
+                timeout: std::time::Duration::from_millis(30),
+                ..SetupLimits::default()
+            },
+        );
+        let holder_peer = PeerID::from_public_key(holder().master_public_key());
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let _stalled = client.connect(holder_peer, publish_alpn()).await.unwrap();
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            fixture.host.accept_and_serve(&server),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(
+            outcome,
+            Err(KnotPublishHostError::Carrier(PublishCarrierError::Setup(
+                transport::security::SetupError::Deadline { .. }
+            )))
+        ));
+        assert_eq!(fixture.host.setup_stats().pending, 0);
+        assert_eq!(fixture.host.setup_stats().timed_out, 1);
+        assert_eq!(fixture.host.active_sessions(), 0);
+    }
+
+    #[tokio::test]
+    async fn the_shared_setup_lease_covers_admission_and_is_released_on_cancellation() {
+        let mut fixture = host_and_publication().await;
+        fixture.host = fixture.host.with_secure_setup(1, SetupLimits::default());
+        let holder_peer = PeerID::from_public_key(holder().master_public_key());
+        let reader_peer = PeerID::from_public_key(reader().master_public_key());
+        let (server, client) = MemoryTransport::pair(holder_peer, reader_peer);
+        let host = fixture.host.clone();
+        let server = Arc::new(server);
+        let first_server = Arc::clone(&server);
+        let first = tokio::spawn(async move { host.accept_and_serve(&*first_server).await });
+        let outer = client.connect(holder_peer, publish_alpn()).await.unwrap();
+        let (mut secured, _) =
+            secure_initiator_with_facts(reader().master_keypair(), outer, &publish_alpn())
+                .await
+                .unwrap();
+        tokio::time::timeout(std::time::Duration::from_secs(2), async {
+            while fixture.host.setup_stats().secured == 0 {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .unwrap();
+        assert_eq!(fixture.host.setup_stats().pending, 1);
+        assert_eq!(fixture.host.setup_stats().secured, 1);
+        let _second = client.connect(holder_peer, publish_alpn()).await.unwrap();
+        assert!(matches!(
+            fixture.host.accept_and_serve(&*server).await,
+            Err(KnotPublishHostError::Carrier(PublishCarrierError::Setup(
+                transport::security::SetupError::Capacity
+            )))
+        ));
+        first.abort();
+        let _ = first.await;
+        assert_eq!(fixture.host.setup_stats().pending, 0);
+        assert_eq!(fixture.host.setup_stats().cancelled, 1);
+        assert_eq!(fixture.host.setup_stats().capacity_refused, 1);
+        assert_eq!(fixture.host.active_sessions(), 0);
+        assert!(read_frame(&mut secured, 1024).await.is_err());
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -688,17 +1036,21 @@ mod tests {
         // flushing its response, making this real-transport test race shutdown.
         let client_future = async {
             let outer = client
-                .connect(holder_peer, publish_alpn())
+                .connect_session(holder_peer, publish_alpn())
                 .await
                 .map_err(|error| error.to_string())?;
-            let (mut stream, peer) =
-                secure_initiator(reader().master_keypair(), outer, &publish_alpn())
-                    .await
-                    .map_err(|error| error.to_string())?;
-            if peer.to_bytes() != holder_peer.to_bytes() {
+            let carrier_binding = outer.proof_binding();
+            let (mut stream, noise) = secure_initiator_with_facts(
+                reader().master_keypair(),
+                outer.stream,
+                &publish_alpn(),
+            )
+            .await
+            .map_err(|error| error.to_string())?;
+            if noise.peer().to_bytes() != holder_peer.to_bytes() {
                 return Err("Noise peer differs from the P2panda holder".into());
             }
-            let hello = SessionHello::issue(
+            let hello = SessionHello::issue_secure(
                 &reader(),
                 NETWORK,
                 profile(),
@@ -709,7 +1061,7 @@ mod tests {
                 },
                 TrafficClass::Interactive,
                 [0xab; 32],
-                &initiator_binding(&publish_alpn(), reader_peer),
+                &carrier_binding.with_secure_channel(noise.secure_channel_facts()),
                 vec![certificate],
             )
             .map_err(|error| error.to_string())?;

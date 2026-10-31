@@ -20,6 +20,12 @@ name = "knot_sync_host"
 path = "src/bin/knot_sync_host.rs"
 required-features = ["peers"]
 
+# Hands a completed site to the resident, which keeps serving it.
+[[bin]]
+name = "knot_site"
+path = "src/bin/knot_site.rs"
+required-features = ["site-handoff"]
+
 # Spawns the `knot_endpoint` bin, which needs `peers`.
 [[test]]
 name = "revision_bell"
@@ -52,6 +58,12 @@ mere-overlay = ["dep:mere-overmap", "dep:mere-view"]
 # links no iroh, quinn, p2panda-net or reqwest: Knot is an offline application
 # unless a consumer opts in by name (Djinn, Turnstone). `tools/check_profile.py
 # library` keeps the default honest.
+# The native `knot_endpoint` binary also offers a read-only directory through
+# Djinn's app door. The library default remains free of native provider code.
+projection-provider = ["graphshell-endpoint/projection-provider"]
+# The `knot_site` client: hand a completed site to the resident on its
+# published-site route (`knot_site::handoff`).
+site-handoff = ["dep:knot-site"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "stickleback/net"]
 
 [dependencies]
@@ -66,13 +78,16 @@ fleece.workspace = true
 # The custody client: Knot reaches its persona keys by calling djinn (dramatis
 # DR-C), through the application door (Mere stack lift plan P1); no
 # `graphshell` in the library.
-graphshell-endpoint = { workspace = true, features = ["door", "stdio"] }
+graphshell-endpoint = { workspace = true, features = ["projection-door", "stdio"] }
+djinn = { workspace = true, features = ["custody-client"] }
+dramatis.workspace = true
 mere-overmap = { workspace = true, optional = true, features = ["resident"] }
 mere-view = { workspace = true, optional = true }
 chirograph.workspace = true
 inker.workspace = true
 jotdown = "0.10"
 knot-document = { workspace = true, features = ["engine"] }
+knot-site = { path = "../knot-site", optional = true }
 knot-catalog.workspace = true
 muniment = { workspace = true, features = ["redb"] }
 mora.workspace = true
@@ -132,6 +147,7 @@ scenomise.workspace = true
 scenograph.workspace = true
 gemot.workspace = true
 graphshell-endpoint = { workspace = true, features = ["local"] }
+djinn = { workspace = true, features = ["door-serve"] }
 rcgen = "0.14"
 taproot = { workspace = true }
 tempfile = "3"

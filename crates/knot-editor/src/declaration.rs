@@ -52,6 +52,7 @@ pub fn app_declaration() -> AppDeclaration {
                     secret: !request.public_only,
                 })
                 .collect(),
+            ..CustodyUse::default()
         },
     }
 }

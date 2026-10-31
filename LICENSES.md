@@ -33,16 +33,15 @@ line, and every upstream copyright line above it is kept verbatim. Apply with
 `--retain-notice`, which preserves foreign copyright lines while replacing
 Mark's own.
 
-| Path | Upstream | Notices kept |
-|---|---|---|
-| `crates/system/luggage` | [cargo-packager-updater](https://github.com/crabnebula-dev/cargo-packager), MIT OR Apache-2.0 | `Copyright 2019-2023 Tauri Programme within The Commons Conservancy`; `Copyright 2023-2023 CrabNebula Ltd.` |
+**None in this repository.** This ledger was copied from Mere's, whose entry
+here was Luggage, a derivative of cargo-packager-updater. Knot never held it;
+Luggage moved to Eidetic on 2026-10-19 and its notices are recorded in
+`eidetic/LICENSES.md`.
 
 Ruled 2026-08-27, on the brief's substantial-derivative precedent: tucket keeps
 MeshCore's MIT notice, and cambium and meristem go MPL-2.0 with the Apache
 notice retained. Both MIT and Apache-2.0 permit relicensing a derivative so
-long as the notice travels with it. luggage is published (0.1.0, MIT OR
-Apache-2.0); that version keeps its grant permanently and MPL-2.0 ships at its
-next functional bump, per the sweep plan's invariant 8.
+long as the notice travels with it.
 
 **This section is deliberately not the skip list.** The tool reads only the
 `## Retained licenses` table above. Adding a path here documents a disposition;
@@ -85,7 +84,8 @@ this launcher alone does not install or bundle Reticulum-Go.
 ## A note on the discovery grep
 
 The sweep plan's invariant 1 lists `Copyright (c)` among its discovery
-patterns. That form is not universal: `crates/system/luggage` writes bare
+patterns. That form is not universal: Luggage (then Mere's
+`crates/system/luggage`, now Eidetic's `crates/luggage`) writes bare
 `Copyright 2019-2023 <holder>` with no parenthesised `(c)`, and was missed by
 the plan's own pattern set on 2026-08-27. Discovery should grep for
 `Copyright` unqualified, then read the hits.

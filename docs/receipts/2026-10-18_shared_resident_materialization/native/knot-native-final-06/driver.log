@@ -1,4 +1,0 @@
-live-native-reopen: runner exit 1
-live-native: RESULT ok
-live-native-reopen: RESULT fail
-standalone: RESULT ok

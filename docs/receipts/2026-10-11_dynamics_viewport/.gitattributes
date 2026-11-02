@@ -1,4 +1,0 @@
-# Preserve literal gate logs and native capture receipts.
-*.log -text -whitespace
-*.done -text -whitespace
-*.patch -text -whitespace

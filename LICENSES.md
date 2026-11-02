@@ -77,7 +77,7 @@ The owned launcher in `tools/knot-nomadnet-go` invokes a separately installed
 not link, vendor, copy or relicense that implementation. Reticulum-Go uses the
 Reticulum License; any distribution bundling the executable must retain its
 upstream license and notices. The
-[integration record](design_docs/2026-09-29_reticulum_go_backend.md) identifies
+[integration record](design_docs/archive_docs/2026-11-02/2026-09-29_reticulum_go_backend.md) identifies
 the researched revision and the scope of local runtime validation. Installing
 this launcher alone does not install or bundle Reticulum-Go.
 

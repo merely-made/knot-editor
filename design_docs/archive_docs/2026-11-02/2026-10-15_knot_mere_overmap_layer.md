@@ -1,7 +1,12 @@
 # Knot's resident mere as an overmap layer
 
+> **Archived 2026-11-02 (landed).** the resident mere as an overmap layer (`0c87e7c`, 2026-10-15), with the shared resident reader natively qualified in `1056059` (2026-10-18). The Status and "Not done" lines were corrected 2026-11-02 (native qualification of the layer passed). Open points moved: the choice of which mere a default launch should overlay, and the cross-platform, owner-restart, native-merge-visual and compact-layout gaps the records below leave out, are in the successor `2026-11-02_composition_retention_plan.md`. Receipts and the old-to-main hash table: [2026-10-15_knot_mere_overmap_layer_receipts.md](../receipts/2026-10-15_knot_mere_overmap_layer_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 Status: implemented; Knot checks and the Djinn round trip pass (below). Native
-foreground qualification of the layer in a running Knot is not done.
+foreground qualification of the layer in a running Knot passed on macOS the same day
+([rendering](2026-10-15_knot_overmap_layer_rendering.md); receipt
+`Code/testing/knot-editor/receipts/2026-10-15_mere_overmap_live/README.md`), and the shared
+resident reader was natively qualified on 2026-10-18 (below). Corrected 2026-11-02.
 
 Shared source: Mere `19573b513d3809290973a0342b530091e8ca7ba1` (the application
 door, Mere stack lift plan P1), Genet `ae3d9f5d`, Murm `3d9e799f`, Netrender
@@ -57,8 +62,8 @@ above it: sessions as containers, archives on them.
   it, reads the codicil back, opens it, and has an unadvertised Compose
   declined before it reaches the route.
 
-Not done: a native capture of the layer in a running Knot with Djinn, and any
-choice of which mere a default launch should overlay.
+Not done: any choice of which mere a default launch should overlay. (The native capture
+of the layer in a running Knot with Djinn was taken the same day; see the Status.)
 
 
 ## Catalog fold curation (2026-10-16)
@@ -82,7 +87,7 @@ selection refuses overlaps. History is bounded and session-local; records,
 member identity and placement survive process reopen. Fold feedback is separate
 from catalog failures, so a success cannot invent or overwrite an owner error.
 
-The [consumer receipt](../docs/receipts/2026-10-16_catalog_folds/README.md) records
+The consumer receipt (`Code/testing/knot-editor/receipts/2026-10-16_catalog_folds/README.md`) records
 both native processes, eight reviewed captures, unchanged source-reading and
 member-position fingerprints, byte-equivalent source files, and restored fold
 identity. It also records the coherent Mere source update and the small
@@ -93,6 +98,6 @@ technology and device-recovery qualification remain separate.
 
 ## Shared resident materialization (2026-10-18; qualified)
 
-Mark authorized adoption of Mere's common reader alongside Cleromancy. The owning contract is `mere/design_docs/2026-10-18_resident_materialization_plan.md`. Knot consumes `mere_overmap::materialization::read` in `ProjectionOnly` mode and keeps its catalog graph, merge choices and action routing. Repeated snapshot/card/pending-media decoding is removed. A failed refresh clears cached owner actions; the new regression checks that no stale request reaches the wire. Supplier intake, focused software checks and bounded native save/archive/fresh-client reopening are qualified below. The isolated checkout excludes primary Knot's active source-edit changes; all prior receipts retain their original identities.
+Mark authorized adoption of Mere's common reader alongside Cleromancy. The owning contract is `repos/mere/design_docs/archive_docs/2026-10-28/2026-10-18_resident_materialization_plan.md`. Knot consumes `mere_overmap::materialization::read` in `ProjectionOnly` mode and keeps its catalog graph, merge choices and action routing. Repeated snapshot/card/pending-media decoding is removed. A failed refresh clears cached owner actions; the new regression checks that no stale request reaches the wire. Supplier intake, focused software checks and bounded native save/archive/fresh-client reopening are qualified below. The isolated checkout excludes primary Knot's active source-edit changes; all prior receipts retain their original identities.
 
-The [final consumer qualification](../docs/receipts/2026-10-18_shared_resident_materialization/QUALIFICATION.md) records source `d4ac777`, shared supplier `500bc78a7`, the retained Genet cohort, seven final overlay regressions, successful desktop build and three native processes with seven reviewed originals. A fresh Knot process reads the saved archive, opens its thaw and explicitly forks it; the final disclosed reading has five sessions and one fork. The shared top-only dashed divider was corrected to supported solid paint. The original text-only fork assertion and failed diagnostic variants remain preserved; a supplementary scenario additionally checks counts and opens the actual fork card by stable resident ID before the original name assertion. Owner restart, native merge visuals and compact layout remain outside this bounded receipt. All prior evidence remains byte-identical. Incoming source-edit work was merged intact; primary active checkouts were not modified.
+The final consumer qualification (`Code/testing/knot-editor/receipts/2026-10-18_shared_resident_materialization/QUALIFICATION.md`) records source `d4ac777`, shared supplier `500bc78a7`, the retained Genet cohort, seven final overlay regressions, successful desktop build and three native processes with seven reviewed originals. A fresh Knot process reads the saved archive, opens its thaw and explicitly forks it; the final disclosed reading has five sessions and one fork. The shared top-only dashed divider was corrected to supported solid paint. The original text-only fork assertion and failed diagnostic variants remain preserved; a supplementary scenario additionally checks counts and opens the actual fork card by stable resident ID before the original name assertion. Owner restart, native merge visuals and compact layout remain outside this bounded receipt. All prior evidence remains byte-identical. Incoming source-edit work was merged intact; primary active checkouts were not modified.

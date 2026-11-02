@@ -136,7 +136,7 @@ The October 11 authored-placement continuation extends retained save/reopen
 scenarios with keyboard placement, undo/redo, authored-position/trace-step
 assertions, and a placement-controls capture at each width. Presentation v3
 retains a shared source-bound scene trace; full source bytes must still remain
-unchanged. The [October 11 consumer receipt](../docs/receipts/2026-10-11_authored_scene/README.md)
+unchanged. The October 11 consumer receipt (`Code/testing/knot-editor/receipts/2026-10-11_authored_scene/README.md`)
 records six captures per wide/compact save/reopen process plus two focused
 controls/history captures at each width: 28 inspected captures. The focused
 `relationship_scene_placement_controls*.scn` replays use an already retained
@@ -197,9 +197,13 @@ then that same profile in a fresh process for reopening.
 The mere overmap scenarios (`overmap_live.scn`, `overmap_live_reopen.scn`,
 `overmap_standalone.scn`) need a live Djinn resident: Mere's
 `knot_overmap_live_host` example serves a disposable public-test-key fixture.
-`docs/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh` starts it,
+`Code/testing/knot-editor/receipts/2026-10-15_mere_overmap_live/run_overmap_live.sh` starts it,
 runs the three scenarios in order (seed, fresh-process reopen, standalone
-after the fixture stops) and stops every process it started.
+after the fixture stops) and stops every process it started. The script now lives outside
+the repository (see `design_docs/DOC_POLICY.md`, "Archive and receipts"); it and the other moved
+receipt scripts locate this repository from their own path (`parents[3]` or `$KNOT_SRC`), so run
+them with the repository root supplied explicitly or copy them back into a `docs/receipts/<name>/`
+folder first.
 
 
 `workspace_forme.scn` and `workspace_forme_reopen.scn` exercise the shared Platen
@@ -212,6 +216,6 @@ override small authored ratio changes. The first run opens and pins Preview, dra
 context navigation's already-restored pinned Preview and explicitly Unlocks to load
 0.45, then Discards back to the ordinary live arrangement. It does not claim
 automatic document reopening, pointer dragging or saved layout undo controls.
-The [Forme receipt runner](../docs/receipts/2026-10-29_forme_workspace/run_native.py)
+The Forme receipt runner (`Code/testing/knot-editor/receipts/2026-10-29_forme_workspace/run_native.py`)
 creates the isolated profile and fixture, requires both successful process exit
 and scenario completion, and adds a default-settings compact native check.

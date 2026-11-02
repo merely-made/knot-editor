@@ -1,5 +1,7 @@
 # Typography slice
 
+> **Archived 2026-11-02 (landed).** bundled writer and reader typography with font-backed measures (`a8b58a2`, 2026-09-29). "Collapse remains the next slice" (Limits) is historical: Collapse was accepted in `ca2f58d`. No open points to extract; the hard-wrap limits are recorded design limits. Receipts and the old-to-main hash table: [2026-09-29_knot_typography_slice_receipts.md](../receipts/2026-09-29_knot_typography_slice_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 Date: 2026-09-29
 Status: Accepted; automated and native Typography checks passed.
 Base: Knot `65396c1`, following document-links acceptance.

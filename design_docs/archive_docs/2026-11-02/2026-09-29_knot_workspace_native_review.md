@@ -1,5 +1,7 @@
 # Workspace slice 1 native review
 
+> **Archived 2026-11-02 (landed).** workspace slice 1's native review closed (`7aad64e`, 2026-09-29; the Graph clip fix is `8820e20`). Open points moved: the whole-frame presentation follow-ups recorded below (toolbar displacement after a source click, the empty session column and obscured label in the last-tab graph, the cramped site footer and Close site control) are in the successor `2026-11-02_workspace_slice1_plan.md`, unverified since 2026-09-29. Receipts and the old-to-main hash table: [2026-09-29_knot_workspace_native_review_receipts.md](../receipts/2026-09-29_knot_workspace_native_review_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 **Date:** 2026-09-29
 **Result:** Steps 8 and 9 complete under the plan's fixed-or-recorded visual
 difference condition. Five native scenarios passed; six complete frames were
@@ -38,7 +40,7 @@ Two-site PNGs are `two-sites-serving.png` and `two-sites-serving-second.png`.
 All other PNG names match the scenario names in their directories.
 
 The original reference PNGs named by the
-[design pass](2026-09-23_knot_design_pass.md) were unavailable. Review used its
+[design pass](../../2026-09-23_knot_design_pass.md) were unavailable. Review used its
 annotated criteria, not an invented pixel comparison.
 
 ## Native failure found and fixed

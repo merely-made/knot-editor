@@ -1,5 +1,7 @@
 # Commands slice
 
+> **Archived 2026-11-02 (landed).** unified command catalog, palette and chrome (`6c57b92`), with native macOS palette acceptance recorded in `75c5c7c` (2026-09-29). Open points moved to the live [design pass](../../2026-09-23_knot_design_pass.md) (section "Carried from archived slice records"): macOS native menus (slice 6, already its open item) and the Windows/Linux window-manager and native-accessibility receipts named under "Remaining validation limits". The body's "Ready for integration into Knot main" is historical: it merged. The source-selection paint spill it mentions was repaired in the Collapse slice. Receipts and the old-to-main hash table: [2026-09-29_knot_commands_slice_receipts.md](../receipts/2026-09-29_knot_commands_slice_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 Date: 2026-09-29
 Status: Implemented; automated and native macOS palette acceptance passed.
 Ready for integration into Knot main.
@@ -14,7 +16,7 @@ before repinning; choosing either existing Mere pin alone would drop work.
 
 ## Scope
 
-Implement slice 2 from the [design pass](2026-09-23_knot_design_pass.md#slice-order):
+Implement slice 2 from the [design pass](../../2026-09-23_knot_design_pass.md#slice-order):
 one command catalog, the palette, a shared Cambium menu bar, and Windows/Linux
 client-drawn title-bar integration. Commands retain ids, shortcuts, disabled
 reasons and children across their surfaces. Existing document and site action

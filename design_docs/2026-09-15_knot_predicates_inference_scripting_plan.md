@@ -530,13 +530,13 @@ reference and a shared suggestion sink, so they land last.
 
 - [Workspace plan](2026-09-05_knot_application_workspace_plan.md): ownership
   gate, G1 to G3, settings boundaries.
-- [Design pass brief](2026-09-13_knot_design_pass_brief.md) and the design
+- [Design pass brief](archive_docs/2026-11-02/2026-09-13_knot_design_pass_brief.md) and the design
   project's turn 3: the rendering and authority boundary.
 - Mere: `crates/script/rhai`, `crates/conatus/numen/src/rhai_bindings.rs`,
   `crates/graph/linked-data/src/statements.rs`,
   `crates/graph/linked-data/src/vocab.rs` (the CiTO alignment table),
   `crates/graph/graph-kernel/src/graph/edge_data.rs`, `crates/intel/esp`,
-  `design_docs/intel_docs/technical_architecture/2026-08-09_feature_target_matrix.md`.
+  `repos/mere/design_docs/intel_docs/technical_architecture/2026-08-09_feature_target_matrix.md`.
 
 
 ## Mere link-model P2 projection continuation, 2026-10-15
@@ -556,7 +556,7 @@ the store. Existing legacy checkpoint byte/digest controls cover missing fields.
 The consumer adapter belongs to Djinn in Mere: endpoint admission is by exact
 document id/head, and importing a reading does not grant mutation rights in
 Knot. That integration's owner, phase status and receipts remain in
-`mere/design_docs/mere_docs/implementation_strategy/2026-10-15_link_model_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-10-15_link_model_plan.md`.
 Desktop authoring and automatic resident synchronization are separate work.
 
 Checks: locked/offline `knot-editor --lib` passes 150 tests with one existing

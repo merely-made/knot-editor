@@ -1,7 +1,7 @@
 # Knot Application Workspace Plan
 
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; the next workspace sequence is scoped below, while headed acceptance and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; the multi-document workspace sequence scoped below was delivered by [workspace slice 1](2026-09-23_knot_workspace_slice1_plan.md), [local recovery](archive_docs/2026-11-02/2026-09-29_knot_local_recovery_plan.md) and the Commands, document-links, Typography and Collapse slices (corrected 2026-11-02); headed acceptance, A3, A4 and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Application appearance adoption, 2026-10-09
@@ -63,7 +63,7 @@ No new GPU reset occurred during these runs.
 The rejected pre-repair 420-pixel header receipts remain preserved. Initial
 claims of missing labels during image review were retracted after independent
 decoded pixel-region checks proved the glyphs present; no paint-loss fix is
-claimed. The checked-in [acceptance ledger](validation/2026-10-10_tabard_application_acceptance.json)
+claimed. The checked-in acceptance ledger (`Code/testing/knot-editor/validation/2026-10-10_tabard_application_acceptance.json`)
 records exact receipt and image hashes. Original scroll, focus, document and
 font assertions remain unchanged. This qualifies the tested macOS native lanes;
 Windows/Linux presentation, live screen-reader/IME and native export chooser
@@ -98,10 +98,10 @@ when they have a product-owned snapshot and effect boundary.
 
 | Concern | Existing Knot authority or API | Current standalone surface | Required application work |
 | --- | --- | --- | --- |
-| Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents, recovery, and headed acceptance. Djot is the default authoring route. |
+| Source editing | `KnotDocumentSession` delegates to the one Cambium `TextInput`; `KnotEditor` retains file identity and baseline bytes for guarded writes. | Single-document New/Open/Save/Save As/Reload/Compare, a caller-entered path, shortcuts, and dirty-transition prompts. | Multiple documents and recovery were delivered after this table was written (workspace slice 1, local recovery); headed acceptance remains. Djot is the default authoring route. |
 | Derived readings | Outline, preview, and fold snapshots remain bound to the retained source and address. Existing `engine` APIs derive highlights, folds, and preview from that source buffer. | Optional live heading outline; desktop Djot/Knot source decoration, read-only visual folds, and Tinct appearance controls; optional live preview whose rendered headings select exact source spans. | Source ranges for every preview block, cross-launch preferences, and headed writing acceptance. |
 | Lexical lenses | `rosette::project_rosette` returns source-addressable rhyme, stanza, meter, and lexicon-coverage readings with configurable geometry. | Not mounted. | An optional lens panel and source selection bridge. Rosette remains read-only and derived. |
-| Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | The current source can bind to a configured root-scoped file catalog and prepare an exact saved revision; there is no chooser, document list, vault list, or search view. | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
+| Files, vaults, and search | File sessions, `KnotVault`, and disk/vault search are separate authority APIs. | The current source can bind to a configured root-scoped file catalog and prepare an exact saved revision; there is no vault list or search view. (The Navigator tile, `apps/desktop/src/navigator.rs`, now lists catalog records and opens or activates the available ones.) | A source adapter and document navigator that reports unavailable/locked/denied states without guessing authority. |
 | Evidence | Clip provenance parses portable content references; host-injected stores retain and verify exact bytes; Web Annotation selectors preserve source and quote/position anchors. | No evidence affordance. | A clip/reference panel that can insert, inspect, fetch, and verify only through an admitted evidence authority. |
 | Revisions and replication | `KnotDocumentProjection` exposes causal heads, conflicts, automatic text merges, and pending operations. | No revision or conflict view. | A review panel and explicit resolve flows. Titled drafts are a product capability still to be designed, not an existing sync type. |
 | Publishing and sharing | Publication candidates, pinned-head tickets, recipient delegation, and revocation APIs exist. | No publishing interface. | A share flow that states what exact revision is offered, to whom, for how long, and whether it remains available. |
@@ -939,7 +939,7 @@ restoration, or a universal dashboard to ship the safe writing cut.
   column, then the label; a search row submits through its
   `InlineSpan::Submit`) is the fuller fix. `scroll_site.rs` already has a
   wildcard. Recorded in Mere's
-  `design_docs/nematic_docs/implementation_strategy/2026-07-01_smolweb_fidelity_plan.md`, §7.
+  `repos/mere/design_docs/archive_docs/2026-10-28/2026-07-01_smolweb_fidelity_plan.md`, §7.
 - 2026-10-06 received from Mere's S14 archive pass (Mere rulings S60 and
   S69): Mere archived its Knot shared surface and port contribution plan
   (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-24_knot_shared_surface_and_port_contribution_plan.md`). F0,
@@ -949,7 +949,7 @@ restoration, or a universal dashboard to ship the safe writing cut.
   should move to pandect's `write_bytes_with_backup` (its 2026-08-26 follow-up
   under C3); `crates/knot-editor/src/settings.rs` still removes the old file,
   then renames. No Knot plan named it; it is noted here beside the settings
-  boundaries. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+  boundaries. Recorded in Mere's archived plan tails plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
 - 2026-09-23 design pass: the layout rulings, frames and stylesheet proposal
   are in [the design pass](2026-09-23_knot_design_pass.md), and its slice
   order, ruled the same day, now orders the "Scoped next sequence" above.
@@ -1461,10 +1461,10 @@ restoration, or a universal dashboard to ship the safe writing cut.
 - [`2026-08-24_knot_shared_surface_and_port_contribution_plan.md`](2026-08-24_knot_shared_surface_and_port_contribution_plan.md)
 - [`2026-09-01_knot_editor_repository_extraction_plan.md`](2026-09-01_knot_editor_repository_extraction_plan.md)
 - `mere/design_docs/mere_docs/research/2026-08-19_knot_lane_brief.md`
-- `mere/design_docs/cambium_docs/implementation_strategy/2026-08-31_workbench_component_plan.md`
-- `mere/design_docs/cambium_docs/implementation_strategy/2026-07-15_component_catalog_growth_plan.md`
-- `mere/design_docs/cambium_docs/implementation_strategy/2026-09-03_host_ui_zoom_plan.md`
-- `mere/design_docs/mere_docs/implementation_strategy/2026-08-15_projection_grammar_adoption_plan.md`
+- `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-31_workbench_component_plan.md`
+- `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-07-15_component_catalog_growth_plan.md`
+- `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-09-03_host_ui_zoom_plan.md`
+- `repos/mere/design_docs/archive_docs/2026-10-28/2026-08-15_projection_grammar_adoption_plan.md`
 
 
 ## Saved-source research note intake — 2026-10-18

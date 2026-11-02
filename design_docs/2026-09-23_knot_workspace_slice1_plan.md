@@ -4,7 +4,7 @@
 **Status:** Slice 1 complete with recorded visual differences. Steps 7d, 7e
 and 8 are implemented; step 9's five native scenarios pass, and all six
 captured frames have been reviewed. See the
-[native receipt review](2026-09-29_knot_workspace_native_review.md).
+[native receipt review](archive_docs/2026-11-02/2026-09-29_knot_workspace_native_review.md).
 The step 7c scenario-scroll follow-up and the Taproot/Mesquite runner
 unification are recorded below.
 Assessment and initial rulings were made 2026-09-23.
@@ -1675,5 +1675,5 @@ state, source identity, catalog graph or source undo is part of a layout save.
   production hooks and default appearance, checking canonical and saved-record
   preservation through 3000px to 320px to 3000px presentation, with the rendered
   divider restored within one pixel. The locked/offline all-targets check and
-  desktop build pass. [Native evidence and limits](../docs/receipts/2026-10-29_forme_workspace/README.md)
+  desktop build pass. Native evidence and limits (`Code/testing/knot-editor/receipts/2026-10-29_forme_workspace/README.md`)
   record the separate-process save/reopen and default compact review.

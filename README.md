@@ -23,6 +23,9 @@ the document presentation and desktop host.
 - `crates/knot-composition`: selected-material schema, host-issued collection
   capability, legacy import and offline WordNet conversion. Desktop collection
   records live in Knot's signed, sealed mere, not a separate plaintext store.
+- `crates/knot-readings`: the sandboxed rhai reading lane over typed document
+  snapshots, the Mora sound reading and the portable metre scene exporter
+  (below).
 - `crates/knot-editor`: file, vault, evidence, sync, publishing, and
   Graphshell-facing authority.
 - `apps/desktop`: the standalone native host for `knot-document`.
@@ -147,7 +150,7 @@ page paths; external links and section jumps are displayed but not followed.
 The engine reports its input-link rendering limitation in the preview.
 
 Validation and the independent-client receipt are recorded in the
-[Scroll site plan](design_docs/2026-09-11_scroll_site_authoring_plan.md).
+[Scroll site plan](design_docs/archive_docs/2026-11-02/2026-09-11_scroll_site_authoring_plan.md).
 Run the reusable site's focused tests with
 `cargo test --manifest-path crates/knot-site/Cargo.toml`.
 
@@ -219,7 +222,7 @@ For a Python-free runtime, the optional
 already-installed Reticulum-Go page server with a private copy of the saved
 pages. You supply the server's config and persistent identity path explicitly.
 
-The [backend independence plan](design_docs/2026-09-29_nomadnet_backend_independence.md)
+The [backend independence plan](design_docs/archive_docs/2026-11-02/2026-09-29_nomadnet_backend_independence.md)
 separates local tests from independent-client and constrained-network acceptance.
 Test the site library with both configurations:
 
@@ -298,8 +301,9 @@ and author-only retraction history. Assertion and retraction projections retain
 their optional author-signed record times; missing times stay unknown. These
 records remain separate from document
 replacement and from graph presentation. Hosts must supply admitted document ids
-for filtered relation reads. The desktop does not yet expose link authoring;
-graph views remain planned work.
+for filtered relation reads. The desktop does not yet expose link authoring.
+A catalog graph view (documents as nodes, extracted links as edges) fills the centre when
+no document is open; other graph views remain planned work.
 
 Hosts can opt into durable ordinary-file identities with `KnotFileCatalog` and
 `DirectorySource::with_catalog`, then serve that source through
@@ -373,7 +377,9 @@ feature enables the real resident integration fixture; default desktop builds
 keep the editor runtime dependency disabled.
 
 The source history was extracted from Mere with path-preserving Git history.
-The earlier plans and receipts remain under [`design_docs`](design_docs) and
-[`crates/knot-editor/docs`](crates/knot-editor/docs).
+The earlier plans remain under [`design_docs`](design_docs), archived ones in
+`design_docs/archive_docs/`; three older receipts remain in
+[`crates/knot-editor/docs`](crates/knot-editor/docs). Run receipts live outside the repository, in
+`Code/testing/knot-editor/` (see [`design_docs/DOC_POLICY.md`](design_docs/DOC_POLICY.md)).
 
 Knot Editor is licensed under MPL-2.0.

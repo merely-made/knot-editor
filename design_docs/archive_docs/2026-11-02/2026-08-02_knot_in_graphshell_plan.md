@@ -1,7 +1,9 @@
 # Knot in Graphshell Plan
 
+> **Archived 2026-11-02 (landed).** K0 to K3 complete (K3 kept the spawn path in `c8c4bed`, 2026-08-06; K2's physical two-machine receipt closed in `b916568`, 2026-08-08). Mere's archived copy is a twin; this copy is canonical. Open points moved: Knot search on the hybrid seam (S0 lexical index, S1 fuse; approved 2026-08-02, not built: no `fuse` call exists in `crates/knot-editor/src`) is in the successor `2026-11-02_predicates_plan.md`; the reverse-direction reachability defect and the static writer allowlist (a Moot-scoped Knot lane) are in the successor `2026-11-02_publishing_plan.md`; the "one immutable revision" pin question is in the [extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md). Dead Mere-layout links repaired 2026-11-02. Receipts and the old-to-main hash table: [2026-08-02_knot_in_graphshell_plan_receipts.md](../receipts/2026-08-02_knot_in_graphshell_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 > **Repository note (2026-09-01):** this is a historical integration record.
-> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> The [repository extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md)
 > is the current repository authority; `ports/knot` paths below name the
 > original Mere layout when each receipt landed.
 
@@ -15,7 +17,7 @@ path deliberately.
 
 **2026-08-20 topology addendum:** K3's stdio carrier remains a conformance and
 isolated-deployment proof. Its persona-vault production topology is superseded
-by the [device resident consolidation plan](2026-08-20_device_resident_consolidation_plan.md):
+by the device resident consolidation plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-08-20_device_resident_consolidation_plan.md`):
 one logical resident owns personal Knot authoring, sync, and content, while
 Turnstone and standalone Knot consume or embed that resident.
 
@@ -25,7 +27,7 @@ The visitor was admitted, mounted `Knot`, saved, heard the unseen revision,
 remained live, read back exactly what it wrote from Q-PC's file, closed, and
 exited zero. Both native runners used the same source snapshot and lockfile.
 See the
-[K2 physical two-machine receipt](../../../ports/knot/docs/2026-08-08_k2_physical_two_machine_receipt.md).
+[K2 physical two-machine receipt](../../../crates/knot-editor/docs/2026-08-08_k2_physical_two_machine_receipt.md).
 
 The reverse Windows-holder to Q-PC-visitor direction timed out before
 admission and left the file unchanged. That direction remains a reachability
@@ -45,7 +47,7 @@ Both devices set `K2_OWNER` and `K2_NETWORK` to the same value and `K2_SEED` to
 different ones. The Knot search section below is independent of K0-K3 and does
 not block archiving of the hosting work.
 **Related:** the
-[carrier seam plan](../../archive_docs/2026-08-06_completed_plans/2026-08-01_graphshell_carrier_seam_plan.md), which this
+carrier seam plan (`repos/mere/design_docs/archive_docs/2026-08-06_completed_plans/2026-08-01_graphshell_carrier_seam_plan.md`), which this
 converges with — see "Why these are one move".
 
 ## The finding
@@ -308,7 +310,7 @@ still show what was there and no longer offer a save that cannot land.
 Windows visitor completed admission, mount, save, revision bell, live readback,
 and close over the ticketed p2panda carrier. The holder's file hash matched the
 captured Windows copy. See the
-[physical receipt](../../../ports/knot/docs/2026-08-08_k2_physical_two_machine_receipt.md).
+[physical receipt](../../../crates/knot-editor/docs/2026-08-08_k2_physical_two_machine_receipt.md).
 
 Three decisions were taken along the way, each forced by a compiler or a red
 test rather than chosen in the abstract.
@@ -451,7 +453,7 @@ weights demonstrably move the ranking.
 its copy of this plan (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-02_knot_in_graphshell_plan.md`) with K0
 to K3 complete. S0 and S1 above, and the "one immutable revision" pin question
 recorded in the [Knot port plan](2026-07-25_knot_port_plan.md), are owned by
-this copy. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+this copy. Recorded in Mere's archived plan tails plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
 
 ### Not part of this
 

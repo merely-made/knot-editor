@@ -262,7 +262,7 @@ features and 60 with the engine feature, each with one existing ignore and
 passing doc-tests. The third workspace ignore is Windows symbolic-link
 privilege; this cohort is separate from the preceding macOS qualification.
 
-The [current-family receipt](../docs/receipts/2026-10-07_current_family_repin/README.md)
+The current-family receipt (`Code/testing/knot-editor/receipts/2026-10-07_current_family_repin/README.md`)
 contains exact manifest rows, input and artifact hashes, source-identity metadata,
 raw commands/results and the failed notice bytes. Integration review approved
 publication; U9 remains ordered Knot then Redshank then Turnstone. Linux
@@ -674,7 +674,7 @@ zero failed, four existing ignored tests; standalone default/engine-highlight
 gates, optional inference-feature check, and native wide/compact save plus
 fresh-process reopen passed. All 28 captures were inspected, including focused
 placement controls and compact occurrence rows. See the
-[October 11 receipt](../docs/receipts/2026-10-11_authored_scene/README.md).
+October 11 receipt (`Code/testing/knot-editor/receipts/2026-10-11_authored_scene/README.md`).
 This extends the
 qualified retained static scene; it does not turn the compact reading overview
 into a live physics host or inferred ambient neighborhood.
@@ -750,11 +750,11 @@ position overrides, motion pins/anchors, and Forme layout locks remain distinct.
 ### Shared live-dynamics host continuation (2026-10-11)
 
 Status: published and qualified for the bounded macOS host slice. See the
-[live-dynamics receipt](../docs/receipts/2026-10-11_live_dynamics/README.md)
+live-dynamics receipt (`Code/testing/knot-editor/receipts/2026-10-11_live_dynamics/README.md`)
 for exact source, dependency identities, automated gates, native captures,
 fresh-process reopen, and preserved failures. Publication remains a separate
 Git operation.
-The [Windows consumer review](../docs/receipts/2026-10-11_relationship_consumer_review/README.md)
+The Windows consumer review (`Code/testing/knot-editor/receipts/2026-10-11_relationship_consumer_review/README.md`)
 adds real disclosed-edge and repeated-occurrence proof, coherent dependency
 identity, and 15 reviewed native captures across seed and fresh-process wide
 and compact reopen. It preserves the published runtime and its session/retained
@@ -794,7 +794,7 @@ scenes and Theme Workshop pause without automatic resume. A native surface's
 failed presentation also freezes playback on the next frame.
 
 Mark's subsequent ruling is **Preview; keep placement explicitly**. The
-[Keep placement continuation](../docs/receipts/2026-10-11_keep_motion_placement/README.md)
+Keep placement continuation (`Code/testing/knot-editor/receipts/2026-10-11_keep_motion_placement/README.md`)
 adds that action for a paused or finished preview. One Undo restores the whole
 prior placement, Redo restores the kept pose, and Retain still deliberately
 saves that recipe version. Complete-pose validation preserves copied occurrence
@@ -824,7 +824,7 @@ pause, unchanged authored recipe/source, and native wide/compact captures.
 Keep placement, undo, explicit retention and the existing presentation clock
 guard retain their semantics. The previous layout must fail the geometry
 regression test. Results belong to the new
-[viewport receipt](../docs/receipts/2026-10-11_dynamics_viewport/README.md).
+viewport receipt (`Code/testing/knot-editor/receipts/2026-10-11_dynamics_viewport/README.md`).
 
 **Progress:** the canvas now precedes compact Play/Pause/Keep controls, with full
 accessible action names preserved. A playback action requests one host-owned
@@ -847,7 +847,7 @@ placement gestures remain discrete source-bound edits, not implicit pose baking.
 ### Dynamics completion and refusal continuation (2026-10-11)
 
 **Status:** implemented and qualified on Windows after `156626f`. The
-[feedback receipt](../docs/receipts/2026-10-11_dynamics_status/README.md) records
+feedback receipt (`Code/testing/knot-editor/receipts/2026-10-11_dynamics_status/README.md`) records
 84 focused passing tests and 18 reviewed wide/compact native captures, separately
 from earlier full-workspace receipts. Firefox's private-window retry encountered
 the same Windows browser-policy block; its verification remains parked.
@@ -903,7 +903,7 @@ Acceptance requires actual sound-edge disclosure, duplicate source occurrences,
 shared edit/compile/refusal behavior, typed encrypted save/reopen, and bounded
 UI controls. Native qualification will identify the exact paths captured. See
 the cross-domain continuation in
-`mere/design_docs/mere_docs/implementation_strategy/2026-08-15_projection_grammar_adoption_plan.md`
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-08-15_projection_grammar_adoption_plan.md`
 for the common contract and Woodshed lane. Woodshed's current adoption is a
 wire-compatible retained session plus a standalone compiler instrument; visible
 host editing remains follow-on work. No domain facts or owner actions move into

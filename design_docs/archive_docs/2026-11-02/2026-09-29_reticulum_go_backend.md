@@ -1,5 +1,7 @@
 # Reticulum-Go backend for NomadNet publishing
 
+> **Archived 2026-11-02 (landed).** the external Reticulum-Go launcher, verified as an external-CLI integration (`49cd0fe`, 2026-09-29). Open points moved: the outstanding unknown-page negative-path check, and the unrun MeshChatX and constrained-radio acceptance, are in the successor `2026-11-02_small_web_plan.md`. Receipts and the old-to-main hash table: [2026-09-29_reticulum_go_backend_receipts.md](../receipts/2026-09-29_reticulum_go_backend_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 **Date:** 2026-09-29
 
 **Status:** Implemented and verified as an external-CLI integration.
@@ -43,14 +45,14 @@ Reticulum-Go uses the custom Reticulum License, which includes use and dataset r
 
 `go test -p 1 ./...` passed for the helper with Go 1.27.1. Unit coverage checks integer-array byte decoding, exact file-byte matching, executable/symlink and unlisted-file rejection, unsafe names, identity location, private staging, source-edit isolation, temporary-tree cleanup, and child exit propagation. The helper validated the exported three-page fixture (157 source bytes).
 
-The reproducible [loopback smoke script](../tools/knot-nomadnet-go/loopback_smoke.py) started the helper twice with the same explicit identity path. Python RNS requested `/page/index.mu` with no page variables and received response bytes equal to the exported file on both starts. The destination hash stayed `5a5ad2809cff574117f01ff2a083a1ba`; both instances exited cleanly on SIGTERM. The script creates temporary Go and Python configs with one UDP interface on 127.0.0.1 and removes its identity and configs on exit.
+The reproducible [loopback smoke script](../../../tools/knot-nomadnet-go/loopback_smoke.py) started the helper twice with the same explicit identity path. Python RNS requested `/page/index.mu` with no page variables and received response bytes equal to the exported file on both starts. The destination hash stayed `5a5ad2809cff574117f01ff2a083a1ba`; both instances exited cleanly on SIGTERM. The script creates temporary Go and Python configs with one UDP interface on 127.0.0.1 and removes its identity and configs on exit.
 
 Stock NomadNet 1.2.0 Browser, MicronParser and urwid widgets were exercised with
 a minimal headless application scaffold against the Go server. The test
 verified exact bytes and rendered headings for index, About and Notes, and
 activated the parser's native `:/page/...` links between them. This exercises
 stock browser components, not a full-screen interactive terminal session.
-The [browser harness](../tools/knot-nomadnet-go/nomadnet_browser_smoke.py) uses
+The [browser harness](../../../tools/knot-nomadnet-go/nomadnet_browser_smoke.py) uses
 the included three-page fixture and paired loopback-only UDP interfaces.
 
 A separate unknown-page request did not produce a rendered “Page Not Found”

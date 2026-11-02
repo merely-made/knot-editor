@@ -1,7 +1,9 @@
 # Knot Authoring Consumer Plan
 
+> **Archived 2026-11-02 (landed).** headed authoring acceptance closed in `031ee3f` (2026-07-27) and static selected-range clipping in `1a03f9c` (2026-07-28). Mere's archived copy is a twin; this copy is canonical. Open points moved: the optional headed Turnstone receipt of selected clips from the Livery and scripted producers (once those seams land) is in the successor `2026-11-02_shared_surface_plan.md`; the "one immutable revision" pin question is in the [extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md). Dead Mere-layout links repaired 2026-11-02. Receipts and the old-to-main hash table: [2026-07-27_knot_authoring_consumer_plan_receipts.md](../receipts/2026-07-27_knot_authoring_consumer_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 > **Repository note (2026-09-01):** this is a historical integration record.
-> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> The [repository extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md)
 > is the current repository authority; paths below retain the layout used by
 > the recorded receipts.
 
@@ -17,8 +19,8 @@ explicit selector without inventing one.
 
 **Companions:** the completed [Knot port plan](2026-07-25_knot_port_plan.md),
 the reconciled
-[Djot editor and clipping plan](../../archive_docs/2026-08-06_completed_plans/2026-06-24_djot_editor_knot_nodes_plan.md),
-the [Graphshell remote projection host plan](2026-07-22_graphshell_remote_projection_host_plan.md),
+[Djot editor and clipping plan](../2026-08-07/2026-06-24_djot_editor_knot_nodes_plan.md),
+the Graphshell remote projection host plan (`repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-07-22_graphshell_remote_projection_host_plan.md`),
 Genet's `docs/2026-07-25_text_editing_primitive_plan.md`, and the reconciled
 evaluation/export plan (`genet/design_docs/archive_docs/2026-09-02/2026-06-12_knot_evaluation_export_plan.md`).
 
@@ -423,7 +425,7 @@ its copy of this plan (`mere/design_docs/archive_docs/2026-10-06_completed_plans
 this copy owns what remains: an optional headed Turnstone receipt of selected
 clips from the Livery and scripted producers once those seams land, and the
 "one immutable revision" pin question recorded in the
-[Knot port plan](2026-07-25_knot_port_plan.md)'s progress log. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+[Knot port plan](2026-07-25_knot_port_plan.md)'s progress log. Recorded in Mere's archived plan tails plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
 
 ## Stop rules
 

@@ -1,5 +1,7 @@
 # Knot handoff for Codex, 2026-10-15
 
+> **Archived 2026-11-02 (closed out).** Handed off, then closed out (Mark, 2026-11-02: "Carry 2-3 into a cut plan, archive"). Task 1, the cross-repository repin round, was done on 2026-10-15 (`7ee24f9`), then superseded by the `branch = "main"` convention (`849838b`). Tasks 2 (capture the pending-merge card natively) and 3 (re-run the full Knot suite) became open items O3 and O4 with done-conditions in the successor `2026-11-02_composition_retention_plan.md`, which owns the overmap work. The snapshot, pins and counts below are as of 2026-10-15. Receipts and the old-to-main hash table: [2026-10-15_knot_codex_handoff_receipts.md](../receipts/2026-10-15_knot_codex_handoff_receipts.md).
+
 **Status:** handoff, written for a Codex agent to execute in order. Claude
 lanes did the design and most implementation on 2026-10-15. Mark moved
 implementation to Codex and kept Claude for design. Every decision below is
@@ -10,7 +12,7 @@ isn't written here, stop and ask Mark with concrete options.
 published at `0020a50e6`, and Mere's authenticated intake is P2-qualified. The
 Mere P3 Chartulary/shared Graphshell slice is published at `ee324e517`.
 Knot's receiving Readings consumer is now bounded-qualified on `e7b5c50` under the existing
-[composition readings plan](2026-09-30_knot_composition_readings.md). It uses a
+[composition readings plan](../../2026-09-30_knot_composition_readings.md). It uses a
 real signed personal relation projection through the shared opened-link swatch,
 with reviewed native seed/fresh-process reopen checks. The receipt separates the
 encrypted vault from the existing plaintext checkpoint limitation, now recorded
@@ -51,7 +53,7 @@ What landed today, oldest first:
 - **backstep.** `edit-history` was renamed to `backstep`
   (`recipe/history.rs`: `use backstep::History`). It is published on
   crates.io as 0.1.0.
-- **Native receipts.** `docs/receipts/2026-10-15_mere_overmap_live/`. The
+- **Native receipts.** `Code/testing/knot-editor/receipts/2026-10-15_mere_overmap_live/`. The
   latest is `tier-after-b19eebf/`. Its seed run is marked `RESULT fail` only
   because the presentation watchdog tripped after the last step; every
   assertion passed.
@@ -111,7 +113,7 @@ symlink; knot-document and knot-site are separate workspaces
 The overmap receipt has no capture of the pending-merge card, because the
 live fixture never makes a conflict.
 
-1. In Mere, extend `ports/djinn/examples/knot_overmap_live_host.rs`.
+1. In Mere, extend `repos/mere/ports/mere-resident/examples/knot_overmap_live_host.rs`.
    - Keep the `PUBLIC-TEST-KEYS-NOT-A-PERSONAL-WALLET` marker and public test
      keys only.
    - Seed one session, branch it (`MereSessions::branch_at`), then make

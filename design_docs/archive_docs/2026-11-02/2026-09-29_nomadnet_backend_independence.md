@@ -1,5 +1,7 @@
 # Backend-independent NomadNet publication
 
+> **Archived 2026-11-02 (landed).** For static Micron pages: backend-independent publishing with an exported snapshot (`49cd0fe`, 2026-09-29) and governed host and browser receiving (`1de9825`, 2026-10-22). Open points moved: the qualification matrix rows the record leaves unrun or gated separately (stock NomadNet and MeshChatX graphical-client checks, constrained-radio trials, independent reader implementations) are in the successor `2026-11-02_small_web_plan.md`. Receipts and the old-to-main hash table: [2026-09-29_nomadnet_backend_independence_receipts.md](../receipts/2026-09-29_nomadnet_backend_independence_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 ## Decision
 
 Knot owns native source and explicit saved publication snapshots. The network
@@ -68,7 +70,7 @@ those interoperability gates.
 - [RNS reference and recognized implementations](https://github.com/markqvist/Reticulum#community-implementations)
 - [MeshChatX hosting and page paths](https://github.com/Quad4-Software/MeshChatX/blob/master/docs/en/nomad-network.md)
 - [Reticulum-Go integration surfaces](https://reticulum-go.quad4.io/)
-- [Existing Knot native small-web plan](2026-09-11_small_web_authoring_plan.md)
+- [Existing Knot native small-web plan](../../2026-09-11_small_web_authoring_plan.md)
 
 Implementation and local validation results are recorded separately from the
 unrun independent-client matrix above.
@@ -139,7 +141,7 @@ the governed resident `1f660dcb4`. It preserves the exact 57-byte index and
 131,072-byte Resource, frames the registered Micron controller and follows its
 same-node link. The authoring directory is unavailable to the resident, and
 the existing V1, authority-transition and restart assertions also pass.
-[The process receipt](../support/receipts/smolweb-browser-receiving/process-graceful.json)
+[The process receipt](../../../support/receipts/smolweb-browser-receiving/process-graceful.json)
 names both executable hashes and the unchanged limits. The earlier failed
 attempt remains in `process.json`: client teardown dropped queued proof/close
 packets. The browser now drains its endpoint inside the existing deadline;
@@ -148,6 +150,6 @@ First-phase host shutdown joins all three sessions without cancellation.
 
 The fixture also passes against the current-code Turnstone port `a622c9607`,
 which preserves upstream `8eebb5a3` and has 70 passing focused product checks.
-[The integrated process receipt](../support/receipts/smolweb-browser-receiving/process-integrated.json)
+[The integrated process receipt](../../../support/receipts/smolweb-browser-receiving/process-integrated.json)
 records the new browser executable `4ef1b302…61757`, the same governed host,
 exact index/Resource bytes and the same clean three-session handoff.

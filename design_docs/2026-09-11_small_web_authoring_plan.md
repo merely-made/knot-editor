@@ -93,7 +93,7 @@ is retained separately. Set `DJINN_MOOT_SITE_EXE` to the qualified executable an
 run the three ignored process tests with features `runtime-acceptance,retinue`.
 
 Scope and host done-conditions are in Mere's
-[shared site plan](https://github.com/merely-made/mere/blob/main/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md#governed-micron-resident-2026-10-22).
+[shared site plan](https://github.com/merely-made/mere/blob/main/design_docs/archive_docs/2026-10-28/2026-10-20_shared_site_model_plan.md#governed-micron-resident-2026-10-22).
 Browser receiving and client limits, Python/Go, radio and cross-machine acceptance
 remain separate. Whole-task retained evidence is capped at 100 MB across repos.
 
@@ -193,7 +193,7 @@ reuse the stable Knot target. Desktop button/identity-picker integration remains
 a separate consumer gate; the explicit CLI is this slice's first product caller.
 
 Canonical runtime plan and findings:
-`mere/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-10-20_shared_site_model_plan.md`.
 
 The opt-in `runtime-acceptance` feature enables
 `tests/moot_site_runtime.rs`. Set `DJINN_MOOT_SITE_EXE` to the built resident and
@@ -217,7 +217,7 @@ resident source `527136589`.
 **Status (2026-10-21):** landed. Mark authorized explicit record/list/load site revisions
 over the shared model, with Knot as first consumer and snapshot V1 unchanged.
 Canonical supplier plan:
-`mere/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-10-20_shared_site_model_plan.md`.
 
 The `knot-site/history` feature captures saved manifest/source through
 `Site::checkpoint`; it reopens saved files so hand edits are included while
@@ -276,8 +276,11 @@ emphasis, ordinary links and tables, and a saved-snapshot NomadNet server.
 Full presentation fidelity and partial refresh remain open. Micron request-form
 editing and explicit remote submission have focused automated receipts below and
 a headed acceptance taken the same day against a controlled request handler and
-a real stock `nomadnet` 1.4.2 node; response-cap ordering, configurable request
-bounds and two preview-pane defects remain open from it.
+a real stock `nomadnet` 1.4.2 node. Follow-up commits closed its findings: response-size
+checking before unpacking (`a45707d`), configurable request bounds (`7722ede`), the preview
+scroll report (`ffb508e`, pinned by a test) and the stale reply (`7069d38`). One layout
+question remains open from it: whether the preview pane should scroll independently of the
+source pane (see the Findings below); multi-segment responses stay a separate transport gate.
 Scroll baseline is landed at `6fcd7e4`.
 
 ## Scope and ownership
@@ -347,7 +350,7 @@ and retains file discovery, templates, checked saves and protocol-serving
 adapters. Existing V1 bytes, digests, native metadata and bounds are preserved.
 Djinn imports the snapshot contract directly from the shared crate. The canonical
 scope and validation record is
-`mere/design_docs/mere_docs/implementation_strategy/2026-10-20_shared_site_model_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-10-20_shared_site_model_plan.md`.
 Site identity, revision history, replication and new actor adapters remain later
 slices; this extraction does not move vault or editor authority.
 
@@ -361,7 +364,7 @@ cases and 22 cases with Retinue, including loopback serving and replacement.
 ## Persistent serving ownership and rollout boundary
 
 The canonical ownership proposal is
-`mere/design_docs/mere_docs/implementation_strategy/2026-08-22_djinn_family_resident_services_plan.md`,
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-08-22_djinn_family_resident_services_plan.md`,
 section 13. It compares Knot-owned serving, Djinn-held ordinary snapshots, and
 Djinn-supervised governed hosting. The preferred persistent step is explicit
 snapshot handoff to Djinn while keeping ordinary sites independent of Gemot.
@@ -377,13 +380,13 @@ No foreign theme exporter or Gemini stylesheet mechanism is implied here.
 
 **2026-09-13 scope consolidation:** Tabard's verified external contracts,
 native reader adapter and foreign-export done-conditions now live in
-`mere/design_docs/mere_docs/implementation_strategy/2026-07-05_theme_modes_plan.md`,
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-05_theme_modes_plan.md`,
 section "Tabard small-web adapters (2026-09-13 scope)". Knot owns the selection,
 preview and persistence consumer, with `apps/desktop/src/appearance.rs` as its
 current palette seam. A reader setting does not change published author CSS.
 
 The next shared Micron presentation and interaction scope lives in
-`mere/design_docs/nematic_docs/implementation_strategy/2026-07-01_smolweb_fidelity_plan.md`,
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-01_smolweb_fidelity_plan.md`,
 section "Micron completion scope (2026-09-13)". Knot supplies headed authoring and
 preview receipts alongside Turnstone's browsing receipt. Djinn's first resident
 acceptance is an explicitly handed-off saved Gemini snapshot that remains
@@ -813,7 +816,7 @@ resident-services plan. A desktop publish-to-Djinn action is still separate.
 ## Micron navigation consumer (2026-09-16)
 
 This is Knot's half of phase A1 in Mere's
-`design_docs/nematic_docs/implementation_strategy/2026-09-15_micron_navigation_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-09-15_micron_navigation_plan.md`.
 It is on branch `micron-nav-a1`: the bump in `6157a0c`, preview folding in
 `4680eb5`, and this record. Stock behaviour, the fold-extent rules and the
 decision numbers below are that plan's.

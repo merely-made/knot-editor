@@ -1,5 +1,7 @@
 # Custody and projection client receiver
 
+> **Archived 2026-11-02 (landed).** custody-client and projection-door receiver, published with focused overlay, peer-enabled host compilation and secure publishing tests passed (`e4810ef`, 2026-10-29; `d0bcdda`, `704084d`). Evidence paths and the lock receipts are in the receipts file below. No open points to extract. Receipts and the old-to-main hash table: [2026-10-29_custody_projection_receiver_receipts.md](../receipts/2026-10-29_custody_projection_receiver_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 Status: Published; focused overlay, peer-enabled host compilation and secure publishing tests passed.
 
 Knot now selects custody-client and projection-door explicitly. Projection

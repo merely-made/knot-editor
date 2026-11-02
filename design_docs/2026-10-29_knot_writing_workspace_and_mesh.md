@@ -47,9 +47,9 @@ that contract and still needs receiving checks for selection, IME and undo.
 | Find usages | The Links reading already has backlinks bounded to open documents. Extend to admitted project passages and quotes, with inline results and explicit coverage. |
 | Peek | Add an in-place, source-labelled linked-passage expansion. Current Open target navigates. |
 | Problems | Aggregate reading findings across admitted project members. Preserve each finding's document, source version, provenance and stale status. |
-| Breadcrumbs | [Contextual navigation](2026-10-23_knot_context_navigation.md) already provides nested outline ancestry and shared navigation controls. Refine placement and presentation from this baseline. |
+| Breadcrumbs | [Contextual navigation](archive_docs/2026-11-02/2026-10-23_knot_context_navigation.md) already provides nested outline ancestry and shared navigation controls. Refine placement and presentation from this baseline. |
 
-The [document links plan](2026-09-29_knot_document_links_slice.md),
+The [document links plan](archive_docs/2026-11-02/2026-09-29_knot_document_links_slice.md),
 [link workflow](../apps/desktop/src/link_workflow.rs) and
 [reading presentation](../apps/desktop/src/readings.rs) are the existing seams.
 

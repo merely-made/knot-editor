@@ -1,7 +1,9 @@
 # Knot Port Plan
 
+> **Archived 2026-11-02 (landed).** K0 to K7 landed on 2026-07-27 (`d320d0a` "Complete the Knot port ladder", `11bdbe4`; reconciled in `fe3d873`). This repository took the plan with its history in the extraction (`b84936c`), and Mere's source copy was removed in mere `c0a4ed14ec0`. Mere's archived copy is a twin; this copy is canonical (DOC_POLICY addendum). One open point moved: the "one immutable revision" pin question (Progress, 2026-10-06) is now an open question in the [extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md). Corrections made 2026-11-02: the Genet primitive's remote-checkout gate (closed), and dead Mere-layout links repaired. Receipts and the old-to-main hash table: [2026-07-25_knot_port_plan_receipts.md](../receipts/2026-07-25_knot_port_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 > **Repository note (2026-09-01):** this is a historical source-layout record.
-> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> The [repository extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md)
 > is the current authority; `ports/knot` paths below name the original Mere
 > layout when each receipt landed.
 
@@ -14,20 +16,21 @@ exact causal versions it replaces. Personal vault sync and communal
 multi-member Knot are separate signed encryption profiles; communal documents
 use retained Commons data-key epochs. Graphshell protocol 1.1 now carries the
 payload-free revision bell Knot's native watcher needed. K7's Cambium text
-primitive is committed on local Genet `main` at `44e291afe8b`; publishing that
-commit remains the clean remote-checkout gate.
+primitive was committed locally at `44e291afe8b`; the same commit is on Genet `main` as
+`6ad0de39600` ("Land the shared text editing primitive", 2026-07-27), so the clean
+remote-checkout gate it named is closed (corrected 2026-11-02).
 
 **Companions:** genet's
 [pelt and knot direction](https://github.com/merely-made/genet/blob/main/docs/2026-07-24_pelt_knot_direction.md)
 (the text-editing ruling and knot's destination) and its
 [pelt port boundary](https://github.com/merely-made/genet/blob/main/docs/2026-07-24_pelt_port_boundary.md),
-the [application prospects brief](../../2026-07-24_application_prospects_brief.md)
+the application prospects brief (`repos/mere/design_docs/2026-07-24_application_prospects_brief.md`)
 (the composition thesis this port instantiates), the
-[shared-engram commons brief](../research/2026-07-24_shared_engram_commons_brief.md)
+shared-engram commons brief (`repos/mere/design_docs/mere_docs/research/2026-07-24_shared_engram_commons_brief.md`)
 (knot as page content class and the settled convergence/key decisions), and the
-[Graphshell remote projection host plan](2026-07-22_graphshell_remote_projection_host_plan.md)
+Graphshell remote projection host plan (`repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-07-22_graphshell_remote_projection_host_plan.md`)
 (the protocol this port serves). The reconciled
-[historical authoring and clipping plan](../../archive_docs/2026-08-06_completed_plans/2026-06-24_djot_editor_knot_nodes_plan.md),
+[historical authoring and clipping plan](../2026-08-07/2026-06-24_djot_editor_knot_nodes_plan.md),
 the dedicated
 [Knot authoring consumer plan](2026-07-27_knot_authoring_consumer_plan.md), and
 evaluation/export plan (`genet/design_docs/archive_docs/2026-09-02/2026-06-12_knot_evaluation_export_plan.md`)
@@ -141,7 +144,7 @@ vault inside the app rather than merely a cheaper one.
   Knot remains a consumer through `knot-editor-host`.
 - ~~**The convergence decision has landed; Knot has not pulled it.**~~
   **Cleared 2026-07-27.** The
-  [commons convergence plan](../../archive_docs/2026-08-06_completed_plans/2026-07-26_commons_multi_writer_convergence_plan.md)
+  commons convergence plan (`repos/mere/design_docs/archive_docs/2026-08-06_completed_plans/2026-07-26_commons_multi_writer_convergence_plan.md`)
   proves deterministic causal materialization over per-author logs. K5 now
   signs exact observed parents, restores author heads after Redb reopen, and
   returns documents, per-document conflicts, and pending-history diagnostics
@@ -225,8 +228,9 @@ whole-document tiebreak.
   byte-plus-affinity layout selections, and keeps `KnotReadout` derived for
   highlights, outline, folds, and preview. IME preedit stays outside committed
   source, undo restores every readout, and committed source writes through to
-  `.knot`. The corresponding Genet primitive is committed locally at
-  `44e291afe8b`; remote reproducibility waits only on publishing it.
+  `.knot`. The corresponding Genet primitive was committed locally at
+  `44e291afe8b` and is on Genet `main` as `6ad0de39600`; remote reproducibility no longer
+  waits on publishing it (corrected 2026-11-02).
 
 **Carrier note.** Graphshell protocol 1.1 adds the revision bell:
 `CarrierNotice { session, epoch, revision }`. It carries no scene payload.
@@ -294,4 +298,4 @@ the same users.
   revision across Turnstone, Mere and djinn's `knot-site`), or does each
   consumer pin its own? On 2026-10-06 Mere's root manifest and djinn's
   `knot-site` share `ef89a186` (Mere `2e0a17d2`); Turnstone's pin was not
-  checked. Recorded in Mere's archived plan tails plan (`mere/design_docs/mere_docs/implementation_strategy/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
+  checked. Recorded in Mere's archived plan tails plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").

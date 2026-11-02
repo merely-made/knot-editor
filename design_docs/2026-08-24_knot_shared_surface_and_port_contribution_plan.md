@@ -12,7 +12,9 @@
 > findings, receipts, and contracts remain here as historical record.
 
 **Date:** 2026-08-24
-**Status:** in progress; current-origin G0 and the narrow `knot-document`
+**Status (2026-11-02):** P0 complete and the contract frozen at v1 (section 7, 2026-08-26); F0 is
+handed to the application workspace plan (note above); the 2026-10-20 Embedded Cambium 0.5, Hest H3 and Hest
+H4 receipts are qualified and their native acceptance is open. Earlier status, 2026-08-26: current-origin G0 and the narrow `knot-document`
 package published; K0, the reusable Knot surface, desktop wrapper, and semantic
 host receipt implemented and independently green; Turnstone T0 consumer core
 and user invocation landed, including explicit read-only admission; generic
@@ -30,11 +32,11 @@ plugin API.
 **Related:**
 
 - Turnstone suite composition and capability census: `mere/design_docs/2026-08-22_turnstone_suite_composition_and_capability_census.md`
-- [Knot port plan](2026-07-25_knot_port_plan.md)
-- [Knot authoring consumer plan](2026-07-27_knot_authoring_consumer_plan.md)
-- [Knot in Graphshell plan](2026-08-02_knot_in_graphshell_plan.md)
-- Device resident consolidation: `mere/design_docs/mere_docs/implementation_strategy/2026-08-20_device_resident_consolidation_plan.md`
-- Configuration ownership and settings projection: `mere/design_docs/mere_docs/implementation_strategy/2026-08-06_configuration_ownership_settings_projection_plan.md`
+- [Knot port plan](archive_docs/2026-11-02/2026-07-25_knot_port_plan.md)
+- [Knot authoring consumer plan](archive_docs/2026-11-02/2026-07-27_knot_authoring_consumer_plan.md)
+- [Knot in Graphshell plan](archive_docs/2026-11-02/2026-08-02_knot_in_graphshell_plan.md)
+- Device resident consolidation: `repos/mere/design_docs/archive_docs/2026-10-28/2026-08-20_device_resident_consolidation_plan.md`
+- Configuration ownership and settings projection: `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-06_configuration_ownership_settings_projection_plan.md`
 - Turnstone `design_docs/2026-08-08_pane_registry_and_graph_panes_plan.md`
 - Genet `docs/2026-08-12_meristem_scope_cut_and_component_contract_brief.md`
 
@@ -731,7 +733,7 @@ selects one coherent family. The desktop workspace retains its existing 0.4
 requirement and lock; this is not a standalone Knot application repin.
 
 The owning continuation and receiving evidence live in
-`mere/design_docs/cambium_docs/implementation_strategy/2026-10-20_hest_command_architecture_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-10-20_hest_command_architecture_plan.md`.
 Turnstone will require 0.5 and validate the actual embedded receiver. The
 supplier constraint change is committed locally; push/publication and native
 presentation remain deferred. Document authority, save policy and source-edit
@@ -765,9 +767,9 @@ committed lock are hashed in the receiver receipt. No native window-manager
 acceptance or crate publication is inferred from these software checks.
 
 Canonical common-contract owner:
-`mere/design_docs/cambium_docs/implementation_strategy/2026-10-20_hest_command_architecture_plan.md`.
+`repos/mere/design_docs/archive_docs/2026-10-28/2026-10-20_hest_command_architecture_plan.md`.
 
-[H3 receiving qualification](../docs/receipts/hest-h3-20261020/qualification.json)
+H3 receiving qualification (`Code/testing/knot-editor/receipts/hest-h3-20261020/qualification.json`)
 retains the exact source, canonical dependency cohort, command outcomes and
 standalone export proof. Publication was held at that checkpoint; the later
 Hest/Cambium registry release is recorded by the common Mere owner plan.
@@ -791,7 +793,7 @@ pass; workspace all-targets and locked metadata pass. The dependency update
 preserves all 1,246 unrelated package blocks, including the prior Murm pin.
 Only the test-module hook, new separated receiving tests, a test dependency
 and the supplier lock change Knot code; production endpoint logic is exact.
-[H4 receiving qualification](../docs/receipts/hest-h4-20261020/qualification.json)
+H4 receiving qualification (`Code/testing/knot-editor/receipts/hest-h4-20261020/qualification.json`)
 retains owned outcomes, source hashes and failed-attempt evidence. The shared
 contract and full supplier checks remain in Mere's existing Hest architecture
 plan. Native presentation/human AT, MSRV and backend publication are separate.

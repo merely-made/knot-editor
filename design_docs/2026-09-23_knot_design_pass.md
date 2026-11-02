@@ -4,9 +4,14 @@
 **Status:** Rulings recorded 2026-09-23. Mark took each question in turn with
 options, numbers and a recommendation in front of him; every ruling below is
 his. Frames produced. The slice order at the end was ruled the same day.
-Implementation not started.
+Implementation (2026-11-02): slices 1 to 4 have landed (frame, tiles and status
+with local recovery; commands with the document-link workflow; typography;
+collapse), each in its own record. Slice 5 (the font picker and download) and
+slice 6 (macOS native menus) are open; the 2026-10-12 font-role adoption did not
+deliver the picker (`2026-10-12_knot_font_roles.md`: the writer face stays explicit
+IBM Plex Mono or system monospace).
 **Owner:** Knot Editor
-**Answers:** [design pass brief](2026-09-13_knot_design_pass_brief.md)
+**Answers:** [design pass brief](archive_docs/2026-11-02/2026-09-13_knot_design_pass_brief.md)
 
 ## What this settles
 
@@ -156,7 +161,7 @@ between stacks and windows.
 ## 4. Two readings of the same source
 
 **Ruling.** Readings are typed by kind, following the theme plan's three
-targets (`mere/design_docs/mere_docs/implementation_strategy/2026-07-05_theme_modes_plan.md`):
+targets (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-05_theme_modes_plan.md`):
 
 - **Projections of the source match the source.** The folded source, and
   later editable folds, use the source's face, size, measure and colours.
@@ -470,6 +475,27 @@ On macOS the OS title bar and slice 1's provisional command row stay through
 slices 2 to 5; that row is a plain row of commands, not a drawn menu bar, so
 ruling 1 holds. Ruled to stay rather than moving the macOS menus up.
 
+## Carried from archived slice records (2026-11-02)
+
+Slices 1 to 4 are archived with their native receipts (see the index). What they left open, with the
+slice order above:
+
+1. **Slice 5, fonts.** The installed-family picker, then the one-button download with runtime
+   registration (ruling 6). The 2026-10-12 font-role adoption did not deliver it. **Done when:** the
+   picker lists bundled, installed and downloadable faces, a downloaded face registers at runtime, and
+   a native receipt shows both.
+2. **Slice 6, macOS menus.** The native-menu seam and the macOS title bar (ruling 1). **Done when:** the
+   macOS menus are populated from the one command list through the seam, with a native macOS receipt.
+3. **Windows and Linux client-drawn title bar.** The commands slice records that actual window-manager
+   behavior and complete native accessibility need platform receipts
+   (`archive_docs/2026-11-02/2026-09-29_knot_commands_slice.md`, "Remaining validation limits").
+   **Done when:** a receipt on each platform shows the drag region, caption buttons and menus working
+   under a real window manager.
+4. **Font roles, startup and platforms.** The font-role record qualifies a bounded macOS foreground
+   procedure and leaves the default ten-second and unattended startup path and other platforms outside
+   (`archive_docs/2026-11-02/2026-10-12_knot_font_roles.md`). **Done when:** a default-startup receipt
+   and one other platform pass the font-role gates.
+
 ## Later, because
 
 - **Editable folds.** Mere's coordinate-map track; the folded reading stays
@@ -482,12 +508,12 @@ ruling 1 holds. Ruled to stay rather than moving the macOS menus up.
 
 ## Related material
 
-- [Design pass brief](2026-09-13_knot_design_pass_brief.md)
+- [Design pass brief](archive_docs/2026-11-02/2026-09-13_knot_design_pass_brief.md)
 - [Application workspace plan](2026-09-05_knot_application_workspace_plan.md)
 - [Predicates, inference and scripted readings](2026-09-15_knot_predicates_inference_scripting_plan.md) (E1's index progress string)
 - [Native small-web authoring](2026-09-11_small_web_authoring_plan.md)
 - `genet/docs/2026-08-10_window_decorations_brief.md`
-- `mere/design_docs/mere_docs/implementation_strategy/2026-07-05_theme_modes_plan.md`
+- `repos/mere/design_docs/archive_docs/2026-10-28/2026-07-05_theme_modes_plan.md`
 - `mere/crates/cambium/cambium/src/{command_surface,frisket,workspace,overlay_surface,detail_panel,fold_projection}.rs`
 - `mere/crates/cambium/workbench/lib.rs`
 - `genet/components/genet-livery/src/text.rs` (`TextSystem`, `ch_advances`, font registration)

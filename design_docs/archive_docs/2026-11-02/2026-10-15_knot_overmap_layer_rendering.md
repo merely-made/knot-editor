@@ -1,5 +1,7 @@
 # Rendering the mere overmap as a layer
 
+> **Archived 2026-11-02 (landed).** the overmap rendered as a layer and natively qualified on macOS (`719747a`, 2026-10-15), then superseded in rendering by the in-graph tier (`eb15baa`, same day; the band stays a mere-view option). Open points: those of the [overmap layer contract](2026-10-15_knot_mere_overmap_layer.md) apply; branches wait on Mere's merge-in design (`repos/mere/design_docs/mere_docs/technical_architecture/2026-10-15_session_merge_in_note.md`). Receipts and the old-to-main hash table: [2026-10-15_knot_overmap_layer_rendering_receipts.md](../receipts/2026-10-15_knot_overmap_layer_rendering_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 Status: implemented and natively qualified on macOS (see Checks). Superseded
 in rendering by the in-graph tier (Addendum, 2026-10-15 later); the band
 stays a mere-view option. Follows
@@ -107,7 +109,7 @@ to `392e0ecc0`.
   --test font_roles --test typography_fonts` (331 lib tests, including the
   new placement assertion): pass.
 - Native, macOS foreground: the receipt
-  [2026-10-15_mere_overmap_live](../docs/receipts/2026-10-15_mere_overmap_live/README.md)
+  2026-10-15_mere_overmap_live (`Code/testing/knot-editor/receipts/2026-10-15_mere_overmap_live/README.md`)
   holds before (Knot `a27911a`) and after runs on the same fixture: seed,
   fresh-process reopen and standalone all pass. The after captures show the
   band, the codicil on its session, the shelf, and the thaw named
@@ -153,7 +155,7 @@ day:
   "from", `Session (fork of Session (from blake3:f612a))`; a picked-off part
   (Turnstone's tear-out) is `Session (picked from Evening reading)`. Branches,
   which merge back, wait on the merge-in design (Mere
-  `design_docs/mere_docs/technical_architecture/2026-10-15_session_merge_in_note.md`).
+  `repos/mere/design_docs/mere_docs/technical_architecture/2026-10-15_session_merge_in_note.md`).
 
 The scenarios now open the shown session's card by its node
 (`@aria-label=Session Session, shown here`) before Save, and open a codicil's

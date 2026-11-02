@@ -12,7 +12,7 @@ system or acceptance of every reference workflow and viewport.
 ## Personal relation reading (2026-10-16)
 
 **Status: bounded consumer qualified, 2026-10-16.** Mere's link-model P3
-supplier is published at `ee324e517`. Knot starts at `0020a50e6`; its root lock
+supplier is published at `2ecc0f27840`. Knot starts at `93b16da3574`; its root lock
 advances that supplier while preserving the qualified Genet, Dramatis and
 Netrender revisions. The phase contract lives in
 `mere/design_docs/mere_docs/technical_architecture/2026-10-15_link_model.md`.
@@ -29,10 +29,10 @@ reports that absence explicitly.
 Readings uses the same link-scoped Cambium List/Timeline component as Graphshell,
 with held/history and transient layout controls. It offers no source mutation
 actions and does not initialize a store when no personal authority is attached.
-The [qualification receipt](../docs/receipts/2026-10-16_opened_link/checks.json)
-records source `e7b5c50`, signed fixture operations and a real checkpoint/reopen.
+The qualification receipt (`Code/testing/knot-editor/receipts/2026-10-16_opened_link/checks.json`)
+records source `485afc17e6e`, signed fixture operations and a real checkpoint/reopen.
 The six-member root workspace passed 694 tests (four existing ignores) on
-`57f46d1`; the final presentation source passed the focused signed-history
+`f17c3e808f8`; the final presentation source passed the focused signed-history
 scenario and desktop example build. Native seed and a separate native process
 both passed 37 frames and two captures at 1100 × 900 logical pixels. All four
 captures were reviewed. They show held/withdrawn authored spans, an undated
@@ -59,9 +59,9 @@ checkpoint sealing, renderer release, physical-peer acceptance and the excluded
 ### Checkpoint confidentiality repair (2026-10-22)
 
 **Qualified for local storage and windowless receiving on macOS:** source
-`fc993748d9b56e99eb3a79bf5a07eb5ff371f885` passes the root workspace gate
+`16a4b482defc00bd79862303b00d281749c4bef8` passes the root workspace gate
 (755 passed, six ignored) and the separately enabled resident-retention target
-(one passed). The [checkpoint confidentiality receipt](../docs/receipts/2026-10-22_checkpoint_confidentiality/qualification.json)
+(one passed). The checkpoint confidentiality receipt (`Code/testing/knot-editor/receipts/2026-10-22_checkpoint_confidentiality/qualification.json`)
 records exact source hashes, failure controls, process reopening and independent
 review. Consumer repins and native/physical-peer acceptance remain separate.
 The user selected both personal and communal storage protection, including
@@ -238,8 +238,8 @@ policy is part of this local, explicit first slice.
 
 ## Verification
 
-Shared Mere is pinned to `9310518be5423862c1038f7d7a7578d5089d3c51`; Genet remains
-`b1eb3af197111ecde34421bbe1bad2e6024ca564`. No relative shared-crate path override
+Shared Mere is pinned to `c7199781094ec8cb4397e743f93573069e0a8aad`; Genet remains
+`f499efe4698ba4b1c02c8bccd7c1f3a78b4638a8`. No relative shared-crate path override
 remains in the committed manifest. That shared revision is now published and
 merged into Mere's main branch.
 
@@ -312,10 +312,10 @@ Landed and qualified on macOS: the active alignment leads Sound while open,
 with a stable scene surface, explicit horizontal scroll, body/start/end preview,
 Escape, keyboard edits, undo/redo, typed sealed collection and exact fresh-process
 reopening. Five owner/host-route, six adapter/model, 52 composition and nine sealed
-retention cases pass on canonical Mere `4c4ea11d8`; the locked desktop build and
+retention cases pass on canonical Mere `9a29d570f3b`; the locked desktop build and
 two final native processes pass with six reviewed captures and 237 presented
 frames. The pronunciation reading is revision-bound; edits preserve the portable
 source/stress/rhyme facts. The source document remains byte-identical. See the
-[receipt](../docs/receipts/2026-10-17_metre_editing/README.md) for source binding,
+receipt (`Code/testing/knot-editor/receipts/2026-10-17_metre_editing/README.md`) for source binding,
 superseded layout failures and platform limits. Woodshed's published shared-intent
-adoption is `28a0741`; domain validation and persistence remain product-owned.
+adoption is `e7731303dd9`; domain validation and persistence remain product-owned.

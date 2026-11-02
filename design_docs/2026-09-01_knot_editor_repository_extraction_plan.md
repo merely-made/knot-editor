@@ -1,7 +1,7 @@
 # Knot Editor Repository Extraction Plan
 
 **Date:** 2026-09-01  
-**Status:** E0 complete; E1 and E2 implemented and green in open consumer PRs
+**Status (2026-11-02):** E0, E1 and E2 complete. E2 landed in mere on 2026-09-04 (`c0a4ed14ec0`, on mere `main`; no `ports/knot*` directory remains in mere), and mere and Turnstone depend on this repository's git `main` (`repos/mere/Cargo.toml:293-294`, `repos/turnstone/Cargo.toml:134-138`). The two 2026-09-01 consumer PRs were superseded by those commits (Progress, 2026-09-04).
 **Owner:** Knot Editor
 
 ## Ruling
@@ -78,7 +78,7 @@ consumer and integration references.
 
 The preserved-history repository is public at
 <https://github.com/merely-made/knot-editor>. A fresh clone of immutable
-revision `4434584ec8b5448cfacfdef515cf60839cb38c52` independently resolved the
+revision `b84936c4e7f8296a2affb469f2874a80b4a719f0` independently resolved the
 root and narrow document workspaces, then passed:
 
 - `cargo test --manifest-path crates/knot-document/Cargo.toml --features engine`:
@@ -88,14 +88,14 @@ root and narrow document workspaces, then passed:
 
 [Hosted Windows CI run 33572522617](https://github.com/merely-made/knot-editor/actions/runs/33572522617)
 passed the document, editor-library, and desktop-host gates at revision
-`2e01c78851c8d9d0243b472b2b7a3fb4726ad4bc`.
+`bd429c4857614565253e06e5d2c0da959b9d6513`.
 
 The resolved graph contained one source identity apiece for the Mere contracts
 crossing the boundary and for Cambium, Genet host, DOM, and layout contracts.
 
 ## E1 and E2 review receipt
 
-Consumers pin pushed revision `c4d15aa66eee46060081902ba8459f01c9c82f98`.
+Consumers pin pushed revision `ebbcfc27fa40b5ee5727b3586f7a8c83094497ba`.
 
 - [Turnstone PR #4](https://github.com/merely-made/turnstone/pull/4) passes two
   five-test Knot authoring suites and five ignored external-endpoint tests
@@ -109,14 +109,28 @@ Consumers pin pushed revision `c4d15aa66eee46060081902ba8459f01c9c82f98`.
 Both PRs are mergeable and clean. E1 and E2 close on their merge rather than
 turning review-state changes into default-branch claims.
 
+## Open question: one immutable revision, or each consumer's own pin
+
+Carried 2026-11-02 from the archived port, authoring consumer and Graphshell plans, where Mere's S14
+pass (ruling S67, 2026-10-06) left it with this repository: is "one immutable revision" the rule for
+Knot's consumers (one shared knot-editor revision across Turnstone, Mere and Djinn's `knot-site`), or
+does each consumer pin its own? On 2026-10-06 Mere's root manifest and Djinn's `knot-site` shared one
+revision and Turnstone's was not checked. The family source convention since then is `branch = "main"`
+with the tested revision in each lockfile, and the lockfiles disagree: on 2026-11-02 Mere's
+`Cargo.lock` selects knot-editor `5e47782`, Turnstone's `3e22516` and Cleromancy's `81b2c20` (each on
+this repository's main; `repos/<repo>/Cargo.lock`). Not ruled.
+
+**Done when:** Mark rules either that consumers share one revision (and the repin round that keeps them
+together is named), or that each consumer pins its own (and the stop rule above about duplicate source
+identities is restated for that case).
+
 ## Progress
 
 - 2026-09-03: **the platform-boundary repoint landed** (P4's first consumer, per
-  mere `design_docs/mere_docs/implementation_strategy/`
-  `2026-09-02_platform_boundary_and_repository_topology_plan.md`). Both
+  `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-09-02_platform_boundary_and_repository_topology_plan.md`). Both
   workspaces now resolve one source per repository: genet.git at
-  `115d348deddc344d949754e63beaece47cf49f34` and mere.git at
-  `b57d2021bac2bb32febfd5b96098384a63ef58a4`. `cambium`,
+  `4b6108f2287d7af2159fa6d0ae2bd1f92f9d33ff` and mere.git at
+  `6cb02e6720d5a78f56b1e7586e73cd98f4b2bda6`. `cambium`,
   `cambium-genet-winit-host`, `illume`, `inker`, `knot-editor-host` and
   `nematic` moved from genet.git to mere.git; `knot-document`'s
   `genet-host-api` became `mere-surface-api`, the Mere half of that crate's
@@ -126,12 +140,12 @@ turning review-state changes into default-branch claims.
   stale and are redone as fresh commits against a pushed revision of this
   repository, which the stop rule above still gates.
 
-- 2026-09-04: **E2 landed in mere** at `d666e1604cdbeb127527fce62fb97e41504bdc9e`
-  (not pushed). `ports/knot`, `ports/knot-document` and `ports/knot/desktop`
+- 2026-09-04: **E2 landed in mere** at `c0a4ed14ec062ec9b50321002bbe5f7b820ba042`
+  (then unpushed; pushed since). `ports/knot`, `ports/knot-document` and `ports/knot/desktop`
   are removed, `ports/knot/editor-host` moved to `crates/inker/knot-editor-host`
   as integration code, and Djinn consumes `knot-editor` 0.0.3 and
   `knot-document` 0.0.1 from this repository at
-  `fcd004b655b595038eba0a7e49f209b8477edadf`. mere's unpatched `cargo metadata`
+  `cce6d605b00e9c580ef18421ec6b388d231d5ad8`. mere's unpatched `cargo metadata`
   names those two packages from one revision of this repository and no local
   package by either name; its workspace check is green patched and unpatched,
   and Djinn's live pairing, joined-sync, route-reopen resident test passes
@@ -143,7 +157,7 @@ turning review-state changes into default-branch claims.
 
 Knot imports delegation statements and `path_covers` from Insigne directly;
 `Issue`, `DelegationError` and identity providers stay in Personae. Its new
-Insigne dependency uses the same Mere `8fce5365` pin as the other contracts,
+Insigne dependency uses the same Mere `60aa234f5c8` pin as the other contracts,
 so this import migration does not require a Mere repin. Mere's phase C must
 patch that dependency to its workspace Insigne before embedding this Knot
 revision. Authority and publication behavior are unchanged.
@@ -158,16 +172,16 @@ new direct Insigne dependency only.
 ## Progress, 2026-10-06: qualified browser compatibility ancestry
 
 The immutable maintenance revision
-`91cb44a2c00c088f0677956d31f3cdca6828c59e` retains Turnstone's qualified
-`92719898` Knot baseline and replaces its Mere `3d1cdacc` references with
-`db4ee312`. It preserves that baseline's Genet `69a2383` family. Root locked
+`a0c9740df48aad8b7e9c8b4e16aaa6870f597764` retains Turnstone's qualified
+`92719898` Knot baseline and replaces its Mere `a1d5b148114` references with
+`0cbdebd65f7` (or `c7aa7e571c3`: the same change, merged twice). It preserves that baseline's Genet `450f45b694c` family. Root locked
 metadata resolves one Mere family (55 active packages) and one Genet family
 (22 packages); the separate document manifest's diagnostic gate resolved 8
 Mere and 6 Genet packages. Its generated ignored diagnostic lock was removed.
 
 An ordinary two-parent main merge retains this qualified maintenance revision
 as reachable ancestry. Published main's newer source, Cargo manifests, lockfile
-and toolchain remain unchanged, including Mere `e0cea3e0` and Genet `d851a9db`.
+and toolchain remain unchanged, including Mere `e31ae2b8620` and Genet `a78fcb2e5a7`.
 The main merge documents provenance; it does not roll main back to the consumer's
 maintenance dependency family. Turnstone pins the exact maintenance revision
 and records its Scry/Weld native qualification and frozen source archive at
@@ -177,8 +191,8 @@ remain separate from this integration.
 
 ## Progress, 2026-10-19: Eidetic family alignment for retained-content intake
 
-Knot's active manifest and patch rows now share Eidetic `543f5ff`, Gemot
-`67ce0ac` and ESP `af5597c` with the published Mere consumer family. This keeps
+Knot's active manifest and patch rows now share Eidetic `b2313502b55`, Gemot
+`0e3f0d4076e` and ESP `1497cbfe075` with the published Mere consumer family. This keeps
 current citation APIs available to Turnstone while avoiding a second Eidetic
 source identity in the embedded graph. Six focused `knot-editor` clip-evidence
 cases pass, including saved Unicode passage reopening, verified transport and

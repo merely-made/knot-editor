@@ -1,16 +1,18 @@
 # Knot design pass brief
 
+> **Archived 2026-11-02 (landed).** answered by the [design pass](../../2026-09-23_knot_design_pass.md) (`cae40b0`, 2026-09-23), which stays live. No open points to extract. Receipts and the old-to-main hash table: [2026-09-13_knot_design_pass_brief_receipts.md](../receipts/2026-09-13_knot_design_pass_brief_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 **Date:** 2026-09-13
 **Status:** Brief. Collects the material a design pass over the standalone
 Knot desktop can work from, records what the current surface looks like, and
 names the decisions the pass has to make. It does not decide them. Answered
-2026-09-23 in [the design pass](2026-09-23_knot_design_pass.md).
+2026-09-23 in [the design pass](../../2026-09-23_knot_design_pass.md).
 **Owner:** Knot Editor
 
 ## Why now
 
 The next implementation sequence in
-[the workspace plan](2026-09-05_knot_application_workspace_plan.md) is the
+[the workspace plan](../../2026-09-05_knot_application_workspace_plan.md) is the
 multi-document workspace: a Knot-owned `DocumentWorkspace`, one tab stack,
 a catalog navigator, local recovery, then document relations. Each of those
 adds chrome. The current desktop grew one control at a time as receipts
@@ -28,7 +30,7 @@ capture harness.
 | Preference inventory | workspace plan, "Settings and recovery boundaries" | Which appearance knobs are app preferences and which are not. |
 | Appearance model | `apps/desktop/src/appearance.rs` | Tinct seeds, light/dark, highlight toggle, 12 to 24 px source type, writing width, line spacing. |
 | Desktop stylesheet | `DESKTOP_CSS` in `apps/desktop/src/workspace.rs`, plus `document_folding::CSS` and `document_preview::CSS` | The whole current visual vocabulary. Flex columns, 1 px borders, 4 px radii, system-ui. |
-| Theme boundary | `mere/design_docs/mere_docs/implementation_strategy/2026-07-05_theme_modes_plan.md` | App chrome, reader appearance, and author stylesheet are three targets. A reader preference never rewrites source. |
+| Theme boundary | `repos/mere/design_docs/archive_docs/2026-10-28/2026-07-05_theme_modes_plan.md` | App chrome, reader appearance, and author stylesheet are three targets. A reader preference never rewrites source. |
 | Widget tiers | `genet/docs/2026-07-08_chisel_widget_catalog.md` | What is free CSS, what is a leaf, what needs the arrangement mechanism. Keeps proposals buildable. |
 | Text editing ladder | `genet/docs/2026-07-25_text_editing_primitive_plan.md` and the Mere virtualized editor plan | The one `TextInput`, the read-only fold projection, and the editable-fold track that stays in Mere. |
 | Command surfaces | `mere/design_docs/mere_docs/design/2026-05-11_pane_ux_design_pass_brief.md` | Palette, context menu, direct gesture, shellbar: four surfaces fanning out from one action bus. Dated, but the vocabulary holds. |

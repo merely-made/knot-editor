@@ -88,6 +88,6 @@ Integration tests: `tests/place_projection.rs`, `tests/revision_bell.rs`,
 ## Plans
 
 - [Repository extraction plan](../../design_docs/2026-09-01_knot_editor_repository_extraction_plan.md)
-- [Knot port plan](../../design_docs/2026-07-25_knot_port_plan.md)
-- [Knot authoring consumer plan](../../design_docs/2026-07-27_knot_authoring_consumer_plan.md)
-- [Knot in Graphshell plan](../../design_docs/2026-08-02_knot_in_graphshell_plan.md)
+- [Knot port plan](../../design_docs/archive_docs/2026-11-02/2026-07-25_knot_port_plan.md)
+- [Knot authoring consumer plan](../../design_docs/archive_docs/2026-11-02/2026-07-27_knot_authoring_consumer_plan.md)
+- [Knot in Graphshell plan](../../design_docs/archive_docs/2026-11-02/2026-08-02_knot_in_graphshell_plan.md)

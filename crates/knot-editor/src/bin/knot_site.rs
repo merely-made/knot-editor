@@ -16,7 +16,7 @@ use std::path::Path;
 use chirograph::{
     CarrierRequestBody, CarrierResponseBody, IntentInvocation, IntentResult, ProjectionSession,
 };
-use djinn::door::app_admission::{AppId, AppRouteId};
+use ostiary::app_admission::{AppId, AppRouteId};
 use graphshell_endpoint::door::projection::AppBrokerClient;
 use knot_site::Site;
 use knot_site::handoff::{

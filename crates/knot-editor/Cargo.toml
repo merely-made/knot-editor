@@ -75,11 +75,12 @@ chartulary.workspace = true
 eidetic = { workspace = true, features = ["json-schema"] }
 fetch = { workspace = true, optional = true }
 fleece.workspace = true
-# The custody client: Knot reaches its persona keys by calling djinn (dramatis
+# The custody client: Knot reaches its persona keys by calling Djinn (dramatis
 # DR-C), through the application door (Mere stack lift plan P1); no
 # `graphshell` in the library.
 graphshell-endpoint = { workspace = true, features = ["projection-door", "stdio"] }
-djinn = { workspace = true, features = ["custody-client"] }
+ostiary = { workspace = true, features = ["native"] }
+castellan-client = { workspace = true, features = ["client"] }
 dramatis.workspace = true
 mere-overmap = { workspace = true, optional = true, features = ["resident"] }
 mere-view = { workspace = true, optional = true }
@@ -147,7 +148,6 @@ scenomise.workspace = true
 scenograph.workspace = true
 gemot.workspace = true
 graphshell-endpoint = { workspace = true, features = ["local"] }
-djinn = { workspace = true, features = ["door-serve"] }
 rcgen = "0.14"
 taproot = { workspace = true }
 tempfile = "3"

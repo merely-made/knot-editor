@@ -23,7 +23,7 @@
 use std::collections::BTreeMap;
 
 use chirograph::{CarrierRequestBody, CarrierResponseBody, IntentResult, ProjectionSnapshot};
-use djinn::door::app_admission::{AppId, AppRouteId, configured_app_endpoint};
+use ostiary::app_admission::{AppId, AppRouteId, configured_app_endpoint};
 use graphshell_endpoint::door::projection::AppBrokerClient;
 use mere_overmap::materialization::{self, GraphRead};
 use mere_overmap::route;
@@ -446,13 +446,13 @@ mod tests {
     #[tokio::test]
     async fn failed_refresh_purges_cached_actions_and_merge_choices() {
         use chirograph::{ProjectionSession, ProtocolVersion, SceneSnapshot};
-        use djinn::door::app_admission::AppHello;
-        use djinn::door::frame::{
+        use ostiary::app_admission::AppHello;
+        use ostiary::frame::{
             read_native_message_async, write_native_message_async,
         };
-        use djinn::door::wire::BrowserChallenge;
-        type AppMessage = djinn::door::wire::AppMessage<chirograph::CarrierRequest, ()>;
-        type AppHostMessage = djinn::door::wire::AppHostMessage<
+        use ostiary::wire::BrowserChallenge;
+        type AppMessage = ostiary::wire::AppMessage<chirograph::CarrierRequest, ()>;
+        type AppHostMessage = ostiary::wire::AppHostMessage<
             chirograph::CarrierResponse,
             chirograph::CarrierNotice,
             (),

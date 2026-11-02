@@ -30,8 +30,16 @@ use scenotime::{Revision, SceneEpoch};
 
 const USAGE: &str = "usage: knot_site publish SITE_DIR [PORT] [--resume] | status | stop | remove";
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Before the runtime's threads start.
+    knot_editor::declaration::claim_launch();
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()?
+        .block_on(run())
+}
+
+async fn run() -> Result<(), Box<dyn std::error::Error>> {
     let mut args = std::env::args().skip(1);
     let command = args.next().ok_or(USAGE)?;
     let mut client = AppBrokerClient::open_declared_route(

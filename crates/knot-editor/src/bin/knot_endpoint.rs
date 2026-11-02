@@ -13,6 +13,7 @@ use p2panda_core::SigningKey;
 use stickleback::DataKeyring;
 
 fn main() {
+    knot_editor::declaration::claim_launch();
     let args = std::env::args_os().skip(1).collect::<Vec<_>>();
     #[cfg(feature = "projection-provider")]
     if args

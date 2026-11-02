@@ -258,6 +258,9 @@ fn open_path(path: &Path) -> Result<KnotDocumentSession, String> {
     }
 }
 fn main() {
+    // Only this feature talks to Djinn's door.
+    #[cfg(feature = "mere-retention")]
+    knot_editor::declaration::claim_launch();
     let options = select_document(std::env::args_os()).unwrap_or_else(|error| {
         eprintln!("knot: {error}");
         std::process::exit(1)

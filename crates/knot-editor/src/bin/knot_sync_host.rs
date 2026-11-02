@@ -51,8 +51,17 @@ struct Args {
     pairing_facts: bool,
 }
 
-#[tokio::main(flavor = "multi_thread")]
-async fn main() {
+fn main() {
+    // Before the runtime's threads start.
+    knot_editor::declaration::claim_launch();
+    tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("Knot's sync host could not start its runtime")
+        .block_on(host());
+}
+
+async fn host() {
     let args = match parse_args() {
         Ok(args) => args,
         Err(message) => {

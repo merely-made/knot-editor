@@ -185,7 +185,7 @@ and toolchain remain unchanged, including Mere `e31ae2b8620` and Genet `a78fcb2e
 The main merge documents provenance; it does not roll main back to the consumer's
 maintenance dependency family. Turnstone pins the exact maintenance revision
 and records its Scry/Weld native qualification and frozen source archive at
-`turnstone/docs/receipts/browser_supplier_integration_20261006/`.
+`Code/testing/turnstone/receipts/browser_supplier_integration_20261006/`.
 The primary checkout's unpublished local documentation and concurrent work
 remain separate from this integration.
 

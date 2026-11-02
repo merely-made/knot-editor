@@ -39,7 +39,7 @@ One question blocks reading the entry condition: the [Mark read adapter](2026-08
 
 ### O2. Turnstone named-recipient gate
 
-Turnstone's next consumer chooses one saved document and each saved-source attachment independently. The inspected `KnotPublishSource` comes from the startup-unlocked signed vault owner, whereas Turnstone's research note uses a directory endpoint, so the single vault-document read is only the authority baseline (archived lines 18-36). The gap assessment, disclosure requirements and acceptance cases live once in `repos/turnstone/design_docs/2026-09-06_page_lifecycle_plan.md`, section "Named-recipient sharing boundary, 2026-10-19" (line 980 there, checked 2026-11-02).
+Turnstone's next consumer chooses one saved document and each saved-source attachment independently. The inspected `KnotPublishSource` comes from the startup-unlocked signed vault owner, whereas Turnstone's research note uses a directory endpoint, so the single vault-document read is only the authority baseline (archived lines 18-36). The gap assessment, disclosure requirements and acceptance cases live once in `repos/turnstone/design_docs/2026-11-02_page_lifecycle_plan.md`, section "Named-recipient sharing boundary, 2026-10-19" (line 980 there, checked 2026-11-02).
 
 **Done when:** the source-owning resident supplies an admitted, saved-revision-bound selected publication with durable selection and signed withdrawal, and Turnstone's consumer qualifies cold reopening against it. The host does not reopen the resident's operation store, and evidence transfer is not inferred from a retained reference.
 

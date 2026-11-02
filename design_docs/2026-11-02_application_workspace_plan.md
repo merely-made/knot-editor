@@ -69,7 +69,7 @@ Archived lines 795-820. **Done when:** a known fixture gives an independently ex
 
 - 2026-11-02: the multi-document workspace is delivered: `apps/desktop/src/documents.rs` (the `DocumentWorkspace`), `navigator.rs`, `recovery.rs` and `collapse.rs`, with their acceptance records archived (`archive_docs/2026-11-02/`).
 - 2026-11-02: the application appearance adoption (Tabard workshop inside the desktop) is qualified on macOS only; Windows and Linux presentation, live screen-reader and IME, and the native export chooser were not exercised (archived lines 62-72). The acceptance ledger is `Code/testing/knot-editor/validation/2026-10-10_tabard_application_acceptance.json`.
-- 2026-11-02: the owner side of the saved-source research note intake is qualified (`knot-editor --lib` 154 passed, 0 failed, 1 ignored, archived "Saved-source research note intake"); the consumer's headed cold-return acceptance is tracked in `repos/turnstone/design_docs/2026-09-06_page_lifecycle_plan.md`, not here.
+- 2026-11-02: the owner side of the saved-source research note intake is qualified (`knot-editor --lib` 154 passed, 0 failed, 1 ignored, archived "Saved-source research note intake"); the consumer's headed cold-return acceptance is tracked in `repos/turnstone/design_docs/2026-11-02_page_lifecycle_plan.md`, not here.
 - 2026-11-02: the archived findings log calls a "recurring aggregate loopback timeout" open (line 1095; a test-reliability item, no product claim); it was not re-run.
 
 ## Progress

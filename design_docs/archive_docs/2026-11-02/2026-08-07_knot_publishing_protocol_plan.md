@@ -27,7 +27,7 @@ consumer can qualify cold reopening. Do not reopen the resident's operation
 store in the host or infer evidence transfer from a retained reference.
 The consumer's exact gap assessment, disclosure requirements and acceptance
 cases live once in
-`turnstone/design_docs/2026-09-06_page_lifecycle_plan.md`, section
+`turnstone/design_docs/archive_docs/2026-11-02/2026-09-06_page_lifecycle_plan.md`, section
 "Named-recipient sharing boundary, 2026-10-19". That gate remains open.
 
 **Scope**: Let one persona explicitly share selected, versioned Knot documents

@@ -1474,7 +1474,7 @@ restoration, or a universal dashboard to ship the safe writing cut.
 **Status: owner implementation qualified; consumer headed acceptance is tracked in Turnstone.** Mark authorized the Turnstone saved-source to authored
 Knot note join, with both repos current and headed/cold-reopen proof before
 publication. The product workflow is owned by
-`turnstone/design_docs/2026-09-06_page_lifecycle_plan.md`, authored research note
+`turnstone/design_docs/archive_docs/2026-11-02/2026-09-06_page_lifecycle_plan.md`, authored research note
 join. This section owns the receiving evidence contract.
 
 Reuse v2 clip insertion, file/vault write grants and the existing retained
@@ -1509,7 +1509,7 @@ artifact roles and unchanged authored notes on refusal. `clip_citations` and
 `KnotClipCitation::read_passage` expose those same owner rules to consumers.
 Raw qualification logs are retained in
 `/Users/markik/Code/output/turnstone-knot-notes-20261018/`; the public consumer
-receipt will live at `turnstone/docs/receipts/research_notes_20261018/`.
+receipt will live at `Code/testing/turnstone/receipts/research_notes_20261018/`.
 
 After concurrent main updates, the unpublished change was rebased onto
 `4ec1cda`. The same full editor command passed again: **154 passed, 0 failed,

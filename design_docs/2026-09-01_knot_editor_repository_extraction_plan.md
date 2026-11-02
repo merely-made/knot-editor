@@ -149,7 +149,7 @@ patch that dependency to its workspace Insigne before embedding this Knot
 revision. Authority and publication behavior are unchanged.
 
 The governing phase and validation receipts live in
-`mere/design_docs/dramatis_docs/implementation_strategy/2026-09-23_insigne_proofs_plan.md`.
+`repos/dramatis/design_docs/archive_docs/2026-10-06_completed_plans/2026-09-23_insigne_proofs_plan.md`.
 
 Validation: `cargo check -p knot-editor --all-targets --all-features` passed
 on 2026-09-29 with the existing Mere and Genet pins. The lock change is the

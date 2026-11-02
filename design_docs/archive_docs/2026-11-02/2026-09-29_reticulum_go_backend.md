@@ -1,6 +1,6 @@
 # Reticulum-Go backend for NomadNet publishing
 
-> **Archived 2026-11-02 (landed).** the external Reticulum-Go launcher, verified as an external-CLI integration (`49cd0fe`, 2026-09-29). Open points moved: the outstanding unknown-page negative-path check, and the unrun MeshChatX and constrained-radio acceptance, are in the successor `2026-11-02_small_web_plan.md`. Receipts and the old-to-main hash table: [2026-09-29_reticulum_go_backend_receipts.md](../receipts/2026-09-29_reticulum_go_backend_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** The external Reticulum-Go launcher, verified as an external-CLI integration (`49cd0fe`, 2026-09-29). Open points moved: the outstanding unknown-page negative-path check, and the unrun MeshChatX and constrained-radio acceptance, are in the successor [`2026-11-02_small_web_authoring_plan.md`](../../2026-11-02_small_web_authoring_plan.md). Receipts and the old-to-main hash table: [2026-09-29_reticulum_go_backend_receipts.md](../receipts/2026-09-29_reticulum_go_backend_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 **Date:** 2026-09-29
 

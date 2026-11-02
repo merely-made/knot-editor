@@ -4,7 +4,7 @@ The desktop's active collection is retained through `retention::CompositionRetai
 in **Knot's own mere**, not in the standalone JSON store. The resident owns
 admission, encryption, signed history and receipts. `CollectionStore` remains a
 validated explicit legacy-import/interchange utility; it is not a fallback when
-mere authority is absent. See the [retention decision](../../design_docs/2026-09-30_composition_mere_retention.md).
+mere authority is absent. See the [retention decision](../../design_docs/archive_docs/2026-11-02/2026-09-30_composition_mere_retention.md).
 
 Personal, local composition collections retain independent copies of words,
 passages, senses, pronunciations and notes. They are shared across an author's

@@ -1,6 +1,6 @@
 # Collapse: non-destructive workspace presentation
 
-> **Archived 2026-11-02 (landed).** combined integration and shared text paint repair accepted after automated and native qualification (`ca2f58d`, 2026-09-30; earlier `6a9d755`, `0467469`, `3b22a22`). The text-paint spill that the Commands and document-links records left as a follow-up was repaired here (`3b22a22`). No open points to extract. Receipts and the old-to-main hash table: [2026-09-29_knot_collapse_slice_receipts.md](../receipts/2026-09-29_knot_collapse_slice_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Combined integration and shared text paint repair accepted after automated and native qualification (`ca2f58d`, 2026-09-30; earlier `6a9d755`, `0467469`, `3b22a22`). The text-paint spill that the Commands and document-links records left as a follow-up was repaired here (`3b22a22`). No open points to extract. Receipts and the old-to-main hash table: [2026-09-29_knot_collapse_slice_receipts.md](../receipts/2026-09-29_knot_collapse_slice_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Status: Combined integration and shared text paint repair accepted after automated and native qualification.
 Date: 2026-09-29

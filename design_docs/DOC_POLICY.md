@@ -221,5 +221,5 @@ Several Knot plans were also kept in Mere (`repos/mere/design_docs/archive_docs/
 the djot editor plan under `archive_docs/2026-08-06_completed_plans/`, and
 `repos/mere/design_docs/mere_docs/implementation_strategy/2026-08-08_knot_mark_read_adapter.md`).
 The copies in this repository are canonical; Mere's are archived twins that
-stub to these (Mark, 2026-11-02: "Knot canonical; stub mere"). The Mere-side
-stubs are Mark's to write.
+stub to these (Mark, 2026-11-02: "Knot canonical; stub mere"). Mere's live
+copy was stubbed to point here on 2026-11-02.

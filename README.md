@@ -34,7 +34,7 @@ the document presentation and desktop host.
 
 Collection retention requires explicitly attaching an existing personal mere
 and choosing its destination in the Collection panel. Ordinary file-only launch
-does not create or select an identity. See [attachment and legacy import](design_docs/2026-09-30_composition_mere_retention.md).
+does not create or select an identity. See [attachment and legacy import](design_docs/archive_docs/2026-11-02/2026-09-30_composition_mere_retention.md).
 
 The workspace uses Rust 1.99.1, with MSRV 1.97.1, and pins its Mere and Genet source identities.
 Transport implementations come from the Murm family supplier while identity
@@ -191,7 +191,7 @@ identity-selection flow.
 Reply status and metadata remain visible after sending. Nonempty response
 bodies appear as inert text, limited to 8 KiB with a visible truncation notice.
 
-The [native small-web plan](design_docs/2026-09-11_small_web_authoring_plan.md)
+The [native small-web plan](design_docs/2026-11-02_small_web_authoring_plan.md)
 records tests, independent client receipts, remaining Micron/Reticulum gates,
 and the separate Djinn persistent-serving proposal. The site-library Gemini
 implementation was browsed with Lagrange 1.21.1; ordinary readers need neither
@@ -289,7 +289,7 @@ Embedded hosts opt into the `highlight` feature and
 Ctrl/Cmd+N creates a document, Ctrl/Cmd+O opens the entered path, Ctrl/Cmd+S
 saves, and Ctrl/Cmd+Shift+S saves to the entered path.
 The broader editor library has capabilities that this surface
-does not yet present. The [application workspace plan](design_docs/2026-09-05_knot_application_workspace_plan.md)
+does not yet present. The [application workspace plan](design_docs/2026-11-02_application_workspace_plan.md)
 connects those capabilities to writing, typed document relationships, saved
 graph questions, coordinated presentations, evidence, review, and sharing UI,
 using Cambium's reusable components. Its phases are planned work, not a list of

@@ -509,9 +509,9 @@ slice order above:
 ## Related material
 
 - [Design pass brief](archive_docs/2026-11-02/2026-09-13_knot_design_pass_brief.md)
-- [Application workspace plan](2026-09-05_knot_application_workspace_plan.md)
-- [Predicates, inference and scripted readings](2026-09-15_knot_predicates_inference_scripting_plan.md) (E1's index progress string)
-- [Native small-web authoring](2026-09-11_small_web_authoring_plan.md)
+- [Application workspace plan](archive_docs/2026-11-02/2026-09-05_knot_application_workspace_plan.md)
+- [Predicates, inference and scripted readings](archive_docs/2026-11-02/2026-09-15_knot_predicates_inference_scripting_plan.md) (E1's index progress string)
+- [Native small-web authoring](archive_docs/2026-11-02/2026-09-11_small_web_authoring_plan.md)
 - `genet/docs/2026-08-10_window_decorations_brief.md`
 - `repos/mere/design_docs/archive_docs/2026-10-28/2026-07-05_theme_modes_plan.md`
 - `mere/crates/cambium/cambium/src/{command_surface,frisket,workspace,overlay_surface,detail_panel,fold_projection}.rs`

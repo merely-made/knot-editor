@@ -1,6 +1,6 @@
 # Document-to-document links slice
 
-> **Archived 2026-11-02 (landed).** source-authored links and bounded backlinks (`185e249`, 2026-09-29); the shared source-edit proposal adapter is published and received (`ba0802f`, 2026-10-18). Open point moved: native GUI review of the shared source-edit adapter (this record claims source/model, UI-harness and fresh-process qualification only) is in the successor `2026-11-02_workspace_slice1_plan.md`. The unpublished-supplier caveats in the body describe historical receipts. Receipts and the old-to-main hash table: [2026-09-29_knot_document_links_slice_receipts.md](../receipts/2026-09-29_knot_document_links_slice_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Source-authored links and bounded backlinks (`185e249`, 2026-09-29); the shared source-edit proposal adapter is published and received (`ba0802f`, 2026-10-18). Open point moved: native GUI review of the shared source-edit adapter (this record claims source/model, UI-harness and fresh-process qualification only) is in the successor [`2026-11-02_workspace_slice1_plan.md`](../../2026-11-02_workspace_slice1_plan.md). The unpublished-supplier caveats in the body describe historical receipts. Receipts and the old-to-main hash table: [2026-09-29_knot_document_links_slice_receipts.md](../receipts/2026-09-29_knot_document_links_slice_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Date: 2026-09-29
 Status: Implemented and accepted for the bounded local-document slice.

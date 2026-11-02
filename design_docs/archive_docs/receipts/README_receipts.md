@@ -25,8 +25,9 @@ Folders under `receipts/`, `design_docs_receipts/` and `validation/` were tracke
 
 | Section | Lines | SHA-256 or 64-hex | pass | capture |
 | --- | --- | --- | --- | --- |
-| Knot Editor design documents | 1-104 | 0 | 6 | 8 |
-| Archived 2026-11-02 | 105-133 | 0 | 8 | 3 |
+| Knot Editor design documents | 1-52 | 0 | 1 | 3 |
+| Archived 2026-11-02 (cut; history only) | 53-120 | 0 | 5 | 7 |
+| Archived 2026-11-02 | 121-149 | 0 | 8 | 3 |
 
 ## 2026-11-02, old hashes to main hashes
 

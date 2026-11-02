@@ -1,7 +1,9 @@
 # Knot Publishing Protocol Plan
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_publishing_protocol_plan.md), which holds the decisions and the open work: Phase B, the Turnstone named-recipient gate, and three residuals carried from the archived Graphshell plan. Phase A (its contract, work plan, receipts and stop rules), the secure-channel admission updates and the Phase B comparison gate stay here as history. Phase A is implemented and physically receipted (renewed 2026-08-19). Mere's archived copy is a twin; this copy is canonical. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-08-07_knot_publishing_protocol_plan_receipts.md](../receipts/2026-08-07_knot_publishing_protocol_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 > **Repository note (2026-09-01):** this is a historical integration record.
-> The [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> The [repository extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md)
 > is the current repository authority; `ports/knot` paths below name the
 > original Mere layout when each receipt landed.
 
@@ -588,7 +590,7 @@ concurrent facts are a single ordered chain.
 its copy of this plan (`mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-07_knot_publishing_protocol_plan.md`) and
 ruled this copy canonical. Phase B, the specification and the `knot-protocol`
 crate, is owned here, with a question Mere's pass raised: does the
-[Mark read adapter](2026-08-08_knot_mark_read_adapter.md) count as Phase B's
+[Mark read adapter](../../2026-08-08_knot_mark_read_adapter.md) count as Phase B's
 entry? Recorded in Mere's archived plan tails plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
 
 ## 10. Stop rules

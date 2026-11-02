@@ -1,8 +1,10 @@
 # Knot Shared Surface and Port Contribution Plan
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_shared_surface_plan.md), which holds the decisions and the open work: Hest H3 and H4 native acceptance, and the optional headed Turnstone receipt of selected clips carried from the archived authoring consumer plan. G0, K0, S0, T0 and P0 (the contract frozen at v1) are history here, and F0 continues in the application workspace successor. Mere's archived copy is a twin; this copy is canonical. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-08-24_knot_shared_surface_and_port_contribution_plan_receipts.md](../receipts/2026-08-24_knot_shared_surface_and_port_contribution_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 > **Repository note (2026-09-05):** this is the historical shared-surface
 > execution record. The
-> [repository extraction plan](2026-09-01_knot_editor_repository_extraction_plan.md)
+> [repository extraction plan](../../2026-09-01_knot_editor_repository_extraction_plan.md)
 > governs the current source boundary, and the
 > [application workspace plan](2026-09-05_knot_application_workspace_plan.md#product-cuts)
 > is the current application UX authority and product execution sequence for
@@ -32,9 +34,9 @@ plugin API.
 **Related:**
 
 - Turnstone suite composition and capability census: `mere/design_docs/2026-08-22_turnstone_suite_composition_and_capability_census.md`
-- [Knot port plan](archive_docs/2026-11-02/2026-07-25_knot_port_plan.md)
-- [Knot authoring consumer plan](archive_docs/2026-11-02/2026-07-27_knot_authoring_consumer_plan.md)
-- [Knot in Graphshell plan](archive_docs/2026-11-02/2026-08-02_knot_in_graphshell_plan.md)
+- [Knot port plan](2026-07-25_knot_port_plan.md)
+- [Knot authoring consumer plan](2026-07-27_knot_authoring_consumer_plan.md)
+- [Knot in Graphshell plan](2026-08-02_knot_in_graphshell_plan.md)
 - Device resident consolidation: `repos/mere/design_docs/archive_docs/2026-10-28/2026-08-20_device_resident_consolidation_plan.md`
 - Configuration ownership and settings projection: `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-06_configuration_ownership_settings_projection_plan.md`
 - Turnstone `design_docs/2026-08-08_pane_registry_and_graph_panes_plan.md`

@@ -1,6 +1,6 @@
 # Rendering the mere overmap as a layer
 
-> **Archived 2026-11-02 (landed).** the overmap rendered as a layer and natively qualified on macOS (`719747a`, 2026-10-15), then superseded in rendering by the in-graph tier (`eb15baa`, same day; the band stays a mere-view option). Open points: those of the [overmap layer contract](2026-10-15_knot_mere_overmap_layer.md) apply; branches wait on Mere's merge-in design (`repos/mere/design_docs/mere_docs/technical_architecture/2026-10-15_session_merge_in_note.md`). Receipts and the old-to-main hash table: [2026-10-15_knot_overmap_layer_rendering_receipts.md](../receipts/2026-10-15_knot_overmap_layer_rendering_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** The overmap rendered as a layer and natively qualified on macOS (`719747a`, 2026-10-15), then superseded in rendering by the in-graph tier (`eb15baa`, same day; the band stays a mere-view option). Open points: those of the [overmap layer contract](2026-10-15_knot_mere_overmap_layer.md) apply; branches wait on Mere's merge-in design (`repos/mere/design_docs/mere_docs/technical_architecture/2026-10-15_session_merge_in_note.md`). Receipts and the old-to-main hash table: [2026-10-15_knot_overmap_layer_rendering_receipts.md](../receipts/2026-10-15_knot_overmap_layer_rendering_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Status: implemented and natively qualified on macOS (see Checks). Superseded
 in rendering by the in-graph tier (Addendum, 2026-10-15 later); the band

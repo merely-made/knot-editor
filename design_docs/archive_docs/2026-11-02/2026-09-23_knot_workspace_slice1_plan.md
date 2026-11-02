@@ -1,16 +1,18 @@
 # Knot workspace slice 1: frame, tiles, status, sites and graph
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_workspace_slice1_plan.md), which holds the decisions and the open work: the Forme continuation's items (user-created splits, the side-by-side command, session restoration, pointer dragging) and the items carried from the archived native review, document-links and context-navigation records. Slice 1 itself is complete with recorded visual differences; its steps, Progress and inline run evidence stay here. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-09-23_knot_workspace_slice1_plan_receipts.md](../receipts/2026-09-23_knot_workspace_slice1_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 **Date:** 2026-09-23
 **Status:** Slice 1 complete with recorded visual differences. Steps 7d, 7e
 and 8 are implemented; step 9's five native scenarios pass, and all six
 captured frames have been reviewed. See the
-[native receipt review](archive_docs/2026-11-02/2026-09-29_knot_workspace_native_review.md).
+[native receipt review](2026-09-29_knot_workspace_native_review.md).
 The step 7c scenario-scroll follow-up and the Taproot/Mesquite runner
 unification are recorded below.
 Assessment and initial rulings were made 2026-09-23.
 **Forme continuation (2026-10-29):** implemented; receiving and native qualification are recorded below. Shared Platen sessions own the explicit layout draft lifecycle.
 **Owner:** Knot Editor
-**Carries:** slice 1 of [the design pass](2026-09-23_knot_design_pass.md#slice-order),
+**Carries:** slice 1 of [the design pass](../../2026-09-23_knot_design_pass.md#slice-order),
 which includes the first workspace slice and the navigator slice of
 [the workspace plan](2026-09-05_knot_application_workspace_plan.md).
 
@@ -1597,7 +1599,7 @@ semantic revision and physical-display acknowledgement remain open.
 
 ## Related material
 
-- [Design pass](2026-09-23_knot_design_pass.md) and its frames
+- [Design pass](../../2026-09-23_knot_design_pass.md) and its frames
 - [Application workspace plan](2026-09-05_knot_application_workspace_plan.md)
 - `mere/crates/cambium/cambium/src/{workspace,frisket,tabs,graph_canvas,overlay_surface,detail_panel}.rs`
 - `mere/crates/cambium/workbench/lib.rs`

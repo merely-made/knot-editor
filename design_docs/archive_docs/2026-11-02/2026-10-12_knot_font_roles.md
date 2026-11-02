@@ -1,6 +1,6 @@
 # Knot shared font-role adoption
 
-> **Archived 2026-11-02 (landed).** shared font-role adoption, qualified on macOS foreground-native (`afc8263`, 2026-10-12; the runtime commit is `54d58a2` on main). Open point moved: acceptance of the default ten-second and unattended startup path, and of other platforms, is outside this record and is listed in the live [design pass](../../2026-09-23_knot_design_pass.md) (section "Carried from archived slice records"). Receipts and the old-to-main hash table: [2026-10-12_knot_font_roles_receipts.md](../receipts/2026-10-12_knot_font_roles_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Shared font-role adoption, qualified on macOS foreground-native (`afc8263`, 2026-10-12; the runtime commit is `54d58a2` on main). Open point moved: acceptance of the default ten-second and unattended startup path, and of other platforms, is outside this record and is listed in the live [design pass](../../2026-09-23_knot_design_pass.md) (section "Carried from archived slice records"). Receipts and the old-to-main hash table: [2026-10-12_knot_font_roles_receipts.md](../receipts/2026-10-12_knot_font_roles_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Status: implemented and bounded macOS foreground-native qualified. Runtime
 `a2128e7` includes font implementation `4fae1d8`; fixture/test corrections are

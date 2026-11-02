@@ -1,6 +1,6 @@
 # Composition readings: lexical connections, sound, and collected material
 
-**Retention correction:** [Knot's own mere](2026-09-30_composition_mere_retention.md)
+**Retention correction:** [Knot's own mere](archive_docs/2026-11-02/2026-09-30_composition_mere_retention.md)
 is now the collection authority. The plaintext-store description and native
 receipts below record the first prototype, not the corrected storage route.
 The sidecar is retained only as an explicit legacy import source.

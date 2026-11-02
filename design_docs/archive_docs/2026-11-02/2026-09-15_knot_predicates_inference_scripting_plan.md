@@ -1,5 +1,7 @@
 # Knot predicates, inference readings, and scripted readings plan
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_predicates_inference_scripting_plan.md), which holds the decisions and the open work: E2 (related passages), E3 (suggestions), E4 (inference, gated) and Knot search on the hybrid seam carried from the archived Graphshell plan. Track 1 (predicate identity) and Track 3's first slice, and E1 (provider graduation), landed and stay here as history. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-09-15_knot_predicates_inference_scripting_plan_receipts.md](../receipts/2026-09-15_knot_predicates_inference_scripting_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 **Date:** 2026-09-15
 **Status:** Track 1 and Track 3 slice 1 landed 2026-09-15; Track 2 E1 landed 2026-09-16; E2, E3 and the suggestion sink remain scoped. Each
 track has done-conditions; the decisions listed under each are his and are
@@ -530,7 +532,7 @@ reference and a shared suggestion sink, so they land last.
 
 - [Workspace plan](2026-09-05_knot_application_workspace_plan.md): ownership
   gate, G1 to G3, settings boundaries.
-- [Design pass brief](archive_docs/2026-11-02/2026-09-13_knot_design_pass_brief.md) and the design
+- [Design pass brief](2026-09-13_knot_design_pass_brief.md) and the design
   project's turn 3: the rendering and authority boundary.
 - Mere: `crates/script/rhai`, `crates/conatus/numen/src/rhai_bindings.rs`,
   `crates/graph/linked-data/src/statements.rs`,

@@ -1,5 +1,7 @@
 # Composition material belongs in Knot's mere
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_composition_mere_retention_plan.md), which holds the ownership decision, the decisions and the open work, including the overmap items and the codex handoff's tasks 2 and 3. The retention history, the October 5 to 11 continuations and their inline run evidence stay here. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-09-30_composition_mere_retention_receipts.md](../receipts/2026-09-30_composition_mere_retention_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 Status: accepted ownership decision; implementation qualification below.
 
 ## Decision

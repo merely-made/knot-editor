@@ -1,7 +1,9 @@
 # Knot Application Workspace Plan
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_application_workspace_plan.md), which holds the decisions and the open work: A3, A4, G1 to G3, and headed IME and large-document acceptance for A1/A2. The appearance adoption, A1, A2, the multi-document sequence (delivered by workspace slice 1 and the slices after it) and the owner side of the saved-source note intake stay here as history. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-09-05_knot_application_workspace_plan_receipts.md](../receipts/2026-09-05_knot_application_workspace_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 **Date:** 2026-09-05
-**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; the multi-document workspace sequence scoped below was delivered by [workspace slice 1](2026-09-23_knot_workspace_slice1_plan.md), [local recovery](archive_docs/2026-11-02/2026-09-29_knot_local_recovery_plan.md) and the Commands, document-links, Typography and Collapse slices (corrected 2026-11-02); headed acceptance, A3, A4 and G1-G3 product work remain open
+**Status:** A1 lifecycle, A2 live outline, session appearance controls, source-linked preview headings, exact fold readings, and the bounded desktop folded-source consumer are implemented through 2026-09-13; the multi-document workspace sequence scoped below was delivered by [workspace slice 1](2026-09-23_knot_workspace_slice1_plan.md), [local recovery](2026-09-29_knot_local_recovery_plan.md) and the Commands, document-links, Typography and Collapse slices (corrected 2026-11-02); headed acceptance, A3, A4 and G1-G3 product work remain open
 **Owner:** Knot Editor
 
 ## Application appearance adoption, 2026-10-09
@@ -269,7 +271,7 @@ relations to passages.
 ### Scoped next sequence: multi-document workspace
 
 **Ordered by the design pass, ruled 2026-09-23.** Implementation follows
-[the design pass slice order](2026-09-23_knot_design_pass.md#slice-order):
+[the design pass slice order](../../2026-09-23_knot_design_pass.md#slice-order):
 frame, tiles and status first, carrying the first workspace slice and the
 navigator slice below; then local recovery; then commands; then the
 document-to-document relation workflow; then typography, collapse, fonts and
@@ -524,14 +526,14 @@ An external evidence selector continues to name the captured artifact, not the
 authored passage that cites it. Backlinks respect access scope.
 
 **Model seam, grounded 2026-09-06:** extend the authenticated event and
-projection seam in [`sync.rs`](../crates/knot-editor/src/sync.rs) with a distinct
+projection seam in [`sync.rs`](../../../crates/knot-editor/src/sync.rs) with a distinct
 authored-relation record/event and a relation projection. The existing event
 fold handles document Put/Delete/Resolve by document id; relation changes must
 not enter that replacement path. Preserve independent assertion ids, author/op
 provenance, predicate, scope, endpoints, evidence/qualification, and retractions
 before lowering any reading into Mere's graph representation.
 
-[`VaultDocument.id`](../crates/knot-editor/src/vault.rs) and `document_heads`
+[`VaultDocument.id`](../../../crates/knot-editor/src/vault.rs) and `document_heads`
 already provide stable document identity and operation context for admitted
 vault documents. Ordinary file sessions still need a durable identity mapping
 with explicit rename/copy behavior; do not derive this identity from a filename
@@ -750,7 +752,7 @@ quote/position as the authored fact. Following newer text is then an explicit
 projection policy with resolved, stale, ambiguous, and unavailable results;
 it does not silently rewrite the captured claim. A deliberate re-anchor is a
 new attributable operation. Keep the external-artifact
-[`SpecificResource`](../crates/knot-editor/src/web_annotation.rs) boundary intact.
+[`SpecificResource`](../../../crates/knot-editor/src/web_annotation.rs) boundary intact.
 The first gate should replay two authors' distinct assertions, retract one,
 and rebuild without collapsing the other or exposing inaccessible backlinks.
 
@@ -951,7 +953,7 @@ restoration, or a universal dashboard to ship the safe writing cut.
   then renames. No Knot plan named it; it is noted here beside the settings
   boundaries. Recorded in Mere's archived plan tails plan (`repos/mere/design_docs/archive_docs/2026-10-28/2026-07-03_archived_plan_tails_plan.md`, section "2026-10-06 archive pass").
 - 2026-09-23 design pass: the layout rulings, frames and stylesheet proposal
-  are in [the design pass](2026-09-23_knot_design_pass.md), and its slice
+  are in [the design pass](../../2026-09-23_knot_design_pass.md), and its slice
   order, ruled the same day, now orders the "Scoped next sequence" above.
   Layout defects confirmed from the baseline frames, each fixed by the slice
   that touches it: D1, Outline and Readings drawn over the status column and
@@ -1436,18 +1438,18 @@ restoration, or a universal dashboard to ship the safe writing cut.
   latest disk bytes immediately before writing; it does not retain an
   open-time baseline. External-change protection therefore belongs in A1
   before accepting the writing workspace. See
-  [`KnotEditor::save`](../crates/knot-document/src/editor.rs) and
-  [`write_if_distinct`](../crates/knot-document/src/writer.rs).
+  [`KnotEditor::save`](../../../crates/knot-document/src/editor.rs) and
+  [`write_if_distinct`](../../../crates/knot-document/src/writer.rs).
 - 2026-09-05: existing persona-scoped `KnotSettings` intentionally describes
   sync policy, not presentation preferences. Workspace preferences and
   recovery state need their own application scope. See
-  [`settings.rs`](../crates/knot-editor/src/settings.rs).
+  [`settings.rs`](../../../crates/knot-editor/src/settings.rs).
 - 2026-09-05: `knot-document` keeps derived readings behind its optional
   `engine` feature and the current desktop wrapper uses the narrow default.
   Desktop preview adoption must opt in there, without making every embeddable
   surface consumer resolve the engine graph. See the
-  [document manifest](../crates/knot-document/Cargo.toml) and
-  [desktop manifest](../apps/desktop/Cargo.toml).
+  [document manifest](../../../crates/knot-document/Cargo.toml) and
+  [desktop manifest](../../../apps/desktop/Cargo.toml).
 - 2026-09-05: Cambium's current workspace composition is the intended
   foundation for the first workspace. Knot adoption remains unverified. Its
   persistence and component identity rules must be exercised as a consumer,
@@ -1457,9 +1459,9 @@ restoration, or a universal dashboard to ship the safe writing cut.
 
 ## Related material
 
-- [`README.md`](../README.md)
+- [`README.md`](../../../README.md)
 - [`2026-08-24_knot_shared_surface_and_port_contribution_plan.md`](2026-08-24_knot_shared_surface_and_port_contribution_plan.md)
-- [`2026-09-01_knot_editor_repository_extraction_plan.md`](2026-09-01_knot_editor_repository_extraction_plan.md)
+- [`2026-09-01_knot_editor_repository_extraction_plan.md`](../../2026-09-01_knot_editor_repository_extraction_plan.md)
 - `mere/design_docs/mere_docs/research/2026-08-19_knot_lane_brief.md`
 - `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-08-31_workbench_component_plan.md`
 - `repos/mere/design_docs/archive_docs/2026-10-06_completed_plans/2026-07-15_component_catalog_growth_plan.md`

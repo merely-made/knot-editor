@@ -13,7 +13,7 @@ stands.
 [port plan non-goals](archive_docs/2026-11-02/2026-07-25_knot_port_plan.md#6-non-goals),
 [design pass](2026-09-23_knot_design_pass.md),
 [commands slice](archive_docs/2026-11-02/2026-09-29_knot_commands_slice.md),
-[predicates, inference and scripted readings](2026-09-15_knot_predicates_inference_scripting_plan.md),
+[predicates, inference and scripted readings](archive_docs/2026-11-02/2026-09-15_knot_predicates_inference_scripting_plan.md),
 [shared source-edit proposals](https://github.com/merely-made/mere/blob/main/design_docs/archive_docs/2026-10-28/2026-10-18_source_edit_proposal_plan.md),
 Mere [TERMINOLOGY](https://github.com/merely-made/mere/blob/main/design_docs/TERMINOLOGY.md).
 The stack-level half of the same chain (serving sites from your own devices, Beaker's

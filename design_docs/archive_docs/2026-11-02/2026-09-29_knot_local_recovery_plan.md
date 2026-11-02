@@ -1,6 +1,6 @@
 # Local document recovery
 
-> **Archived 2026-11-02 (landed).** private local crash recovery, with automated and isolated native crash/restore acceptance (`e889916`, 2026-09-29; presentation follow-ups in `92d1566`). No open points to extract; its "shared presentation follow-ups" are the [shared presentation review](2026-09-29_knot_shared_presentation_review.md). Receipts and the old-to-main hash table: [2026-09-29_knot_local_recovery_plan_receipts.md](../receipts/2026-09-29_knot_local_recovery_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Private local crash recovery, with automated and isolated native crash/restore acceptance (`e889916`, 2026-09-29; presentation follow-ups in `92d1566`). No open points to extract; its "shared presentation follow-ups" are the [shared presentation review](2026-09-29_knot_shared_presentation_review.md). Receipts and the old-to-main hash table: [2026-09-29_knot_local_recovery_plan_receipts.md](../receipts/2026-09-29_knot_local_recovery_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Date: 2026-09-29
 Status: Implementation, automated checks, and isolated native crash/restore
@@ -9,7 +9,7 @@ acceptance passed on 2026-09-29. Shared presentation follow-ups remain separate.
 ## Milestone
 
 This is the local-recovery step between workspace slice 1 and commands, as
-ordered by the [workspace plan](../../2026-09-05_knot_application_workspace_plan.md#scoped-next-sequence-multi-document-workspace)
+ordered by the [workspace plan](2026-09-05_knot_application_workspace_plan.md#scoped-next-sequence-multi-document-workspace)
 and [design pass](../../2026-09-23_knot_design_pass.md#slice-order).
 
 Recover eligible unsaved document text and exact selection after interruption

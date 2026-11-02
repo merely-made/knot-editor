@@ -1,6 +1,6 @@
 # Knot design pass brief
 
-> **Archived 2026-11-02 (landed).** answered by the [design pass](../../2026-09-23_knot_design_pass.md) (`cae40b0`, 2026-09-23), which stays live. No open points to extract. Receipts and the old-to-main hash table: [2026-09-13_knot_design_pass_brief_receipts.md](../receipts/2026-09-13_knot_design_pass_brief_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Answered by the [design pass](../../2026-09-23_knot_design_pass.md) (`cae40b0`, 2026-09-23), which stays live. No open points to extract. Receipts and the old-to-main hash table: [2026-09-13_knot_design_pass_brief_receipts.md](../receipts/2026-09-13_knot_design_pass_brief_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 **Date:** 2026-09-13
 **Status:** Brief. Collects the material a design pass over the standalone
@@ -12,7 +12,7 @@ names the decisions the pass has to make. It does not decide them. Answered
 ## Why now
 
 The next implementation sequence in
-[the workspace plan](../../2026-09-05_knot_application_workspace_plan.md) is the
+[the workspace plan](2026-09-05_knot_application_workspace_plan.md) is the
 multi-document workspace: a Knot-owned `DocumentWorkspace`, one tab stack,
 a catalog navigator, local recovery, then document relations. Each of those
 adds chrome. The current desktop grew one control at a time as receipts

@@ -1,5 +1,7 @@
 # Native small-web authoring and serving
 
+> **Archived 2026-11-02 (cut; history only).** Cut into [the successor plan](../../2026-11-02_small_web_authoring_plan.md), which holds the decisions and the open work: Micron fidelity, multi-segment responses, Go multipart interoperability, independent preview scrolling, the persistent-serving gates and the limits carried from the archived Scroll site and NomadNet records. The native Gemini, Spartan, Titan, Scroll and Micron authoring history, with its inline run evidence, stays here. Hashes in the body are the hashes it was written with; the receipt files it cites moved to `Code/testing/knot-editor/` (path cites, not links). Evidence index and old-to-main hash table: [2026-09-11_small_web_authoring_plan_receipts.md](../receipts/2026-09-11_small_web_authoring_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+
 ## Knot Errand host adoption (2026-10-24)
 
 **Status:** implemented and qualified at Knot `2474686` against Errand
@@ -62,7 +64,7 @@ cohort. Graceful completion, immediate cancellation and nonzero grace expiry
 are tested through actual loopback TCP/TLS; explicit stop and Drop each join
 both native hosts. These are production host APIs in one Windows process,
 rather than installed GUI or independent-peer qualification.
-The [consumer receipt](../support/receipts/errand-adoption/consumer.json) records
+The [consumer receipt](../../../support/receipts/errand-adoption/consumer.json) records
 exact source/lock identities, cohort-preservation audits, preliminary recovery
 and the concurrent merge. Native code and test files remain unchanged through
 integration of the separately published Knot SDK cohort. Unrelated desktop,
@@ -86,9 +88,9 @@ closes the listener and reaps the process.
 
 The unchanged Gemini and Scroll fixtures also pass against the same executable,
 SHA-256 `d2ee5884c925d91118efaee712237ab00d78d2c38b02d0684ec6b89f347c5055`.
-[Integrated process receipt](../support/receipts/micron-publication-runtime/integrated-process.json)
+[Integrated process receipt](../../../support/receipts/micron-publication-runtime/integrated-process.json)
 records exact source, lock, binary and client/server Retinue revisions. The
-[initial process proof](../support/receipts/micron-publication-runtime/process.json)
+[initial process proof](../../../support/receipts/micron-publication-runtime/process.json)
 is retained separately. Set `DJINN_MOOT_SITE_EXE` to the qualified executable and
 run the three ignored process tests with features `runtime-acceptance,retinue`.
 
@@ -129,7 +131,7 @@ reports two publisher and three resident processes, exact full/abstract metadata
 and V1 bytes, replacement/current membership/withdrawal, certificate continuity,
 and one cancelled admitted request with zero task panics/rejections. Exact
 source, lock and binary identities plus raw task reports are retained in the
-[process receipt](../support/receipts/scroll-publication-runtime/process.json).
+[process receipt](../../../support/receipts/scroll-publication-runtime/process.json).
 
 ## Native Scroll wire ownership (2026-10-21)
 
@@ -168,7 +170,7 @@ Clippy pass. Both dependency roots preserve every non-Errand Git source,
 including the renderer cohort. The ordinary root still contains the older
 transitive Errand source behind its existing Mere cohort; this slice establishes
 the site consumer rather than a whole-desktop repin. Compact evidence:
-[consumer receipt](../support/receipts/native-scroll-server/consumer.json).
+[consumer receipt](../../../support/receipts/native-scroll-server/consumer.json).
 
 ## Saved-site publication into a Moot (2026-10-21)
 
@@ -206,7 +208,7 @@ The ordinary root site-library check preserves every Git source except the
 isolated `mere-site` contract pin; no renderer cohort changes are needed.
 
 Publisher checks and source hashes are recorded in
-[the publisher receipt](../support/receipts/gemini-publication-runtime/publisher.json).
+[the publisher receipt](../../../support/receipts/gemini-publication-runtime/publisher.json).
 The canonical native-process receipt is
 `mere/support/receipts/gemini-publication-runtime/native.json`; Mere integration
 `b775eae24` preserves concurrent owner work and the independently qualified
@@ -256,10 +258,10 @@ serving adapters remain subsequent slices.
 - Final published model supplier `4232d5622` is adopted independently of the
   renderer and source-edit cohorts. The standalone site suite passes 18 cases;
   the file-only desktop checkpoint/worker case and all nine launch tests pass.
-  [Site receipt](../support/receipts/shared-site-revisions/site.json) and
-  [desktop receipt](../support/receipts/shared-site-revisions/desktop.json).
+  [Site receipt](../../../support/receipts/shared-site-revisions/site.json) and
+  [desktop receipt](../../../support/receipts/shared-site-revisions/desktop.json).
   The normal default-feature desktop library/binary check also passes
-  ([build receipt](../support/receipts/shared-site-revisions/normal-build.json)).
+  ([build receipt](../../../support/receipts/shared-site-revisions/normal-build.json)).
   These are automated native gates; a history browser/restore UI, new retention
   runtime acceptance and headed acceptance remain separate.
 - Rebased onto upstream Knot `b8d0e2f`, preserving its Hest/Cambium receiving
@@ -267,7 +269,7 @@ serving adapters remain subsequent slices.
   The checkpoint case, all nine launch cases and the normal default-feature
   build pass again on combined source `5297224`. The standalone capture source
   and lock remain byte-identical to their completed 18-case gate.
-  [Final receiving receipt](../support/receipts/shared-site-revisions/integration.json).
+  [Final receiving receipt](../../../support/receipts/shared-site-revisions/integration.json).
 
 **Status (2026-09-13):** Gemini/Spartan local publication and reviewed Titan/
 Spartan submission implemented and checked through the headed review/send flow.

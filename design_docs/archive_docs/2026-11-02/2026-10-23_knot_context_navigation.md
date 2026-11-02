@@ -1,6 +1,6 @@
 # Knot contextual navigation prototype
 
-> **Archived 2026-11-02 (landed).** independent Source and Preview bookmarks and explicit Preview reopen, passed the portable gates and fresh-process native qualification (`9c34678`, 2026-10-24; `36bdcae`). Open point moved: choosing among multiple site pages when navigating Down from a site ("Scope boundary") is in the successor `2026-11-02_workspace_slice1_plan.md`. Receipts and the old-to-main hash table: [2026-10-23_knot_context_navigation_receipts.md](../receipts/2026-10-23_knot_context_navigation_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Independent Source and Preview bookmarks and explicit Preview reopen, passed the portable gates and fresh-process native qualification (`9c34678`, 2026-10-24; `36bdcae`). Open point moved: choosing among multiple site pages when navigating Down from a site ("Scope boundary") is in the successor [`2026-11-02_workspace_slice1_plan.md`](../../2026-11-02_workspace_slice1_plan.md). Receipts and the old-to-main hash table: [2026-10-23_knot_context_navigation_receipts.md](../receipts/2026-10-23_knot_context_navigation_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 **Date:** 2026-10-23
 

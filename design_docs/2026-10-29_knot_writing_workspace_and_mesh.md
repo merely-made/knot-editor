@@ -30,7 +30,7 @@ embeddable `knot-document` surface presents one document; that is not a limit
 on the desktop workspace.
 
 User-created document splits were deferred by the
-[workspace slice](2026-09-23_knot_workspace_slice1_plan.md). New documents
+[workspace slice](archive_docs/2026-11-02/2026-09-23_knot_workspace_slice1_plan.md). New documents
 currently join a stack, and `apply_layout` accepts divider movement only. The
 next bounded layout change should make an explicit side-by-side command
 available while retaining each document's identity, session and undo history.
@@ -55,7 +55,7 @@ The [document links plan](archive_docs/2026-11-02/2026-09-29_knot_document_links
 
 ## Separate edit profile
 
-The [Rhai reading lane](2026-09-15_knot_predicates_inference_scripting_plan.md)
+The [Rhai reading lane](archive_docs/2026-11-02/2026-09-15_knot_predicates_inference_scripting_plan.md)
 stays read-only, labelled and suggestion-producing. Its prohibition on script
 writes continues to apply to readings and automatic execution. A separate
 writer-invoked macro is a bounded writer command: the host admits the edit
@@ -157,7 +157,7 @@ to make them share an address.
 - The [August device-resident receipt](../crates/knot-editor/docs/2026-08-22_device_resident_v1_receipt.md)
   covers paired private sync and verified evidence serving/reopening. It
   explicitly leaves physical two-device qualification open. The later
-  [native small-web work](2026-09-11_small_web_authoring_plan.md) and resident
+  [native small-web work](archive_docs/2026-11-02/2026-09-11_small_web_authoring_plan.md) and resident
   process work do not establish public multi-device failover.
 
 ### Proposed serving contract

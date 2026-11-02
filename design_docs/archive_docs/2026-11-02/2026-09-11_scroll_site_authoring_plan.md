@@ -1,13 +1,13 @@
 # Scroll site authoring
 
-> **Archived 2026-11-02 (landed).** the first local Scroll authoring slice (`0c31acc`, 2026-09-11), superseded in scope by the native small-web plan (its commands now name `crates/knot-site`). Open points moved: the "Explicit limits" below (Scroll highlighting and outline, page management, assets, external hosting) are listed in the successor `2026-11-02_small_web_plan.md`. Receipts and the old-to-main hash table: [2026-09-11_scroll_site_authoring_plan_receipts.md](../receipts/2026-09-11_scroll_site_authoring_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** The first local Scroll authoring slice (`0c31acc`, 2026-09-11), superseded in scope by the native small-web plan (its commands now name `crates/knot-site`). Open points moved: the "Explicit limits" below (Scroll highlighting and outline, page management, assets, external hosting) are listed in the successor [`2026-11-02_small_web_authoring_plan.md`](../../2026-11-02_small_web_authoring_plan.md). Receipts and the old-to-main hash table: [2026-09-11_scroll_site_authoring_plan_receipts.md](../receipts/2026-09-11_scroll_site_authoring_plan_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Owner: Knot Editor. Status: first local authoring slice implemented, 2026-09-11.
 
 The subsequent native small-web integration renamed `crates/knot-scroll-site`
 to `crates/knot-site`; use that path for current commands. The historical
 receipts below retain their original names. See the
-[native authoring plan](../../2026-09-11_small_web_authoring_plan.md) for current checks.
+[native authoring plan](2026-09-11_small_web_authoring_plan.md) for current checks.
 
 The first slice creates an ordinary folder containing `site.json`, three native
 `.scroll` pages, and `assets/`. Knot owns draft files, per-page publication

@@ -1,6 +1,6 @@
 # Shared Graph sizing and scenario focus
 
-> **Archived 2026-11-02 (landed).** shared Graph sizing and scenario focus pins, passed automated and native checks (`92d1566`, 2026-09-29), with the diagnostics adoption in `6ef4b85`. No open points to extract. Receipts and the old-to-main hash table: [2026-09-29_knot_shared_presentation_review_receipts.md](../receipts/2026-09-29_knot_shared_presentation_review_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
+> **Archived 2026-11-02 (landed).** Shared Graph sizing and scenario focus pins, passed automated and native checks (`92d1566`, 2026-09-29), with the diagnostics adoption in `6ef4b85`. No open points to extract. Receipts and the old-to-main hash table: [2026-09-29_knot_shared_presentation_review_receipts.md](../receipts/2026-09-29_knot_shared_presentation_review_receipts.md). Mark, 2026-11-02: "Archive landed + cut 7, draft first".
 
 Date: 2026-09-29
 Status: Prior presentation pins passed automated and native acceptance checks.

@@ -5,9 +5,9 @@ standalone desktop application or contribute the same retained document
 surface to hosts such as Turnstone.
 
 Knot owns document authority: opening, editing, saving, revisions, evidence,
-vaults, peer replication, and publishing. Mere supplies reusable graph,
-identity, policy, transport, and resident contracts. Genet and Cambium supply
-the document presentation and desktop host.
+vaults, peer replication, and publishing. Mere supplies the graph and host composition. Dramatis supplies identity and
+custody, Eidetic durable storage, Murm transport, and Distillery model execution.
+Genet and Cambium supply the document presentation and desktop host.
 
 ## Workspace
 
@@ -390,3 +390,8 @@ Enable the commit checks with `prek install --allow-missing-config`; run
 `prek run --all-files` alongside the existing local gates. Check definitions
 live in `.pre-commit-config.yaml`, with source-size exclusions and exceptions
 in `line-ceiling.toml`. Shared house style and rollout: `mere/design_docs/mere_docs/implementation_strategy/2026-10-30_house_style_plan.md`.
+
+The 2026-11-03 Distillery source cutover is coordinated in
+`mere/design_docs/mere_docs/implementation_strategy/2026-10-31_distillery_extraction_plan.md`.
+The `esp` crate keeps its name in the renamed supplier repository; locked native
+checks and selected-source audits are recorded separately from headed acceptance.

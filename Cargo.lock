@@ -4190,7 +4190,7 @@ checksum = "d817e038c30374a4bcb22f94d0a8a0e216958d4c3dcde369b1439fec4bdda6e6"
 [[package]]
 name = "esp"
 version = "0.1.0"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 dependencies = [
  "burn",
  "getrandom 0.4.3",
@@ -4199,6 +4199,15 @@ dependencies = [
  "serde",
  "serde_json",
  "tokenizers",
+ "zeroize",
+]
+
+[[package]]
+name = "esp"
+version = "0.1.0"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+dependencies = [
+ "serde",
  "zeroize",
 ]
 
@@ -6978,7 +6987,7 @@ dependencies = [
  "chirograph",
  "dramatis",
  "eidetic",
- "esp",
+ "esp 0.1.0 (git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96)",
  "fleece",
  "gemot",
  "graphshell-client",
@@ -10013,7 +10022,7 @@ dependencies = [
  "chartulary",
  "chirograph",
  "emblem",
- "esp",
+ "esp 0.1.0 (git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e)",
  "euclid",
  "genet-livery",
  "genet-scripted-dom",
@@ -15564,22 +15573,22 @@ dependencies = [
 [[patch.unused]]
 name = "distillery"
 version = "0.0.1"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 
 [[patch.unused]]
 name = "mere-mesh"
 version = "0.0.1"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 
 [[patch.unused]]
 name = "distillery"
 version = "0.0.1"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 
 [[patch.unused]]
 name = "mere-mesh"
 version = "0.0.1"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 
 [[patch.unused]]
 name = "cubecl-runtime"
@@ -15589,109 +15598,14 @@ source = "git+https://github.com/merely-made/mere.git?branch=main#1001d1a2d84e59
 [[patch.unused]]
 name = "distillery"
 version = "0.0.1"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 
 [[patch.unused]]
 name = "esp-testkit"
 version = "0.1.0"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"
 
 [[patch.unused]]
 name = "mere-mesh"
 version = "0.0.1"
-source = "git+https://www.github.com/merely-made/distillery.git?rev=66108581b3d2ca66eb42a282eccc8ec5d4039e4e#66108581b3d2ca66eb42a282eccc8ec5d4039e4e"
-
-[[patch.unused]]
-name = "murm"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "murm-i2p"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "murm-ocapn"
-version = "0.1.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "murm-ocapn-transport"
-version = "0.1.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "murm-rtc"
-version = "0.1.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "outrider"
-version = "0.3.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "postilion"
-version = "0.3.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "radio-face"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "radio-hand"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "radio-mirror"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "retained-repair"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "retinue-sim"
-version = "0.0.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "selvage"
-version = "0.1.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "seneschal"
-version = "0.2.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "sennet"
-version = "0.0.2"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "tinyssb-core"
-version = "0.1.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "truchman"
-version = "0.1.1"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "tucket"
-version = "0.0.2"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
-
-[[patch.unused]]
-name = "tulle"
-version = "0.2.0"
-source = "git+https://www.github.com/merely-made/murm.git?rev=ce53cebb2ae9f420de5a0dcaa5a9768c639910af#ce53cebb2ae9f420de5a0dcaa5a9768c639910af"
+source = "git+https://www.github.com/merely-made/distillery.git?rev=52a4ca1704889638d8acb89f392ccb7e3c458c96#52a4ca1704889638d8acb89f392ccb7e3c458c96"

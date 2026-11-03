@@ -304,7 +304,7 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
         // Resolving rather than guessing: personas are real cryptographic
         // identities, and syncing the wrong one is not a recoverable oops.
         None => {
-            let personas = pandect::wallet_store::list_personas(&data_root).map_err(|error| {
+            let personas = sporran::wallet_store::list_personas(&data_root).map_err(|error| {
                 format!(
                     "could not list personas under {}: {error}",
                     data_root.display()
@@ -402,7 +402,7 @@ fn init_logging(path: Option<&Path>) -> Result<(), std::io::Error> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use pandect::wallet_store::{
+    use sporran::wallet_store::{
         KeyEpochId, PersonaChainRoot, PersonaWalletManifest, save_persona_wallet,
     };
 

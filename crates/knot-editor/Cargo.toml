@@ -120,6 +120,7 @@ similar = "2.7"
 script-rhai.workspace = true
 servitor.workspace = true
 pandect.workspace = true
+sporran.workspace = true
 esp.workspace = true
 # Without `peers` stickleback is its local half only; `peers` turns its `net`
 # feature on (the workspace row names `default-features = false`).

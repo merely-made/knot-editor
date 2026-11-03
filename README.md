@@ -39,7 +39,7 @@ does not create or select an identity. See [attachment and legacy import](design
 The workspace uses Rust 1.99.1, with MSRV 1.97.1, and pins its Mere and Genet source identities.
 Transport implementations come from the Murm family supplier while identity
 contracts come from Dramatis. The coordinated adoption is tracked in
-`murm/design_docs/2026-10-13_murm_family_move_plan.md`.
+`murm/design_docs/archive_docs/2026-11-02/2026-10-13_murm_family_move_plan.md`.
 
 ```sh
 cargo test --manifest-path crates/knot-document/Cargo.toml

@@ -147,8 +147,9 @@ Plans and slice records that landed. Each keeps its text and gains a dated heade
 - [Custody and projection receiver](archive_docs/2026-11-02/2026-10-29_custody_projection_receiver.md): the separated custody-client and projection-door receiver; published, focused overlay, peer-enabled host compilation and secure publishing tests passed.
 - [Codex handoff (October 15)](archive_docs/2026-11-02/2026-10-15_knot_codex_handoff.md): where Knot stands after the Graphshell stack lift, the overmap tier and merge-in, the rulings that bind it, and three ordered tasks: the Mere/Knot/Turnstone repin round per the remote mere route spec §7 (Murm `main` `220e9702b4d`; Knot and Turnstone drop `graphshell`), a native capture of the pending-merge card, and a full suite re-run. Closed out 2026-11-02: task 1 was done 2026-10-15, and tasks 2 and 3 are carried into the plan cut from the composition retention plan.
 
-Registry receiving (2026-11-03), in progress: the dependency bounds admit the
-existing locked cohort and the new Pandect, storage and custody releases so
-Mere and its embedded Knot consumer can advance together. Final receiving
-will tighten the minimum versions after qualification. Coordination and receipts:
+Registry receiving (2026-11-03), qualified: the minimum requirements name
+Pandect 0.2.0, Mere Kernel 0.0.3, Chartulary 0.3.0, Eidetic/Servitor 0.0.3 and
+Castellan Client 0.0.2. The locked all-target check passes on Mere `47dce59ee`
+and Genet `ad362723109`, with one storage and custody door type identity.
+Coordination and receipts:
 `mere/design_docs/mere_docs/implementation_strategy/2026-10-28_workspace_hygiene_plan.md`.

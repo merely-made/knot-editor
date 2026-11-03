@@ -28,7 +28,8 @@
 use std::collections::BTreeSet;
 use std::sync::Arc;
 
-use stickleback::{JoinError, JoinedSpace, SyncStatus};
+use stickleback::JoinError;
+use murm_sync::{JoinedSpace, SyncStatus};
 use transport::p2panda_transport::{KnownPeer, RelayUrl};
 use transport::{
     BlobPeerAuthorizer, BlobReadAuthorizer, BlobScope, BlobStore, P2pandaHostPolicy,

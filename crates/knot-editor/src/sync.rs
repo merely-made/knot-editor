@@ -32,7 +32,9 @@ use stickleback::{
     causal_projection, observed_frontier, propose_epoch_pruning, validate_causal_metadata,
 };
 #[cfg(feature = "peers")]
-use stickleback::{Endpoint, Gossip, JoinError, JoinedSpace};
+use stickleback::JoinError;
+#[cfg(feature = "peers")]
+use murm_sync::{Endpoint, Gossip, JoinedSpace};
 use tokio::sync::Mutex;
 use zeroize::{Zeroize, Zeroizing};
 

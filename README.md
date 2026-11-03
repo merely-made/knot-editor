@@ -6,7 +6,7 @@ surface to hosts such as Turnstone.
 
 Knot owns document authority: opening, editing, saving, revisions, evidence,
 vaults, peer replication, and publishing. Mere supplies the graph and host composition. Dramatis supplies identity and
-custody, Eidetic durable storage, Murm transport, and Distillery model execution.
+custody, Eidetic durable storage, Murm transport and live sync, and Distillery model execution.
 Genet and Cambium supply the document presentation and desktop host.
 
 ## Workspace
@@ -395,3 +395,7 @@ The 2026-11-03 Distillery source cutover is coordinated in
 `mere/design_docs/mere_docs/implementation_strategy/2026-10-31_distillery_extraction_plan.md`.
 The `esp` crate keeps its name in the renamed supplier repository; locked native
 checks and selected-source audits are recorded separately from headed acceptance.
+
+Live sessions use `murm-sync`; Stickleback 0.2 supplies local storage and
+admission. Knot enables the network crate only with `peers`. The coordinated
+receiving scope is Murm's transport consolidation plan, T7.

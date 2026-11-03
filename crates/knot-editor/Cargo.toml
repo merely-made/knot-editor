@@ -64,9 +64,10 @@ projection-provider = ["graphshell-endpoint/projection-provider"]
 # The `knot_site` client: hand a completed site to the resident on its
 # published-site route (`knot_site::handoff`).
 site-handoff = ["dep:knot-site"]
-peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "stickleback/net"]
+peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
 
 [dependencies]
+murm-sync = { workspace = true, optional = true }
 knot-capture.workspace = true
 knot-composition.workspace = true
 base64.workspace = true
@@ -122,8 +123,8 @@ servitor.workspace = true
 pandect.workspace = true
 sporran.workspace = true
 esp.workspace = true
-# Without `peers` stickleback is its local half only; `peers` turns its `net`
-# feature on (the workspace row names `default-features = false`).
+# Stickleback supplies local storage and admission. `peers` adds murm-sync;
+# the store, validation and merge APIs stay available offline.
 stickleback.workspace = true
 thiserror = "1"
 transport = { workspace = true, features = ["noise", "notochord"], optional = true }

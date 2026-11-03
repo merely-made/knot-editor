@@ -146,3 +146,9 @@ Plans and slice records that landed. Each keeps its text and gains a dated heade
 - [Contextual navigation prototype](archive_docs/2026-11-02/2026-10-23_knot_context_navigation.md): shared Cambium Back/Forward and scope controls, nested live-outline ancestry, startup-only rebinding of durable document/site routes, semantic source/preview scroll bookmarks, and current authority limits.
 - [Custody and projection receiver](archive_docs/2026-11-02/2026-10-29_custody_projection_receiver.md): the separated custody-client and projection-door receiver; published, focused overlay, peer-enabled host compilation and secure publishing tests passed.
 - [Codex handoff (October 15)](archive_docs/2026-11-02/2026-10-15_knot_codex_handoff.md): where Knot stands after the Graphshell stack lift, the overmap tier and merge-in, the rulings that bind it, and three ordered tasks: the Mere/Knot/Turnstone repin round per the remote mere route spec §7 (Murm `main` `220e9702b4d`; Knot and Turnstone drop `graphshell`), a native capture of the pending-merge card, and a full suite re-run. Closed out 2026-11-02: task 1 was done 2026-10-15, and tasks 2 and 3 are carried into the plan cut from the composition retention plan.
+
+Registry receiving (2026-11-03), in progress: the dependency bounds admit the
+existing locked cohort and the new Pandect, storage and custody releases so
+Mere and its embedded Knot consumer can advance together. Final receiving
+will tighten the minimum versions after qualification. Coordination and receipts:
+`mere/design_docs/mere_docs/implementation_strategy/2026-10-28_workspace_hygiene_plan.md`.

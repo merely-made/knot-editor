@@ -31,8 +31,8 @@
 use std::path::{Path, PathBuf};
 
 use dramatis::view::VaultLockView;
-use djinn::door::app_admission::AppId;
-use djinn::door::custody_client::CustodyClient;
+use ostiary::app_admission::AppId;
+use castellan_client::custody_client::CustodyClient;
 use knot_editor::{
     KnotSettings, KnotSyncHost, KnotSyncHostConfig, KnotSyncSettings, PersonalVaultKeys,
     StartupUnlockedPersonalVault, knot_settings_path,

@@ -34,7 +34,7 @@ use graphshell_host::carrier::{accept_projection_session, projection_policy};
 use graphshell_client::{ResolvedContent, RetainedEndpointSession};
 use graphshell_host::lifecycle::SessionAuthority;
 use graphshell_host::endpoint_catalog::ResidentEndpointCatalog;
-use djinn::door::route::ResidentEndpointRoute;
+use ostiary::route::ResidentEndpointRoute;
 use graphshell_host::projection_host::ResidentProjectionHost;
 use graphshell_host::network_carrier::{
     CarrierRuntime, NetworkCarrier, dial_projection_session, projection_binding,

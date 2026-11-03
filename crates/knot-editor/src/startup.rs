@@ -18,9 +18,9 @@ use std::path::{Path, PathBuf};
 #[cfg(feature = "peers")]
 use std::sync::Arc;
 
-use djinn::door::app_admission::AppId;
-use djinn::door::custody::{EpochKeyRequest, ReleasedEpochKey};
-use djinn::door::custody_client::{
+use ostiary::app_admission::AppId;
+use castellan_client::custody::{EpochKeyRequest, ReleasedEpochKey};
+use castellan_client::custody_client::{
     BlockingCustodyClient, CustodyClient, CustodyClientError,
 };
 use p2panda_core::SigningKey;

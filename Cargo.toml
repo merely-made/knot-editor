@@ -42,12 +42,13 @@ reference-data = { version = "0.0.1", git = "https://github.com/merely-made/mere
 # Mesquite owns execution and receipts; Taproot owns semantic selection and
 # click delivery hooks; Apparatus owns bounded diagnostic observations.
 chartulary = { version = "0.2.1", git = "https://github.com/merely-made/eidetic.git", rev = "613799afd001200792e6c37d4406807848dadabc" }
-chirograph = { version = "0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main" }
+chirograph = { version = "0.0.4", git = "https://github.com/merely-made/mere.git", branch = "main" }
 eidetic = { version = "0.0.2", default-features = false, git = "https://github.com/merely-made/eidetic.git", rev = "613799afd001200792e6c37d4406807848dadabc" }
 esp = { version = "0.1.0", git = "https://github.com/merely-made/esp.git", rev = "bd0468c5c44c0b098494d30b3cfd0aa283cecf48" }
 fetch = { package = "mere-fetch", version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
 gemot = { version = "0.1.1", git = "https://github.com/merely-made/gemot.git", rev = "8ffdc9a5bab5dcc82fe3be4bfa0e1c5d8dbbab1c" }
-djinn = { version = "0.0.3", git = "https://github.com/merely-made/armillary.git", rev = "7eebeeb4447c5dfa70b813e64dc5b492a6212d3d" }
+ostiary = { version = "0.0.1", git = "https://github.com/merely-made/armillary.git", rev = "08ebbc44f5d391bd263fcc26b6053edf72741954" }
+castellan-client = { version = "0.0.1", git = "https://github.com/merely-made/dramatis.git", branch = "main" }
 dramatis = { git = "https://github.com/merely-made/dramatis.git", branch = "main" }
 graphshell-endpoint = { version = "0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main" }
 # The serving half Knot's place projection test and k2 peer serve through

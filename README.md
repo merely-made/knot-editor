@@ -383,3 +383,10 @@ The earlier plans remain under [`design_docs`](design_docs), archived ones in
 `Code/testing/knot-editor/` (see [`design_docs/DOC_POLICY.md`](design_docs/DOC_POLICY.md)).
 
 Knot Editor is licensed under MPL-2.0.
+
+## Local checks
+
+Enable the commit checks with `prek install --allow-missing-config`; run
+`prek run --all-files` alongside the existing local gates. Check definitions
+live in `.pre-commit-config.yaml`, with source-size exclusions and exceptions
+in `line-ceiling.toml`. Shared house style and rollout: `mere/design_docs/mere_docs/implementation_strategy/2026-10-30_house_style_plan.md`.

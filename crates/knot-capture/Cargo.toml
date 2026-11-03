@@ -8,3 +8,6 @@ rust-version = "1.97.1"
 
 [dependencies]
 knot-catalog.workspace = true
+
+[lints]
+workspace = true

@@ -6,7 +6,7 @@ use crate::workspace::DocumentEntry;
 use cambium::CaretSelection;
 use cambium_genet_winit_host::{Modifiers, WindowCommands};
 use knot_document::{DocumentFormat, KnotDocumentSession};
-use knot_site::{Site, SiteFormat};
+use site_host::{Site, SiteFormat};
 use std::collections::BTreeSet;
 
 fn state(session: KnotDocumentSession) -> DesktopState {

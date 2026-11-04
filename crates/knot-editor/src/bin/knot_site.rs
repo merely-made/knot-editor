@@ -18,8 +18,8 @@ use chirograph::{
 };
 use ostiary::app_admission::{AppId, AppRouteId};
 use graphshell_endpoint::door::projection::AppBrokerClient;
-use knot_site::Site;
-use knot_site::handoff::{
+use site_host::Site;
+use site_host::handoff::{
     GeminiListenerPolicyV1, PUBLISHED_SITE_CHUNK_INTENT, PUBLISHED_SITE_COMMIT_INTENT,
     PUBLISHED_SITE_PREPARE_INTENT, PUBLISHED_SITE_REMOVE_INTENT, PUBLISHED_SITE_ROUTE,
     PUBLISHED_SITE_SESSION, PUBLISHED_SITE_STOP_INTENT, PublishedSitePrepareV1,

@@ -1,3 +1,10 @@
+Site source ownership (2026-11-04): native saved-site, publication, serving and
+handoff code now comes from Gemot `4492351` as `gemot-site-host`; its shared
+model is `gemot-site`. Knot retains authoring controls and the `knot_site`
+client. The donor standalone workspace and its source-size exception are gone.
+Canonical scope: `gemot/design_docs/2026-11-04_site_extraction_plan.md`; the
+namespace/agreed-work design remains optional community composition.
+
 # Knot Editor design documents
 
 This is the index that [DOC_POLICY](DOC_POLICY.md) §6 names (its Knot Editor addendum says so). Documents archived on 2026-11-02 are listed once, under the two Archived sections at the end, each with its landing commits or cut note in its own header. Run receipts are outside the repository, in `Code/testing/knot-editor/`, and are cited as paths.

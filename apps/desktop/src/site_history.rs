@@ -13,7 +13,7 @@ use crate::{
 };
 use cambium::button;
 use cambium_genet_winit_host::HostWake;
-use knot_site::history::{Checkpoint, SiteHistory, SiteRevision};
+use site_host::history::{Checkpoint, SiteHistory, SiteRevision};
 use std::{
     sync::{
         Arc,
@@ -159,7 +159,7 @@ mod tests {
     use cambium::TextCommand;
     use cambium_genet_winit_host::WindowCommands;
     use knot_document::{KnotDocumentIntentV1, KnotDocumentSession};
-    use knot_site::{Site, SiteFormat, history::HistoryLimits};
+    use site_host::{Site, SiteFormat, history::HistoryLimits};
 
     fn wait(state: &mut DesktopState) {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(10);

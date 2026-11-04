@@ -569,7 +569,7 @@ impl DesktopState {
     /// Hold the site at `folder` in the site panel, returning its index
     /// page's path. Opening that page is the caller's business.
     pub fn attach_site(&mut self, folder: &Path) -> Option<PathBuf> {
-        match knot_site::Site::open(folder) {
+        match site_host::Site::open(folder) {
             Ok(site) => {
                 let page = site.page_path(site.config.format.index_file()).ok();
                 self.scroll.folder = TextInput::new(display_path(folder));
@@ -12096,7 +12096,7 @@ mod tests {
     fn opening_a_site_at_startup_uses_its_format_and_default_port() {
         let temp = tempdir().unwrap();
         let root = temp.path().join("gemini");
-        let site = knot_site::Site::create_for(&root, knot_site::SiteFormat::Gemini).unwrap();
+        let site = site_host::Site::create_for(&root, site_host::SiteFormat::Gemini).unwrap();
         let index = site.page_path(site.config.format.index_file()).unwrap();
         let state = DesktopState::with_catalog(
             KnotDocumentSession::open(index).unwrap(),
@@ -12105,11 +12105,11 @@ mod tests {
             None,
         );
 
-        assert_eq!(state.scroll.format, knot_site::SiteFormat::Gemini);
+        assert_eq!(state.scroll.format, site_host::SiteFormat::Gemini);
         assert_eq!(state.scroll.port.text(), "1965");
         assert_eq!(
             state.scroll.current_site().unwrap().site.config.format,
-            knot_site::SiteFormat::Gemini
+            site_host::SiteFormat::Gemini
         );
     }
 

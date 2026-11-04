@@ -63,7 +63,7 @@ mere-overlay = ["dep:mere-overmap", "dep:mere-view"]
 projection-provider = ["graphshell-endpoint/projection-provider"]
 # The `knot_site` client: hand a completed site to the resident on its
 # published-site route (`knot_site::handoff`).
-site-handoff = ["dep:knot-site"]
+site-handoff = ["dep:site-host"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
 
 [dependencies]
@@ -89,7 +89,7 @@ chirograph.workspace = true
 inker.workspace = true
 jotdown = "0.10"
 knot-document = { workspace = true, features = ["engine"] }
-knot-site = { path = "../knot-site", optional = true }
+site-host = { package = "gemot-site-host", git = "https://www.github.com/merely-made/gemot.git", rev = "449235180618d33617c624f3d50018ebcaede9a6", optional = true }
 knot-catalog.workspace = true
 muniment = { workspace = true, features = ["redb"] }
 mora.workspace = true

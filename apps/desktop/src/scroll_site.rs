@@ -16,9 +16,9 @@ use inker::{
     Block, Engine, EngineDocument, EngineError, EngineInput, FoldKey, FoldMarkers, FoldState,
     InPageTarget, InlineSpan, TableAlignment,
 };
-use knot_site::micron_submission::{MicronResponse, MicronSubmissionConfig, PreparedMicronRequest};
-use knot_site::submission::{PreparedSubmission, SubmissionReceipt};
-use knot_site::{LocalServer, Page, Site, SiteFormat};
+use site_host::micron_submission::{MicronResponse, MicronSubmissionConfig, PreparedMicronRequest};
+use site_host::submission::{PreparedSubmission, SubmissionReceipt};
+use site_host::{LocalServer, Page, Site, SiteFormat};
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use nematic::micron::forms::{FormLimits, FormState};
 use nematic::micron::syntax::FieldKind;
@@ -2835,7 +2835,7 @@ mod tests {
             "published over unsaved metadata"
         );
         state.save_metadata(site, "index.scroll").unwrap();
-        let manifest = std::fs::read_to_string(root.join(knot_site::CONFIG)).unwrap();
+        let manifest = std::fs::read_to_string(root.join(site_host::CONFIG)).unwrap();
         assert!(manifest.contains("Writer"), "{manifest}");
         state.open_page_metadata();
         let about = state
@@ -3141,7 +3141,7 @@ mod tests {
         // Closing the tile over unsaved edits asks; Discard drops the draft and
         // leaves the manifest as it was.
         // A tab's close shows on the active tab, so bring the metadata tab up first.
-        let manifest = std::fs::read(root.join(knot_site::CONFIG)).unwrap();
+        let manifest = std::fs::read(root.join(site_host::CONFIG)).unwrap();
         assert!(host.click_on(&Selector::role("tab").containing("Metadata · about.scroll")));
         assert!(host.click_on(
             &Selector::role("button").with_attr("aria-label", "Close Metadata · about.scroll")
@@ -3172,7 +3172,7 @@ mod tests {
                 .is_none()
         );
         assert_eq!(
-            std::fs::read(root.join(knot_site::CONFIG)).unwrap(),
+            std::fs::read(root.join(site_host::CONFIG)).unwrap(),
             manifest
         );
         assert_eq!(state.docs.len(), 3);
@@ -3421,7 +3421,7 @@ mod tests {
                 .contains("Edited ")
         );
         assert!(
-            std::fs::read_to_string(root.join(knot_site::CONFIG))
+            std::fs::read_to_string(root.join(site_host::CONFIG))
                 .unwrap()
                 .contains("Closer")
         );
@@ -3695,7 +3695,7 @@ mod tests {
             "the window stayed open: {:?}",
             host.state().message
         );
-        let manifest = std::fs::read_to_string(root.join(knot_site::CONFIG)).unwrap();
+        let manifest = std::fs::read_to_string(root.join(site_host::CONFIG)).unwrap();
         assert!(manifest.contains("Quitter"), "{manifest}");
     }
 
@@ -4475,7 +4475,7 @@ mod tests {
             .site;
         Authored {
             saved_page: std::fs::read(site.page_path("about.mu").unwrap()).unwrap(),
-            manifest: std::fs::read(site.root().join(knot_site::CONFIG)).unwrap(),
+            manifest: std::fs::read(site.root().join(site_host::CONFIG)).unwrap(),
             manifest_page: state.site_page().map(|page| page.name.clone()),
             text: snapshot.text,
             dirty: snapshot.dirty,

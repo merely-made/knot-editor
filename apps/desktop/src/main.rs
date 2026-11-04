@@ -251,7 +251,7 @@ fn open_documents(paths: Vec<PathBuf>) -> Result<DesktopLaunch, String> {
 }
 fn open_path(path: &Path) -> Result<KnotDocumentSession, String> {
     if path.is_dir() {
-        let site = knot_site::Site::open(path)?;
+        let site = site_host::Site::open(path)?;
         KnotDocumentSession::open(site.page_path(site.config.format.index_file())?)
     } else {
         KnotDocumentSession::open(path)
@@ -274,7 +274,7 @@ fn main() {
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
         .join("Knot");
     let titan_submission_error =
-        knot_site::submission::initialize_submission_trust(&settings_root.join("titan-trust.json"))
+        site_host::submission::initialize_submission_trust(&settings_root.join("titan-trust.json"))
             .err();
     let catalog = options
         .catalog
@@ -296,15 +296,15 @@ fn main() {
             let backend = muniment::DirectoryBackend::open(&path)
                 .map_err(|e| format!("site history could not be opened: {e}"))?;
             let backend: Box<dyn muniment::Backend + Send + Sync> = Box::new(backend);
-            Ok::<_, String>(knot_site::history::SiteHistory::new(
+            Ok::<_, String>(site_host::history::SiteHistory::new(
                 backend,
-                knot_site::history::HistoryLimits {
+                site_host::history::HistoryLimits {
                     max_revisions: options
                         .site_history_revisions
-                        .unwrap_or(knot_site::history::HistoryLimits::default().max_revisions),
+                        .unwrap_or(site_host::history::HistoryLimits::default().max_revisions),
                     max_journal_bytes: options
                         .site_history_journal_bytes
-                        .unwrap_or(knot_site::history::HistoryLimits::default().max_journal_bytes),
+                        .unwrap_or(site_host::history::HistoryLimits::default().max_journal_bytes),
                 },
             ))
         })

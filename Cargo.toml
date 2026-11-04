@@ -8,7 +8,7 @@ members = [
     "crates/knot-readings",
     "crates/knot-composition",
 ]
-exclude = ["crates/knot-document", "crates/knot-site"]
+exclude = ["crates/knot-document"]
 default-members = [
     "crates/knot-editor",
 ]

@@ -20,7 +20,7 @@ use crate::PersonalVaultKeys;
 /// The resident's mere routes Knot's overmap layer opens (`mere/<domain>`).
 pub const MERE_ROUTE_PREFIX: &str = "mere/";
 /// The route Knot hands a completed site to the resident on
-/// (`knot_site::handoff::PUBLISHED_SITE_ROUTE`).
+/// (`site_host::handoff::PUBLISHED_SITE_ROUTE`).
 pub const PUBLISHED_SITE_ROUTE: &str = "published-site-v1";
 /// The route Knot offers projections through
 /// (`graphshell_endpoint::door::projection_offer::PROJECTION_PROVIDER_ROUTE`).
@@ -124,6 +124,6 @@ mod tests {
     #[cfg(feature = "site-handoff")]
     #[test]
     fn the_site_route_matches_the_handoff() {
-        assert_eq!(PUBLISHED_SITE_ROUTE, knot_site::handoff::PUBLISHED_SITE_ROUTE);
+        assert_eq!(PUBLISHED_SITE_ROUTE, site_host::handoff::PUBLISHED_SITE_ROUTE);
     }
 }

@@ -4821,6 +4821,41 @@ dependencies = [
 ]
 
 [[package]]
+name = "gemot-site"
+version = "0.1.0"
+source = "git+https://www.github.com/merely-made/gemot.git?rev=449235180618d33617c624f3d50018ebcaede9a6#449235180618d33617c624f3d50018ebcaede9a6"
+dependencies = [
+ "blake3",
+ "language-tags",
+ "muniment",
+ "serde",
+ "serde_json",
+ "time",
+]
+
+[[package]]
+name = "gemot-site-host"
+version = "0.0.1"
+source = "git+https://www.github.com/merely-made/gemot.git?rev=449235180618d33617c624f3d50018ebcaede9a6#449235180618d33617c624f3d50018ebcaede9a6"
+dependencies = [
+ "blake3",
+ "gemini-protocol",
+ "gemot-site",
+ "getrandom 0.2.17",
+ "muniment",
+ "rcgen 0.13.2",
+ "retinue",
+ "rustls",
+ "scroll-protocol",
+ "serde",
+ "serde_json",
+ "spartan-protocol",
+ "tempfile",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "genawaiter"
 version = "0.99.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6911,6 +6946,7 @@ dependencies = [
  "cambium-desktop",
  "cambium-rootstock",
  "directories",
+ "gemot-site-host",
  "genet-scripted-dom",
  "inker",
  "knot-capture",
@@ -6919,7 +6955,6 @@ dependencies = [
  "knot-document",
  "knot-editor",
  "knot-readings",
- "knot-site",
  "layout-dom-api",
  "mere-curation",
  "mere-kernel",
@@ -6981,6 +7016,7 @@ dependencies = [
  "esp",
  "fleece",
  "gemot",
+ "gemot-site-host",
  "graphshell-client",
  "graphshell-endpoint",
  "graphshell-host",
@@ -6991,7 +7027,6 @@ dependencies = [
  "knot-catalog",
  "knot-composition",
  "knot-document",
- "knot-site",
  "mere-fetch",
  "mere-overmap",
  "mere-proofs",
@@ -7064,27 +7099,6 @@ dependencies = [
  "script-rhai",
  "serde_json",
  "tempfile",
-]
-
-[[package]]
-name = "knot-site"
-version = "0.0.1"
-dependencies = [
- "blake3",
- "gemini-protocol",
- "getrandom 0.2.17",
- "mere-site",
- "muniment",
- "rcgen 0.13.2",
- "retinue",
- "rustls",
- "scroll-protocol",
- "serde",
- "serde_json",
- "spartan-protocol",
- "tempfile",
- "tokio",
- "url",
 ]
 
 [[package]]
@@ -7775,19 +7789,6 @@ dependencies = [
  "blake3",
  "serde",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "mere-site"
-version = "0.1.0"
-source = "git+https://github.com/merely-made/mere.git?branch=main#ab37ca96f65c68d5064f37530f4f374ad528bb42"
-dependencies = [
- "blake3",
- "language-tags",
- "muniment",
- "serde",
- "serde_json",
- "time",
 ]
 
 [[package]]

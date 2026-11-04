@@ -323,8 +323,8 @@ fn launch_takes_several_site_folders_in_order() {
     let temp = tempdir().unwrap();
     let one = temp.path().join("one");
     let two = temp.path().join("two");
-    knot_site::Site::create_for(&one, knot_site::SiteFormat::Scroll).unwrap();
-    knot_site::Site::create_for(&two, knot_site::SiteFormat::Scroll).unwrap();
+    site_host::Site::create_for(&one, site_host::SiteFormat::Scroll).unwrap();
+    site_host::Site::create_for(&two, site_host::SiteFormat::Scroll).unwrap();
     let from_sites = open_documents(vec![one.clone(), two.clone()]).unwrap();
     assert_eq!(from_sites.first_path.as_deref(), Some(one.as_path()));
     assert_eq!(from_sites.sites.as_slice(), std::slice::from_ref(&two));

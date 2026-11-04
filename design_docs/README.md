@@ -2,6 +2,21 @@
 
 This is the index that [DOC_POLICY](DOC_POLICY.md) §6 names (its Knot Editor addendum says so). Documents archived on 2026-11-02 are listed once, under the two Archived sections at the end, each with its landing commits or cut note in its own header. Run receipts are outside the repository, in `Code/testing/knot-editor/`, and are cited as paths.
 
+## Working principles
+
+- Keep files and signed, custodied material authoritative; presentation and
+  scenario code receive projections and explicitly granted actions.
+- Preserve literal bytes, facade paths, generic bounds, cfg, type fields and
+  subprocess test-entry identities during source moves. Give children explicit
+  paths when their owner is loaded through `#[path]`. Copy only bounded
+  source-notice comments into child modules.
+- Put optional fixture imports with the fixture module and guard that cohort
+  with its production feature, keeping unrelated scenarios available.
+- Compare baseline/post inventories and distinguish product failures and
+  unsupported-platform refusals. Keep run evidence outside Git per policy.
+
+## Active documents
+
 - [Writer ergonomics brief (October 29)](2026-10-29_knot_writer_ergonomics_brief.md): digests Mark's IDE comparison. Knot stays an authoring browser, not an IDE. Records the correction that the desktop already edits several documents as Workbench tiles, the IDE ergonomics worth borrowing (multi-cursor, find and replace, quick open, rename, peek, problems pane), scripts that edit source through pack grants and `mere-source-edit` proposals, and a project as a signed graph record. Nothing scheduled.
 
 - [Writing workspace and mesh publication direction](2026-10-29_knot_writing_workspace_and_mesh.md): corrects the desktop multi-document baseline, records separate writer-invoked macro authority and graph-project direction, and proposes full published-site replicas with resident serving, authenticated discovery, measured availability and an independent-device failover gate. This is a design record, with implementation and qualification still separate.
@@ -153,3 +168,5 @@ Castellan Client 0.0.2. The locked all-target check passes on Mere `47dce59ee`
 and Genet `ad362723109`, with one storage and custody door type identity.
 Coordination and receipts:
 `mere/design_docs/mere_docs/implementation_strategy/2026-10-28_workspace_hygiene_plan.md`.
+
+- [Source splits, H7](2026-11-03_source_splits_plan.md): 28 responsibility and fixture-group splits landed; eleven exceptions remain. Baseline failures, feature/docs/style gates and external evidence are distinguished.

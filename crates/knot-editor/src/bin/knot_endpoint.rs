@@ -48,7 +48,7 @@ fn main() {
                 knot_editor::KnotWriteGrant::new(max_source_bytes),
             )
             .expect("Knot could not open the requested writable directory")
-        }
+        },
         [
             mode,
             root,
@@ -72,7 +72,7 @@ fn main() {
                 .expect("Knot could not open the clip evidence blob store"),
             );
             endpoint
-        }
+        },
         [
             mode,
             root,
@@ -104,7 +104,7 @@ fn main() {
                 Some(&root),
             ));
             endpoint
-        }
+        },
         [
             mode,
             root,
@@ -145,7 +145,7 @@ fn main() {
                 .expect("Knot could not open the clip evidence blob store"),
             );
             endpoint
-        }
+        },
         [mode, data_root, persona, max_source_bytes] if mode == "persona-vault" => {
             let persona = persona
                 .to_string_lossy()
@@ -166,7 +166,7 @@ fn main() {
                 authority.into_endpoint(knot_editor::KnotWriteGrant::new(max_source_bytes))
             })
             .expect("Knot could not startup-unlock the requested persona vault")
-        }
+        },
         [
             mode,
             data_root,
@@ -201,7 +201,7 @@ fn main() {
                 .expect("Knot could not open the clip evidence blob store"),
             );
             endpoint
-        }
+        },
         [
             mode,
             data_root,
@@ -243,7 +243,7 @@ fn main() {
                 None,
             ));
             endpoint
-        }
+        },
         [
             mode,
             data_root,
@@ -294,7 +294,7 @@ fn main() {
                 .expect("Knot could not open the clip evidence blob store"),
             );
             endpoint
-        }
+        },
         [
             mode,
             root,
@@ -371,7 +371,9 @@ fn parse_provider_args(args: &[std::ffi::OsString]) -> Result<ProjectionProvider
     let route = ostiary::app_admission::AppRouteId::new(route.to_owned())
         .map_err(|error| format!("invalid projection-provider route: {error:?}"))?;
     if route.as_str() == "knot" {
-        return Err("projection-provider route `knot` is reserved for Djinn's built-in Knot route".into());
+        return Err(
+            "projection-provider route `knot` is reserved for Djinn's built-in Knot route".into(),
+        );
     }
     let mut endpoint = None;
     let mut max_sessions = 8usize;
@@ -421,11 +423,16 @@ const PROVIDER_LABEL: &str = "Knot directory";
 
 #[cfg(feature = "projection-provider")]
 fn run_projection_provider(args: ProjectionProviderArgs) {
-    use ostiary::{app_admission::{AppId, AppRouteId}, app_client::AppConnection};
-    use graphshell_endpoint::door::{projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider};
+    use graphshell_endpoint::door::{
+        projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider,
+    };
+    use ostiary::{
+        app_admission::{AppId, AppRouteId},
+        app_client::AppConnection,
+    };
 
-    let provider_route = AppRouteId::new(PROJECTION_PROVIDER_ROUTE)
-        .expect("the provider protocol route is valid");
+    let provider_route =
+        AppRouteId::new(PROJECTION_PROVIDER_ROUTE).expect("the provider protocol route is valid");
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -435,7 +442,8 @@ fn run_projection_provider(args: ProjectionProviderArgs) {
         let declaration = knot_editor::declaration::offering(args.route.clone(), PROVIDER_LABEL);
         let connection = match args.endpoint.as_deref() {
             Some(endpoint) => {
-                AppConnection::open_declared_route_at(endpoint, app, provider_route, declaration).await
+                AppConnection::open_declared_route_at(endpoint, app, provider_route, declaration)
+                    .await
             },
             None => AppConnection::open_declared_route(app, provider_route, declaration).await,
         }
@@ -461,84 +469,8 @@ fn open_directory_projection(root: &Path) -> Result<knot_editor::KnotEndpoint, S
 
 #[cfg(test)]
 #[cfg(feature = "projection-provider")]
-mod provider_cli_tests {
-    use super::*;
-
-    #[test]
-    fn provider_mode_requires_root_and_a_non_builtin_route() {
-        let args = [
-            "projection-provider".into(),
-            "/tmp/knot-documents".into(),
-            "knot-documents".into(),
-        ];
-        let parsed = parse_provider_args(&args).expect("valid provider arguments");
-        assert_eq!(parsed.root, PathBuf::from("/tmp/knot-documents"));
-        assert_eq!(parsed.route.as_str(), "knot-documents");
-        assert_eq!(parsed.endpoint, None);
-        assert_eq!(parsed.max_sessions, 8);
-
-        let colliding = [
-            "projection-provider".into(),
-            "/tmp/knot-documents".into(),
-            "knot".into(),
-        ];
-        assert!(parse_provider_args(&colliding).is_err());
-    }
-
-    #[test]
-    fn provider_mode_accepts_an_explicit_app_endpoint() {
-        let args = [
-            "projection-provider".into(),
-            "/tmp/knot-documents".into(),
-            "knot-documents".into(),
-            "--endpoint".into(),
-            "/tmp/djinn-app.sock".into(),
-            "--max-sessions".into(),
-            "12".into(),
-        ];
-        let parsed = parse_provider_args(&args).expect("valid provider arguments");
-        assert_eq!(parsed.endpoint.as_deref(), Some("/tmp/djinn-app.sock"));
-        assert_eq!(parsed.max_sessions, 12);
-    }
-
-    #[test]
-    fn provider_mode_rejects_session_limits_outside_the_bounded_range() {
-        for count in ["0", "65"] {
-            let args = [
-                "projection-provider".into(),
-                "/tmp/knot-documents".into(),
-                "knot-documents".into(),
-                "--max-sessions".into(),
-                count.into(),
-            ];
-            assert!(parse_provider_args(&args).is_err());
-        }
-    }
-
-    #[test]
-    fn provider_factory_opens_a_real_read_only_directory_endpoint() {
-        use graphshell_endpoint::{ProjectionCatalog, ProjectionSource};
-
-        let root = tempfile::tempdir().unwrap();
-        std::fs::write(root.path().join("field.knot"), "# Field\n").unwrap();
-        let mut first = open_directory_projection(root.path()).unwrap();
-
-        // The directory canonicalizes its root (`/tmp` is `/private/tmp` on macOS).
-        assert_eq!(first.directory().unwrap().root(), root.path().canonicalize().unwrap());
-        let descriptor = first.describe();
-        assert_eq!(descriptor.label, "Knot");
-        assert_eq!(descriptor.projections[0].label, "Files in place");
-        let snapshot = first
-            .snapshot(descriptor.projections[0].request.clone())
-            .unwrap();
-        assert!(snapshot
-            .presentation
-            .offers
-            .values()
-            .flatten()
-            .all(|offer| offer.codec != chirograph::PresentationCodec::EditableTextV1));
-    }
-}
+#[path = "knot_endpoint/provider_cli_tests.rs"]
+mod provider_cli_tests;
 
 /// Process-only received-content fixture. Its keys are minted inside the
 /// endpoint process and the root is caller-owned scratch storage, so this mode
@@ -637,317 +569,13 @@ fn parse_csv(value: &OsStr) -> Vec<String> {
         .collect()
 }
 
-#[allow(clippy::too_many_arguments)]
-fn effect_authority(
-    resolve: &OsStr,
-    run: &OsStr,
-    schemes: &OsStr,
-    languages: &OsStr,
-    max_depth: &OsStr,
-    max_ops: &OsStr,
-    max_fetch_bytes: &OsStr,
-    file_root: Option<&Path>,
-) -> knot_editor::KnotEffectAuthority {
-    let policy = knot_editor::KnotEffectPolicy {
-        resolve: parse_effect_mode(resolve),
-        run: parse_effect_mode(run),
-        allowed_schemes: parse_csv(schemes),
-        allowed_languages: parse_csv(languages),
-        max_depth: parse_u64(max_depth, "effect max depth")
-            .try_into()
-            .expect("effect max depth must fit in u8"),
-        max_ops: parse_u64(max_ops, "effect operation limit"),
-    };
-    assert!(
-        !policy
-            .allowed_schemes
-            .iter()
-            .any(|scheme| scheme == "titan"),
-        "Titan is an upload protocol and cannot be admitted as a Knot read effect",
-    );
-    let has_file = policy.allowed_schemes.iter().any(|scheme| scheme == "file");
-    let has_network = policy
-        .allowed_schemes
-        .iter()
-        .any(|scheme| is_read_network_scheme(scheme));
-    let has_rhai = policy
-        .allowed_languages
-        .iter()
-        .any(|language| language == "rhai");
-    let mut authority = knot_editor::KnotEffectAuthority::new(policy);
-    if has_file || has_network {
-        let file = has_file.then(|| {
-            RootedFileFetcher::new(
-                file_root.expect("file effects require a directory-root endpoint"),
-            )
-            .expect("could not admit effect file root")
-        });
-        let network = has_network.then(|| {
-            NetworkEffectFetcher::new(
-                parse_u64(max_fetch_bytes, "effect fetch byte limit")
-                    .try_into()
-                    .expect("effect fetch byte limit must fit in usize"),
-            )
-            .expect("could not start Knot network effect provider")
-        });
-        authority = authority.with_fetcher(RoutedEffectFetcher { file, network });
-    }
-    if has_rhai {
-        authority = authority.register_evaluator(script_rhai::RhaiEvaluator::new());
-    }
-    authority
-}
-
-fn is_read_network_scheme(scheme: &str) -> bool {
-    matches!(
-        scheme,
-        "http" | "https" | "gemini" | "gopher" | "finger" | "spartan" | "nex" | "guppy"
-    )
-}
-
-struct RoutedEffectFetcher {
-    file: Option<RootedFileFetcher>,
-    network: Option<NetworkEffectFetcher>,
-}
-
-impl knot_editor::KnotEffectFetcher for RoutedEffectFetcher {
-    fn fetch(&mut self, address: &str) -> Result<inker::Fetched, String> {
-        let scheme = url::Url::parse(address)
-            .map_err(|error| format!("could not parse effect address {address}: {error}"))?
-            .scheme()
-            .to_ascii_lowercase();
-        match scheme.as_str() {
-            "file" => self
-                .file
-                .as_mut()
-                .ok_or_else(|| "Knot has no file effect provider".to_string())?
-                .fetch(address),
-            scheme if is_read_network_scheme(scheme) => self
-                .network
-                .as_mut()
-                .ok_or_else(|| format!("Knot has no {scheme} effect provider"))?
-                .fetch(address),
-            _ => Err(format!("Knot has no fetch provider for {address}")),
-        }
-    }
-
-    fn cache_version(&self) -> String {
-        let network = self
-            .network
-            .as_ref()
-            .map(knot_editor::KnotEffectFetcher::cache_version)
-            .unwrap_or_else(|| "none".into());
-        format!(
-            "knot.routed-effect-fetcher/v1;file={};network={network}",
-            self.file.is_some()
-        )
-    }
-}
-
-struct NetworkEffectFetcher {
-    runtime: tokio::runtime::Runtime,
-    max_bytes: usize,
-}
-
-impl NetworkEffectFetcher {
-    fn new(max_bytes: usize) -> Result<Self, String> {
-        fetch::install_in_memory_smolweb_tofu();
-        let runtime = tokio::runtime::Builder::new_multi_thread()
-            .enable_all()
-            .build()
-            .map_err(|error| format!("could not build effect fetch runtime: {error}"))?;
-        Ok(Self { runtime, max_bytes })
-    }
-}
-
-impl knot_editor::KnotEffectFetcher for NetworkEffectFetcher {
-    fn fetch(&mut self, address: &str) -> Result<inker::Fetched, String> {
-        let fetched = self
-            .runtime
-            .block_on(fetch::fetch_page_anonymous_capped(address, self.max_bytes))?;
-        Ok(inker::Fetched {
-            content_type: fetched.content_type,
-            body: fetched.body,
-        })
-    }
-
-    fn cache_version(&self) -> String {
-        format!(
-            "knot.anonymous-network-effect-fetcher/v1;max-bytes={}",
-            self.max_bytes
-        )
-    }
-}
-
-struct RootedFileFetcher {
-    root: PathBuf,
-}
-
-impl RootedFileFetcher {
-    fn new(root: &Path) -> Result<Self, String> {
-        Ok(Self {
-            root: fs::canonicalize(root)
-                .map_err(|error| format!("could not canonicalize file effect root: {error}"))?,
-        })
-    }
-}
-
-impl knot_editor::KnotEffectFetcher for RootedFileFetcher {
-    fn fetch(&mut self, address: &str) -> Result<inker::Fetched, String> {
-        let url = url::Url::parse(address)
-            .map_err(|error| format!("could not parse effect address {address}: {error}"))?;
-        if url.scheme() != "file" {
-            return Err(format!("Knot has no fetch provider for {address}"));
-        }
-        let path = url
-            .to_file_path()
-            .map_err(|_| format!("could not map {address} to a local file"))?;
-        let path = fs::canonicalize(&path)
-            .map_err(|error| format!("could not resolve {}: {error}", path.display()))?;
-        if !path.starts_with(&self.root) {
-            return Err(format!(
-                "{} is outside the admitted Knot directory",
-                path.display()
-            ));
-        }
-        let body = fs::read_to_string(&path)
-            .map_err(|error| format!("could not read {}: {error}", path.display()))?;
-        Ok(inker::Fetched {
-            content_type: content_type(&path),
-            body,
-        })
-    }
-}
-
-fn content_type(path: &Path) -> Option<String> {
-    match path
-        .extension()
-        .and_then(OsStr::to_str)
-        .map(str::to_ascii_lowercase)
-        .as_deref()
-    {
-        Some("gmi" | "gemini") => Some("text/gemini".into()),
-        Some("md" | "markdown") => Some("text/markdown".into()),
-        Some("knot") => Some("text/x-knot".into()),
-        Some("txt") => Some("text/plain".into()),
-        _ => None,
-    }
-}
-
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::{Read, Write};
-    use std::net::TcpListener;
-    use std::thread;
+#[path = "knot_endpoint/tests.rs"]
+mod tests;
 
-    fn serve_http_cookie_probe(body: &'static str) -> (String, thread::JoinHandle<Vec<String>>) {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind HTTP fixture");
-        let address = listener.local_addr().expect("read HTTP fixture address");
-        let handle = thread::spawn(move || {
-            let mut requests = Vec::new();
-            for seed_session in [true, false] {
-                let (mut stream, _) = listener.accept().expect("accept HTTP fixture");
-                let mut request = [0_u8; 4096];
-                let read = stream.read(&mut request).expect("read HTTP request");
-                let set_cookie = if seed_session {
-                    "Set-Cookie: knot-browser-authority=secret; Path=/\r\n"
-                } else {
-                    ""
-                };
-                write!(
-                    stream,
-                    "HTTP/1.1 200 OK\r\nContent-Type: text/markdown\r\n{set_cookie}Content-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    body.len(),
-                    body,
-                )
-                .expect("write HTTP response");
-                requests.push(String::from_utf8_lossy(&request[..read]).into_owned());
-            }
-            requests
-        });
-        (format!("http://{address}/note"), handle)
-    }
+#[path = "knot_endpoint/effects.rs"]
+mod effects;
 
-    fn serve_gopher_once(body: &'static str) -> (String, thread::JoinHandle<String>) {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("bind Gopher fixture");
-        let address = listener.local_addr().expect("read Gopher fixture address");
-        let handle = thread::spawn(move || {
-            let (mut stream, _) = listener.accept().expect("accept Gopher fixture");
-            let mut request = [0_u8; 256];
-            let read = stream.read(&mut request).expect("read Gopher request");
-            stream
-                .write_all(body.as_bytes())
-                .expect("write Gopher response");
-            String::from_utf8_lossy(&request[..read]).into_owned()
-        });
-        (format!("gopher://{address}/0note"), handle)
-    }
-
-    #[test]
-    fn network_effect_fetcher_reads_anonymous_http() {
-        let (url, server) = serve_http_cookie_probe("# from HTTP\n");
-        let mut fetcher = NetworkEffectFetcher::new(1024).expect("start fetcher");
-        fetcher
-            .runtime
-            .block_on(fetch::fetch_page_capped(&url, 1024))
-            .expect("seed browser session cookie");
-        let fetched =
-            knot_editor::KnotEffectFetcher::fetch(&mut fetcher, &url).expect("fetch HTTP effect");
-
-        assert_eq!(fetched.content_type.as_deref(), Some("text/markdown"));
-        assert_eq!(fetched.body, "# from HTTP\n");
-        let requests = server.join().expect("join HTTP fixture");
-        assert_eq!(requests.len(), 2);
-        assert!(requests[1].starts_with("GET /note HTTP/"));
-        assert!(
-            !requests[1].to_ascii_lowercase().contains("\r\ncookie:"),
-            "effect fetch must not borrow browser cookies: {}",
-            requests[1],
-        );
-    }
-
-    #[test]
-    fn network_effect_fetcher_reads_gopher_as_plain_text() {
-        let (url, server) = serve_gopher_once("from Gopher\r\n");
-        let mut fetcher = NetworkEffectFetcher::new(1024).expect("start fetcher");
-        let fetched =
-            knot_editor::KnotEffectFetcher::fetch(&mut fetcher, &url).expect("fetch Gopher effect");
-
-        assert_eq!(fetched.content_type.as_deref(), Some("text/plain"));
-        assert_eq!(fetched.body, "from Gopher\r\n");
-        assert_eq!(server.join().expect("join Gopher fixture"), "note\r\n");
-    }
-
-    #[test]
-    fn effect_cache_identity_binds_the_fetch_byte_cap() {
-        let small = RoutedEffectFetcher {
-            file: None,
-            network: Some(NetworkEffectFetcher::new(1024).expect("start small fetcher")),
-        };
-        let large = RoutedEffectFetcher {
-            file: None,
-            network: Some(NetworkEffectFetcher::new(2048).expect("start large fetcher")),
-        };
-
-        assert_ne!(
-            knot_editor::KnotEffectFetcher::cache_version(&small),
-            knot_editor::KnotEffectFetcher::cache_version(&large)
-        );
-    }
-
-    #[test]
-    #[should_panic(expected = "Titan is an upload protocol")]
-    fn effect_authority_rejects_titan_read_grants() {
-        effect_authority(
-            OsStr::new("ask"),
-            OsStr::new("never"),
-            OsStr::new("titan"),
-            OsStr::new(""),
-            OsStr::new("1"),
-            OsStr::new("1"),
-            OsStr::new("1024"),
-            None,
-        );
-    }
-}
+use effects::effect_authority;
+#[cfg(test)]
+use effects::{NetworkEffectFetcher, RoutedEffectFetcher};

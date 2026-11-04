@@ -57,6 +57,8 @@ The overmap receipt has no capture of the pending-merge card because the live fi
 
 The repin round's report did not re-run `knot-document`, `knot-site`, `font_roles` or `typography_fonts` (archived handoff lines 152-158). The handoff named revision `7ee24f9`, since superseded by later repins, so the done-condition applies to the revision locked when it is run.
 
+The Windows workspace/peer baseline and matching post comparison for the [H7 source pass](2026-11-03_source_splits_plan.md) now exposes existing Readings/recipe-control lookup failures and the explicit Unix-only legacy checkpoint replacement refusal. That source pass owns the baseline/post comparison; it does not run the excluded standalone knot-document and knot-site packages or close O4.
+
 **Done when:** on the locked revision, `knot-editor` with `mere-overlay`, `knot-document`, `knot-site` and `knot-desktop` (lib, bins, `scenario_lane`, `font_roles`, `typography_fonts`) are run, and each suite's count is recorded in the Progress entry of `repos/mere/design_docs/mere_docs/implementation_strategy/2026-10-28_stack_lift_plan.md` for that round.
 
 ### O5. Overmap qualification gaps

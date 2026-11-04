@@ -6,84 +6,24 @@ path = "apps/desktop/src/composition.rs"
 reason = "Explicit composition readings. Existing source-size debt; a responsibility split must preserve SelectionSnapshot, CompositionState, CollectionUpdate and existing module visibility."
 
 [[exception]]
-path = "apps/desktop/src/composition/metre.rs"
-reason = "Native owner for metrical alignment. Existing source-size debt; a responsibility split must preserve Surface, Drag, MetreState and existing module visibility."
-
-[[exception]]
 path = "apps/desktop/src/composition/recipe.rs"
 reason = "Knot supplies source facts and exact document actions. Existing source-size debt; a responsibility split must preserve RealizedTypography, MeasuredCard, FailedMeasure and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/composition/recipe/dynamics.rs"
-reason = "Session-only playback for the shared relationship-projection dynamics adapter. Existing source-size debt; a responsibility split must preserve FixedPlane, RuntimeState, PlaybackStatus and existing module visibility."
 
 [[exception]]
 path = "apps/desktop/src/composition/recipe/scene.rs"
 reason = "Knot's compact, editable presentation of a compiled relationship recipe. Existing source-size debt; a responsibility split must preserve SceneDrag, SceneLayer, SceneAction and existing module visibility."
 
 [[exception]]
-path = "apps/desktop/src/documents.rs"
-reason = "The desktop's open documents and the tiles that show them. Existing source-size debt; a responsibility split must preserve DocKey, SiteKey, DocIdentity and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/graph.rs"
-reason = "Knot's host adapter for Cambium's shared mere view. Existing source-size debt; a responsibility split must preserve OpenNode, CatalogReading, CatalogRequest and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/link_workflow.rs"
-reason = "Explicit links are source edits. Existing source-size debt; a responsibility split must preserve Target, LinkForm and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/main.rs"
-reason = "Thin standalone host for the reusable Knot document surface. Existing source-size debt; a responsibility split must preserve CatalogOptions, LaunchOptions, MereOptions and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/preferences.rs"
-reason = "App preferences the standalone desktop keeps across launches, in one local file it owns. Existing source-size debt; a responsibility split must preserve DesktopPreferences, StoredAppearance, PreferencesStore and existing module visibility."
-
-[[exception]]
 path = "apps/desktop/src/recovery.rs"
 reason = "Private, app-local crash recovery records for the standalone desktop. Existing source-size debt; a responsibility split must preserve RecoveryId, CaretSelection, RecoveryRetention and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/scenario.rs"
-reason = "Knot's product hooks for Mesquite's scenario lane. Existing source-size debt; a responsibility split must preserve DesktopLogic, KnotLane and existing module visibility."
 
 [[exception]]
 path = "apps/desktop/src/scroll_site.rs"
 reason = "Scroll site. Existing source-size debt; a responsibility split must preserve MicronFormEditor, MicronPreparedRequest, MicronPreviewFolds and existing module visibility."
 
 [[exception]]
-path = "apps/desktop/src/theme_session.rs"
-reason = "App-owned selection and embedding of the shared Tabard workshop. Existing source-size debt; a responsibility split must preserve ThemeSession, Presentation, Ctx and existing module visibility."
-
-[[exception]]
 path = "apps/desktop/src/workspace.rs"
 reason = "Workspace. Existing source-size debt; a responsibility split must preserve DesktopView, DesktopRunner, ContextPaneObservation and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/src/workspace_commands.rs"
-reason = "Knot's one command catalog. Existing source-size debt; a responsibility split must preserve Shortcut and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/tests/font_roles.rs"
-reason = "Font roles. Existing source-size debt; a responsibility split must preserve Host and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/tests/scenario_lane.rs"
-reason = "Knot on Mesquite's scenario lane, headless: the lane clicks the desktop's Appearance control by role and label and asserts the snapshot moved. Existing source-size debt; a responsibility split must preserve Logic and existing module visibility."
-
-[[exception]]
-path = "apps/desktop/tests/tabard_appearance.rs"
-reason = "Tabard appearance. Existing source-size debt; a responsibility split must preserve Host and existing module visibility."
-
-[[exception]]
-path = "crates/knot-composition/src/wordnet_import.rs"
-reason = "Explicit offline WN-LMF subset conversion. Existing source-size debt; a responsibility split must preserve ImportOptions, ImportReport, ImportedWordnet and existing module visibility."
-
-[[exception]]
-path = "crates/knot-composition/tests/recipes.rs"
-reason = "Recipes. Existing source-size debt; a responsibility split must preserve existing entry points, fixture identity and module visibility."
 
 [[exception]]
 path = "crates/knot-document/src/document_surface.rs"
@@ -94,64 +34,12 @@ path = "crates/knot-document/src/writer.rs"
 reason = "Writer. Existing source-size debt; a responsibility split must preserve DocumentFormat, SaveOutcome and existing module visibility."
 
 [[exception]]
-path = "crates/knot-editor/src/bin/knot_endpoint.rs"
-reason = "Knot endpoint. Existing source-size debt; a responsibility split must preserve ProjectionProviderArgs, RoutedEffectFetcher, NetworkEffectFetcher and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/clip_evidence.rs"
-reason = "Endpoint-owned retention for source artifacts attached to clips. Existing source-size debt; a responsibility split must preserve KnotClipEvidenceRef, KnotClipCitation, PortableEvidenceWire and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/embedding.rs"
-reason = "Which embedder produces Knot's search vectors, and the identity every derived index carries because of it. Existing source-size debt; a responsibility split must preserve KnotEmbeddingProvider, KnotModelWeights, KnotEmbeddingPreference and existing module visibility."
-
-[[exception]]
 path = "crates/knot-editor/src/endpoint.rs"
 reason = "Graphshell disclosure for Knot directory state. Existing source-size debt; a responsibility split must preserve KnotRosetteConfig, KnotWriteGrant, KnotEffectMode and existing module visibility."
 
 [[exception]]
-path = "crates/knot-editor/src/mark.rs"
-reason = "A bounded, read-only Mark projection beside Knot's private publish lane. Existing source-size debt; a responsibility split must preserve MarkReadAdapterLimits, MarkTimestamp, MarkVersionId and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/mere_overlay.rs"
-reason = "A resident mere's sessions and archive as an overmap layer above Knot's own graph. Existing source-size debt; a responsibility split must preserve MereOverlayReading, MereOverlay and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/publish.rs"
-reason = "Explicit, read-only publication of selected retained Knot documents. Existing source-size debt; a responsibility split must preserve PublicationId, KnotPublication, KnotPublishEligibility and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/publish_host.rs"
-reason = "Resident host for one private Knot publishing service. Existing source-size debt; a responsibility split must preserve KnotPublishHostLimits, KnotPublishServeOutcome, KnotPublishHostError and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/resident.rs"
-reason = "Always-on Knot sync. Existing source-size debt; a responsibility split must preserve KnotSyncHostConfig, KnotSyncHostError, KnotEvidenceFetchStatus and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/rosette.rs"
-reason = "Read-only Rosette projection over a document interior. Existing source-size debt; a responsibility split must preserve PronunciationLexicon, CmudictPronunciations, RosetteConfig and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/search.rs"
-reason = "Capability-scoped search across files-in-place and sealed vault documents. Existing source-size debt; a responsibility split must preserve SearchLane, SearchHit, SearchProgress and existing module visibility."
-
-[[exception]]
 path = "crates/knot-editor/src/sync.rs"
 reason = "Causal personal and Commons document replication over Stickleback. Existing source-size debt; a responsibility split must preserve OrganizedComposition, KnotEncryptionProfile, KnotSyncExt and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/src/vault.rs"
-reason = "Small sealed document vault built on Personae's record store. Existing source-size debt; a responsibility split must preserve VaultDocument, VaultIndex, DerivedCacheBlob and existing module visibility."
-
-[[exception]]
-path = "crates/knot-editor/tests/checkpoint_confidentiality.rs"
-reason = "Real signed-history and redb receiving cases for local checkpoint custody. Existing source-size debt; a responsibility split must preserve existing entry points, fixture identity and module visibility."
-
-[[exception]]
-path = "crates/knot-file-catalog/src/lib.rs"
-reason = "Caller-selected durable identities for ordinary files under one local root. Existing source-size debt; a responsibility split must preserve KnotFileCatalogAvailability, KnotFileRevisionV1, KnotFileCatalogRecord and existing module visibility."
 
 [[exception]]
 path = "crates/knot-site/tests/scroll_moot_site_runtime.rs"

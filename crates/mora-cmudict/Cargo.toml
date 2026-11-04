@@ -1,0 +1,16 @@
+[package]
+rust-version = "1.97.1"
+name = "mora-cmudict"
+version = "0.0.1"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Offline CMUdict pronunciation provider for the mora prosody engine."
+readme = "README.md"
+include = ["src/**", "data/cmudict.dict", "README.md", "LICENSE-CMUDICT"]
+
+[dependencies]
+mora.workspace = true
+
+[lints]
+workspace = true

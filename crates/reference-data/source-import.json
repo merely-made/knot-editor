@@ -1,0 +1,57 @@
+{
+  "donor_revision": "f9e8cea6491aa3151c06c31d8ec280a9ff2e92b2",
+  "receiver_prefix": "crates/reference-data",
+  "files": [
+    {
+      "donor_path": "crates/intel/reference-data/Cargo.toml",
+      "receiving_path": "Cargo.toml",
+      "donor_blob": "82947a2b4a8e04321f1d6b174fcdb65bbe246f82",
+      "sha256": "4d434c565dce62cbf1e9fb63f03a71e1293d3dda0c0d1b6cb7bc1f342d7e6e43",
+      "donor_worktree_sha256": "f3f88050a176fa54eab4f2a9c710864b438c9e3b7978f9a36c87d494c28ed660"
+    },
+    {
+      "donor_path": "crates/intel/reference-data/README.md",
+      "receiving_path": "README.md",
+      "donor_blob": "9d245e900285464040b6e044042a942f1d3d18c3",
+      "sha256": "3ac8f807849446322352f34c38856f80bec603270ae0f0b133909a5608fc9060",
+      "donor_worktree_sha256": "1551ff4024621558de6f1fce2ae1e574c5aed10fc9dcc5a294a02c027510b59b"
+    },
+    {
+      "donor_path": "crates/intel/reference-data/fixtures/bilingual.json",
+      "receiving_path": "fixtures/bilingual.json",
+      "donor_blob": "dc98af09d436839ef558cd0c153a8b6e875c59a9",
+      "sha256": "a2b37436238707a672098e306f6abeda713819da1515e25c1d56c1fc378231c0",
+      "donor_worktree_sha256": "966f7e926dca10d4ed904c7a5dca5cad38ba163b55aaa98e9d9d68dc244960b1"
+    },
+    {
+      "donor_path": "crates/intel/reference-data/src/lib.rs",
+      "receiving_path": "src/lib.rs",
+      "donor_blob": "155cc7f429a6feea30e95416211dade46f43877e",
+      "sha256": "5dd91f3e3a41647ccc7ce074ae2834417ef965b6fe0900db1cd02d4a65e4f775",
+      "donor_worktree_sha256": "6ca79bd8bcfd8cb7a56290663ea8fe004ad0ddf70c5cf37a8158f238ed076f55"
+    },
+    {
+      "donor_path": "crates/intel/reference-data/src/registry.rs",
+      "receiving_path": "src/registry.rs",
+      "donor_blob": "bc8921ab0769acc89d08a74bed525d51d2515267",
+      "sha256": "b693cbbd0d17dc9bdbf82046938eeeaaa0639f1bd0c702344a421caad4dd2d2a",
+      "donor_worktree_sha256": "d79176400dbb2e13f1b5952ae71613d2e0c9abaed1253e4c43335eb13b1688ec"
+    },
+    {
+      "donor_path": "crates/intel/reference-data/src/tests.rs",
+      "receiving_path": "src/tests.rs",
+      "donor_blob": "1610557ad3796d002da7b22e462e403f3959f8b9",
+      "sha256": "2f9f9dbe50d59e61a26b0f9f8e360067843866338ef124d355493e8099ac5726",
+      "donor_worktree_sha256": "704df43f520b1981aeccf73873336d0a5e8c150237dc9be35a33bb651a1d9130"
+    },
+    {
+      "donor_path": "crates/intel/reference-data/src/validation.rs",
+      "receiving_path": "src/validation.rs",
+      "donor_blob": "48f475ef7df24ed4918cefc5c109a5b184068c94",
+      "sha256": "7d542e797f36bd29561039decad71f31a39d63101c6737b81ea59735f615b43a",
+      "donor_worktree_sha256": "0ad5a68f0d5946414550d0172efc125a8d5da7a5d30454686355b0001e16c24c"
+    }
+  ],
+  "donor_repository": "https://github.com/merely-made/mere.git",
+  "bytes_policy": "canonical Git object bytes"
+}

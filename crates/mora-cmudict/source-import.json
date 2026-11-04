@@ -1,0 +1,43 @@
+{
+  "donor_revision": "f9e8cea6491aa3151c06c31d8ec280a9ff2e92b2",
+  "receiver_prefix": "crates/mora-cmudict",
+  "files": [
+    {
+      "donor_path": "crates/intel/mora-cmudict/Cargo.toml",
+      "receiving_path": "Cargo.toml",
+      "donor_blob": "e40a0240a7f6c204082ad52ca2ae15ed90ddff0d",
+      "sha256": "89a35196a40bfe549cf872e701c3a2653ff79eaabc3534aa8b40550ddd60ce11",
+      "donor_worktree_sha256": "f911bf13230a62b5fc77f596c54d99d67b18e71c0c2d92dad719cb1129feb4f6"
+    },
+    {
+      "donor_path": "crates/intel/mora-cmudict/LICENSE-CMUDICT",
+      "receiving_path": "LICENSE-CMUDICT",
+      "donor_blob": "d7337d8551a2d217addce30cbceece3db66bf4e7",
+      "sha256": "c2e0c90783cf941bf75315d470ed77be13d3b706cdc00ab446f727cc5cc4f9ff",
+      "donor_worktree_sha256": "5588da44281706673a4353eb994045f8153b506db168163ad82bcdd48277b47e"
+    },
+    {
+      "donor_path": "crates/intel/mora-cmudict/README.md",
+      "receiving_path": "README.md",
+      "donor_blob": "45743c085c5e05fffd8972e005d5278aa05796be",
+      "sha256": "6cfcc5431c7a2c1934a486ab051fdb48795c91dd1a279d4e3beb0c179ba3013c",
+      "donor_worktree_sha256": "93dbd97024335a9b6795a87514d49633a43c0046163ba091360f2c1b1ef66b1a"
+    },
+    {
+      "donor_path": "crates/intel/mora-cmudict/data/cmudict.dict",
+      "receiving_path": "data/cmudict.dict",
+      "donor_blob": "8b1cc8176a163b8933b0eb398709861e124386e8",
+      "sha256": "e975bd6570354ac852c636e5837c9e3ec27a1b6ccfe992930610e8bc4f0797ae",
+      "donor_worktree_sha256": "59d6398f55297e59afb2ca3276380827524c0940fcbbfcd19022bb76fd55f719"
+    },
+    {
+      "donor_path": "crates/intel/mora-cmudict/src/lib.rs",
+      "receiving_path": "src/lib.rs",
+      "donor_blob": "4378b7d288331082e0b8b7b1fe7fbf601fa3ec7c",
+      "sha256": "983c234b4a97da5e783a0533c57c441e362d200b708c717e45a58e23d5949126",
+      "donor_worktree_sha256": "1670efd5226d167ddc82b205b974d381319b5e1c880fa3d1a2e680b5c40918af"
+    }
+  ],
+  "donor_repository": "https://github.com/merely-made/mere.git",
+  "bytes_policy": "canonical Git object bytes"
+}

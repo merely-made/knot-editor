@@ -40,3 +40,7 @@ reason = "Graphshell disclosure for Knot directory state. Existing source-size d
 [[exception]]
 path = "crates/knot-editor/src/sync.rs"
 reason = "Causal personal and Commons document replication over Stickleback. Existing source-size debt; a responsibility split must preserve OrganizedComposition, KnotEncryptionProfile, KnotSyncExt and existing module visibility."
+
+[[exception]]
+path = "crates/reference-data/src/tests.rs"
+reason = "Src tests. Existing source-size debt; a responsibility split must preserve TempDirectory and existing module visibility."

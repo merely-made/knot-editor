@@ -1,0 +1,85 @@
+{
+  "donor_revision": "42c232c3ac60074795b742ffabc40c3116c1cc9b",
+  "receiver_prefix": "crates/mora",
+  "files": [
+    {
+      "donor_path": "Cargo.toml",
+      "receiving_path": "Cargo.toml",
+      "donor_blob": "8d25ec79072bed15d88f4ea19d03670e693690e2",
+      "sha256": "0645346455d9f35cb6b911c71d4366a25f7cefb0ccdd5ff798de6c2bb44684ab",
+      "donor_worktree_sha256": "fde724bf6823d6ebee563cc0d8bafcf6eb9b7f7fecb177ed37f744e9faaeb544"
+    },
+    {
+      "donor_path": "LICENSE",
+      "receiving_path": "LICENSE",
+      "donor_blob": "d4a7d86fc669970dcf7c59d416a1cc37f573685d",
+      "sha256": "8913f210e058505aa0904e7b8016ef9eae7cd76014621aae929a5faf6b4d1404",
+      "donor_worktree_sha256": "0d73438590cccaea1e0505b3e664662d48f0cd95de0b521fb8622adf58db4249"
+    },
+    {
+      "donor_path": "LICENSES.md",
+      "receiving_path": "LICENSES.md",
+      "donor_blob": "b0fdba8ffe5b598eb987d66f8a9e579b03a99b40",
+      "sha256": "2efc96ffb36a1baa10928f61596fde8c57cd279c57d4aa1754ab527dc2969ec4",
+      "donor_worktree_sha256": "3c5c0f90cc9b6dd404f448b9458bf177d08e17b6d9166de003768edd9252c251"
+    },
+    {
+      "donor_path": "README.md",
+      "receiving_path": "README.md",
+      "donor_blob": "49afe1ddc62dd2e711fe0a8ee5bef374226d6aeb",
+      "sha256": "025d7d6c1a9466b56e9c69c2cd106c6b54a7412f1b6b09e0a2718dc84a6452be",
+      "donor_worktree_sha256": "8ba0354da61384a2d7fc7ef5bb59f26fb944a6af20698edab0d598f53a3b83e6"
+    },
+    {
+      "donor_path": "src/english.rs",
+      "receiving_path": "src/english.rs",
+      "donor_blob": "f6cd59376225419df132bca8bfe17a291cc3b68c",
+      "sha256": "6b7d3a4fa4e8a47ab1e55deebfbb011c8c5c90d3cbcb67f91f9797baf590061e",
+      "donor_worktree_sha256": "6b7d3a4fa4e8a47ab1e55deebfbb011c8c5c90d3cbcb67f91f9797baf590061e"
+    },
+    {
+      "donor_path": "src/lib.rs",
+      "receiving_path": "src/lib.rs",
+      "donor_blob": "9a74dda99911017cf4520a0b86c3f399befa0949",
+      "sha256": "dc13dfe1db5c99bc90a7f17612353cc4efd8c3e0ef15bb16b1a4fb0832dc8a11",
+      "donor_worktree_sha256": "317c36a179b0e92efe4693f57a01a260cc80c5f8aed50e01fa99f0638925d4c1"
+    },
+    {
+      "donor_path": "src/meter.rs",
+      "receiving_path": "src/meter.rs",
+      "donor_blob": "4d42c126a94a5d1e3bdfe99275a95a4003f014ae",
+      "sha256": "f63351c711b6517668dc50119d493bb458a58cd3a97baa8ca16c172d4340932e",
+      "donor_worktree_sha256": "f63351c711b6517668dc50119d493bb458a58cd3a97baa8ca16c172d4340932e"
+    },
+    {
+      "donor_path": "src/phone.rs",
+      "receiving_path": "src/phone.rs",
+      "donor_blob": "d258507c1ef9c13713d8f79514f554e3cdff77f8",
+      "sha256": "e015117e25427bf851469705c6c222fa2cb7f37b0ddff874a5f0c7cad47765e5",
+      "donor_worktree_sha256": "e015117e25427bf851469705c6c222fa2cb7f37b0ddff874a5f0c7cad47765e5"
+    },
+    {
+      "donor_path": "src/sonance.rs",
+      "receiving_path": "src/sonance.rs",
+      "donor_blob": "61a8f086e10858f941db55ed247cd23ed3c5f847",
+      "sha256": "9a6151b1d65e21c399a3025864f92182cb9eb0ea7e459c1f2d87842587817deb",
+      "donor_worktree_sha256": "cf28fe94b2d14a93483c70a41942e491345657abae9c10e544c67335917f95cc"
+    },
+    {
+      "donor_path": "src/syllable.rs",
+      "receiving_path": "src/syllable.rs",
+      "donor_blob": "a0cda24e9d202fba9d372e6c21a302df702ed5e2",
+      "sha256": "58415773d6482abb5a2f80a8e064b9e691c632e688a05e4ef0984058f852533b",
+      "donor_worktree_sha256": "58415773d6482abb5a2f80a8e064b9e691c632e688a05e4ef0984058f852533b"
+    },
+    {
+      "donor_path": "src/weight.rs",
+      "receiving_path": "src/weight.rs",
+      "donor_blob": "1aed846e28454a2456c1f40a1f6e94317fc291aa",
+      "sha256": "67d20fdb494be1c22578ef79f09f742eac92a109cca2d17ee57bf988ed674f9e",
+      "donor_worktree_sha256": "67d20fdb494be1c22578ef79f09f742eac92a109cca2d17ee57bf988ed674f9e"
+    }
+  ],
+  "donor_repository": "https://github.com/merely-made/mora.git",
+  "bytes_policy": "canonical Git object bytes"
+}

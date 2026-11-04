@@ -5,3 +5,9 @@
 *.html text eol=lf
 
 crates/knot-composition/assets/oewn-notices.txt text eol=lf
+
+# Preserve the upstream corpus and notices byte-for-byte on every checkout.
+/crates/mora-cmudict/data/cmudict.dict -text
+/crates/mora-cmudict/LICENSE-CMUDICT -text
+/crates/mora/LICENSE -text
+/crates/mora/LICENSES.md -text

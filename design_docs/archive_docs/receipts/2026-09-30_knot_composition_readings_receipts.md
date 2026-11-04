@@ -41,3 +41,9 @@ This document is live, so it cites main hashes (Mark, 2026-11-02: "Same: live do
 | `9310518be5423862c1038f7d7a7578d5089d3c51` | mere | `c7199781094ec8cb4397e743f93573069e0a8aad` | Add opt-in validated local lexical reference packs |
 | `b1eb3af197111ecde34421bbe1bad2e6024ca564` | genet | `f499efe4698ba4b1c02c8bccd7c1f3a78b4638a8` | Place host text paint inside Livery field contexts |
 | `28a0741` | woodshed | `e7731303dd9` | Adopt shared revision-qualified arrangement edit intents |
+
+## 2026-11-04, lexical source consolidation
+
+Mora 0.1.0 moves from `mora` revision `42c232c3ac60074795b742ffabc40c3116c1cc9b` to `crates/mora`, with original repository ancestry retained. CMUdict and Reference Data move from Mere to `crates/mora-cmudict` and `crates/reference-data`. The three `source-import.json` files list original blobs and SHA-256 values. Source, corpus and notice bodies are the canonical Git bytes; manifests change only source ownership and workspace wiring. The CMUdict corpus SHA-256 is `e975bd6570354ac852c636e5837c9e3ec27a1b6ccfe992930610e8bc4f0797ae`.
+
+Native receiving tests: Mora 37, CMUdict 2, Reference Data 23 (one pre-existing ignored test), Knot sound readings 5 and editor rosette 3 pass. The locked offline whole-workspace/all-target check and lexical Clippy pass. Mora remains an independent, dependency-free workspace and passes the locked offline Rust 1.97.1 allocation-free library check. These gates cover library behavior and Knot's in-process consumers, not headed editor operation. Private bounded command summaries are in `testing/subsystem-extractions-20261104` under the shared Code root; aggregate cap 100 MB.

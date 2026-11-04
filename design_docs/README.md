@@ -1,3 +1,7 @@
+Lexical source ownership (2026-11-04): Mora, CMUdict and Reference Data are
+separate crates in Knot; the [Readings record](2026-09-30_knot_composition_readings.md#lexical-source-homes-2026-11-04)
+names source preservation, the corpus/license boundary and receiving gates.
+
 Site source ownership (2026-11-04): native saved-site, publication, serving and
 handoff code now comes from Gemot `4492351` as `gemot-site-host`; its shared
 model is `gemot-site`. Knot retains authoring controls and the `knot_site`

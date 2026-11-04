@@ -107,6 +107,33 @@ establishes protected current custody; it does not prove physical erasure of
 earlier encrypted copies of retired epoch keys. Native UI and physical-peer
 qualification remain separate from this storage repair.
 
+## Lexical source homes (2026-11-04)
+
+Mora, its CMUdict provider and the local Reference Data pack contracts now live
+in Knot as separate crates. Mora retains its own independent workspace and
+no_std/MSRV gate; the providers are ordinary Knot workspace members. The engine
+still has zero dependencies and its existing `alloc`/`english` feature controls.
+A future second editor can motivate broader packaging without changing this cut.
+
+Rust source and fixtures retain their donor Git blobs. CMUdict and its notices
+use canonical Git bytes, pinned against checkout line-ending conversion. The
+corpus SHA-256 remains
+`e975bd6570354ac852c636e5837c9e3ec27a1b6ccfe992930610e8bc4f0797ae`.
+The provider keeps its separately licensed corpus and no trust/download policy
+moves into the phonology engine. Reference Data remains opt-in validated data;
+importing a pack never enables it automatically.
+
+The source-home work belongs to the foundation promotion F3 and its current
+map in `mere/design_docs/mere_docs/technical_architecture/2026-10-28_source_homes_map.md`.
+Required gates are exact source/corpus/notice comparisons, the 37/2/23 native
+library test inventories, Mora's allocation-free Rust 1.97.1 library check,
+actual Readings/Rosette consumers and locked workspace receiving. The existing
+Reference Data test-size exception moves with its file. Retained evidence is in
+`Code/testing/subsystem-extractions-20261104`, sharing the aggregate 100 MB cap.
+Donors retire only after the receiving source is public and qualified. Mora's
+original repository ancestry is retained as a parent of the receiving commit;
+`source-import.json` records the Mere-owned provider and fixture provenance.
+
 ## Ownership and opt-in behavior
 
 The three reading surfaces share a selection but do not share authority:

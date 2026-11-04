@@ -7,8 +7,10 @@ members = [
     "crates/knot-editor",
     "crates/knot-readings",
     "crates/knot-composition",
+    "crates/mora-cmudict",
+    "crates/reference-data",
 ]
-exclude = ["crates/knot-document"]
+exclude = ["crates/knot-document", "crates/mora"]
 default-members = [
     "crates/knot-editor",
 ]
@@ -29,7 +31,7 @@ knot-document = { version = "0.0.1", path = "crates/knot-document" }
 knot-catalog = { version = "0.0.1", path = "crates/knot-file-catalog" }
 knot-readings = { version = "0.0.1", path = "crates/knot-readings" }
 knot-composition = { version = "0.0.1", path = "crates/knot-composition" }
-reference-data = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
+reference-data = { version = "0.0.1", path = "crates/reference-data" }
 
 # Mere contracts and services. Embedded Knot types need one Cargo source
 # identity with the Turnstone consumer line. Family source convention (Mere
@@ -56,7 +58,7 @@ graphshell-endpoint = { version = "0.0.3", git = "https://github.com/merely-made
 # (Mere stack lift plan P4, `graphshell-host`).
 graphshell-host = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false }
 graphshell-client = { version = "0.0.2", git = "https://github.com/merely-made/mere.git", branch = "main" }
-mora-cmudict = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
+mora-cmudict = { version = "0.0.1", path = "crates/mora-cmudict" }
 muniment = { version = "0.2.1", git = "https://www.github.com/merely-made/eidetic.git", rev = "7a3453a02bc7dea391ef18814c1bfa1a46e67160" }
 notochord = { version = "0.1.1", git = "https://github.com/merely-made/dramatis.git", branch = "main" }
 pandect = { version = "0.2.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
@@ -110,7 +112,7 @@ taproot = { version = "0.1.0", git = "https://github.com/merely-made/genet.git",
 base64 = "0.22"
 blake3 = "1"
 percent-encoding = "2"
-mora = "0.1.0"
+mora = { version = "0.1.0", path = "crates/mora" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.11"

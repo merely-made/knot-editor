@@ -1,0 +1,17 @@
+[package]
+rust-version = "1.97.1"
+name = "reference-data"
+version = "0.0.1"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Opt-in, validated local lexical reference packs; no executable code or network transport."
+readme = "README.md"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+blake3.workspace = true
+
+[lints]
+workspace = true

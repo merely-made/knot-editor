@@ -8015,13 +8015,10 @@ dependencies = [
 [[package]]
 name = "mora"
 version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f61139ec5831650112f1c300bdeaabe7e793cfcc9a6de66179a096db40e52289"
 
 [[package]]
 name = "mora-cmudict"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?branch=main#ab37ca96f65c68d5064f37530f4f374ad528bb42"
 dependencies = [
  "mora",
 ]
@@ -11219,7 +11216,6 @@ dependencies = [
 [[package]]
 name = "reference-data"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?branch=main#ab37ca96f65c68d5064f37530f4f374ad528bb42"
 dependencies = [
  "blake3",
  "serde",

@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "manifest": {
+    "id": "fixture",
+    "version": "1",
+    "label": "Synthetic bilingual fixture — not an upstream dictionary",
+    "language": "mul",
+    "features": ["definitions", "examples", "relations", "pronunciations"],
+    "license": {
+      "name": "CC0-1.0",
+      "text": "Synthetic test data dedicated to the public domain.",
+      "url": "https://creativecommons.org/publicdomain/zero/1.0/"
+    },
+    "attribution": "Mere reference-data test fixture",
+    "upstream": null,
+    "digest": "c9e6147071c79ff7e6ae3f736a31ac21e6841ac4477fe68ccff4e7c4ed1b5de3"
+  },
+  "entries": [
+    {
+      "id": {"source": "fixture", "version": "1", "entry": "bank-en"},
+      "lemma": "bank",
+      "language": "en",
+      "part_of_speech": "noun",
+      "senses": [{
+        "id": "edge",
+        "concept_id": "river-edge",
+        "definition": "The sloping edge of a river.",
+        "examples": ["They sat on the river bank."],
+        "relations": []
+      }],
+      "pronunciations": [{"notation": "ipa", "value": "bæŋk", "variant": null}],
+      "relations": [{
+        "kind": "related",
+        "target": {"source": "fixture", "version": "1", "entry": "rive-fr"},
+        "target_sense": "bord"
+      }]
+    },
+    {
+      "id": {"source": "fixture", "version": "1", "entry": "rive-fr"},
+      "lemma": "rive",
+      "language": "fr",
+      "part_of_speech": "noun",
+      "senses": [{
+        "id": "bord",
+        "concept_id": "river-edge",
+        "definition": "Le bord d’un cours d’eau.",
+        "examples": [],
+        "relations": []
+      }],
+      "pronunciations": [],
+      "relations": []
+    }
+  ]
+}

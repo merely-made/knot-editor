@@ -94,3 +94,12 @@ library suite, retained within the 100 MB shared lane at
 `Code/testing/gemot/discovery-ui-20261104`. The automated widget uses the actual
 site tile and Genet layout/hit testing; it is separate from native headed or
 remote-machine qualification.
+
+Qualification: Knot `2279669` is public. `knot-desktop-suite` passes 374 cases
+with one helper ignored. `knot-full-site-widget` passes all three writer-control
+cases, including clicking Markdown and Build inside the complete site tile.
+Commit line-ceiling and locked all-target Clippy checks pass. The source-graph
+audit retains every existing Git package record outside the two site packages;
+the writer adds only pulldown-cmark's existing HTML-rendering escape dependency
+and its dependency edge. These are automated Windows/native receipts, without
+a headed or remote-machine claim.

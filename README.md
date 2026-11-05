@@ -140,18 +140,19 @@ certificate is generated per serving session, so an independent client may
 require accepting a new local identity after restarting.
 
 This is the Scroll small-web protocol and `text/scroll`, not scroll.pub. It
-requires neither Turnstone nor Gemot nor a vendor service. This initial slice
+requires neither Turnstone nor Moot membership nor a vendor service. This initial slice
 serves only the manifest's `.scroll` pages, with one language per page and a
 16 MiB total snapshot limit (1 MiB per body or abstract). Assets, nested page
-paths, automatic language variants, persistent releases, external hosting, and
-other output formats remain future work. Preview links navigate plain local
+paths, automatic language variants, persistent releases and external hosting
+remain separate native-listener work. The saved-site build controls below add
+cross-format output. Preview links navigate plain local
 page paths; external links and section jumps are displayed but not followed.
 The engine reports its input-link rendering limitation in the preview.
 
 Validation and the independent-client receipt are recorded in the
 [Scroll site plan](design_docs/archive_docs/2026-11-02/2026-09-11_scroll_site_authoring_plan.md).
-Run the reusable site's focused tests with
-`cargo test --manifest-path crates/knot-site/Cargo.toml`.
+With the sibling Gemot checkout available, run the reusable site's focused tests with
+`cargo test --manifest-path ../gemot/crates/site-host/Cargo.toml`.
 
 ## Gemini, Spartan and Micron files
 
@@ -194,14 +195,14 @@ The [native small-web plan](design_docs/2026-11-02_small_web_authoring_plan.md)
 records tests, independent client receipts, remaining Micron/Reticulum gates,
 and the separate Djinn persistent-serving proposal. The site-library Gemini
 implementation was browsed with Lagrange 1.21.1; ordinary readers need neither
-Turnstone nor Gemot.
+Turnstone nor Moot membership.
 
 ## Publish Micron through an existing server
 
 The site library can export a saved Micron site without the Retinue backend:
 
 ```sh
-cargo run --manifest-path crates/knot-site/Cargo.toml --no-default-features \
+cargo run --manifest-path ../gemot/crates/site-host/Cargo.toml --no-default-features \
   --example export_nomadnet -- path/to/site path/to/new-export
 ```
 
@@ -226,8 +227,8 @@ separates local tests from independent-client and constrained-network acceptance
 Test the site library with both configurations:
 
 ```sh
-cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features
-cargo test --manifest-path crates/knot-site/Cargo.toml --no-default-features --features retinue
+cargo test --manifest-path ../gemot/crates/site-host/Cargo.toml --no-default-features
+cargo test --manifest-path ../gemot/crates/site-host/Cargo.toml --no-default-features --features retinue
 ```
 
 On a memory-constrained machine, use `CARGO_BUILD_JOBS=1` and

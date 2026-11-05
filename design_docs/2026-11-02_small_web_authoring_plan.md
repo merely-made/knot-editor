@@ -120,3 +120,10 @@ screenshots and fixture files. The lane's initial 100 MB estimate was refined
 to 200 MB to preserve preallocated native storage files; the adjustment is
 recorded and original evidence retained. This qualifies the local native
 controls, separately from remote protocol delivery or installed personal custody.
+
+The corrected desktop suite passes 374 cases with one helper ignored at two
+test threads (`knot-headed-regression-qualified`). The earlier parallel run
+missed the recovery typing test's flush deadline; its exact retry passes and
+the bounded-concurrency full run passes. Both attempts remain in the lane.
+The native fix and fixture are public at `0bccade`; line-ceiling and locked
+all-target Clippy checks pass.

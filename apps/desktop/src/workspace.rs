@@ -704,6 +704,7 @@ impl DesktopState {
     /// Whether a document send or saved-site checkpoint is in flight.
     pub(crate) fn submissions_busy(&self) -> bool {
         self.scroll.history.busy()
+            || self.scroll.generation.busy()
             || self.placeholder.site.busy()
             || self.docs.docs().any(|(_, entry)| entry.site.busy())
     }

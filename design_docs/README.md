@@ -186,3 +186,5 @@ The [small-web authoring plan](2026-11-02_small_web_authoring_plan.md#saved-site
 records the saved-site writer controls and their native/widget verification.
 Gemot owns the shared formats and discovery/workflow contracts; Knot's build
 control exports an artifact independently of publication.
+
+The small-web authoring plan now records the November 5 native-window writer trial and the background completion fix it exposed.

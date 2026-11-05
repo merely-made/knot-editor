@@ -103,3 +103,20 @@ audit retains every existing Git package record outside the two site packages;
 the writer adds only pulldown-cmark's existing HTML-rendering escape dependency
 and its dependency edge. These are automated Windows/native receipts, without
 a headed or remote-machine claim.
+
+## Headed generation qualification, 2026-11-05
+
+The real Windows desktop, launched by `site_generation_acceptance` with marked
+synthetic files, exercises Markdown selection, ordinary keyboard path entry,
+existing-output refusal, completion without another input, and unsaved-source
+refusal. Both exports retain identical checked bytes and the footer remains
+not serving. The first native run exposed missing generation tracking in
+`submissions_busy`; the fix includes generation in the existing wake drain.
+The focused writer/widget cases pass with a regression assertion on that flag.
+The helper's bulk Unicode insertion was ignored; ordinary key input worked.
+
+Evidence is `Code/testing/gemot/headed-protected-20261105/headed-receipt.json`,
+screenshots and fixture files. The lane's initial 100 MB estimate was refined
+to 200 MB to preserve preallocated native storage files; the adjustment is
+recorded and original evidence retained. This qualifies the local native
+controls, separately from remote protocol delivery or installed personal custody.

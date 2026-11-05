@@ -15,6 +15,11 @@ pub(crate) struct GenerationState {
     pub drafts: BTreeMap<SiteKey, GenerationDraft>,
     pending: Option<Receiver<Result<(ExportReceipt, Vec<String>), String>>>,
 }
+impl GenerationState {
+    pub(crate) fn busy(&self) -> bool {
+        self.pending.is_some()
+    }
+}
 pub(crate) struct GenerationDraft {
     pub destination: TextInput,
     pub target: OutputFormat,
@@ -190,7 +195,12 @@ mod tests {
             .or_default()
             .destination = TextInput::new(destination.to_str().unwrap());
         state.build_site_artifact(key);
+        assert!(
+            state.submissions_busy(),
+            "host wake must drain a site build"
+        );
         wait(&mut state);
+        assert!(!state.submissions_busy());
         assert!(destination.join("index.html").is_file());
         assert!(site_host::generate::open_export(&destination).is_ok());
         assert!(state.scroll.site(key).unwrap().server.is_none());

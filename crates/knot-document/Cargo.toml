@@ -60,14 +60,14 @@ too_many_lines = "warn"
 
 [patch.crates-io]
 # Canonical promoted families; keep registry and Git consumers type-identical.
-chartulary = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-eidetic = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-hagiograph = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-luggage = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-servitor = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-stickleback = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-muniment = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-mere-proofs = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
+chartulary = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+eidetic = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+hagiograph = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+luggage = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+servitor = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+stickleback = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+muniment = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+mere-proofs = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
 vello_shaders = { git = "https://github.com/mark-ik/vello", rev = "276b46648c08f3d2062e70559afa999842e1873c" }
 netrender_device = { git = "https://github.com/merely-made/netrender.git", branch = "main" }
 netrender-vello = { git = "https://github.com/mark-ik/vello", rev = "276b46648c08f3d2062e70559afa999842e1873c" }
@@ -90,17 +90,17 @@ rust-version = "1.97.1"
 # revision) resolve to this revision through the www form of the URL, the same
 # repository under another source key, so one eidetic resolves. Drop once they
 # repin.
-distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "3e97257215969fb856de9c57a3158c6609ed4e6f" }
-mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "3e97257215969fb856de9c57a3158c6609ed4e6f" }
+distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
+mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
 
 [patch."https://github.com/merely-made/eidetic.git"]
-chartulary = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-eidetic = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-luggage = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-mere-proofs = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-muniment = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-servitor = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
-stickleback = { git = "https://www.github.com/merely-made/eidetic.git", rev = "1fcdb359e72ac6309a96823c3ab5558eaaa3ec31" }
+chartulary = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+eidetic = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+luggage = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+mere-proofs = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+muniment = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+servitor = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
+stickleback = { git = "https://www.github.com/merely-made/eidetic.git", rev = "5182e4e244c85b1008182a1be6b822f65a8efe50" }
 
 [workspace.lints.clippy]
 missing_errors_doc = "warn"
@@ -110,7 +110,7 @@ undocumented_unsafe_blocks = "warn"
 too_many_lines = "warn"
 
 [patch."https://github.com/merely-made/distillery.git"]
-esp = { git = "https://www.github.com/merely-made/distillery.git", rev = "3e97257215969fb856de9c57a3158c6609ed4e6f" }
-esp-testkit = { git = "https://www.github.com/merely-made/distillery.git", rev = "3e97257215969fb856de9c57a3158c6609ed4e6f" }
-distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "3e97257215969fb856de9c57a3158c6609ed4e6f" }
-mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "3e97257215969fb856de9c57a3158c6609ed4e6f" }
+esp = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
+esp-testkit = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
+distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
+mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }

@@ -17,6 +17,7 @@ mod checkpoint_storage;
 mod clip_evidence;
 mod content_classes;
 pub mod declaration;
+pub mod edition_frame;
 mod did_key;
 mod directory;
 mod djot_merge;

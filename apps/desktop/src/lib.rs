@@ -28,6 +28,7 @@ pub mod scenario;
 mod scenario_startup;
 pub mod scroll_site;
 pub mod site_history;
+mod site_generation;
 pub mod status;
 pub mod theme_session;
 pub mod workspace;

@@ -13,10 +13,9 @@ Genet and Cambium supply the document presentation and desktop host.
 
 - `crates/knot-document`: the narrow one-document model and reusable Cambium
   surface.
-- `crates/knot-site`: native small-web site folders and explicit loopback
-  publication snapshots, reusable by other Knot hosts. Portable site records,
-  validation and canonical snapshot V1 come from Mere's `mere-site` crate;
-  `knot-site` re-exports those types and owns the file/protocol adapters.
+- `gemot-site-host`: shared native site folders, checked snapshots, history,
+  serving and format generation, supplied by Gemot. Knot owns the authoring
+  controls and `knot_site` client; the donor `crates/knot-site` is retired.
 - `crates/knot-file-catalog`: durable file identities without the editor's
   preview, publishing, or replication dependencies.
 - `crates/knot-capture`: lightweight host-issued retention targets and receipts.
@@ -399,3 +398,10 @@ checks and selected-source audits are recorded separately from headed acceptance
 Live sessions use `murm-sync`; Stickleback 0.2 supplies local storage and
 admission. Knot enables the network crate only with `peers`. The coordinated
 receiving scope is Murm's transport consolidation plan, T7.
+
+Saved-site generation is available in the site tile. Select Gemtext, Scroll,
+Markdown or HTML and a new export folder, then choose **Build artifact**.
+Save source and metadata first. Conversion changes need explicit opt-in;
+native byte preservation applies to the matching native output. Building
+exports a checked artifact and does not start the local publisher. Micron
+conversion is unsupported; its existing native publication remains available.

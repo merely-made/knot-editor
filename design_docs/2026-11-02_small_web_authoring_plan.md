@@ -74,3 +74,23 @@ The ownership proposal is `repos/mere/design_docs/archive_docs/2026-10-28/2026-0
 ## Progress
 
 - 2026-11-02: plan cut from the small-web authoring plan; decisions D1 to D3 recorded. The evidence index and old-to-main hash table are in `archive_docs/receipts/2026-09-11_small_web_authoring_plan_receipts.md`.
+
+## Saved-site generation controls, 2026-11-04
+
+The site tile receives Gemot S3 `c218f90` through `gemot-site-host`'s `generate`
+feature. Four explicit targets (Gemtext, Scroll, Markdown and HTML), a new
+export folder, loss refusal/opt-in and native-byte preservation feed an immutable
+saved snapshot. Unsaved source or metadata refuses before starting. A background
+build reports conversion diagnostics and exports a verified V2 artifact;
+existing output refuses, and building never starts a publisher. Closing a site
+releases its control draft. Native Micron publishing is unchanged and its
+conversion refuses through the shared writer.
+
+Shared writer and community scope lives once in
+`repos/gemot/design_docs/2026-11-04_site_extraction_plan.md`, S3-S5. This control
+slice does not close the persistent-serving or remote protocol gates above.
+Required receipts are the three native build/widget cases and the full desktop
+library suite, retained within the 100 MB shared lane at
+`Code/testing/gemot/discovery-ui-20261104`. The automated widget uses the actual
+site tile and Genet layout/hit testing; it is separate from native headed or
+remote-machine qualification.

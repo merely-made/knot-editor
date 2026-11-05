@@ -3,7 +3,7 @@ separate crates in Knot; the [Readings record](2026-09-30_knot_composition_readi
 names source preservation, the corpus/license boundary and receiving gates.
 
 Site source ownership (2026-11-04): native saved-site, publication, serving and
-handoff code now comes from Gemot `4492351` as `gemot-site-host`; its shared
+handoff code now comes from Gemot `c218f90` as `gemot-site-host`; its shared
 model is `gemot-site`. Knot retains authoring controls and the `knot_site`
 client. The donor standalone workspace and its source-size exception are gone.
 Canonical scope: `gemot/design_docs/2026-11-04_site_extraction_plan.md`; the
@@ -181,3 +181,8 @@ Coordination and receipts:
 `mere/design_docs/mere_docs/implementation_strategy/2026-10-28_workspace_hygiene_plan.md`.
 
 - [Source splits, H7](2026-11-03_source_splits_plan.md): 28 responsibility and fixture-group splits landed; eleven exceptions remain. Baseline failures, feature/docs/style gates and external evidence are distinguished.
+
+The [small-web authoring plan](2026-11-02_small_web_authoring_plan.md#saved-site-generation-controls-2026-11-04)
+records the saved-site writer controls and their native/widget verification.
+Gemot owns the shared formats and discovery/workflow contracts; Knot's build
+control exports an artifact independently of publication.

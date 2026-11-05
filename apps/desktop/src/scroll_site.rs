@@ -116,6 +116,7 @@ impl SiteEntry {
 /// Micron form and composer, is on its entry ([`DocumentSite`]).
 pub struct ScrollWorkspace {
     pub(crate) history: crate::site_history::SiteHistoryState,
+    pub(crate) generation: crate::site_generation::GenerationState,
     sites: BTreeMap<SiteKey, SiteEntry>,
     next_site: u64,
     /// The Site popover: the folder, format, Create and Open.
@@ -132,6 +133,7 @@ impl Default for ScrollWorkspace {
     fn default() -> Self {
         Self {
             history: crate::site_history::SiteHistoryState::default(),
+            generation: Default::default(),
             sites: BTreeMap::new(),
             next_site: 0,
             popover: PopoverState::default(),
@@ -243,6 +245,7 @@ impl ScrollWorkspace {
 
     /// Drop `site`, which stops its server.
     fn remove(&mut self, site: SiteKey) {
+        self.generation.drafts.remove(&site);
         self.sites.remove(&site);
     }
 
@@ -1756,6 +1759,7 @@ pub(crate) fn site_view(state: &DesktopState, site: SiteKey) -> DesktopView {
                     }),
                 )
                 .attr("class", "knot-scroll-controls"),
+                crate::site_generation::controls(state, site),
                 el(
                     "div",
                     (

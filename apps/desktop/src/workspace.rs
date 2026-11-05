@@ -720,6 +720,7 @@ impl DesktopState {
 
     /// Observe checkpoint status and take finished sends into their documents.
     pub(crate) fn drain_submissions(&mut self) {
+        self.drain_site_generation();
         if let Some(message) = self.scroll.history.drain() {
             self.message = Some(message);
         }

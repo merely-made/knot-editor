@@ -1,2 +1,8 @@
 [build]
 build-dir = "{workspace-root}/target/build"
+
+# Mere's retained UI frames in unoptimized test builds outgrow the 2 MiB default
+# test-thread stack (the scroll_site harness overflowed at Mere b38abf4). Test
+# threads and spawned threads get 8 MiB.
+[env]
+RUST_MIN_STACK = "8388608"

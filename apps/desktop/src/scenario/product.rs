@@ -3,7 +3,7 @@
 
 use super::*;
 
-impl mesquite::Product for KnotLane {
+impl mandrake::Product for KnotLane {
     type State = DesktopState;
     type Logic = DesktopLogic;
     type View = DesktopView;
@@ -14,8 +14,8 @@ impl mesquite::Product for KnotLane {
         &self.sheet
     }
 
-    fn capture_observer(&self) -> Option<mesquite::CaptureObserver<Self>> {
-        Some(mesquite::CaptureObserver {
+    fn capture_observer(&self) -> Option<mandrake::CaptureObserver<Self>> {
+        Some(mandrake::CaptureObserver {
             run: self.capture_run.clone()?,
             observe: Box::new(|ctx, _frame| {
                 let state = ctx.runner.state();
@@ -31,7 +31,7 @@ impl mesquite::Product for KnotLane {
                 );
                 let graph = state.graph_capture_facts()?;
                 let graph_visible = graph_is_presented(state);
-                Ok(mesquite::CaptureProjection {
+                Ok(mandrake::CaptureProjection {
                     product: serde_json::json!({
                         "schema": "knot.desktop-presentation/v2",
                         "fields": fields,
@@ -49,8 +49,8 @@ impl mesquite::Product for KnotLane {
 
     fn diagnostic_attachment(
         &mut self,
-        ctx: &mut mesquite::Ctx<'_, Self>,
-    ) -> Result<Option<mesquite::DiagnosticBatch>, String> {
+        ctx: &mut mandrake::Ctx<'_, Self>,
+    ) -> Result<Option<mandrake::DiagnosticBatch>, String> {
         ctx.runner.state().graph_diagnostic_attachment()
     }
 
@@ -199,8 +199,8 @@ impl mesquite::Product for KnotLane {
 
     fn app_step(
         &mut self,
-        ctx: &mut mesquite::Ctx<'_, Self>,
-        _: mesquite::Checkpoints<'_>,
+        ctx: &mut mandrake::Ctx<'_, Self>,
+        _: mandrake::Checkpoints<'_>,
         line: &str,
     ) -> Result<(), String> {
         use cambium_rootstock::HostPointer;
@@ -343,7 +343,7 @@ impl mesquite::Product for KnotLane {
         Ok(())
     }
 
-    fn busy(&self, ctx: &mesquite::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
+    fn busy(&self, ctx: &mandrake::Ctx<'_, Self>, capture_pending: bool) -> Option<bool> {
         let state = ctx.runner.state();
         Some(capture_pending || state.background_busy())
     }

@@ -42,7 +42,7 @@ use cambium_genet_winit_host::{HostHooks, HostOptions, Init, inert_hooks, run};
 use knot_capture::KnotRetainPort;
 use knot_document::{KNOT_DOCUMENT_CSS, KnotDocumentSession};
 use knot_file_catalog::KnotFileCatalog;
-use mesquite::LaneConfig;
+use mandrake::LaneConfig;
 use std::{path::PathBuf, sync::Arc};
 use workspace::{DESKTOP_CSS, DesktopState, DesktopView, desktop_view};
 
@@ -187,7 +187,7 @@ pub fn run_desktop_with_targets_and_relations(
             initial_grace.unwrap_or(scenario_startup::NORMAL_PRESENTATION_TIMEOUT_SECS),
         );
         let mut lane = Some(
-            mesquite::Lane::from_config(
+            mandrake::Lane::from_config(
                 config,
                 scenario::KnotLane::new(desktop_sheet()),
                 cambium_genet_winit_host::read_file,

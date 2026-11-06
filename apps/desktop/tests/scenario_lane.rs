@@ -13,7 +13,7 @@ use knot_desktop::{
 };
 use knot_document::KnotDocumentSession;
 use knot_file_catalog::KnotFileCatalog;
-use mesquite::LaneConfig;
+use mandrake::LaneConfig;
 use tempfile::tempdir;
 
 type Logic = fn(&DesktopState) -> DesktopView;
@@ -271,7 +271,7 @@ fn run_without_native_capture_at_size_with_chrome_and_sheet(
         receipt: Some(temp.path().join(format!("{name}.done"))),
     };
     let receipt = config.receipt_path().unwrap();
-    let mut lane = mesquite::Lane::from_config(
+    let mut lane = mandrake::Lane::from_config(
         config,
         KnotLane::new(sheet.clone()),
         cambium_genet_winit_host::read_file,
@@ -447,7 +447,7 @@ fn the_lane_drives_the_desktop_by_role_and_label() {
         receipt: None,
     };
     let receipt = config.receipt_path().unwrap();
-    let mut lane = mesquite::Lane::from_config(
+    let mut lane = mandrake::Lane::from_config(
         config,
         KnotLane::new(desktop_sheet()),
         cambium_genet_winit_host::read_file,

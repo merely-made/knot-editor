@@ -27,7 +27,7 @@ seiche.workspace = true
 apparatus-core = { version = "0.1.0", git = "https://github.com/merely-made/armillary.git", rev = "06340b08327b29c3485ecb0089bb5cafed20fd80", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mandrake.workspace = true
-site-host = { package = "gemot-site-host", git = "https://www.github.com/merely-made/gemot.git", rev = "f4c1b60139c3315e921393ef72fda35b152b15b3", features = ["history", "generate"] }
+site-host = { package = "gemot-site-host", git = "https://www.github.com/merely-made/gemot.git", rev = "73ae3633400109de7e8fd5a66393a12eb609f0d4", features = ["history", "generate"] }
 muniment = { workspace = true, features = ["directory"] }
 inker.workspace = true
 nematic.workspace = true

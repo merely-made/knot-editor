@@ -90,8 +90,8 @@ rust-version = "1.97.1"
 # revision) resolve to this revision through the www form of the URL, the same
 # repository under another source key, so one eidetic resolves. Drop once they
 # repin.
-distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
-mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
+distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "a235cbdbca187aa7507739b3f6cf9a2f7846fcc0" }
+mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "a235cbdbca187aa7507739b3f6cf9a2f7846fcc0" }
 
 [patch."https://github.com/merely-made/eidetic.git"]
 chartulary = { git = "https://www.github.com/merely-made/eidetic.git", rev = "86e78dd37914fd61f8ca336bf0ab2da716356fca" }
@@ -110,7 +110,7 @@ undocumented_unsafe_blocks = "warn"
 too_many_lines = "warn"
 
 [patch."https://github.com/merely-made/distillery.git"]
-esp = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
-esp-testkit = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
-distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
-mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
+esp = { git = "https://www.github.com/merely-made/distillery.git", rev = "a235cbdbca187aa7507739b3f6cf9a2f7846fcc0" }
+esp-testkit = { git = "https://www.github.com/merely-made/distillery.git", rev = "a235cbdbca187aa7507739b3f6cf9a2f7846fcc0" }
+distillery = { git = "https://www.github.com/merely-made/distillery.git", rev = "a235cbdbca187aa7507739b3f6cf9a2f7846fcc0" }
+mere-mesh = { git = "https://www.github.com/merely-made/distillery.git", rev = "a235cbdbca187aa7507739b3f6cf9a2f7846fcc0" }

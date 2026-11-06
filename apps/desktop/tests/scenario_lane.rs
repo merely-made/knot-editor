@@ -39,6 +39,9 @@ const STEP_9_SCENARIOS: &[&str] = &[
     "context_scroll_reopen.scn",
 ];
 
+/// Above `CollapsePreferences::menu_below` (1150): the full toolbar, not the Menu.
+const WIDE_TOOLBAR_WIDTH: f32 = 1200.0;
+
 fn scenario_path(name: &str) -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../scenarios")
@@ -84,11 +87,16 @@ fn relationship_recipe_lane_edits_explains_and_refuses_unauthorized_retention() 
         Some(fixture.clone()),
     );
     state.set_preferences_path(Some(root.path().join("preferences.json")));
-    let receipt = run_without_native_capture_at_height(
+    // Wider than the default `menu_below` (1150), so the full toolbar, which
+    // carries the "Show Preview" button this scenario clicks, is not collapsed
+    // into the Menu.
+    let receipt = run_without_native_capture_at_size(
         state,
         "relationship_recipe.scn",
         &root,
+        WIDE_TOOLBAR_WIDTH,
         1100.0,
+        1.0,
         false,
     );
     assert!(receipt.starts_with("RESULT ok"), "{receipt}");
@@ -170,7 +178,7 @@ fn compact_font_role_picker_is_reachable_through_the_menu_at_420px() {
 #[test]
 fn relationship_scene_controls_preserve_source_at_wide_compact_and_high_zoom() {
     for (name, width, zoom) in [
-        ("relationship_scene.scn", 1100.0, 1.0),
+        ("relationship_scene.scn", WIDE_TOOLBAR_WIDTH, 1.0),
         ("relationship_scene_compact.scn", 420.0, 1.0),
         ("relationship_scene_compact.scn", 1280.0, 4.0),
     ] {

@@ -180,13 +180,15 @@ mod tests {
     #[test]
     fn build_control_exports_saved_snapshot_without_starting_a_server_or_overwriting() {
         let temp = tempfile::tempdir().unwrap();
-        let site = Site::create_for(&temp.path().join("source"), SiteFormat::Gemini).unwrap();
+        // Canonical: macOS temp roots pass through /tmp or /var symlinks, which the exporter refuses.
+        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let site = Site::create_for(&root.join("source"), SiteFormat::Gemini).unwrap();
         let mut state = DesktopState::new(
             KnotDocumentSession::open(&site.page_path("index.gmi").unwrap()).unwrap(),
             WindowCommands::new(),
         );
         let key = state.hold_site(site);
-        let destination = temp.path().join("html");
+        let destination = root.join("html");
         state
             .scroll
             .generation
@@ -226,7 +228,9 @@ mod tests {
         use cambium::TextCommand;
         use knot_document::KnotDocumentIntentV1;
         let temp = tempfile::tempdir().unwrap();
-        let site = Site::create_for(&temp.path().join("source"), SiteFormat::Gemini).unwrap();
+        // Canonical: macOS temp roots pass through /tmp or /var symlinks, which the exporter refuses.
+        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let site = Site::create_for(&root.join("source"), SiteFormat::Gemini).unwrap();
         let path = site.page_path("index.gmi").unwrap();
         let bytes = b"# Native\n\nLiteral & source *stays*.\n";
         std::fs::write(&path, bytes).unwrap();
@@ -235,7 +239,7 @@ mod tests {
             WindowCommands::new(),
         );
         let key = state.hold_site(site);
-        let destination = temp.path().join("native");
+        let destination = root.join("native");
         let draft = state.scroll.generation.drafts.entry(key).or_default();
         draft.target = OutputFormat::Gemtext;
         draft.preserve_native = true;
@@ -249,7 +253,7 @@ mod tests {
                 "draft".into(),
             )))
             .unwrap();
-        let refused = temp.path().join("unsaved");
+        let refused = root.join("unsaved");
         state
             .scroll
             .generation
@@ -269,13 +273,15 @@ mod tests {
         use cambium_genet_winit_host::{Harness, Init};
         use taproot::Selector;
         let temp = tempfile::tempdir().unwrap();
-        let site = Site::create_for(&temp.path().join("source"), SiteFormat::Gemini).unwrap();
+        // Canonical: macOS temp roots pass through /tmp or /var symlinks, which the exporter refuses.
+        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let site = Site::create_for(&root.join("source"), SiteFormat::Gemini).unwrap();
         let mut state = DesktopState::new(
             KnotDocumentSession::open(site.page_path("index.gmi").unwrap()).unwrap(),
             WindowCommands::new(),
         );
         let key = state.hold_site(site);
-        let destination = temp.path().join("markdown");
+        let destination = root.join("markdown");
         state
             .scroll
             .generation

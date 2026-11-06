@@ -5,7 +5,7 @@
 //! are recorded here; this is not a Windows/Linux window-manager receipt.
 
 use cambium_genet_winit_host::{
-    AppRegion, Harness, Init, KeyPress, Modifiers, NamedKey, WindowCommand, WindowCommands,
+    AppRegion, CloseRequest, Harness, Init, KeyPress, Modifiers, NamedKey, WindowCommand, WindowCommands,
     WindowFrame, platform_window_frame,
 };
 use knot_desktop::{
@@ -257,10 +257,17 @@ fn dirty_caption_close_uses_the_existing_unsaved_guard() {
     assert!(h.click_on(&Selector::role("textbox").with_attr("aria-label", "Document text")));
     h.key_char("changed");
     assert!(h.state().document().snapshot().dirty);
-    assert!(h.click_on(&button("Close window")));
+    if cfg!(target_os = "macos") {
+        // The OS draws the close control, so exercise the platform close path
+        // that its button reaches instead of a client caption button.
+        h.request_close(CloseRequest::Native);
+        h.layout_at(1400.0, 800.0);
+    } else {
+        assert!(h.click_on(&button("Close window")));
+    }
     assert!(
         !h.close_requested(),
-        "a caption click must not discard edits"
+        "a close request must not discard edits"
     );
     assert!(
         h.resolve(&Selector::role("dialog").with_attr("aria-label", "Unsaved changes"))
@@ -384,15 +391,18 @@ fn client_menu_collapses_and_reopens_safely_after_resize() {
     h.layout_at(540.0, 800.0);
     let compact = Selector::role("menuitem").with_attr("data-key", "menu");
     assert!(h.resolve(&compact).is_some(), "narrow chrome exposes Menu");
-    for label in ["Minimize window", "Maximize window", "Close window"] {
-        let (x, y) = h
-            .resolve(&button(label))
-            .expect("narrow caption remains laid out");
-        assert!((0.0..540.0).contains(&x), "{label} is off-screen at x={x}");
-        assert!(
-            (0.0..80.0).contains(&y),
-            "{label} left the title strip at y={y}"
-        );
+    // macOS draws caption controls in the OS, so the client strip has none.
+    if !cfg!(target_os = "macos") {
+        for label in ["Minimize window", "Maximize window", "Close window"] {
+            let (x, y) = h
+                .resolve(&button(label))
+                .expect("narrow caption remains laid out");
+            assert!((0.0..540.0).contains(&x), "{label} is off-screen at x={x}");
+            assert!(
+                (0.0..80.0).contains(&y),
+                "{label} left the title strip at y={y}"
+            );
+        }
     }
     assert!(h.click_on(&compact));
     h.press_key(&KeyPress::named(NamedKey::Enter));

@@ -23,7 +23,7 @@ repository = "https://github.com/merely-made/knot-editor"
 rust-version = "1.97.1"
 
 [workspace.dependencies]
-murm-sync = { version = "0.0.1", git = "https://www.github.com/merely-made/murm.git", rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d" }
+murm-sync = { version = "0.0.1", git = "https://github.com/merely-made/murm.git", branch = "main" }
 curation = { package = "mere-curation", version = "0.1.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
 # Product crates.
 knot-capture = { version = "0.0.1", path = "crates/knot-capture" }
@@ -77,7 +77,7 @@ seiche = { version = "0.0.6", git = "https://github.com/merely-made/mere.git", b
 script-rhai = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
 servitor = { version = "0.0.3", git = "https://www.github.com/merely-made/eidetic.git", rev = "86e78dd37914fd61f8ca336bf0ab2da716356fca" }
 stickleback = { version = "0.2.0", default-features = false, git = "https://www.github.com/merely-made/eidetic.git", rev = "86e78dd37914fd61f8ca336bf0ab2da716356fca" }
-transport = { package = "mere-transport", version = "0.0.2", git = "https://www.github.com/merely-made/murm.git", rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d" }
+transport = { package = "mere-transport", version = "0.0.2", git = "https://github.com/merely-made/murm.git", branch = "main" }
 
 # Presentation stack. The platform boundary move put Cambium, Illume, Inker,
 # Nematic and the Knot editor host in Mere; the raw engine contracts stay in
@@ -98,15 +98,15 @@ workbench = { version = "0.1.1", git = "https://github.com/merely-made/mere.git"
 platen = { version = "0.0.1", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["workspace-editor"] }
 kernel = { package = "mere-kernel", version = "0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main" }
 backstep = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
-fleece = { version = "0.5.0", git = "https://www.github.com/merely-made/genet.git", rev = "ceb5a9795a8f26ffe3c6fba25a55bfce3dd0a15d" }
-genet-host-api = { git = "https://www.github.com/merely-made/genet.git", rev = "ceb5a9795a8f26ffe3c6fba25a55bfce3dd0a15d" }
-genet-scripted-dom = { version = "=0.1.2", git = "https://www.github.com/merely-made/genet.git", rev = "ceb5a9795a8f26ffe3c6fba25a55bfce3dd0a15d" }
+fleece = { version = "0.5.0", git = "https://github.com/merely-made/genet.git", branch = "main" }
+genet-host-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+genet-scripted-dom = { version = "=0.1.2", git = "https://github.com/merely-made/genet.git", branch = "main" }
 illume = { version = "0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main" }
 inker = { git = "https://github.com/merely-made/mere.git", branch = "main" }
 knot-editor-host = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false }
-layout-dom-api = { version = "=0.1.1", git = "https://www.github.com/merely-made/genet.git", rev = "ceb5a9795a8f26ffe3c6fba25a55bfce3dd0a15d" }
+layout-dom-api = { version = "=0.1.1", git = "https://github.com/merely-made/genet.git", branch = "main" }
 nematic = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false }
-taproot = { version = "0.1.0", git = "https://www.github.com/merely-made/genet.git", rev = "ceb5a9795a8f26ffe3c6fba25a55bfce3dd0a15d" }
+taproot = { version = "0.1.0", git = "https://github.com/merely-made/genet.git", branch = "main" }
 
 # Shared registry dependencies.
 base64 = "0.22"
@@ -134,7 +134,7 @@ too_many_lines = "warn"
 [patch.crates-io]
 # Registry Webcue and native Genet sessions share one canonical input vocabulary,
 # as in mere's root, whose patches do not carry across a git dependency.
-document-session-api = { git = "https://www.github.com/merely-made/genet.git", rev = "ceb5a9795a8f26ffe3c6fba25a55bfce3dd0a15d" }
+document-session-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 # Canonical promoted families; keep registry and Git consumers type-identical.
 eidetic = { git = "http://www.github.com/merely-made/eidetic.git", rev = "86e78dd37914fd61f8ca336bf0ab2da716356fca" }
 muniment = { git = "http://www.github.com/merely-made/eidetic.git", rev = "86e78dd37914fd61f8ca336bf0ab2da716356fca" }
@@ -163,23 +163,20 @@ version = "0.0.1"
 git = "https://github.com/merely-made/armillary.git"
 rev = "08ebbc44f5d391bd263fcc26b6053edf72741954"
 
-[patch."https://github.com/merely-made/murm.git".murm-wire]
-git = "http://www.github.com/merely-made/murm.git"
-rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d"
-
-[patch."https://www.github.com/merely-made/murm.git"]
-mere-transport = { git = "http://www.github.com/merely-made/murm.git", rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d" }
-murm-sync = { git = "http://www.github.com/merely-made/murm.git", rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d" }
-murm-webrtc = { git = "http://www.github.com/merely-made/murm.git", rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d" }
-retinue = { git = "http://www.github.com/merely-made/murm.git", rev = "98f79b4ef56168239eb93ceaae1dcdde465ee34d" }
-
 [patch."https://www.github.com/merely-made/distillery.git"]
 esp = { git = "http://www.github.com/merely-made/distillery.git", rev = "27fd59188c5036627aec0f85feaa59907c7ba53f" }
 
 # Mere names netrender through the www URL at a revision; Genet names it through
 # the canonical URL. One source for both.
-[patch."https://github.com/merely-made/netrender.git"]
-netrender = { git = "https://www.github.com/merely-made/netrender.git", rev = "f8811186cd82b0d4b6758b15c6bcecd415273d52", version = "=0.1.2" }
-netrender_device = { git = "https://www.github.com/merely-made/netrender.git", rev = "f8811186cd82b0d4b6758b15c6bcecd415273d52", version = "=0.1.2" }
-paint_list_api = { git = "https://www.github.com/merely-made/netrender.git", rev = "f8811186cd82b0d4b6758b15c6bcecd415273d52", version = "=0.1.2" }
-paint_list_render = { git = "https://www.github.com/merely-made/netrender.git", rev = "f8811186cd82b0d4b6758b15c6bcecd415273d52", version = "=0.1.2" }
+
+# TRANSITIONAL (family source convention restored 2026-11-06): Gemot, Distillery
+# and Eidetic at their locked revisions still name Murm by www/rev or without a
+# branch. Delete when they publish canonical rows and this lock repins them.
+[patch."https://www.github.com/merely-made/murm.git"]
+mere-transport = { git = "https://github.com/merely-made/murm.git", branch = "main" }
+murm = { git = "https://github.com/merely-made/murm.git", branch = "main" }
+murm-ocapn = { git = "https://github.com/merely-made/murm.git", branch = "main" }
+murm-sync = { git = "https://github.com/merely-made/murm.git", branch = "main" }
+murm-webrtc = { git = "https://github.com/merely-made/murm.git", branch = "main" }
+murm-wire = { git = "https://github.com/merely-made/murm.git", branch = "main" }
+retinue = { git = "https://github.com/merely-made/murm.git", branch = "main" }

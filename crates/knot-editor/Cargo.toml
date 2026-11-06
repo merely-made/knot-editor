@@ -89,8 +89,8 @@ chirograph.workspace = true
 inker.workspace = true
 jotdown = "0.10"
 knot-document = { workspace = true, features = ["engine"] }
-site-model = { package = "gemot-site", git = "https://www.github.com/merely-made/gemot.git", rev = "bcfd40831253734d3e7ef954190d4d37e8fbaea2" }
-site-host = { package = "gemot-site-host", git = "https://www.github.com/merely-made/gemot.git", rev = "bcfd40831253734d3e7ef954190d4d37e8fbaea2", optional = true }
+site-model = { package = "gemot-site", git = "https://www.github.com/merely-made/gemot.git", rev = "f4c1b60139c3315e921393ef72fda35b152b15b3" }
+site-host = { package = "gemot-site-host", git = "https://www.github.com/merely-made/gemot.git", rev = "f4c1b60139c3315e921393ef72fda35b152b15b3", optional = true }
 knot-catalog.workspace = true
 muniment = { workspace = true, features = ["redb"] }
 mora.workspace = true

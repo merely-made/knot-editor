@@ -24,10 +24,10 @@ scenograph.workspace = true
 sceno.workspace = true
 pictograph.workspace = true
 seiche.workspace = true
-apparatus-core = { version = "0.1.0", git = "https://github.com/merely-made/armillary.git", rev = "06340b08327b29c3485ecb0089bb5cafed20fd80", default-features = false, features = ["serde"] }
+apparatus-core = { version = "0.1.0", git = "https://github.com/merely-made/armillary.git", branch = "main", default-features = false, features = ["serde"] }
 taproot.workspace = true
 mandrake.workspace = true
-site-host = { package = "gemot-site-host", git = "https://www.github.com/merely-made/gemot.git", rev = "204ee036ece5e576ff3c8b1a27797c59139e4d3b", features = ["history", "generate"] }
+site-host = { package = "gemot-site-host", git = "https://github.com/merely-made/gemot.git", branch = "main", features = ["history", "generate"] }
 muniment = { workspace = true, features = ["directory"] }
 inker.workspace = true
 nematic.workspace = true

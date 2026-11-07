@@ -1865,7 +1865,7 @@ dependencies = [
  "genet-scripted-dom",
  "genet-text",
  "hest",
- "illume",
+ "illume 0.0.3 (git+https://github.com/merely-made/mere.git?branch=main)",
  "layout-dom-api",
  "mere-surface-api",
  "meristem",
@@ -3762,7 +3762,7 @@ version = "0.1.0"
 source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44c2cf8677bb78c3dab015646441"
 dependencies = [
  "genet-parley",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/mere.git?branch=main)",
  "netrender",
  "paint_list_api",
  "paint_list_render",
@@ -6203,6 +6203,16 @@ dependencies = [
 [[package]]
 name = "illume"
 version = "0.0.3"
+source = "git+https://github.com/merely-made/inker.git?branch=main#436c8413c0cac040c004782ab6749e2448773c58"
+dependencies = [
+ "jotdown",
+ "logos",
+ "pulldown-cmark",
+]
+
+[[package]]
+name = "illume"
+version = "0.0.3"
 source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44c2cf8677bb78c3dab015646441"
 dependencies = [
  "jotdown",
@@ -6284,6 +6294,22 @@ name = "inflections"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a257582fdcde896fd96463bf2d40eefea0580021c0712a0e2b028b60b47a837a"
+
+[[package]]
+name = "inker"
+version = "0.1.1"
+source = "git+https://github.com/merely-made/inker.git?branch=main#436c8413c0cac040c004782ab6749e2448773c58"
+dependencies = [
+ "accesskit",
+ "document-session-api",
+ "getrandom 0.4.3",
+ "petgraph",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+ "webcue",
+]
 
 [[package]]
 name = "inker"
@@ -7016,7 +7042,7 @@ dependencies = [
  "directories",
  "gemot-site-host",
  "genet-scripted-dom",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/inker.git?branch=main)",
  "knot-capture",
  "knot-catalog",
  "knot-composition",
@@ -7059,9 +7085,8 @@ name = "knot-document"
 version = "0.0.1"
 dependencies = [
  "cambium",
- "illume",
- "inker",
- "knot-editor-host",
+ "illume 0.0.3 (git+https://github.com/merely-made/inker.git?branch=main)",
+ "inker 0.1.1 (git+https://github.com/merely-made/inker.git?branch=main)",
  "mere-edit",
  "mere-surface-api",
  "nematic",
@@ -7091,7 +7116,7 @@ dependencies = [
  "graphshell-door",
  "graphshell-endpoint",
  "graphshell-host",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/inker.git?branch=main)",
  "insigne",
  "jotdown",
  "knot-capture",
@@ -7146,23 +7171,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "knot-editor-host"
-version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44c2cf8677bb78c3dab015646441"
-dependencies = [
- "cambium",
- "illume",
- "inker",
- "nematic",
- "pulldown-cmark",
-]
-
-[[package]]
 name = "knot-readings"
 version = "0.0.1"
 dependencies = [
  "blake3",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/inker.git?branch=main)",
  "knot-document",
  "mora",
  "mora-cmudict",
@@ -7739,7 +7752,7 @@ dependencies = [
  "errand",
  "futures-util",
  "genet-host-api",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/mere.git?branch=main)",
  "mere-pageload",
  "netfetcher",
  "pandect",
@@ -7809,7 +7822,7 @@ dependencies = [
  "genet-host-api",
  "genet-static-dom",
  "image",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/mere.git?branch=main)",
  "mere-fleece",
  "netrender",
  "tabard",
@@ -8403,11 +8416,11 @@ dependencies = [
 [[package]]
 name = "nematic"
 version = "0.1.1"
-source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44c2cf8677bb78c3dab015646441"
+source = "git+https://github.com/merely-made/inker.git?branch=main#436c8413c0cac040c004782ab6749e2448773c58"
 dependencies = [
  "errand",
  "genet-static-dom",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/inker.git?branch=main)",
  "jotdown",
  "pulldown-cmark",
  "serde",
@@ -10245,7 +10258,7 @@ source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44
 dependencies = [
  "accesskit",
  "backstep",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/mere.git?branch=main)",
  "mere-forme",
  "mere-kernel",
  "serde",
@@ -11938,10 +11951,10 @@ source = "git+https://github.com/merely-made/genet.git?branch=main#24d7ddb35b1b9
 [[package]]
 name = "script-rhai"
 version = "0.0.1"
-source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44c2cf8677bb78c3dab015646441"
+source = "git+https://github.com/merely-made/inker.git?branch=main#436c8413c0cac040c004782ab6749e2448773c58"
 dependencies = [
  "hest",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/inker.git?branch=main)",
  "libm",
  "rhai",
  "script-engine-api",
@@ -12898,7 +12911,7 @@ dependencies = [
  "document-canvas",
  "genet-livery",
  "genet-scripted-dom",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/mere.git?branch=main)",
  "layout-dom-api",
  "livery",
  "mere-lanes",
@@ -14033,7 +14046,7 @@ version = "0.0.2"
 source = "git+https://github.com/merely-made/mere.git?branch=main#3b354929356f44c2cf8677bb78c3dab015646441"
 dependencies = [
  "accesskit",
- "inker",
+ "inker 0.1.1 (git+https://github.com/merely-made/mere.git?branch=main)",
  "tracing",
 ]
 

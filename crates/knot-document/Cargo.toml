@@ -17,8 +17,6 @@ highlight = ["cambium/highlight"]
 # Broad Knot conversion, preview, and canonicalization. The ordinary document
 # surface intentionally retains only the lightweight editor readout.
 engine = [
-    "knot-editor-host/preview",
-    "dep:illume",
     "dep:inker",
     "dep:nematic",
     "dep:serde_json",
@@ -33,10 +31,10 @@ same-file = "1.0.6"
 # It implements neither of the contributed-observation callbacks changed in 0.6.
 cambium = { version = ">=0.4.0, <0.7.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 mere-surface-api = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
-illume = { version = "0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main", optional = true }
-inker = { git = "https://github.com/merely-made/mere.git", branch = "main", optional = true }
-knot-editor-host = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false }
-nematic = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, optional = true }
+# The retained editor's readout highlights through Illume's Markdown reuse-lexer.
+illume = { version = "0.0.3", git = "https://github.com/merely-made/inker.git", branch = "main", features = ["markdown"] }
+inker = { git = "https://github.com/merely-made/inker.git", branch = "main", optional = true }
+nematic = { git = "https://github.com/merely-made/inker.git", branch = "main", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }
 
 [target.'cfg(windows)'.dependencies]

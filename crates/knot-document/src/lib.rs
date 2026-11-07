@@ -13,6 +13,8 @@ mod document_surface;
 mod document_view;
 mod editor;
 mod hard_wrap;
+mod readout;
+pub mod retained;
 mod source_edit;
 pub use mere_source_edit::{EditReceipt, Proposal, SourceSnapshot, SourceStamp, TextEdit};
 mod writer;
@@ -35,6 +37,7 @@ pub use document_view::{
 };
 pub use editor::{EditOutcome, KnotEditor, KnotEditorSaveError};
 pub use hard_wrap::hard_wrap_column;
+pub use readout::KnotReadout;
 #[cfg(feature = "engine")]
 pub use writer::AuthoredFile;
 #[doc(hidden)]

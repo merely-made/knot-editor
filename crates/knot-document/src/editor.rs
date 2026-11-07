@@ -13,8 +13,8 @@ use cambium::{CaretSelection, TextCommand, TextInput};
 use illume::{Fold, OutlineItem, Span};
 #[cfg(feature = "engine")]
 use inker::EngineDocument;
-pub use knot_editor_host::EditOutcome;
-use knot_editor_host::KnotEditor as SharedKnotEditor;
+pub use crate::retained::EditOutcome;
+use crate::retained::KnotEditor as SharedKnotEditor;
 use same_file::Handle;
 
 use crate::{DocumentFormat, KnotOutlineItemV1, SaveOutcome, write_if_distinct};

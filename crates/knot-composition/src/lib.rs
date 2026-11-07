@@ -202,7 +202,7 @@ pub struct CollectionItem {
     pub projection_recipe: Option<retention::ProjectionRecipeMaterial>,
     /// Copied, validated metrical alignment; never a handle into a document.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub metre_scene: Option<scenomise::backdrops::SceneInput>,
+    pub metre_scene: Option<sceno_backdrops::SceneInput>,
     #[serde(default)]
     pub pack_sources: Vec<PackSource>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -245,7 +245,7 @@ impl CollectionItem {
         self
     }
 
-    pub fn with_metre_scene(mut self, scene: scenomise::backdrops::SceneInput) -> Self {
+    pub fn with_metre_scene(mut self, scene: sceno_backdrops::SceneInput) -> Self {
         self.kind = ItemKind::MetreAlignment;
         self.metre_scene = Some(scene);
         self
@@ -279,7 +279,7 @@ impl CollectionItem {
     pub fn validate(&self) -> Result<(), CollectionError> {
         match (&self.kind, &self.metre_scene) {
             (ItemKind::MetreAlignment, Some(scene)) => {
-                if !matches!(scene.facts, scenomise::backdrops::SceneFacts::MetreGrid(_)) {
+                if !matches!(scene.facts, sceno_backdrops::SceneFacts::MetreGrid(_)) {
                     return Err(CollectionError::Invalid(
                         "Metre alignment requires metrical facts".into(),
                     ));
@@ -287,7 +287,7 @@ impl CollectionItem {
                 scene
                     .validate()
                     .map_err(|e| CollectionError::Invalid(e.to_string()))?;
-                if serde_json::to_vec(scene).map_err(CollectionError::Malformed)?.len() > scenomise::backdrops::MAX_SCENE_INPUT_BYTES {
+                if serde_json::to_vec(scene).map_err(CollectionError::Malformed)?.len() > sceno_backdrops::MAX_SCENE_INPUT_BYTES {
                     return Err(CollectionError::Invalid(
                         "Metre scene exceeds one MiB".into(),
                     ));

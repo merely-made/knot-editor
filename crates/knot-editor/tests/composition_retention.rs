@@ -505,10 +505,8 @@ fn commons_keys_are_required_for_both_reads_and_writes() {
 
 #[test]
 fn typed_metre_versions_reopen_exactly_in_the_sealed_collection() {
-    use scenomise::{
-        backdrops::SceneInput,
-        span_edit::{SpanEdit, SpanEditIntent},
-    };
+    use sceno_backdrops::SceneInput;
+    use scenomise::span_edit::{SpanEdit, SpanEditIntent};
     let scene: SceneInput = serde_json::from_value(serde_json::json!({
         "version":1,"source":{"adapter":"knot.document","id":"private-verse-48392"},
         "revision":"resolved-cmudict-reading-13","title":"Private alignment 482749",

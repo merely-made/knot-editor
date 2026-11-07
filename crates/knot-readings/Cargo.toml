@@ -16,6 +16,7 @@ mora.workspace = true
 mora-cmudict.workspace = true
 script-rhai.workspace = true
 sceno = { workspace = true, optional = true }
+sceno-backdrops = { workspace = true, optional = true }
 scenomise = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 
@@ -26,7 +27,7 @@ tempfile = "3"
 workspace = true
 
 [features]
-portable-scenes = ["dep:sceno", "dep:scenomise", "dep:serde_json"]
+portable-scenes = ["dep:sceno", "dep:sceno-backdrops", "dep:scenomise", "dep:serde_json"]
 
 [[bin]]
 name = "knot-metre-scene"

@@ -18,7 +18,7 @@ use knot_readings::{
     metre_scene::{MetreTemplate, metre_scene},
 };
 use pictograph::canvas::backdrop_surface::{BackdropSurface, SurfaceTheme};
-use scenomise::backdrops::{SceneFacts, SceneInput};
+use sceno_backdrops::{SceneFacts, SceneInput};
 use std::{cell::RefCell, rc::Rc};
 pub const KEY: u64 = 0x4b4e_4d45;
 #[derive(Default)]

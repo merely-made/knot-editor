@@ -12,7 +12,7 @@ use mora::{
 };
 use mora_cmudict::Cmudict;
 use sceno::SourceRef;
-use scenomise::backdrops::{
+use sceno_backdrops::{
     BACKDROP_SCENE_VERSION, MetreGrid, SceneFacts, SceneInput, Syllable, VerseLine,
 };
 use std::collections::BTreeMap;

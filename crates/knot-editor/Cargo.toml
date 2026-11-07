@@ -149,6 +149,7 @@ cambium.workspace = true
 graphshell-host = { workspace = true, features = ["native"] }
 graphshell-client.workspace = true
 scenomise.workspace = true
+sceno-backdrops.workspace = true
 scenograph.workspace = true
 gemot.workspace = true
 graphshell-endpoint = { workspace = true, features = ["local"] }

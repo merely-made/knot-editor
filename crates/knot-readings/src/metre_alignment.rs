@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 //! Authored metrical positions over a copied, resolved lexical reading.
 //! These edits never rewrite document bytes, stress, pronunciations or rhyme.
-use scenomise::{
-    backdrops::{SceneFacts, SceneInput},
-    template::Span,
-};
+use sceno_backdrops::{SceneFacts, SceneInput, template::Span};
 
 pub use scenomise::span_edit::{SpanEdit as Edit, SpanEditIntent as Proposal};
 #[derive(Clone)]

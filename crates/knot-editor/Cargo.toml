@@ -60,7 +60,7 @@ mere-overlay = ["dep:mere-overmap", "dep:mere-view"]
 # library` keeps the default honest.
 # The native `knot_endpoint` binary also offers a read-only directory through
 # Djinn's app door. The library default remains free of native provider code.
-projection-provider = ["graphshell-endpoint/projection-provider"]
+projection-provider = ["graphshell-door/projection-provider"]
 # The `knot_site` client: hand a completed site to the resident on its
 # published-site route (`knot_site::handoff`).
 site-handoff = ["dep:site-host"]
@@ -79,7 +79,8 @@ fleece.workspace = true
 # The custody client: Knot reaches its persona keys by calling Djinn (dramatis
 # DR-C), through the application door (Mere stack lift plan P1); no
 # `graphshell` in the library.
-graphshell-endpoint = { workspace = true, features = ["projection-door", "stdio"] }
+graphshell-endpoint = { workspace = true, features = ["projection", "stdio"] }
+graphshell-door = { workspace = true, features = ["projection-door"] }
 ostiary = { workspace = true, features = ["native"] }
 castellan-client = { workspace = true, features = ["client"] }
 dramatis.workspace = true

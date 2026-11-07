@@ -423,7 +423,7 @@ const PROVIDER_LABEL: &str = "Knot directory";
 
 #[cfg(feature = "projection-provider")]
 fn run_projection_provider(args: ProjectionProviderArgs) {
-    use graphshell_endpoint::door::{
+    use graphshell_door::{
         projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider,
     };
     use ostiary::{

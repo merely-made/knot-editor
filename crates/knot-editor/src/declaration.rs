@@ -23,7 +23,7 @@ pub const MERE_ROUTE_PREFIX: &str = "mere/";
 /// (`site_host::handoff::PUBLISHED_SITE_ROUTE`).
 pub const PUBLISHED_SITE_ROUTE: &str = "published-site-v1";
 /// The route Knot offers projections through
-/// (`graphshell_endpoint::door::projection_offer::PROJECTION_PROVIDER_ROUTE`).
+/// (`graphshell_door::projection_offer::PROJECTION_PROVIDER_ROUTE`).
 pub const PROJECTION_PROVIDER_ROUTE: &str = "mere.projection-provider";
 
 /// Take the handle Djinn launched this process with, before anything is
@@ -117,7 +117,7 @@ mod tests {
     fn the_provider_route_matches_graphshell() {
         assert_eq!(
             PROJECTION_PROVIDER_ROUTE,
-            graphshell_endpoint::door::projection_offer::PROJECTION_PROVIDER_ROUTE
+            graphshell_door::projection_offer::PROJECTION_PROVIDER_ROUTE
         );
     }
 

@@ -17,7 +17,7 @@ use chirograph::{
     CarrierRequestBody, CarrierResponseBody, IntentInvocation, IntentResult, ProjectionSession,
 };
 use ostiary::app_admission::{AppId, AppRouteId};
-use graphshell_endpoint::door::projection::AppBrokerClient;
+use graphshell_door::projection::AppBrokerClient;
 use site_host::Site;
 use site_host::handoff::{
     GeminiListenerPolicyV1, PUBLISHED_SITE_CHUNK_INTENT, PUBLISHED_SITE_COMMIT_INTENT,

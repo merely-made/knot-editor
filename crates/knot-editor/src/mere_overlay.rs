@@ -23,7 +23,7 @@
 use std::collections::BTreeMap;
 
 use chirograph::{CarrierRequestBody, CarrierResponseBody, IntentResult, ProjectionSnapshot};
-use graphshell_endpoint::door::projection::AppBrokerClient;
+use graphshell_door::projection::AppBrokerClient;
 use mere_overmap::materialization::{self, GraphRead};
 use mere_overmap::route;
 use mere_overmap::wire::PendingMergeV1;

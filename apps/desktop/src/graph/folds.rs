@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! Reversible, host-owned catalog curation. No source or resident route writes.
-use curation::{FoldId, FoldRecord};
+use incipit::curation::{FoldId, FoldRecord};
 use mere_view::{GraphModel, HostAction};
 use std::collections::BTreeSet;
 

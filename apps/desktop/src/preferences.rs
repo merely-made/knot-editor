@@ -39,7 +39,7 @@ pub struct DesktopPreferences {
     /// Cartography strategy used by the shared mere view.
     pub graph_layout: String,
     /// View-local folds keyed by the canonical catalog root, never document truth.
-    pub graph_folds: std::collections::BTreeMap<String, Vec<curation::FoldRecord>>,
+    pub graph_folds: std::collections::BTreeMap<String, Vec<incipit::curation::FoldRecord>>,
     /// Maximum age of private local recovery copies in this standalone app.
     pub recovery_days: u16,
     /// A knot-editor `KnotEmbeddingPreference`, uninterpreted here.
@@ -266,7 +266,7 @@ impl PreferencesStore {
     pub fn save_graph_folds(
         &mut self,
         scope: &str,
-        folds: &[curation::FoldRecord],
+        folds: &[incipit::curation::FoldRecord],
     ) -> Result<(), String> {
         if let Some(why) = &self.unreadable {
             return Err(format!("preferences are unreadable: {why}"));

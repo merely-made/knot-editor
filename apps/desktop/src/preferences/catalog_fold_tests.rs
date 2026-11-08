@@ -14,8 +14,8 @@ fn catalog_folds_round_trip_per_root_without_dropping_other_preferences() {
         .saved
         .other
         .insert("future".into(), serde_json::json!({"keep":true}));
-    let record = curation::FoldRecord::selection(
-        curation::FoldId::new("opaque"),
+    let record = incipit::curation::FoldRecord::selection(
+        incipit::curation::FoldId::new("opaque"),
         "catalog:a",
         vec!["a".to_string(), "b".to_string()],
     )

@@ -6,14 +6,14 @@
 
 //! Knot's editor behind Graphshell's block pane (cycle breaks P2 remainder,
 //! ruling 1). Graphshell ships a small default buffer and names no editor of
-//! its own choosing; a host that composes the pane with Knot calls
-//! [`register`] once, and every block document then edits through
-//! [`KnotEditor`]. The document tests moved here from Graphshell's
+//! its own choosing; a host that composes a pane with Knot passes it
+//! [`KnotBlockEditor::factory`], and that pane's documents edit through
+//! [`KnotEditor`] (another pane in the same process may use another editor). The document tests moved here from Graphshell's
 //! `block_editing.rs` and run over this editor (Graphshell keeps the same
 //! tests over its default buffer).
 
 use cambium::{CaretSelection, TextCommand, TextInput};
-use graphshell::block_editing::{BlockEditor, EditOutcome, register_editor};
+use graphshell::block_editing::{BlockEditor, EditOutcome, EditorFactory};
 use knot_document::retained::KnotEditor;
 
 /// [`KnotEditor`] as a block pane's buffer.
@@ -22,6 +22,12 @@ pub struct KnotBlockEditor(KnotEditor);
 impl KnotBlockEditor {
     pub fn new(address: &str, source: &str) -> Self {
         Self(KnotEditor::scratch(address, source))
+    }
+
+    /// The factory a host passes to a block pane (`Pane::load_with`) or to
+    /// `Document::open` so its documents edit through Knot's editor.
+    pub fn factory() -> impl EditorFactory + Clone {
+        KnotEditors
     }
 
     /// The retained editor, for readouts the pane does not draw (outline,
@@ -65,14 +71,14 @@ impl BlockEditor for KnotBlockEditor {
     }
 }
 
-fn make(id: &str, source: &str) -> Box<dyn BlockEditor> {
-    Box::new(KnotBlockEditor::new(id, source))
-}
+/// What [`KnotBlockEditor::factory`] returns.
+#[derive(Clone, Copy, Debug, Default)]
+struct KnotEditors;
 
-/// Make Knot's editor the block pane's, for every document opened from now
-/// on. Call before the pane opens; the first registration in a process wins.
-pub fn register() -> Result<(), ()> {
-    register_editor(make).map_err(|_| ())
+impl EditorFactory for KnotEditors {
+    fn open(&self, id: &str, source: &str) -> Box<dyn BlockEditor> {
+        Box::new(KnotBlockEditor::new(id, source))
+    }
 }
 
 #[cfg(test)]
@@ -83,9 +89,9 @@ mod tests {
     use illume::blocks;
     use std::collections::BTreeMap;
 
-    /// A document over Knot's editor, as the registered factory makes it.
+    /// A document over Knot's editor, as `KnotBlockEditor::factory` makes it.
     fn doc(id: &str, source: &str) -> Document {
-        Document::with_editor(id, make(id, source))
+        Document::open(id, source, &KnotBlockEditor::factory())
     }
 
     fn empty_changes() -> Vec<Change> {
@@ -276,5 +282,19 @@ mod tests {
                 .is_err()
         );
         assert_eq!(empty.editor.source(), "");
+    }
+
+    #[test]
+    fn knot_and_default_documents_coexist_in_one_process() {
+        use graphshell::block_editing::DefaultEditors;
+        let knot = doc("memory:knot", "# One\n");
+        let default = Document::open("memory:default", "# One\n", &DefaultEditors);
+        assert_eq!(knot.editor.source(), default.editor.source());
+        // Knot's editor is the one behind `knot`: it keeps the retained readout.
+        let mut over = KnotBlockEditor::new("memory:direct", "# One\n");
+        over.apply(TextCommand::Insert("\n## Two\n".into()));
+        assert_eq!(over.editor().outline().len(), 2);
+        // Opening a Knot document set nothing process-wide.
+        assert!(!Document::new("memory:after", "x").editor.is_dirty());
     }
 }

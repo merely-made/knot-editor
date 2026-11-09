@@ -58,7 +58,14 @@ struct Args {
     /// Write this host's bootstrap ticket here once it listens, for a peer
     /// that cannot discover it (tests, receipts).
     ticket_file: Option<PathBuf>,
+    /// The route the supervised host offers Knot's projection on, through the
+    /// door's projection-provider route (cycle breaks P2 remainder, ruling 2).
+    /// `None` offers nothing. Only meaningful with `--door-custody`.
+    offer_route: Option<String>,
 }
+
+/// The route Knot's editor lane has always been served on.
+const DEFAULT_OFFER_ROUTE: &str = "knot";
 
 fn main() {
     // Before the runtime's threads start.
@@ -188,10 +195,21 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         authority: snapshot,
         relay_urls: relays,
     };
+    // The one process that owns Knot's redb store also serves its projection
+    // (the editor lane), so the source stays here beside the host.
+    #[cfg(feature = "door-custody")]
+    let mut provider: std::pin::Pin<Box<dyn std::future::Future<Output = ()>>> =
+        Box::pin(std::future::pending());
     let mut host = if args.door_custody {
         #[cfg(feature = "door-custody")]
         {
-            open_door_host(&args, authority, host_config).await?
+            let (host, source) = open_door_host(&args, authority, host_config).await?;
+            if let Some(route) = args.offer_route.clone() {
+                provider = Box::pin(offer_projection(source.clone(), route));
+            }
+            // The source holds the retention port: keep it for the process's life.
+            std::mem::forget(source);
+            host
         }
         #[cfg(not(feature = "door-custody"))]
         {
@@ -264,10 +282,16 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
             host.refresh_dial_hints(&settings_file).await;
         }
     };
+    #[cfg(not(feature = "door-custody"))]
+    let provider = std::future::pending::<()>();
     tokio::select! {
         reason = until_locked() => {
             Err(format!("dropping the released Knot keys: {reason}").into())
         }
+        // The projection offer never stops the host: sync is this process's
+        // job, the editor lane its extra. An offer the door refuses or ends
+        // is logged and the host carries on (a lock ends the process anyway).
+        () = provider => Ok(()),
         () = reconcile => Ok(()),
     }
 }
@@ -281,7 +305,7 @@ async fn open_door_host(
     args: &Args,
     authority: StartupUnlockedPersonalVault,
     config: KnotSyncHostConfig,
-) -> Result<KnotSyncHost, Box<dyn std::error::Error>> {
+) -> Result<(KnotSyncHost, knot_editor::KnotResidentSource), Box<dyn std::error::Error>> {
     use graphshell_door::blob_door::BlobDoorClient;
     use knot_editor::KnotContentRetentionPort;
     use knot_editor::DoorEvidence;
@@ -322,9 +346,68 @@ async fn open_door_host(
             tracing::debug!(%error, "evidence not retained at startup");
         }
     }
-    // The source holds the retention port: keep it for the process's life.
-    std::mem::forget(source);
-    Ok(host)
+    Ok((host, source))
+}
+
+/// Offer Knot's projection on `route` through the door's projection-provider
+/// route: each viewer the owner permits gets its own session over the one
+/// source this process holds, with the editor's write grant. If the door
+/// refuses the offer (the owner granted no provider route) or later ends it,
+/// the reason is logged and the future stays pending: it never stops the host.
+#[cfg(feature = "door-custody")]
+async fn offer_projection(source: knot_editor::KnotResidentSource, route: String) {
+    let reason = offer_projection_until_ended(source, route).await;
+    tracing::warn!(reason, "Knot's projection is no longer offered; sync continues");
+    std::future::pending::<()>().await
+}
+
+#[cfg(feature = "door-custody")]
+async fn offer_projection_until_ended(
+    source: knot_editor::KnotResidentSource,
+    route: String,
+) -> String {
+    use graphshell_door::{projection_offer::PROJECTION_PROVIDER_ROUTE, projection_provider};
+    use ostiary::app_admission::AppRouteId;
+    use ostiary::app_client::AppConnection;
+
+    const LABEL: &str = "Knot";
+    const MAX_SESSIONS: usize = 8;
+    let offered = match AppRouteId::new(route) {
+        Ok(route) => route,
+        Err(error) => return format!("the offered route is not a route name: {error}"),
+    };
+    let provider_route =
+        AppRouteId::new(PROJECTION_PROVIDER_ROUTE).expect("the provider protocol route is valid");
+    let endpoint = ostiary::app_admission::configured_app_endpoint();
+    let connection = match AppConnection::open_declared_route_at(
+        &endpoint,
+        AppId::new(knot_editor::KNOT_APP_ID),
+        provider_route,
+        knot_editor::declaration::offering(offered.clone(), LABEL),
+    )
+    .await
+    {
+        Ok(connection) => connection,
+        Err(error) => return format!("the door refused the projection offer: {error}"),
+    };
+    tracing::info!(route = %offered.as_str(), "offering Knot's projection through the door");
+    let rosette = knot_editor::KnotRosetteConfig::default();
+    let result = projection_provider::serve(
+        connection,
+        offered,
+        LABEL.into(),
+        MAX_SESSIONS,
+        move |_viewer| {
+            Ok(source
+                .session(Some(knot_editor::KnotWriteGrant::new(rosette.max_source_bytes)))
+                .with_rosette_config(rosette))
+        },
+    )
+    .await;
+    match result {
+        Ok(()) => "the provider session closed".into(),
+        Err(error) => error.to_string(),
+    }
 }
 
 /// Answers once djinn locks, or once it can no longer be asked.
@@ -426,6 +509,7 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
     let mut ticket_file = None;
     let mut evidence_root = None;
     let mut max_artifact_bytes = 64 * 1024 * 1024u64;
+    let mut offer_route = Some(DEFAULT_OFFER_ROUTE.to_string());
     while let Some(arg) = argv.next() {
         match arg.as_str() {
             "--label" => label = argv.next().ok_or("--label needs a value")?,
@@ -438,6 +522,8 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
             "--unpair-writer" => unpair = Some(argv.next().ok_or("--unpair-writer needs a value")?),
             "--pairing-facts" => pairing_facts = true,
             "--door-custody" => door_custody = true,
+            "--offer-route" => offer_route = Some(argv.next().ok_or("--offer-route needs a value")?),
+            "--no-offer" => offer_route = None,
             "--ticket-file" => {
                 ticket_file = Some(PathBuf::from(
                     argv.next().ok_or("--ticket-file needs a value")?,
@@ -470,13 +556,15 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
         evidence_root,
         max_artifact_bytes,
         ticket_file,
+        offer_route,
     })
 }
 
 fn usage() -> String {
     "usage: knot_sync_host [<data-root>] [<persona-uuid>] [--label <name>] \
      [--log-file <path>] [--door-custody [--evidence-root <path>] \
-     [--max-artifact-bytes <n>]] [--ticket-file <path>]\n\
+     [--max-artifact-bytes <n>] [--offer-route <route> | --no-offer]] \
+     [--ticket-file <path>]\n\
      omitted, the family answers: the shared root (MERE_ROOT or the platform \
      data dir), and the sole persona wallet under it\n\
      pair and exit: --pair-writer <64-hex> | --unpair-writer <64-hex>\n\

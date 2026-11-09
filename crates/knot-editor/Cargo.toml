@@ -37,6 +37,24 @@ required-features = ["peers"]
 name = "supervised_evidence"
 required-features = ["door-custody"]
 
+# The same child offers the `knot` route as a projection provider; a viewer
+# reads and saves through it (ported from Mere's knot_checkpoint_receiving).
+[[test]]
+name = "supervised_projection"
+required-features = ["door-custody"]
+
+# Knot's overlay against a live mere route, over mere-resident's `test-fixtures`.
+[[test]]
+name = "mere_overlay_door"
+required-features = ["mere-overlay"]
+
+# The seed-residue run of Knot's own source, session, capture retention and sync
+# host (moved from Mere's resident). No libtest harness: the allocator is process-wide.
+[[test]]
+name = "knot_residue"
+harness = false
+required-features = ["peers"]
+
 [[example]]
 name = "k2_peer"
 required-features = ["peers"]
@@ -70,8 +88,9 @@ projection-provider = ["graphshell-door/projection-provider"]
 # published-site route (`knot_site::handoff`).
 site-handoff = ["dep:site-host"]
 # The resident's blob custody through its door: a supervised host holds no store
-# and serves evidence the resident keeps (`resident::door_evidence`).
-door-custody = ["peers", "graphshell-door/blob-serve"]
+# and serves evidence the resident keeps (`resident::door_evidence`). It also offers
+# Knot's projection (route `knot`) through the door's projection-provider route.
+door-custody = ["peers", "projection-provider", "graphshell-door/blob-serve"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
 
 [dependencies]
@@ -150,7 +169,7 @@ zeroize = { version = "1", features = ["derive"] }
 # main (cycle breaks P2 step 2; a dev edge from an app to Mere is the legal
 # direction under D6): `tests/supervised_evidence.rs` hosts its door in
 # process and starts the real `knot_sync_host` as the supervised child.
-mere-resident = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["in-process-custody"] }
+mere-resident = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["in-process-custody", "test-fixtures"] }
 djinn = { git = "https://github.com/merely-made/armillary.git", branch = "main", default-features = false, features = ["resident", "door-serve"] }
 castellan = { git = "https://github.com/merely-made/dramatis.git", branch = "main" }
 dramatis-resident = { git = "https://github.com/merely-made/dramatis.git", branch = "main", default-features = false }
@@ -174,7 +193,19 @@ gemot.workspace = true
 graphshell-endpoint = { workspace = true, features = ["local"] }
 rcgen = "0.14"
 taproot = { workspace = true }
+# The residue test's baselines (iroh alone, p2panda-net alone), built as
+# mere-transport's seed residue test builds them.
+iroh = "1.0.3"
+p2panda-net = { package = "p2mere-net", version = "0.9", default-features = false, features = [
+    "address_book",
+    "iroh_endpoint",
+    "iroh_mdns",
+    "discovery",
+    "gossip",
+    "sync",
+] }
 tempfile = "3"
+armillary = { git = "https://github.com/merely-made/armillary.git", branch = "main", features = ["tokio"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 transport = { workspace = true, features = ["test-identity"] }
 

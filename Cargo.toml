@@ -140,9 +140,6 @@ too_many_lines = "warn"
 document-session-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 # Webcue comes from its repository, as in Mere's root, so the lock holds one copy and one document-session-api.
 webcue = { git = "https://github.com/merely-made/wgpu-cue.git", branch = "main" }
-# Wgpu Cue main is written against Graft main (owned Metal surfaces), as in Mere's root.
-grafting = { git = "https://github.com/merely-made/wgpu-graft.git", branch = "main" }
-grafting-frame = { git = "https://github.com/merely-made/wgpu-graft.git", branch = "main" }
 # Canonical promoted families; keep registry and Git consumers type-identical.
 eidetic = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 muniment = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }

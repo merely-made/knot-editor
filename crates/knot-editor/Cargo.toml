@@ -91,6 +91,9 @@ site-handoff = ["dep:site-host"]
 # and serves evidence the resident keeps (`resident::door_evidence`). It also offers
 # Knot's projection (route `knot`) through the door's projection-provider route.
 door-custody = ["peers", "projection-provider", "graphshell-door/blob-serve"]
+# Knot's editor as the buffer behind Graphshell's block pane (`block_editor`).
+# Off by default: it links Graphshell's pane stack.
+block-editor = ["dep:graphshell"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
 
 [dependencies]
@@ -108,6 +111,7 @@ fleece.workspace = true
 # `graphshell` in the library.
 graphshell-endpoint = { workspace = true, features = ["projection", "stdio"] }
 graphshell-door = { workspace = true, features = ["projection-door"] }
+graphshell = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["editable-blocks"], optional = true }
 ostiary = { workspace = true, features = ["native"] }
 castellan-client = { workspace = true, features = ["client"] }
 dramatis.workspace = true
@@ -178,6 +182,7 @@ kernel.workspace = true
 incipit.workspace = true
 # Hest declarations and invocation data in the real script-fence receiving test.
 cambium.workspace = true
+illume.workspace = true
 # The serving half the tests and `k2_peer` stand up: admission, the endpoint
 # catalog, the session loop and the projection host (Mere's `graphshell-host`,
 # stack lift plan P4), and the client state the tests read back with.

@@ -12,6 +12,8 @@
 //! truth.
 
 mod authority;
+#[cfg(feature = "block-editor")]
+pub mod block_editor;
 mod checkpoint_migration;
 mod checkpoint_storage;
 mod clip_evidence;

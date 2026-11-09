@@ -64,6 +64,9 @@ projection-provider = ["graphshell-door/projection-provider"]
 # The `knot_site` client: hand a completed site to the resident on its
 # published-site route (`knot_site::handoff`).
 site-handoff = ["dep:site-host"]
+# The resident's blob custody through its door: a supervised host holds no store
+# and serves evidence the resident keeps (`resident::door_evidence`).
+door-custody = ["peers", "graphshell-door/blob-serve"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
 
 [dependencies]

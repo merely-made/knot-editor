@@ -85,12 +85,97 @@ pub struct KnotEvidenceFetchReceipt {
     pub status: KnotEvidenceFetchStatus,
 }
 
+/// Where the host's evidence bytes and serving authority live.
+enum EvidenceStore {
+    /// A blob store and authorizer in this process.
+    Local {
+        blobs: Arc<BlobStore>,
+        readers: BlobReadAuthorizer,
+    },
+    /// The resident's custody, through its blob door (`door-custody`).
+    #[cfg(feature = "door-custody")]
+    Door(door_evidence::DoorEvidence),
+}
+
 struct KnotEvidenceHost {
-    blobs: Arc<BlobStore>,
-    readers: BlobReadAuthorizer,
+    store: EvidenceStore,
     scope: BlobScope,
     sources: BlobPeerAuthorizer,
     max_artifact_bytes: u64,
+}
+
+impl KnotEvidenceHost {
+    async fn retain(&self, hash: transport::BlobHash) -> Result<bool, String> {
+        match &self.store {
+            EvidenceStore::Local { readers, .. } => Ok(readers.retain(self.scope, hash)),
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(door) => door.retain(hash).await,
+        }
+    }
+
+    async fn replace_readers(
+        &self,
+        peers: impl IntoIterator<Item = [u8; 32]>,
+    ) -> Result<(), String> {
+        match &self.store {
+            EvidenceStore::Local { readers, .. } => {
+                readers.replace_readers(self.scope, peers);
+                Ok(())
+            },
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(door) => {
+                let peers: Vec<[u8; 32]> = peers.into_iter().collect();
+                door.replace_readers(&peers).await.map(|_| ())
+            },
+        }
+    }
+
+    async fn has(&self, hash: transport::BlobHash) -> Result<bool, String> {
+        match &self.store {
+            EvidenceStore::Local { blobs, .. } => {
+                blobs.has(hash).await.map_err(|error| error.to_string())
+            },
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(door) => door.has(hash).await,
+        }
+    }
+
+    async fn get(&self, hash: transport::BlobHash) -> Result<Vec<u8>, String> {
+        match &self.store {
+            EvidenceStore::Local { blobs, .. } => blobs
+                .get_bytes(hash)
+                .await
+                .map(|bytes| bytes.to_vec())
+                .map_err(|error| error.to_string()),
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(door) => door.get(hash).await,
+        }
+    }
+
+    /// Fetch `hash` from `peer` into custody (`tag` names the claim of a local store).
+    async fn fetch(
+        &self,
+        transport: &P2pandaTransport,
+        peer: PeerID,
+        hash: transport::BlobHash,
+        tag: &str,
+    ) -> Result<(), String> {
+        match &self.store {
+            EvidenceStore::Local { blobs, .. } => blobs
+                .fetch_from_named(transport, peer, hash, tag.as_bytes())
+                .await
+                .map_err(|error| error.to_string()),
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(door) => door.fetch(transport, peer, hash).await,
+        }
+    }
+
+    /// Give up a fetched claim that failed verification.
+    async fn discard(&self, tag: &str) {
+        if let EvidenceStore::Local { blobs, .. } = &self.store {
+            let _ = blobs.release(tag.as_bytes()).await;
+        }
+    }
 }
 
 /// Which peers' addresses are worth writing back to settings.
@@ -151,4 +236,6 @@ fn evidence_tag(space_id: [u8; 32], reference: &KnotClipEvidenceRef) -> String {
 #[cfg(test)]
 mod tests;
 
+#[cfg(feature = "door-custody")]
+pub mod door_evidence;
 mod operations;

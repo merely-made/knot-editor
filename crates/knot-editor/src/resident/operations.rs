@@ -72,8 +72,7 @@ impl KnotSyncHost {
             signing_seed,
             config,
             Some(KnotEvidenceHost {
-                blobs,
-                readers,
+                store: EvidenceStore::Local { blobs, readers },
                 scope,
                 sources,
                 max_artifact_bytes,
@@ -114,8 +113,45 @@ impl KnotSyncHost {
             signing_seed,
             config,
             Some(KnotEvidenceHost {
-                blobs,
-                readers,
+                store: EvidenceStore::Local { blobs, readers },
+                scope,
+                sources,
+                max_artifact_bytes,
+            }),
+        )
+        .await
+    }
+
+    /// Bind personal-device sync whose evidence custody is the resident's,
+    /// reached through its blob door (cycle breaks P2 steps 3 and 4). This
+    /// process holds no blob store: peers fetch verified streams from this
+    /// endpoint, whose provider reads them from the resident.
+    #[cfg(feature = "door-custody")]
+    pub async fn open_with_door_evidence(
+        store: &KnotSyncFileStore,
+        signing_seed: &[u8; 32],
+        config: KnotSyncHostConfig,
+        custody: door_evidence::DoorEvidence,
+        max_artifact_bytes: u64,
+    ) -> Result<Self, KnotSyncHostError> {
+        if store.encryption_profile() != KnotEncryptionProfile::PersonalVaultV1 {
+            return Err(KnotSyncHostError::Authority(
+                "personal pairing cannot authorize a communal Knot space".into(),
+            ));
+        }
+        let scope = BlobScope::new(store.space_id());
+        let readers: Vec<[u8; 32]> = config.authority.evidence_readers().into_iter().collect();
+        custody
+            .replace_readers(&readers)
+            .await
+            .map_err(KnotSyncHostError::EvidenceBlob)?;
+        let sources = BlobPeerAuthorizer::from_peers(config.authority.evidence_sources());
+        Self::open_inner(
+            store,
+            signing_seed,
+            config,
+            Some(KnotEvidenceHost {
+                store: EvidenceStore::Door(custody),
                 scope,
                 sources,
                 max_artifact_bytes,
@@ -134,8 +170,13 @@ impl KnotSyncHost {
         // Borrowed into the builder's one cleared copy (Mere vault lock ruling 49).
         let mut builder = P2pandaTransport::builder_from_seed_ref(signing_seed).gossip();
         if let Some(evidence) = &evidence {
-            builder =
-                builder.scoped_blobs(&evidence.blobs, evidence.scope, evidence.readers.clone());
+            builder = match &evidence.store {
+                EvidenceStore::Local { blobs, readers } => {
+                    builder.scoped_blobs(blobs, evidence.scope, readers.clone())
+                },
+                #[cfg(feature = "door-custody")]
+                EvidenceStore::Door(door) => builder.scoped_source(door.source(), evidence.scope),
+            };
         }
         let network = P2pandaOverlayHost::bind(
             builder,
@@ -215,9 +256,11 @@ impl KnotSyncHost {
 
     /// Current evidence-fetch admission handle, when this host serves blobs.
     pub fn evidence_authorizer(&self) -> Option<BlobReadAuthorizer> {
-        self.evidence
-            .as_ref()
-            .map(|evidence| evidence.readers.clone())
+        self.evidence.as_ref().and_then(|evidence| match &evidence.store {
+            EvidenceStore::Local { readers, .. } => Some(readers.clone()),
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(_) => None,
+        })
     }
 
     /// Bind an already-retained reference to this host's serving scope.
@@ -236,7 +279,31 @@ impl KnotSyncHost {
         let hash = reference
             .blob_hash()
             .map_err(KnotSyncHostError::EvidenceReference)?;
-        Ok(evidence.readers.retain(evidence.scope, hash))
+        match &evidence.store {
+            EvidenceStore::Local { readers, .. } => Ok(readers.retain(evidence.scope, hash)),
+            #[cfg(feature = "door-custody")]
+            EvidenceStore::Door(_) => Err(KnotSyncHostError::EvidenceBlob(
+                "door-backed custody retains through retain_evidence".into(),
+            )),
+        }
+    }
+
+    /// [`Self::retain_evidence_custody`] for any custody, door-backed included.
+    pub async fn retain_evidence(
+        &self,
+        reference: &KnotClipEvidenceRef,
+    ) -> Result<bool, KnotSyncHostError> {
+        let evidence = self
+            .evidence
+            .as_ref()
+            .ok_or_else(|| KnotSyncHostError::EvidenceBlob("blob serving is disabled".into()))?;
+        let hash = reference
+            .blob_hash()
+            .map_err(KnotSyncHostError::EvidenceReference)?;
+        evidence
+            .retain(hash)
+            .await
+            .map_err(KnotSyncHostError::EvidenceBlob)
     }
 
     /// Revision currently applied by operation, evidence, and route policy.
@@ -272,8 +339,9 @@ impl KnotSyncHost {
         }
         if let Some(evidence) = &self.evidence {
             evidence
-                .readers
-                .replace_readers(evidence.scope, next.evidence_readers());
+                .replace_readers(next.evidence_readers())
+                .await
+                .map_err(KnotSyncHostError::EvidenceBlob)?;
             evidence.sources.replace(next.evidence_sources());
         }
 
@@ -332,14 +400,13 @@ impl KnotSyncHost {
             .blob_hash()
             .map_err(KnotSyncHostError::EvidenceReference)?;
         let bytes = evidence
-            .blobs
-            .get_bytes(hash)
+            .get(hash)
             .await
-            .map_err(|error| KnotSyncHostError::EvidenceBlob(error.to_string()))?;
+            .map_err(KnotSyncHostError::EvidenceBlob)?;
         reference
             .verify_bytes(&bytes)
             .map_err(KnotSyncHostError::EvidenceReference)?;
-        Ok(bytes.to_vec())
+        Ok(bytes)
     }
 
     /// Fetch one reference from an authorized peer and verify it before it can
@@ -366,13 +433,12 @@ impl KnotSyncHost {
             .blob_hash()
             .map_err(KnotSyncHostError::EvidenceReference)?;
         if evidence
-            .blobs
             .has(hash)
             .await
-            .map_err(|error| KnotSyncHostError::EvidenceBlob(error.to_string()))?
+            .map_err(KnotSyncHostError::EvidenceBlob)?
         {
             self.read_evidence(reference).await?;
-            evidence.readers.retain(evidence.scope, hash);
+            evidence.retain(hash).await.map_err(KnotSyncHostError::EvidenceBlob)?;
             return Ok(KnotEvidenceFetchReceipt {
                 reference: reference.clone(),
                 status: KnotEvidenceFetchStatus::AlreadyPresent,
@@ -382,15 +448,14 @@ impl KnotSyncHost {
             .map_err(|error| KnotSyncHostError::EvidenceBlob(error.to_string()))?;
         let tag = evidence_tag(self.space_id, reference);
         evidence
-            .blobs
-            .fetch_from_named(self.network.transport(), peer, hash, tag.as_bytes())
+            .fetch(self.network.transport(), peer, hash, &tag)
             .await
-            .map_err(|error| KnotSyncHostError::EvidenceBlob(error.to_string()))?;
+            .map_err(KnotSyncHostError::EvidenceBlob)?;
         if let Err(error) = self.read_evidence(reference).await {
-            let _ = evidence.blobs.release(tag.as_bytes()).await;
+            evidence.discard(&tag).await;
             return Err(error);
         }
-        evidence.readers.retain(evidence.scope, hash);
+        evidence.retain(hash).await.map_err(KnotSyncHostError::EvidenceBlob)?;
         Ok(KnotEvidenceFetchReceipt {
             reference: reference.clone(),
             status: KnotEvidenceFetchStatus::Fetched,

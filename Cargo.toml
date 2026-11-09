@@ -138,6 +138,8 @@ too_many_lines = "warn"
 # Registry Webcue and native Genet sessions share one canonical input vocabulary,
 # as in mere's root, whose patches do not carry across a git dependency.
 document-session-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }
+# Webcue comes from its repository, as in Mere's root, so the lock holds one copy and one document-session-api.
+webcue = { git = "https://github.com/merely-made/wgpu-cue.git", branch = "main" }
 # Canonical promoted families; keep registry and Git consumers type-identical.
 eidetic = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 muniment = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }

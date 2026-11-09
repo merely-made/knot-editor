@@ -48,7 +48,7 @@ impl KnotClipEvidenceRef {
         self.verify_bytes(bytes)?;
         selected_text(selector, self.role, bytes)
     }
-    fn portable(artifact: &KnotClipArtifactV1) -> Self {
+    pub fn portable(artifact: &KnotClipArtifactV1) -> Self {
         let content = PortableContentRefV1::of(&artifact.bytes);
         Self {
             content_uri: content.portable_id.to_string(),

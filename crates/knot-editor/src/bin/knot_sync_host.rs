@@ -49,6 +49,15 @@ struct Args {
     pair: Option<String>,
     unpair: Option<String>,
     pairing_facts: bool,
+    /// Keep evidence in the resident's custody through its blob door instead
+    /// of a store in this process (cycle breaks P2 step 3).
+    door_custody: bool,
+    /// An old per-persona evidence store to copy into the resident's custody.
+    evidence_root: Option<PathBuf>,
+    max_artifact_bytes: u64,
+    /// Write this host's bootstrap ticket here once it listens, for a peer
+    /// that cannot discover it (tests, receipts).
+    ticket_file: Option<PathBuf>,
 }
 
 fn main() {
@@ -175,15 +184,32 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
     let relays =
         transport::P2pandaHostPolicy::parse_relay_urls(sync.relay_urls.iter().map(String::as_str))?;
 
-    let mut host = KnotSyncHost::open(
-        authority.store(),
-        authority.signing_seed(),
-        KnotSyncHostConfig {
-            authority: snapshot,
-            relay_urls: relays,
-        },
-    )
-    .await?;
+    let host_config = KnotSyncHostConfig {
+        authority: snapshot,
+        relay_urls: relays,
+    };
+    let mut host = if args.door_custody {
+        #[cfg(feature = "door-custody")]
+        {
+            open_door_host(&args, authority, host_config).await?
+        }
+        #[cfg(not(feature = "door-custody"))]
+        {
+            return Err("--door-custody needs a build with the door-custody feature".into());
+        }
+    } else {
+        KnotSyncHost::open(
+            authority.store(),
+            authority.signing_seed(),
+            host_config,
+        )
+        .await?
+    };
+
+    if let Some(path) = &args.ticket_file {
+        let ticket = host.ticket().await?;
+        std::fs::write(path, ticket)?;
+    }
 
     // The writer key is what the other devices admit AND dial, so this one
     // line is the whole of what a peer needs.
@@ -244,6 +270,61 @@ async fn run(args: Args) -> Result<(), Box<dyn std::error::Error>> {
         }
         () = reconcile => Ok(()),
     }
+}
+
+/// Open the host over the resident's blob custody. The vault source stays
+/// alive beside it so the door-backed retention port has an owner and the
+/// retained references of the synced documents are served again after a
+/// restart (the leases are durable, the serving authority is not).
+#[cfg(feature = "door-custody")]
+async fn open_door_host(
+    args: &Args,
+    authority: StartupUnlockedPersonalVault,
+    config: KnotSyncHostConfig,
+) -> Result<KnotSyncHost, Box<dyn std::error::Error>> {
+    use graphshell_door::blob_door::BlobDoorClient;
+    use knot_editor::KnotContentRetentionPort;
+    use knot_editor::DoorEvidence;
+    use transport::BlobScope;
+
+    let endpoint = ostiary::app_admission::configured_app_endpoint();
+    let app = AppId::new(knot_editor::KNOT_APP_ID);
+    let declaration = knot_editor::declaration::app_declaration();
+    let custody = BlobDoorClient::open_declared_at(&endpoint, app.clone(), declaration.clone())
+        .await?;
+    let serving = BlobDoorClient::open_declared_at(&endpoint, app, declaration).await?;
+    let signing_seed = zeroize::Zeroizing::new(*authority.signing_seed());
+    let store = authority.store().clone();
+    let scope = BlobScope::new(store.space_id());
+    let door = std::sync::Arc::new(DoorEvidence::open(custody, serving, scope).await?);
+    if let Some(root) = &args.evidence_root {
+        let source = root.display().to_string();
+        let (state, blobs) = door.migrate_legacy("legacy.knot", &source).await?;
+        tracing::info!(source = %source, ?state, blobs, "Knot's old evidence store, through the door");
+    }
+    let source = authority.into_resident_source()?;
+    source.grant_content_retention(KnotContentRetentionPort::open_door(
+        door.clone(),
+        args.max_artifact_bytes,
+    )?);
+    let host = KnotSyncHost::open_with_door_evidence(
+        &store,
+        &signing_seed,
+        config,
+        door.clone(),
+        args.max_artifact_bytes,
+    )
+    .await?;
+    for reference in source.retained_evidence_references()? {
+        // Refused (not leased) means the bytes are not here yet; a later
+        // sync fetches them.
+        if let Err(error) = host.retain_evidence(&reference).await {
+            tracing::debug!(%error, "evidence not retained at startup");
+        }
+    }
+    // The source holds the retention port: keep it for the process's life.
+    std::mem::forget(source);
+    Ok(host)
 }
 
 /// Answers once djinn locks, or once it can no longer be asked.
@@ -341,6 +422,10 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
     let mut pair = None;
     let mut unpair = None;
     let mut pairing_facts = false;
+    let mut door_custody = false;
+    let mut ticket_file = None;
+    let mut evidence_root = None;
+    let mut max_artifact_bytes = 64 * 1024 * 1024u64;
     while let Some(arg) = argv.next() {
         match arg.as_str() {
             "--label" => label = argv.next().ok_or("--label needs a value")?,
@@ -352,6 +437,24 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
             "--pair-writer" => pair = Some(argv.next().ok_or("--pair-writer needs a value")?),
             "--unpair-writer" => unpair = Some(argv.next().ok_or("--unpair-writer needs a value")?),
             "--pairing-facts" => pairing_facts = true,
+            "--door-custody" => door_custody = true,
+            "--ticket-file" => {
+                ticket_file = Some(PathBuf::from(
+                    argv.next().ok_or("--ticket-file needs a value")?,
+                ))
+            }
+            "--evidence-root" => {
+                evidence_root = Some(PathBuf::from(
+                    argv.next().ok_or("--evidence-root needs a value")?,
+                ))
+            }
+            "--max-artifact-bytes" => {
+                max_artifact_bytes = argv
+                    .next()
+                    .ok_or("--max-artifact-bytes needs a value")?
+                    .parse()
+                    .map_err(|error| format!("--max-artifact-bytes: {error}"))?
+            }
             other => return Err(format!("unknown argument: {other}")),
         }
     }
@@ -363,12 +466,17 @@ fn parse_from(args: Vec<String>) -> Result<Args, String> {
         pair,
         unpair,
         pairing_facts,
+        door_custody,
+        evidence_root,
+        max_artifact_bytes,
+        ticket_file,
     })
 }
 
 fn usage() -> String {
     "usage: knot_sync_host [<data-root>] [<persona-uuid>] [--label <name>] \
-     [--log-file <path>]\n\
+     [--log-file <path>] [--door-custody [--evidence-root <path>] \
+     [--max-artifact-bytes <n>]] [--ticket-file <path>]\n\
      omitted, the family answers: the shared root (MERE_ROOT or the platform \
      data dir), and the sole persona wallet under it\n\
      pair and exit: --pair-writer <64-hex> | --unpair-writer <64-hex>\n\

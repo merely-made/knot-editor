@@ -131,7 +131,7 @@ impl KnotSyncHost {
         store: &KnotSyncFileStore,
         signing_seed: &[u8; 32],
         config: KnotSyncHostConfig,
-        custody: door_evidence::DoorEvidence,
+        custody: Arc<door_evidence::DoorEvidence>,
         max_artifact_bytes: u64,
     ) -> Result<Self, KnotSyncHostError> {
         if store.encryption_profile() != KnotEncryptionProfile::PersonalVaultV1 {

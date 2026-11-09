@@ -25,6 +25,9 @@ pub const PUBLISHED_SITE_ROUTE: &str = "published-site-v1";
 /// The route Knot offers projections through
 /// (`graphshell_door::projection_offer::PROJECTION_PROVIDER_ROUTE`).
 pub const PROJECTION_PROVIDER_ROUTE: &str = "mere.projection-provider";
+/// The resident's blob custody route, which a supervised Knot host reaches its
+/// evidence through (cycle breaks P2 step 3).
+pub const BLOB_CUSTODY_ROUTE: &str = "blob-custody-v1";
 
 /// Take the handle Djinn launched this process with, before anything is
 /// spawned (`ostiary::launch::claim`). Every Knot binary calls this first
@@ -41,6 +44,7 @@ pub fn app_declaration() -> AppDeclaration {
             NamePattern::prefix(MERE_ROUTE_PREFIX),
             NamePattern::exact(PUBLISHED_SITE_ROUTE),
             NamePattern::exact(PROJECTION_PROVIDER_ROUTE),
+            NamePattern::exact(BLOB_CUSTODY_ROUTE),
         ],
         offers: Vec::new(),
         custody: CustodyUse {
@@ -119,6 +123,12 @@ mod tests {
             PROJECTION_PROVIDER_ROUTE,
             graphshell_door::projection_offer::PROJECTION_PROVIDER_ROUTE
         );
+    }
+
+    #[cfg(feature = "door-custody")]
+    #[test]
+    fn the_blob_route_matches_the_door() {
+        assert_eq!(BLOB_CUSTODY_ROUTE, graphshell_door::blob_door::BLOB_CUSTODY_ROUTE);
     }
 
     #[cfg(feature = "site-handoff")]

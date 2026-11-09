@@ -94,7 +94,7 @@ enum EvidenceStore {
     },
     /// The resident's custody, through its blob door (`door-custody`).
     #[cfg(feature = "door-custody")]
-    Door(door_evidence::DoorEvidence),
+    Door(Arc<door_evidence::DoorEvidence>),
 }
 
 struct KnotEvidenceHost {

@@ -365,7 +365,7 @@ impl KnotResidentSource {
     #[cfg(feature = "peers")]
     pub fn content_blob_store(&self) -> Option<Arc<transport::BlobStore>> {
         self.content_retention()
-            .map(|retention| retention.blob_store())
+            .and_then(|retention| retention.blob_store())
     }
 
     /// Portable evidence references currently named by resident documents.

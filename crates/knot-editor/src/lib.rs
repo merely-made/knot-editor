@@ -138,6 +138,8 @@ pub use resident::{
     KnotEvidenceFetchReceipt, KnotEvidenceFetchStatus, KnotSyncHost, KnotSyncHostConfig,
     KnotSyncHostError,
 };
+#[cfg(feature = "door-custody")]
+pub use resident::door_evidence::{DoorEvidence, EVIDENCE_LEASE};
 pub use rosette::{
     CmudictPronunciations, LexiconCoverage, LineMeter, MetricalBeat, MetricalFoot,
     PronunciationLexicon, RosetteConfig, RosetteInterior, RosetteInteriorKind, RosetteProjection,

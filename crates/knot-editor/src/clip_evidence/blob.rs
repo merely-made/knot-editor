@@ -89,7 +89,9 @@ enum RetentionCommand {
 struct RetentionPortInner {
     commands: mpsc::Sender<RetentionCommand>,
     join: Mutex<Option<JoinHandle<()>>>,
-    blobs: Arc<BlobStore>,
+    /// Absent when the evidence lives in the resident's custody (a door-backed
+    /// port holds no store).
+    blobs: Option<Arc<BlobStore>>,
 }
 
 impl Drop for RetentionPortInner {
@@ -143,6 +145,17 @@ impl KnotContentRetentionPort {
         )
     }
 
+    /// Retain through the resident's blob door: this process holds no blob
+    /// store, the bytes and their serving authority live in the resident's
+    /// custody under the scope the door binds (cycle breaks P2 step 3).
+    #[cfg(feature = "door-custody")]
+    pub fn open_door(
+        door: Arc<crate::resident::door_evidence::DoorEvidence>,
+        max_artifact_bytes: u64,
+    ) -> Result<Self, String> {
+        Self::open_inner(RetentionBacking::Door(door), max_artifact_bytes, None)
+    }
+
     /// Borrow the resident's physical blob store while retaining Knot's own
     /// scoped custody and serving authority.
     ///
@@ -183,6 +196,21 @@ impl KnotContentRetentionPort {
                         return;
                     },
                 };
+                #[cfg(feature = "door-custody")]
+                if let RetentionBacking::Door(door) = backing {
+                    let _ = ready.send(Ok(None));
+                    while let Ok(command) = receiver.recv() {
+                        match command {
+                            RetentionCommand::Retain { artifact, reply } => {
+                                let result = runtime
+                                    .block_on(door.retain_artifact(&artifact, max_artifact_bytes));
+                                let _ = reply.send(result);
+                            },
+                            RetentionCommand::Close => break,
+                        }
+                    }
+                    return;
+                }
                 let (blobs, owns_store) = match backing {
                     RetentionBacking::Open(root) => match runtime.block_on(BlobStore::open(root)) {
                         Ok(blobs) => (Arc::new(blobs), true),
@@ -194,13 +222,15 @@ impl KnotContentRetentionPort {
                         },
                     },
                     RetentionBacking::Borrowed(blobs) => (blobs, false),
+                    #[cfg(feature = "door-custody")]
+                    RetentionBacking::Door(_) => unreachable!("handled above"),
                 };
                 let store = BlobClipEvidenceStore {
                     blobs: Arc::clone(&blobs),
                     max_artifact_bytes,
                     custody,
                 };
-                if ready.send(Ok(blobs)).is_err() {
+                if ready.send(Ok(Some(Arc::clone(&blobs)))).is_err() {
                     if owns_store {
                         let _ = runtime.block_on(store.blobs.shutdown());
                     } else {
@@ -263,14 +293,18 @@ impl KnotContentRetentionPort {
     }
 
     /// Shared blob handle for the source's sync host.
-    pub fn blob_store(&self) -> Arc<BlobStore> {
-        Arc::clone(&self.inner.blobs)
+    ///
+    /// `None` for a door-backed port, which holds no store.
+    pub fn blob_store(&self) -> Option<Arc<BlobStore>> {
+        self.inner.blobs.clone()
     }
 }
 
 enum RetentionBacking {
     Open(PathBuf),
     Borrowed(Arc<BlobStore>),
+    #[cfg(feature = "door-custody")]
+    Door(Arc<crate::resident::door_evidence::DoorEvidence>),
 }
 
 impl KnotClipEvidenceStore for KnotContentRetentionPort {
@@ -349,7 +383,7 @@ mod tests {
                 .build()
                 .unwrap();
             let bytes = runtime
-                .block_on(store.blob_store().get_bytes(reference.blob_hash().unwrap()))
+                .block_on(store.blob_store().unwrap().get_bytes(reference.blob_hash().unwrap()))
                 .unwrap();
             reference.verify_bytes(&bytes).unwrap();
             reference
@@ -364,6 +398,7 @@ mod tests {
             .block_on(
                 reopened
                     .blob_store()
+                    .unwrap()
                     .get_bytes(reference.blob_hash().unwrap()),
             )
             .unwrap();
@@ -425,6 +460,7 @@ mod tests {
             .block_on(
                 reopened
                     .blob_store()
+                    .unwrap()
                     .get_bytes(reference.blob_hash().unwrap()),
             )
             .unwrap();

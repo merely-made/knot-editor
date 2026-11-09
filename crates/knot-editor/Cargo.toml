@@ -32,6 +32,11 @@ name = "revision_bell"
 required-features = ["peers"]
 
 # Both examples stand up a peer transport.
+# Starts the supervised sync host with the resident's blob door.
+[[test]]
+name = "supervised_evidence"
+required-features = ["door-custody"]
+
 [[example]]
 name = "k2_peer"
 required-features = ["peers"]
@@ -141,6 +146,17 @@ uuid.workspace = true
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
+# The resident that supervises Knot's sync host, as a git dev-dependency on its
+# main (cycle breaks P2 step 2; a dev edge from an app to Mere is the legal
+# direction under D6): `tests/supervised_evidence.rs` hosts its door in
+# process and starts the real `knot_sync_host` as the supervised child.
+mere-resident = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["in-process-custody"] }
+djinn = { git = "https://github.com/merely-made/armillary.git", branch = "main", default-features = false, features = ["resident", "door-serve"] }
+castellan = { git = "https://github.com/merely-made/dramatis.git", branch = "main" }
+dramatis-resident = { git = "https://github.com/merely-made/dramatis.git", branch = "main", default-features = false }
+# The signed relation projection test (moved from Mere's resident, cycle breaks P2).
+kernel.workspace = true
+incipit.workspace = true
 # Hest declarations and invocation data in the real script-fence receiving test.
 cambium.workspace = true
 # The serving half the tests and `k2_peer` stand up: admission, the endpoint

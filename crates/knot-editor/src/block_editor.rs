@@ -4,16 +4,15 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! Knot's editor behind Graphshell's block pane (cycle breaks P2 remainder,
-//! ruling 1). Graphshell ships a small default buffer and names no editor of
-//! its own choosing; a host that composes a pane with Knot passes it
-//! [`KnotBlockEditor::factory`], and that pane's documents edit through
-//! [`KnotEditor`] (another pane in the same process may use another editor). The document tests moved here from Graphshell's
-//! `block_editing.rs` and run over this editor (Graphshell keeps the same
-//! tests over its default buffer).
+//! Knot's editor behind a block pane (cycle breaks P2 remainder, ruling 1; engine
+//! split D73). Cambium owns the [`BlockEditor`] trait, messages only; a host that
+//! composes a pane with Knot passes it [`KnotBlockEditor::factory`], and that
+//! pane's documents edit through [`KnotEditor`] (another pane in the same process
+//! may use another editor). The pane owns its own text widget and mirrors this
+//! editor through `source` and `selection`. The document tests that ran here over
+//! Graphshell's `Document` live with the pane in Mere, over its default buffer.
 
-use cambium::{CaretSelection, TextCommand, TextInput};
-use graphshell::block_editing::{BlockEditor, EditOutcome, EditorFactory};
+use cambium::{BlockEditor, CaretSelection, EditOutcome, EditorFactory, TextCommand};
 use knot_document::retained::KnotEditor;
 
 /// [`KnotEditor`] as a block pane's buffer.
@@ -24,8 +23,8 @@ impl KnotBlockEditor {
         Self(KnotEditor::scratch(address, source))
     }
 
-    /// The factory a host passes to a block pane (`Pane::load_with`) or to
-    /// `Document::open` so its documents edit through Knot's editor.
+    /// The factory a host passes to a block pane (`Pane::load_with`) so its
+    /// documents edit through Knot's editor.
     pub fn factory() -> impl EditorFactory + Clone {
         KnotEditors
     }
@@ -54,14 +53,6 @@ impl BlockEditor for KnotBlockEditor {
         }
     }
 
-    fn input(&self) -> &TextInput {
-        self.0.input()
-    }
-
-    fn input_mut(&mut self) -> &mut TextInput {
-        self.0.input_mut()
-    }
-
     fn is_dirty(&self) -> bool {
         self.0.is_dirty()
     }
@@ -84,217 +75,97 @@ impl EditorFactory for KnotEditors {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cambium::{CaretAffinity, CaretPosition, CaretSelection, TextCommand};
-    use graphshell::block_editing::{Change, Document, Preview};
-    use illume::blocks;
-    use std::collections::BTreeMap;
+    use cambium::{CaretAffinity, CaretPosition};
 
-    /// A document over Knot's editor, as `KnotBlockEditor::factory` makes it.
-    fn doc(id: &str, source: &str) -> Document {
-        Document::open(id, source, &KnotBlockEditor::factory())
+    fn open(id: &str, source: &str) -> Box<dyn BlockEditor> {
+        KnotBlockEditor::factory().open(id, source)
     }
 
-    fn empty_changes() -> Vec<Change> {
-        Vec::new()
-    }
-
-    fn attrs(items: &[(&str, &str)]) -> BTreeMap<String, String> {
-        items
-            .iter()
-            .map(|(key, value)| ((*key).to_owned(), (*value).to_owned()))
-            .collect()
-    }
-
-    fn select_bytes(document: &mut Document, start: usize, end: usize) {
-        document
-            .editor
-            .apply(TextCommand::SetSelection(CaretSelection {
-                anchor: CaretPosition {
-                    byte: start,
-                    affinity: CaretAffinity::Downstream,
-                },
-                focus: CaretPosition {
-                    byte: end,
-                    affinity: CaretAffinity::Upstream,
-                },
-            }));
+    fn select_bytes(editor: &mut dyn BlockEditor, start: usize, end: usize) {
+        editor.apply(TextCommand::SetSelection(CaretSelection {
+            anchor: CaretPosition { byte: start, affinity: CaretAffinity::Downstream },
+            focus: CaretPosition { byte: end, affinity: CaretAffinity::Upstream },
+        }));
     }
 
     #[test]
-    fn text_edit_then_structural_edit_undoes_independently_and_redoes() {
-        let source = "outside α\n\n{#outer owner=human}\n:::: outer\ninside 👩‍🚀\n\n{#inner keep=yes}\n::: child\nbody 漢\n:::\n::::\n";
-        let mut document = doc("memory:test", source);
-        document.editor.apply(TextCommand::Insert("!".into()));
-        let edited_source = document.editor.source().to_owned();
-        let block = document.blocks()[0].clone();
-        let preview = Preview::new(&edited_source, block, empty_changes()).unwrap();
-        document
-            .apply(
-                &preview,
-                attrs(&[("id", "outer"), ("owner", "human"), ("status", "ready")]),
-            )
-            .unwrap();
-        let structural_source = document.editor.source().to_owned();
-        assert!(
-            structural_source.contains("inside 👩‍🚀\n\n{#inner keep=yes}\n::: child\nbody 漢\n:::\n")
-        );
-        assert!(structural_source.contains("{id=\"outer\" owner=\"human\" status=\"ready\"}"));
-
-        document.editor.apply(TextCommand::Undo);
-        assert_eq!(document.editor.source(), edited_source);
-        document.editor.apply(TextCommand::Undo);
-        assert_eq!(document.editor.source(), source);
-        document.editor.apply(TextCommand::Redo);
-        assert_eq!(document.editor.source(), edited_source);
-        document.editor.apply(TextCommand::Redo);
-        assert_eq!(document.editor.source(), structural_source);
+    fn the_factory_opens_a_clean_editor_over_the_source() {
+        let editor = open("memory:test", "# One α
+");
+        assert_eq!(editor.source(), "# One α
+");
+        assert!(!editor.is_dirty());
     }
 
     #[test]
-    fn stale_forged_and_invalid_targets_are_rejected() {
-        let source = "::: card\nbody\n:::\n";
-        let mut document = doc("memory:test", source);
-        let block = document.blocks()[0].clone();
-        let preview = Preview::new(source, block.clone(), empty_changes()).unwrap();
-        document.editor.apply(TextCommand::Insert("!".into()));
-        assert!(document.apply(&preview, attrs(&[("label", "x")])).is_err());
+    fn edits_undo_and_redo_through_the_messages_alone() {
+        let source = "outside α
 
-        let mut forged = block;
-        forged.attributes.insert("forged".into(), "target".into());
-        assert!(Preview::new(source, forged, empty_changes()).is_err());
+::: card
+inside 👩‍🚀
+:::
+";
+        let mut editor = open("memory:test", source);
+        let outcome = editor.apply(TextCommand::Insert("!".into()));
+        assert!(outcome.state_changed && outcome.source_changed);
+        let edited = editor.source().to_owned();
+        assert_ne!(edited, source);
+        assert!(editor.is_dirty());
 
-        let mut fresh = doc("memory:test", source);
-        let valid = Preview::new(source, fresh.blocks()[0].clone(), empty_changes()).unwrap();
-        assert!(fresh.apply(&valid, attrs(&[("bad key", "x")])).is_err());
-        assert!(
-            fresh
-                .apply(&valid, attrs(&[("label", "two\nlines")]))
-                .is_err()
-        );
+        // A replacement over a selection is one undo step.
+        let start = edited.find("inside").unwrap();
+        let end = start + "inside".len();
+        select_bytes(editor.as_mut(), start, end);
+        assert_eq!(editor.selection().anchor.byte, start);
+        editor.apply(TextCommand::Insert("within".into()));
+        let replaced = editor.source().to_owned();
+        assert!(replaced.contains("within 👩‍🚀"));
+
+        assert!(editor.apply(TextCommand::Undo).source_changed);
+        assert_eq!(editor.source(), edited);
+        editor.apply(TextCommand::Undo);
+        assert_eq!(editor.source(), source);
+        assert!(!editor.is_dirty());
+        editor.apply(TextCommand::Redo);
+        editor.apply(TextCommand::Redo);
+        assert_eq!(editor.source(), replaced);
     }
 
     #[test]
-    fn no_declarations_do_not_rewrite_body_and_quote_prefix_is_kept() {
-        let source = "> ::: card\n> body α\n> :::\n";
-        let mut document = doc("memory:test", source);
-        let preview = Preview::new(source, document.blocks()[0].clone(), empty_changes()).unwrap();
-        document.apply(&preview, BTreeMap::new()).unwrap();
-        assert_eq!(document.editor.source(), source);
-
-        let preview = Preview::new(source, document.blocks()[0].clone(), empty_changes()).unwrap();
-        document
-            .apply(&preview, attrs(&[("label", "quoted")]))
-            .unwrap();
-        assert!(
-            document
-                .editor
-                .source()
-                .starts_with("> {label=\"quoted\"}\n> ::: card\n")
-        );
-        assert!(document.editor.source().contains("> body α\n> :::\n"));
+    fn a_selection_change_is_state_not_source_and_makes_no_undo_entry() {
+        let mut editor = open("memory:test", "one α
+two 漢
+");
+        let outcome = editor.apply(TextCommand::SelectAll);
+        assert!(!outcome.source_changed);
+        assert!(!editor.apply(TextCommand::Undo).state_changed);
+        assert_eq!(editor.source(), "one α
+two 漢
+");
     }
 
     #[test]
-    fn unchanged_attributes_keep_noncanonical_source_bytes_without_undo_entry() {
-        let source = "{#card  label=\"old\"}\n::: panel\nbody\n:::\n";
-        let mut document = doc("memory:test", source);
-        let preview = Preview::new(source, document.blocks()[0].clone(), empty_changes()).unwrap();
-        let unchanged = preview.block.attributes.clone();
-        document.apply(&preview, unchanged).unwrap();
-        assert_eq!(document.editor.source(), source);
-        assert!(!document.editor.apply(TextCommand::Undo).state_changed);
+    fn accepting_a_saved_source_cleans_it_and_later_edits_stay_dirty() {
+        let mut editor = open("memory:test", "a");
+        editor.apply(TextCommand::Insert("b".into()));
+        let saved = editor.source().to_owned();
+        assert!(editor.is_dirty());
+        editor.accept_saved_source(&saved);
+        assert!(!editor.is_dirty());
+        editor.apply(TextCommand::Insert("c".into()));
+        assert!(editor.is_dirty());
     }
 
     #[test]
-    fn wraps_selected_unicode_lines_then_rule_edit_undoes_in_chronological_steps() {
-        let source = "left α\nfirst 🧪\nsecond 漢\nright 👩‍🚀\n";
-        let mut document = doc("memory:test", source);
-        let start = source.find("first").unwrap();
-        let end = source.find("right").unwrap();
-        select_bytes(&mut document, start, end);
-
-        document
-            .wrap_selection(attrs(&[("id", "selection"), ("class", "verse")]))
-            .unwrap();
-        let wrapped_source = document.editor.source().to_owned();
-        assert_eq!(
-            wrapped_source,
-            "left α\n\n{class=\"verse\" id=\"selection\"}\n:::\nfirst 🧪\nsecond 漢\n:::\n\nright 👩‍🚀\n"
-        );
-        let wrapped = document.blocks()[0].clone();
-        assert_eq!(
-            &wrapped_source[wrapped.body.clone()],
-            "first 🧪\nsecond 漢\n"
-        );
-
-        let preview = Preview::new(&wrapped_source, wrapped, empty_changes()).unwrap();
-        let mut rule_attributes = preview.block.attributes.clone();
-        rule_attributes.insert("rule".into(), "authored".into());
-        document.apply(&preview, rule_attributes).unwrap();
-        let ruled_source = document.editor.source().to_owned();
-        assert!(ruled_source.contains("rule=\"authored\""));
-
-        document.editor.apply(TextCommand::Undo);
-        assert_eq!(document.editor.source(), wrapped_source);
-        document.editor.apply(TextCommand::Undo);
-        assert_eq!(document.editor.source(), source);
-        document.editor.apply(TextCommand::Redo);
-        assert_eq!(document.editor.source(), wrapped_source);
-        document.editor.apply(TextCommand::Redo);
-        assert_eq!(document.editor.source(), ruled_source);
-    }
-
-    #[test]
-    fn wrapping_refuses_empty_selection_and_invalid_attrs_without_mutation() {
-        let source = "one α\ntwo 漢\n";
-        let mut document = doc("memory:test", source);
-        let start = source.find("one").unwrap();
-        select_bytes(&mut document, start, start);
-        assert!(document.wrap_selection(BTreeMap::new()).is_err());
-        assert_eq!(document.editor.source(), source);
-
-        let end = source.len();
-        select_bytes(&mut document, 0, end);
-        let selected = document.editor.selection();
-        assert!(
-            document
-                .wrap_selection(attrs(&[("bad key", "value")]))
-                .is_err()
-        );
-        assert!(
-            document
-                .wrap_selection(attrs(&[("label", "line one\nline two")]))
-                .is_err()
-        );
-        assert_eq!(document.editor.source(), source);
-        assert_eq!(document.editor.selection(), selected);
-        assert!(!document.editor.apply(TextCommand::Undo).state_changed);
-
-        let mut blank = doc("memory:blank", "\n");
-        select_bytes(&mut blank, 0, 1);
-        assert!(blank.wrap_selection(BTreeMap::new()).is_err());
-        assert_eq!(blank.editor.source(), "\n");
-
-        let mut empty = doc("memory:empty", "");
-        assert!(
-            empty
-                .wrap_selection(attrs(&[("label", "one\ntwo")]))
-                .is_err()
-        );
-        assert_eq!(empty.editor.source(), "");
-    }
-
-    #[test]
-    fn knot_and_default_documents_coexist_in_one_process() {
-        use graphshell::block_editing::DefaultEditors;
-        let knot = doc("memory:knot", "# One\n");
-        let default = Document::open("memory:default", "# One\n", &DefaultEditors);
-        assert_eq!(knot.editor.source(), default.editor.source());
-        // Knot's editor is the one behind `knot`: it keeps the retained readout.
-        let mut over = KnotBlockEditor::new("memory:direct", "# One\n");
-        over.apply(TextCommand::Insert("\n## Two\n".into()));
-        assert_eq!(over.editor().outline().len(), 2);
-        // Opening a Knot document set nothing process-wide.
-        assert!(!Document::new("memory:after", "x").editor.is_dirty());
+    fn knot_and_other_editors_coexist_in_one_process() {
+        let mut knot = KnotBlockEditor::new("memory:direct", "# One
+");
+        knot.apply(TextCommand::Insert("
+## Two
+".into()));
+        // Knot's editor keeps the retained readout the pane does not draw.
+        assert_eq!(knot.editor().outline().len(), 2);
+        // Opening one set nothing process-wide.
+        assert!(!open("memory:after", "x").is_dirty());
     }
 }

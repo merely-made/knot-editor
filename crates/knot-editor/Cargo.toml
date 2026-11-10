@@ -91,12 +91,13 @@ site-handoff = ["dep:site-host"]
 # and serves evidence the resident keeps (`resident::door_evidence`). It also offers
 # Knot's projection (route `knot`) through the door's projection-provider route.
 door-custody = ["peers", "projection-provider", "graphshell-door/blob-serve"]
-# Knot's editor as the buffer behind Graphshell's block pane (`block_editor`).
-# Off by default: it links Graphshell's pane stack.
-block-editor = ["dep:graphshell"]
+# Knot's editor as the buffer behind a block pane (`block_editor`), implementing
+# Cambium's `BlockEditor`. Off by default; it links no application.
+block-editor = ["dep:cambium"]
 peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
 
 [dependencies]
+cambium = { workspace = true, optional = true }
 murm-sync = { workspace = true, optional = true }
 knot-capture.workspace = true
 knot-composition.workspace = true
@@ -111,7 +112,6 @@ fleece.workspace = true
 # `graphshell` in the library.
 graphshell-endpoint = { workspace = true, features = ["projection", "stdio"] }
 graphshell-door = { workspace = true, features = ["projection-door"] }
-graphshell = { git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false, features = ["editable-blocks"], optional = true }
 ostiary = { workspace = true, features = ["native"] }
 castellan-client = { workspace = true, features = ["client"] }
 dramatis.workspace = true

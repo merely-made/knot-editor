@@ -138,8 +138,8 @@ notify = "8"
 notochord = { workspace = true, features = ["tokio"] }
 insigne.workspace = true
 personae.workspace = true
-p2panda-core = { package = "p2mere-core", version = "0.9" }
-p2panda-store = { package = "p2mere-store", version = "0.9", default-features = false }
+p2panda-core = { package = "p2mere-core", version = "0.10" }
+p2panda-store = { package = "p2mere-store", version = "0.10", default-features = false }
 pollster = "0.4"
 postcard = { version = "1", features = ["alloc"] }
 proofs.workspace = true
@@ -201,7 +201,7 @@ taproot = { workspace = true }
 # The residue test's baselines (iroh alone, p2panda-net alone), built as
 # mere-transport's seed residue test builds them.
 iroh = "1.0.3"
-p2panda-net = { package = "p2mere-net", version = "0.9", default-features = false, features = [
+p2panda-net = { package = "p2mere-net", version = "0.10", default-features = false, features = [
     "address_book",
     "iroh_endpoint",
     "iroh_mdns",

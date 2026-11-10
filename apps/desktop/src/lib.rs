@@ -104,7 +104,13 @@ pub fn desktop_sheet() -> String {
         document_preview::CSS,
         navigator::CSS,
         readings::CSS,
-        format!("{}{}{}", scroll_site::CSS, composition::metre::CSS, cambium::BACKDROP_SCENE_CSS)
+        format!(
+            "{}{}{}{}",
+            scroll_site::CSS,
+            composition::metre::CSS,
+            cambium::BACKDROP_SCENE_CSS,
+            pictograph::canvas::InlineFaces::rule(cambium::FACE_CLASS)
+        )
     )
 }
 
@@ -219,6 +225,12 @@ pub fn run_desktop_with_targets_and_relations(
             // Explicit acceptance sizes use the host's normal window-size
             // seam. Without a scenario, ordinary startup is unchanged.
             size_env: receipt.then(|| ("KNOT_TEST_WIDTH".into(), "KNOT_TEST_HEIGHT".into())),
+            vector_images: {
+                let faces = appearance::inline_faces();
+                Some(std::rc::Rc::new(move |url: &str, scale: f32| {
+                    faces.resolve_image(url, scale)
+                }))
+            },
             ..HostOptions::default()
         },
         move |_, commands, wake| {

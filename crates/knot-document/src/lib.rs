@@ -40,6 +40,7 @@ pub use hard_wrap::hard_wrap_column;
 pub use readout::KnotReadout;
 #[cfg(feature = "engine")]
 pub use writer::AuthoredFile;
+pub use writer::file_address;
 #[doc(hidden)]
 pub use writer::write_if_distinct;
 pub use writer::{DocumentFormat, SaveOutcome};

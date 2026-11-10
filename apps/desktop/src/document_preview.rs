@@ -4,6 +4,7 @@
 use cambium::{Keyed, button, button_with, el, span};
 use inker::{Block, DocumentDiagnostic, InlineSpan};
 use knot_document::KnotOutlineItemV1;
+use std::path::Path;
 use std::sync::Arc;
 
 use crate::documents::DocKey;
@@ -51,6 +52,21 @@ struct LinkSource {
     document: DocKey,
     address: Arc<str>,
     text: Arc<str>,
+    /// The saved source file relative links resolve against.
+    path: Option<Arc<Path>>,
+}
+
+/// The face of the catalog document a link names: its canonical `file://`
+/// address (the one its own snapshot carries), the key a file node has everywhere (iconography G6, T4). A link
+/// to no readable local file has none.
+fn link_face(source: Option<&LinkSource>, target: &str) -> Option<String> {
+    let path = source?.path.as_deref()?;
+    let resolved = crate::document_links::resolve_local(path, target)?;
+    if !resolved.is_file() {
+        return None;
+    }
+    let address = knot_document::file_address(&resolved).ok()?;
+    Some(pictograph::canvas::inline_face_url(&address))
 }
 
 fn inline(items: &[InlineSpan], source: Option<&LinkSource>) -> DesktopView {
@@ -74,8 +90,9 @@ fn inline(items: &[InlineSpan], source: Option<&LinkSource>) -> DesktopView {
                     let destination = url.clone();
                     let accessible_destination = destination.clone();
                     let origin = source.cloned();
+                    let face = link_face(source, url).map(cambium::face);
                     Box::new(
-                        button_with(inline(spans, source), move |state: &mut DesktopState, _| {
+                        button_with((face, inline(spans, source)), move |state: &mut DesktopState, _| {
                             if let Some(origin) = &origin {
                                 crate::link_workflow::follow_link(
                                     state,
@@ -153,13 +170,14 @@ fn blocks(
     headings: &[KnotOutlineItemV1],
     address: &Arc<str>,
     source_text: &Arc<str>,
-    document: Option<DocKey>,
+    document: Option<(DocKey, Option<&Arc<Path>>)>,
     next_heading: &mut usize,
 ) -> DesktopView {
-    let link_source = document.map(|document| LinkSource {
+    let link_source = document.map(|(document, path)| LinkSource {
         document,
         address: Arc::clone(address),
         text: Arc::clone(source_text),
+        path: path.cloned(),
     });
     let children = items
         .iter()
@@ -197,6 +215,7 @@ fn blocks(
                     let heading_end = heading.end;
                     let heading_address = Arc::clone(address);
                     let heading_source = Arc::clone(source_text);
+                    let document = document.map(|(document, _)| document);
                     Box::new(el(
                         match level {
                             1 => "h1",
@@ -375,6 +394,7 @@ pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> Deskt
                 .attr("class", "knot-reading-empty"),
         );
     }
+    let source_path: Option<Arc<Path>> = surface.session().source_path().map(Arc::from);
     let preview: DesktopView = match surface.session().preview_snapshot() {
         Ok(snapshot) => {
             let address: Arc<str> = Arc::from(snapshot.address.clone());
@@ -398,7 +418,7 @@ pub fn view(state: &DesktopState, key: DocKey, tile: workbench::TileId) -> Deskt
                 &snapshot.headings,
                 &address,
                 &source_text,
-                Some(key),
+                Some((key, source_path.as_ref())),
                 &mut 0,
             );
             Box::new(el(
@@ -480,6 +500,42 @@ mod tests {
         assert_eq!(
             std::fs::read_to_string(&source).unwrap(),
             "[Reference](../reference.djot)\n"
+        );
+    }
+
+    #[test]
+    fn a_link_to_a_readable_document_shows_that_document_s_face() {
+        let temp = tempfile::tempdir().unwrap();
+        let source = temp.path().join("essay.djot");
+        let target = temp.path().join("reference.djot");
+        std::fs::write(&source, "[Reference](reference.djot) and [Gone](missing.djot)\n")
+            .unwrap();
+        std::fs::write(&target, "# Reference\n").unwrap();
+        let state = DesktopState::new(
+            KnotDocumentSession::open(&source).unwrap(),
+            WindowCommands::new(),
+        );
+        let mut host = Harness::new(
+            crate::desktop_sheet(),
+            state,
+            (|state: &DesktopState| view(state, DocKey(1), workbench::TileId(900)))
+                as fn(&DesktopState) -> DesktopView,
+        );
+        host.layout_at(900.0, 600.0);
+        let face = pictograph::canvas::inline_face_url(
+            &knot_document::file_address(&target).unwrap(),
+        );
+        let html = host.with_dom(|dom| dom.outer_html(dom.document()));
+        assert_eq!(html.matches("<img").count(), 1, "only the readable link: {html}");
+        let image = &html[html.find("<img").unwrap()..];
+        let image = &image[..image.find('>').unwrap()];
+        assert!(image.contains(&format!("src=\"{face}\"")), "{image}");
+        assert!(image.contains("aria-hidden=\"true\""), "{image}");
+        assert!(
+            host.click_on(
+                &Selector::role("button").with_attr("aria-label", "Preview link: reference.djot")
+            ),
+            "the face leaves the link's name alone"
         );
     }
 

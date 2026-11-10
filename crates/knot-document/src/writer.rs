@@ -387,7 +387,13 @@ mod atomic_tests {
     }
 }
 
-pub(crate) fn file_address(path: &Path) -> Result<String, String> {
+/// The canonical `file://` address of `path`: what a document opened from it
+/// carries, and the key its face derives from.
+///
+/// # Errors
+///
+/// When `path` cannot be resolved.
+pub fn file_address(path: &Path) -> Result<String, String> {
     let path = fs::canonicalize(path)
         .map_err(|error| format!("could not resolve {}: {error}", path.display()))?;
     #[cfg(windows)]

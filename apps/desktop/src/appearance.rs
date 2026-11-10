@@ -204,6 +204,15 @@ pub fn focus_selector(scope: &str) -> String {
     format!(".knot-workspace{scope} :focus")
 }
 
+/// Faces beside document links (iconography T4): the canvas's face palette
+/// held at 3:1 against both the light and the dark page, so a theme switch
+/// never leaves a face unreadable. Middle lightness reaches 3:1 against both.
+pub fn inline_faces() -> pictograph::canvas::InlineFaces {
+    use pictograph::canvas::{DerivedFacePalette, InlineFaces, TextFacePalette};
+    let grounds = [false, true].map(|dark| derive_palette(&seeds(dark)).bg);
+    InlineFaces::new(TextFacePalette::new(DerivedFacePalette::default(), &grounds))
+}
+
 /// Both palettes are installed once; a root class switches the active theme.
 pub fn appearance_css() -> String {
     let mut css = String::from(

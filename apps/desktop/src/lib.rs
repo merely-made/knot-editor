@@ -109,7 +109,7 @@ pub fn desktop_sheet() -> String {
             scroll_site::CSS,
             composition::metre::CSS,
             cambium::BACKDROP_SCENE_CSS,
-            pictograph::canvas::InlineFaces::rule(cambium::FACE_CLASS)
+            cartography::canvas::InlineFaces::rule(cambium::FACE_CLASS)
         )
     )
 }

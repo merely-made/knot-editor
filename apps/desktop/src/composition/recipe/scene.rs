@@ -413,7 +413,7 @@ fn apply_action(
         SceneAction::MotionPreset(id) => {
             candidate.snapshot.recipe.definition.dynamics = id
                 .as_deref()
-                .map(pictograph::canvas::dynamics_recipe::preset_slot)
+                .map(cartography::canvas::dynamics_recipe::preset_slot)
                 .transpose()?;
         },
         SceneAction::MotionRole(role) => {

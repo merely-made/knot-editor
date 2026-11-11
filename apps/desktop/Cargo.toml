@@ -23,7 +23,7 @@ scenomise.workspace = true
 scenograph.workspace = true
 sceno.workspace = true
 sceno-backdrops.workspace = true
-pictograph.workspace = true
+cartography.workspace = true
 seiche.workspace = true
 apparatus-core = { version = "0.1.0", git = "https://github.com/merely-made/armillary.git", branch = "main", default-features = false, features = ["serde"] }
 taproot.workspace = true

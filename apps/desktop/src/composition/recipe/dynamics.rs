@@ -10,7 +10,7 @@ use super::*;
 use cambium::{button, el, span};
 use cambium_genet_winit_host::AppCtx;
 use knot_composition::retention::ProjectionRecipeMaterial;
-use pictograph::canvas::projection_dynamics::ProjectionDynamics;
+use cartography::canvas::projection_dynamics::ProjectionDynamics;
 use scenograph::DynamicsSlot;
 use scenomise::projection::{CompiledRelationshipProjection, ProjectionCompiler};
 use std::collections::BTreeMap;

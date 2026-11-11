@@ -1976,7 +1976,7 @@ mod tests {
         let mut state = recipe_state("night night light", 0, 17);
         let mut retained = state.composition.recipe.material.clone().unwrap();
         retained.snapshot.recipe.definition.dynamics = Some(
-            pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap(),
+            cartography::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap(),
         );
         retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
             overview_visible: true,
@@ -2086,7 +2086,7 @@ mod tests {
         let mut state = recipe_state("night night light", 0, 17);
         let mut supported = state.composition.recipe.material.clone().unwrap();
         supported.snapshot.recipe.definition.dynamics =
-            Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+            Some(cartography::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
         supported.presentation = Some(knot_composition::retention::RecipeScenePresentation {
             overview_visible: true,
             ..Default::default()
@@ -2154,7 +2154,7 @@ mod tests {
             let mut state = recipe_state("night night light", 0, 17);
             let mut retained = state.composition.recipe.material.clone().unwrap();
             retained.snapshot.recipe.definition.dynamics =
-                Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+                Some(cartography::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
             retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
                 overview_visible: true,
                 ..Default::default()
@@ -2373,7 +2373,7 @@ mod tests {
         let mut state = recipe_state("night night light", 0, 17);
         let mut retained = state.composition.recipe.material.clone().unwrap();
         retained.snapshot.recipe.definition.dynamics =
-            Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+            Some(cartography::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
         retained.presentation = Some(knot_composition::retention::RecipeScenePresentation {
             overview_visible: true,
             ..Default::default()

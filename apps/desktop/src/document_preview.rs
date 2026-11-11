@@ -66,7 +66,7 @@ fn link_face(source: Option<&LinkSource>, target: &str) -> Option<String> {
         return None;
     }
     let address = knot_document::file_address(&resolved).ok()?;
-    Some(pictograph::canvas::inline_face_url(&address))
+    Some(cartography::canvas::inline_face_url(&address))
 }
 
 fn inline(items: &[InlineSpan], source: Option<&LinkSource>) -> DesktopView {
@@ -522,7 +522,7 @@ mod tests {
                 as fn(&DesktopState) -> DesktopView,
         );
         host.layout_at(900.0, 600.0);
-        let face = pictograph::canvas::inline_face_url(
+        let face = cartography::canvas::inline_face_url(
             &knot_document::file_address(&target).unwrap(),
         );
         let html = host.with_dom(|dom| dom.outer_html(dom.document()));

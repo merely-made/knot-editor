@@ -29,8 +29,8 @@ mere-edit = { version = "0.1.0", git = "https://github.com/merely-made/eidetic.g
 same-file = "1.0.6"
 # The embedded surface uses the widget API shared by the 0.4 through 0.6 cohorts.
 # It implements neither of the contributed-observation callbacks changed in 0.6.
-cambium = { version = ">=0.4.0, <0.7.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
-mere-surface-api = { version = "0.1.1", git = "https://github.com/merely-made/mere.git", branch = "main" }
+cambium = { version = ">=0.4.0, <0.7.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
+mere-surface-api = { version = "0.1.1", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 # The retained editor's readout highlights through Illume's Markdown reuse-lexer.
 illume = { version = "0.0.3", git = "https://github.com/merely-made/inker.git", branch = "main", features = ["markdown"] }
 inker = { git = "https://github.com/merely-made/inker.git", branch = "main", optional = true }

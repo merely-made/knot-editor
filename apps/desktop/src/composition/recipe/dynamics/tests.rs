@@ -20,7 +20,7 @@ fn fixture_material() -> ProjectionRecipeMaterial {
 fn with_spring_slot() -> ProjectionRecipeMaterial {
     let mut material = fixture_material();
     material.snapshot.recipe.definition.dynamics =
-        Some(pictograph::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
+        Some(cartography::canvas::dynamics_recipe::preset_slot("spring.rapier").unwrap());
     material
 }
 

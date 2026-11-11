@@ -1388,6 +1388,7 @@ impl KnotEndpoint {
                 payload_schema: EDITABLE_TEXT_SAVE_SCHEMA.into(),
                 input_form: None,
                 effect: IntentEffect::DomainTruth,
+                icon: None,
             },
             AdvertisedAction {
                 intent: IntentReference(KNOT_CLIP_INSERT_INTENT.into()),
@@ -1396,6 +1397,7 @@ impl KnotEndpoint {
                 payload_schema: self.clip_insert_schema().into(),
                 input_form: None,
                 effect: IntentEffect::DomainTruth,
+                icon: None,
             },
         ];
         if self.resolve_effect_admitted() {
@@ -1407,6 +1409,7 @@ impl KnotEndpoint {
                 payload_schema: KNOT_TRANSCLUSION_RESOLVE_SCHEMA.into(),
                 input_form: None,
                 effect: IntentEffect::ExternalEffect,
+                icon: None,
             });
         }
         if self.run_effect_admitted() {
@@ -1418,6 +1421,7 @@ impl KnotEndpoint {
                 payload_schema: KNOT_BLOCK_RUN_SCHEMA.into(),
                 input_form: None,
                 effect: IntentEffect::ExternalEffect,
+                icon: None,
             });
         }
         actions

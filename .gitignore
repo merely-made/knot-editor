@@ -2,7 +2,8 @@
 target/
 target-*/
 .cargo-*/
-/crates/knot-document/Cargo.lock
+# No Cargo.lock is tracked; see `house resolved`.
+Cargo.lock
 
 # Local Cargo path overrides. A committed example may document the edit loop.
 **/.cargo/*

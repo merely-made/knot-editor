@@ -39,6 +39,8 @@
 mod residue;
 mod residue_verdict;
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::future::Future;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;

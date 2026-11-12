@@ -2772,6 +2772,8 @@ impl IntentSink for KnotEndpoint {
 
 #[cfg(test)]
 mod tests {
+    #[allow(unused_imports)]
+    use crate::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
     mod hest_scripts;
 
     use std::fs;

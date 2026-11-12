@@ -38,7 +38,7 @@ path = "crates/knot-editor/src/endpoint.rs"
 reason = "Graphshell disclosure for Knot directory state. Existing source-size debt; a responsibility split must preserve KnotRosetteConfig, KnotWriteGrant, KnotEffectMode and existing module visibility."
 
 [[exception]]
-path = "crates/knot-editor/src/sync.rs"
+path = "crates/knot-sync/src/knot/sync.rs"
 reason = "Causal personal and Commons document replication over Stickleback. Existing source-size debt; a responsibility split must preserve OrganizedComposition, KnotEncryptionProfile, KnotSyncExt and existing module visibility."
 
 [[exception]]

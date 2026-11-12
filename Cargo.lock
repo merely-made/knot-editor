@@ -7892,6 +7892,7 @@ version = "0.0.1"
 dependencies = [
  "blake3",
  "knot-capture",
+ "knot-sync",
  "quick-xml 0.39.4",
  "reference-data",
  "sceno",
@@ -8007,6 +8008,7 @@ dependencies = [
  "knot-catalog",
  "knot-composition",
  "knot-document",
+ "knot-sync",
  "mere-fetch",
  "mere-kernel",
  "mere-overmap",
@@ -8072,6 +8074,34 @@ dependencies = [
  "script-rhai",
  "serde_json",
  "tempfile",
+]
+
+[[package]]
+name = "knot-sync"
+version = "0.0.1"
+dependencies = [
+ "blake3",
+ "catchment",
+ "jotdown",
+ "knot-catalog",
+ "mere-proofs",
+ "mere-transport",
+ "muniment 0.2.1",
+ "murm-sync",
+ "p2mere-core",
+ "p2mere-store",
+ "personae",
+ "pollster 0.4.0",
+ "sceno-backdrops",
+ "serde",
+ "serde_json",
+ "similar",
+ "stickleback",
+ "tempfile",
+ "thiserror 1.0.69",
+ "tokio",
+ "uuid",
+ "zeroize",
 ]
 
 [[package]]

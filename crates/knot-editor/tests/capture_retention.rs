@@ -3,6 +3,8 @@
 
 //! Resident-owned capture authorization, retry, and source-authority receipts.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use knot_editor::{
     KnotCaptureGrant, KnotFileRevisionV1, KnotResidentSource, KnotSyncEvent, KnotSyncFileStore,
     KnotVault, VaultDocument,

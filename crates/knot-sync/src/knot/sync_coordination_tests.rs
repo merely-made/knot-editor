@@ -16,6 +16,7 @@ use tempfile::tempdir;
 use tokio::sync::Barrier;
 
 use super::*;
+use crate::test_support::{KnotVault, TestFileStore, TestMemoryStore};
 
 const SPACE: [u8; 32] = [0x91; 32];
 const VAULT_KEY: [u8; 32] = [0x92; 32];

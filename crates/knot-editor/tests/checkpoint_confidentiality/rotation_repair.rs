@@ -1,6 +1,8 @@
 // Copyright 2026 Mark Alan Boykin
 // SPDX-License-Identifier: MPL-2.0
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use super::*;
 
 #[tokio::test]

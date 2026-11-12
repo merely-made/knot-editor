@@ -94,13 +94,14 @@ door-custody = ["peers", "projection-provider", "graphshell-door/blob-serve"]
 # Knot's editor as the buffer behind a block pane (`block_editor`), implementing
 # Cambium's `BlockEditor`. Off by default; it links no application.
 block-editor = ["dep:cambium"]
-peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync"]
+peers = ["dep:transport", "dep:quinn", "dep:rustls", "dep:fetch", "dep:murm-sync", "knot-sync/peers"]
 
 [dependencies]
 cambium = { workspace = true, optional = true }
 murm-sync = { workspace = true, optional = true }
 knot-capture.workspace = true
 knot-composition.workspace = true
+knot-sync.workspace = true
 base64.workspace = true
 blake3.workspace = true
 chartulary.workspace = true

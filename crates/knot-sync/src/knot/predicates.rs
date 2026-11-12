@@ -14,7 +14,7 @@ use zeroize::Zeroize;
 
 use crate::did_key::did_key;
 use crate::relations::{KnotCorePredicateV1, KnotPredicateRefV1};
-use crate::settings::hex32;
+use crate::document::hex32;
 
 /// URN namespace for a predicate minted under a Knot signing key.
 pub const KNOT_PREDICATE_IRI_PREFIX: &str = "urn:knot:rel:";

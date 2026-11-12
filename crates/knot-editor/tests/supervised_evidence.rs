@@ -17,6 +17,8 @@
 
 #![cfg(feature = "door-custody")]
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;

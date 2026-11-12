@@ -1,0 +1,214 @@
+{
+  "version": 1,
+  "items": [
+    {
+      "id": "fixture-recipe",
+      "collection": "Commonplace",
+      "kind": "projection_recipe",
+      "label": "Recipe",
+      "text": "Summary",
+      "projection_recipe": {
+        "snapshot": {
+          "recipe": {
+            "definition": {
+              "version": 1,
+              "id": "recipe:poem",
+              "label": "A private rhyme recipe",
+              "sources": {
+                "sound": {
+                  "source": {
+                    "authority": "knot:test",
+                    "domain": "sound",
+                    "resource": "poem"
+                  },
+                  "expects_generation": "analysis:night-light-v1"
+                }
+              },
+              "reading": {
+                "kind": "nodes",
+                "key": "occurrence_id",
+                "value": null
+              },
+              "encoding": {
+                "x": {
+                  "kind": "field",
+                  "value": "order"
+                },
+                "y": {
+                  "kind": "constant",
+                  "value": "0"
+                },
+                "color": null,
+                "label": {
+                  "kind": "field",
+                  "value": "label"
+                }
+              },
+              "arrangement": {
+                "kind": "grid.default",
+                "direction": "coordinates",
+                "spacing": 16
+              },
+              "interaction": {
+                "selection": "single",
+                "pan": false,
+                "zoom": false
+              },
+              "appearance": {
+                "realization": "canvas",
+                "title": "A private rhyme recipe",
+                "theme": "slate"
+              },
+              "provenance": {
+                "author": "Knot test",
+                "source_revision": "recipe:revision:1",
+                "note": "Disclosed occurrence labels and authored order; relationships retain owner explanations and method provenance."
+              }
+            },
+            "requirements": {
+              "facet": "explained_relationships",
+              "min_occurrences": 2,
+              "min_relationships": 1
+            },
+            "relationship_kind": null
+          },
+          "source_name": "sound",
+          "selected_occurrence": "night:0",
+          "selected_relationship": "rhyme:night-light"
+        },
+        "dataset": {
+          "dataset": {
+            "source": {
+              "authority": "knot:test",
+              "domain": "sound",
+              "resource": "poem"
+            },
+            "revision": "analysis:night-light-v1",
+            "fields": {
+              "label": "text",
+              "occurrence_id": "text",
+              "order": "number"
+            },
+            "occurrences": [
+              {
+                "occurrence_id": "night:0",
+                "source": {
+                  "adapter": "knot.document",
+                  "id": "night:0"
+                },
+                "values": {
+                  "label": {
+                    "kind": "text",
+                    "value": "Night"
+                  },
+                  "occurrence_id": {
+                    "kind": "text",
+                    "value": "night:0"
+                  },
+                  "order": {
+                    "kind": "number",
+                    "value": 0.0
+                  }
+                }
+              },
+              {
+                "occurrence_id": "light:6",
+                "source": {
+                  "adapter": "knot.document",
+                  "id": "light:6"
+                },
+                "values": {
+                  "label": {
+                    "kind": "text",
+                    "value": "light"
+                  },
+                  "occurrence_id": {
+                    "kind": "text",
+                    "value": "light:6"
+                  },
+                  "order": {
+                    "kind": "number",
+                    "value": 1.0
+                  }
+                }
+              }
+            ]
+          },
+          "facets": [
+            "authored_order",
+            "explained_relationships",
+            "occurrence_labels"
+          ],
+          "relationships": [
+            {
+              "id": "rhyme:night-light",
+              "from_occurrence": "night:0",
+              "to_occurrence": "light:6",
+              "kind": "perfect_rhyme",
+              "label": "Perfect rhyme",
+              "explanation": "Retained test analysis: matching stressed vowel and coda",
+              "provenance": {
+                "source": {
+                  "authority": "knot:test",
+                  "domain": "sound",
+                  "resource": "poem"
+                },
+                "source_revision": "analysis:night-light-v1",
+                "method": "test.rhyme",
+                "method_version": 1,
+                "provider": "synthetic fixture",
+                "evidence": [
+                  {
+                    "adapter": "knot.document",
+                    "id": "night:0"
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "anchors": [
+          {
+            "node_id": "night:0",
+            "source": {
+              "document_address": "document:poem",
+              "exact_quote": "Night",
+              "byte_span": {
+                "start": 0,
+                "end": 5
+              },
+              "source_hash": "91eac716b15b6354a30615fedc0882048b174f46d392c4dc53ef85ff4a85e94d"
+            }
+          },
+          {
+            "node_id": "light:6",
+            "source": {
+              "document_address": "document:poem",
+              "exact_quote": "light",
+              "byte_span": {
+                "start": 6,
+                "end": 11
+              },
+              "source_hash": "91eac716b15b6354a30615fedc0882048b174f46d392c4dc53ef85ff4a85e94d"
+            }
+          }
+        ]
+      },
+      "pack_sources": [],
+      "author_notes": "",
+      "tags": [],
+      "order": 0
+    },
+    {
+      "id": "fixture-note",
+      "collection": "Commonplace",
+      "kind": "note",
+      "label": "Note",
+      "text": "A note",
+      "pack_sources": [],
+      "author_notes": "",
+      "tags": [],
+      "order": 0
+    }
+  ]
+}

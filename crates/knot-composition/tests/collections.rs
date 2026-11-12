@@ -7,6 +7,7 @@
 use std::fs;
 
 use knot_composition::{
+    CollectionItemExt,
     AnchorError, ByteSpan, CollectionError, CollectionItem, CollectionStore, DocumentAnchor,
     ItemKind, MAX_STORE_BYTES, MAX_TEXT_BYTES, PackSource,
 };

@@ -1,5 +1,6 @@
 //! Host-issued authority for retained composition material. Calls are blocking:
 //! execute on a worker, never an input/render or store executor thread.
+pub use crate::{CollectionOrganization, OrganizeComposition};
 use crate::{CollectionError, CollectionItem, DocumentAnchor};
 use knot_capture::{KnotRetainError, KnotRetainTargetV1};
 use serde::{Deserialize, Serialize};
@@ -260,44 +261,6 @@ pub struct RetainedCompositionItem {
     pub organization_revision: [u8; 32],
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct CollectionOrganization {
-    pub label: String,
-    pub collection: String,
-    pub author_notes: String,
-    pub tags: Vec<String>,
-    pub order: i64,
-    pub archived: bool,
-}
-
-impl CollectionOrganization {
-    pub fn from_item(item: &CollectionItem) -> Self {
-        Self {
-            label: item.label.clone(),
-            collection: item.collection.clone(),
-            author_notes: item.author_notes.clone(),
-            tags: item.tags.clone(),
-            order: item.order,
-            archived: false,
-        }
-    }
-
-    pub fn validate(&self) -> Result<(), CollectionError> {
-        crate::bounded_nonempty("label", &self.label, crate::MAX_LABEL_BYTES)?;
-        crate::bounded_nonempty("collection", &self.collection, crate::MAX_ID_BYTES)?;
-        if self.author_notes.len() > crate::MAX_TEXT_BYTES || self.tags.len() > crate::MAX_TAGS {
-            return Err(CollectionError::Invalid(
-                "organization exceeds metadata bounds".into(),
-            ));
-        }
-        for tag in &self.tags {
-            crate::bounded_nonempty("tag", tag, crate::MAX_TAG_BYTES)?;
-        }
-        Ok(())
-    }
-}
-
 impl RetainedCompositionItem {
     pub fn from_retention(
         item: CollectionItem,
@@ -312,16 +275,6 @@ impl RetainedCompositionItem {
             receipt,
         }
     }
-}
-
-/// Compare-and-set against a retained item's organization, scoped by the
-/// original writer and item identity rather than a transient row index.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct OrganizeComposition {
-    pub author: [u8; 32],
-    pub item_id: String,
-    pub expected_revision: [u8; 32],
-    pub organization: CollectionOrganization,
 }
 
 /// An explicitly supplied capability, not a request to open or choose a persona.

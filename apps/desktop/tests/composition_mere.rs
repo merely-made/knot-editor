@@ -4,11 +4,14 @@
 //! Windowless end-to-end receipt: the desktop collects only into a host-issued
 //! Knot mere capability, whose sealed signed operation survives a reopen.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::{sync::Arc, time::Duration};
 
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};
 use genet_scripted_dom::{NodeId, ScriptedDom};
 use knot_capture::KnotPersonaDisplayV1;
+use knot_composition::CollectionItemExt as _;
 use knot_composition::retention::CompositionRetainPort;
 use knot_desktop::{
     desktop_sheet, host_hooks,
@@ -344,7 +347,7 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         let retained = port.list(port.target()).unwrap();
         let item = retained[0].item.clone();
         assert_eq!(item.kind, knot_composition::ItemKind::ProjectionRecipe);
-        let material = item.projection_recipe.as_ref().unwrap();
+        let material = &item.recipe_material().unwrap().unwrap();
         assert_eq!(
             material
                 .snapshot

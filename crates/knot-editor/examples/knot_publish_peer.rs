@@ -30,6 +30,8 @@
 //! receipt harness: it creates one in-memory retained source for its lifetime
 //! and serves one request, rather than exposing a product UI or directory.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 

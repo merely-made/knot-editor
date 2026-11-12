@@ -16,6 +16,7 @@ sceno-backdrops.workspace = true
 scenotime.workspace = true
 seiche.workspace = true
 knot-capture.workspace = true
+knot-sync.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 blake3.workspace = true

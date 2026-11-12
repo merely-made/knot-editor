@@ -260,9 +260,7 @@ pub fn parse_hex32(value: &str) -> Result<[u8; 32], KnotSettingsError> {
     Ok(out)
 }
 
-pub fn hex32(bytes: &[u8; 32]) -> String {
-    bytes.iter().map(|byte| format!("{byte:02x}")).collect()
-}
+pub use knot_sync::hex32;
 
 #[cfg(test)]
 mod tests {

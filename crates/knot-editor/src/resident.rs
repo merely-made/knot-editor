@@ -39,7 +39,7 @@ use transport::{
 use crate::VaultDocument;
 use crate::authority::{KnotAuthoritySource, KnotSpaceAuthoritySnapshot};
 use crate::clip_evidence::{KnotClipEvidenceRef, clip_evidence_references};
-use crate::sync::{KnotEncryptionProfile, KnotSyncExt, KnotSyncFileStore};
+use knot_sync::{KnotEncryptionProfile, KnotSyncExt, KnotSyncFileStore};
 
 /// How this device reaches the persona's other devices.
 #[derive(Clone, Debug, Default)]

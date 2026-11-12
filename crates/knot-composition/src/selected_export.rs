@@ -7,7 +7,7 @@
 //! Explicit export of one copied text item. The caller selects the item;
 //! private author notes, surrounding documents and collections stay local.
 
-use crate::{CollectionError, CollectionItem, ItemKind};
+use crate::{CollectionError, CollectionItem, CollectionItemExt, ItemKind};
 
 pub const SCHEMA: &str = "knot.selected-content/v1";
 

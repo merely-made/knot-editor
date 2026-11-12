@@ -14,15 +14,11 @@
 mod authority;
 #[cfg(feature = "block-editor")]
 pub mod block_editor;
-mod checkpoint_migration;
-mod checkpoint_storage;
 mod clip_evidence;
 mod content_classes;
 pub mod declaration;
 pub mod edition_frame;
-mod did_key;
 mod directory;
-mod djot_merge;
 mod embedding;
 mod endpoint;
 mod file_revision;
@@ -30,7 +26,6 @@ mod file_revision;
 mod mark;
 #[cfg(feature = "mere-overlay")]
 pub mod mere_overlay;
-mod predicates;
 mod publish;
 #[cfg(feature = "peers")]
 mod publish_carrier;
@@ -39,7 +34,6 @@ mod publish_client;
 #[cfg(feature = "peers")]
 mod publish_host;
 mod publish_wire;
-mod relations;
 #[cfg(feature = "peers")]
 mod resident;
 mod retain_host;
@@ -47,7 +41,7 @@ mod rosette;
 mod search;
 mod settings;
 mod startup;
-mod sync;
+mod store_ext;
 mod vault;
 mod watcher;
 mod web_annotation;
@@ -65,7 +59,8 @@ pub use clip_evidence::{
 pub use content_classes::{
     FILE_CLASS, FILE_DOCUMENT_FACET, KnotContentClasses, NOTE_CLASS, NOTE_DOCUMENT_FACET,
 };
-pub use did_key::{did_key, did_key_verifying_key};
+pub use knot_sync::{did_key, did_key_verifying_key};
+pub(crate) use knot_sync::relations;
 pub use directory::{DirectorySource, DiskDocument, IgnorePolicy};
 pub use embedding::{
     KNOT_BERT_ARTIFACTS, KNOT_INDEX_IDENTITY_VERSION, KNOT_LEXICAL_MODEL, KnotEmbeddingPreference,
@@ -98,7 +93,7 @@ pub use mark::{
 /// Knot's publishing carrier. Product hosts should take these through Knot,
 /// not add a second direct Notochord dependency.
 pub use notochord::{NetworkId, ProfileRef, TrustedRoot};
-pub use predicates::{
+pub use knot_sync::{
     KNOT_PREDICATE_IRI_PREFIX, KnotPredicateCatalogV1, KnotPredicateDefinitionV1,
     KnotPredicateReplacementV1, KnotRejectedPredicateV1, mint_predicate_iri,
 };
@@ -129,7 +124,7 @@ pub use publish_wire::{
     PublishWireError, PublishWireLimits, candidate_fixture_corpus, decode_request, decode_response,
     encode_request, encode_response,
 };
-pub use relations::{
+pub use knot_sync::{
     KNOT_REL_VOCAB, KNOT_RELATION_CONTEXT_CHARS, KnotCorePredicateV1, KnotPredicateRefV1,
     KnotRejectedRelationV1, KnotRelationAssertionV1, KnotRelationEndpointV1,
     KnotRelationPositionV1, KnotRelationRetractionV1, KnotUnverifiedRelationV1,
@@ -157,15 +152,17 @@ pub use startup::{
     KNOT_APP_ID, PersonalVaultKeys, SIGNING_KEY_CONTEXT, StartupUnlockedPersonalVault,
     VAULT_KEY_CONTEXT, persona_vault_root,
 };
-pub use sync::{
+pub use knot_sync::{
     KNOT_COMMONS_ENCRYPTION_PROFILE, KnotAssertedTime, KnotAutomaticTextMerge,
     KnotCheckpointRepairReceipt, KnotCheckpointSnapshot, KnotDocumentConflict,
-    KnotDocumentProjection, KnotDocumentVersion, KnotEncryptionProfile, KnotEpochExecutionReceipt,
-    KnotOfflineMemberEpochHold, KnotOfflineMemberRecovery, KnotProjectionCheckpoint,
-    KnotProjectionStrictness, KnotSyncCipher, KnotSyncError, KnotSyncEvent, KnotSyncExt,
-    KnotSyncFileStore, KnotSyncStore, KnotTailReceipt,
+    KnotDocumentProjection, KnotDocumentVersion, KnotDomain, KnotEncryptionProfile,
+    KnotEpochExecutionReceipt, KnotOfflineMemberEpochHold, KnotOfflineMemberRecovery,
+    KnotProjectionCheckpoint, KnotProjectionStrictness, KnotSyncCipher, KnotSyncError,
+    KnotSyncEvent, KnotSyncExt, KnotSyncFileStore, KnotSyncStore, KnotTailReceipt, SyncSealer,
 };
-pub use vault::{KnotSealedSearchIndex, KnotVault, VaultDocument};
+pub use store_ext::{KnotFileStoreExt, KnotMemoryStoreExt};
+pub use knot_sync::VaultDocument;
+pub use vault::{KnotSealedSearchIndex, KnotVault};
 pub use watcher::DirectoryWatcher;
 pub use web_annotation::{SpecificResource, SpecificResourceSelector};
 pub use writer::{AuthoredFile, DocumentFormat, SaveOutcome};

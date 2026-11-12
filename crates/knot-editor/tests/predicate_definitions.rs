@@ -7,6 +7,8 @@
 //! Writer-defined predicates: one minted identity, a mutable label, a
 //! retirement that refuses new assertions and keeps the old ones readable.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use knot_editor::{
     KnotCorePredicateV1, KnotPredicateRefV1, KnotPredicateReplacementV1, KnotRelationEndpointV1,
     KnotRelationPositionV1, KnotSyncError, KnotSyncEvent, KnotSyncFileStore, KnotVault,

@@ -14,7 +14,7 @@ use cambium_genet_winit_host::HostWake;
 use knot_composition::retention::{
     CompositionRetainPort, OrganizeComposition, RetainedCompositionItem,
 };
-use knot_composition::{CollectionItem, CollectionStore, DocumentAnchor, ItemKind, PackSource};
+use knot_composition::{CollectionItem, CollectionItemExt, CollectionStore, DocumentAnchor, ItemKind, PackSource};
 use knot_readings::sound::{self, SoundLayers, SoundReading};
 use reference_data::{LexicalEntry, LookupQuery, ReferenceId, SourceKey, SourceRegistry};
 use std::{
@@ -317,8 +317,8 @@ impl CompositionState {
                         self.organization_edit = None;
                         for entry in &self.retained {
                             if let Some(scene) = entry.item.metre_scene.as_ref() { self.metre.mark_retained(scene); }
-                            if let Some(material) = entry.item.projection_recipe.as_ref() {
-                                recipe::mark_retained(&mut self.recipe, material);
+                            if let Ok(Some(material)) = entry.item.recipe_material() {
+                                recipe::mark_retained(&mut self.recipe, &material);
                             }
                         }
                         if self.retry_target.is_some()
@@ -1270,7 +1270,7 @@ fn collection_view(state: &DesktopState) -> DesktopView {
         .map(|retained| {
             let item = &retained.item;
             let anchor = item.document_source.clone();
-            let saved_recipe = item.projection_recipe.clone();
+            let saved_recipe = item.recipe_material().ok().flatten();
             let saved_metre = item.metre_scene.clone();
             let metre_anchor = item.document_source.clone();
             let change = OrganizeComposition {
@@ -3428,8 +3428,8 @@ mod tests {
         host.update(settle_collection);
         let saved = host.state().composition.retained[0]
             .item
-            .projection_recipe
-            .clone()
+            .recipe_material()
+            .unwrap()
             .unwrap();
         assert_eq!(
             saved.snapshot.selected_occurrence.as_deref(),

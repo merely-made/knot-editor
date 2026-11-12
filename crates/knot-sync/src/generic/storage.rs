@@ -6,11 +6,9 @@
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::{KnotEncryptionProfile, KnotSyncError, KnotVault};
+use super::{EncryptionProfile, SyncDomain, SyncError, SyncSealer};
 
-const FORMAT: &str = "mere.knot.sealed-local-record";
 const VERSION: u16 = 1;
-pub(crate) const MARKER: &[u8] = b"mere.knot.clean-checkpoint-database.v1";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub(crate) enum RecordKind {
@@ -25,18 +23,18 @@ struct Envelope {
     format: String,
     version: u16,
     space_id: [u8; 32],
-    profile: KnotEncryptionProfile,
+    profile: EncryptionProfile,
     kind: RecordKind,
     ciphertext: Vec<u8>,
 }
 
-fn aad(space: [u8; 32], profile: KnotEncryptionProfile, kind: RecordKind) -> Vec<u8> {
-    let mut bytes = FORMAT.as_bytes().to_vec();
+fn aad<D: SyncDomain>(space: [u8; 32], profile: EncryptionProfile, kind: RecordKind) -> Vec<u8> {
+    let mut bytes = D::VOCABULARY.storage_format.as_bytes().to_vec();
     bytes.extend_from_slice(&VERSION.to_le_bytes());
     bytes.extend_from_slice(&space);
     bytes.push(match profile {
-        KnotEncryptionProfile::PersonalVaultV1 => 1,
-        KnotEncryptionProfile::CommonsDataV1 => 2,
+        EncryptionProfile::PersonalVaultV1 => 1,
+        EncryptionProfile::CommonsDataV1 => 2,
     });
     bytes.push(match kind {
         RecordKind::Checkpoint => 1,
@@ -46,54 +44,60 @@ fn aad(space: [u8; 32], profile: KnotEncryptionProfile, kind: RecordKind) -> Vec
     bytes
 }
 
-pub(crate) fn seal(
-    vault: &KnotVault,
+pub(crate) fn seal<D: SyncDomain>(
+    vault: &dyn SyncSealer,
     space_id: [u8; 32],
-    profile: KnotEncryptionProfile,
+    profile: EncryptionProfile,
     kind: RecordKind,
     plaintext: &[u8],
-) -> Result<Vec<u8>, KnotSyncError> {
+) -> Result<Vec<u8>, SyncError> {
     let ciphertext = vault
-        .seal_local_storage(&aad(space_id, profile, kind), plaintext)
-        .map_err(KnotSyncError::CheckpointStorage)?;
+        .seal_local_storage(&aad::<D>(space_id, profile, kind), plaintext)
+        .map_err(SyncError::CheckpointStorage)?;
     serde_json::to_vec(&Envelope {
-        format: FORMAT.into(),
+        format: D::VOCABULARY.storage_format.into(),
         version: VERSION,
         space_id,
         profile,
         kind,
         ciphertext,
     })
-    .map_err(|error| KnotSyncError::CheckpointStorage(error.to_string()))
+    .map_err(|error| SyncError::CheckpointStorage(error.to_string()))
 }
 
-pub(crate) fn open(
-    vault: &KnotVault,
+pub(crate) fn open<D: SyncDomain>(
+    vault: &dyn SyncSealer,
     space_id: [u8; 32],
-    profile: KnotEncryptionProfile,
+    profile: EncryptionProfile,
     kind: RecordKind,
     bytes: &[u8],
-) -> Result<Zeroizing<Vec<u8>>, KnotSyncError> {
+) -> Result<Zeroizing<Vec<u8>>, SyncError> {
     let envelope: Envelope =
-        serde_json::from_slice(bytes).map_err(|_| KnotSyncError::CheckpointMigrationRequired)?;
-    if envelope.format != FORMAT || envelope.version != VERSION {
-        return Err(KnotSyncError::CheckpointStorage(
+        serde_json::from_slice(bytes).map_err(|_| SyncError::CheckpointMigrationRequired)?;
+    if envelope.format != D::VOCABULARY.storage_format || envelope.version != VERSION {
+        return Err(SyncError::CheckpointStorage(
             "unsupported local storage envelope".into(),
         ));
     }
     if envelope.space_id != space_id || envelope.profile != profile || envelope.kind != kind {
-        return Err(KnotSyncError::CheckpointStorage(
+        return Err(SyncError::CheckpointStorage(
             "local storage envelope context does not match this record".into(),
         ));
     }
     vault
-        .unseal_local_storage(&aad(space_id, profile, kind), &envelope.ciphertext)
+        .unseal_local_storage(&aad::<D>(space_id, profile, kind), &envelope.ciphertext)
         .map(Zeroizing::new)
-        .map_err(KnotSyncError::CheckpointStorage)
+        .map_err(SyncError::CheckpointStorage)
 }
 
-pub(crate) fn marker_key(space: [u8; 32]) -> String {
-    format!("knot-sync/sealed-storage/{}", crate::hex32(&space))
+/// The key of one of the store's own records: `<prefix>/<name>/<space hex>`.
+pub(crate) fn record_key<D: SyncDomain>(name: &str, space: [u8; 32]) -> String {
+    let hex: String = space.iter().map(|byte| format!("{byte:02x}")).collect();
+    format!("{}/{name}/{hex}", D::VOCABULARY.key_prefix)
+}
+
+pub(crate) fn marker_key<D: SyncDomain>(space: [u8; 32]) -> String {
+    record_key::<D>("sealed-storage", space)
 }
 
 /// SecretBundle's serialized sequence comes from a HashMap. Compare its set
@@ -101,7 +105,7 @@ pub(crate) fn marker_key(space: [u8; 32]) -> String {
 pub(crate) fn keyrings_match(
     a: &stickleback::DataKeyring,
     b: &stickleback::DataKeyring,
-) -> Result<bool, KnotSyncError> {
+) -> Result<bool, SyncError> {
     struct Scratch(serde_json::Value);
     impl Drop for Scratch {
         fn drop(&mut self) {
@@ -116,16 +120,16 @@ pub(crate) fn keyrings_match(
             clear(&mut self.0);
         }
     }
-    fn view(keys: &stickleback::DataKeyring) -> Result<Scratch, KnotSyncError> {
+    fn view(keys: &stickleback::DataKeyring) -> Result<Scratch, SyncError> {
         let mut value = Scratch(serde_json::to_value(keys).map_err(|_| {
-            KnotSyncError::CheckpointStorage("could not compare keyring state".into())
+            SyncError::CheckpointStorage("could not compare keyring state".into())
         })?);
         let secrets = value
             .0
             .get_mut("secrets")
             .and_then(serde_json::Value::as_array_mut)
             .ok_or_else(|| {
-                KnotSyncError::CheckpointStorage("unsupported keyring representation".into())
+                SyncError::CheckpointStorage("unsupported keyring representation".into())
             })?;
         secrets.sort_unstable_by(|a, b| {
             let a = Zeroizing::new(serde_json::to_vec(a).expect("JSON Value serialization"));

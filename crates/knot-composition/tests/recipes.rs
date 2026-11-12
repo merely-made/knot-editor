@@ -1,6 +1,6 @@
 #[path = "support/recipe.rs"]
 mod support;
-use knot_composition::{CollectionItem, ItemKind};
+use knot_composition::{CollectionItem, CollectionItemExt, ItemKind};
 
 #[test]
 fn typed_recipe_roundtrips_and_rejects_invalid_associations_and_anchors() {

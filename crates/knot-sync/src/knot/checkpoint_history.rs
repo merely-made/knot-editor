@@ -138,6 +138,7 @@ impl<B: Backend + Clone> KnotSyncStore<B> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_support::{KnotVault, TestFileStore, TestMemoryStore};
 
     const SPACE: [u8; 32] = [0x61; 32];
     const SEED: [u8; 32] = [0x62; 32];

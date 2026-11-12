@@ -8,7 +8,9 @@
 //! validator refuses is refused at admission, with the same error, however the
 //! sync store is built.
 
-use knot_composition::{CollectionItem, ItemKind};
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
+use knot_composition::{CollectionItem, CollectionItemExt, ItemKind};
 use knot_editor::{KnotSyncError, KnotSyncEvent, KnotSyncStore, KnotVault};
 use personae::{IdentityProvider, InMemoryProvider};
 

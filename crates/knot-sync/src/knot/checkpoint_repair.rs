@@ -3,7 +3,8 @@
 
 //! Authorized regeneration before a file store is exposed to other handles.
 use super::*;
-use crate::checkpoint_migration::{self, MigrationDecision, MigrationScope};
+use crate::generic::{SyncError, storage};
+use crate::generic::migration::{self as checkpoint_migration, MigrationDecision, MigrationScope};
 
 fn checkpoint_digest(value: &KnotProjectionCheckpoint) -> Result<[u8; 32], KnotSyncError> {
     let bytes = Zeroizing::new(
@@ -18,12 +19,13 @@ impl KnotSyncStore<RedbBackend> {
     /// No store handle may already be alive. A prior checkpoint can advance;
     /// its old/new canonical identities are returned, never inferred from the
     /// randomized storage bytes. Missing history/epochs require recovery.
-    pub async fn open_with_checkpoint_repair(
+    pub async fn open_with_checkpoint_repair_validated(
         path: impl AsRef<Path>,
         space_id: [u8; 32],
         writers: impl IntoIterator<Item = [u8; 32]>,
         cipher: KnotSyncCipher<'_>,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
+        recipes: Arc<dyn RecipeValidator>,
     ) -> Result<(Self, KnotCheckpointRepairReceipt), KnotSyncError> {
         if storage_vault.is_locked() {
             return Err(KnotSyncError::CheckpointStorage(
@@ -35,7 +37,8 @@ impl KnotSyncStore<RedbBackend> {
         let writers: BTreeSet<_> = writers.into_iter().collect();
         match std::fs::symlink_metadata(path) {
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                let store = Self::open_with_profile(path, space_id, writers, profile)?;
+                let store =
+                    Self::open_with_profile_validated(path, space_id, writers, profile, recipes)?;
                 if !store.storage_fresh {
                     return Err(KnotSyncError::CheckpointMigrationRequired);
                 }
@@ -57,7 +60,7 @@ impl KnotSyncStore<RedbBackend> {
         }
         let checkpoint_slot = checkpoint_key(space_id);
         let keyring_slot = communal_keyring_key(space_id);
-        let marker_slot = checkpoint_storage::marker_key(space_id);
+        let marker_slot = storage::marker_key::<KnotDomain>(space_id);
         let scope = MigrationScope {
             managed_prefixes: vec![
                 "knot-sync/checkpoint/".into(),
@@ -73,6 +76,7 @@ impl KnotSyncStore<RedbBackend> {
         let observed = Arc::new(std::sync::Mutex::new(None));
         let observed_prepare = observed.clone();
         let prepare_writers = writers.clone();
+        let prepare_domain = KnotDomain::new(recipes.clone());
         let closed = checkpoint_migration::open_or_rewrite(path, &scope, |entries| async move {
             let prepare = async {
                 let memory = MemoryBackend::new();
@@ -82,15 +86,18 @@ impl KnotSyncStore<RedbBackend> {
                     *key != &checkpoint_slot && *key != &keyring_slot && *key != &marker_slot)
                     .map(|(key, value)| WriteOp::Put { key: key.clone(), value: value.clone() }).collect();
                 memory.apply(&writes).await?;
-                let replica = KnotSyncStore {
-                    store: MunimentStore::new(memory),
-                    policy: KnotSyncPolicy { space_id, writers: Arc::new(RwLock::new(prepare_writers)), encryption: profile },
-                    mutation_gate: Arc::new(Mutex::new(())), storage_fresh: true,
-                };
+                let replica = KnotSyncStore::from_backend(
+                    memory,
+                    space_id,
+                    prepare_writers,
+                    profile,
+                    prepare_domain,
+                    true,
+                );
                 let mut current = false;
                 if let Some(bytes) = entries.get(&marker_slot) {
                     let marker = replica.open_local(storage_vault, RecordKind::StorageMarker, bytes)?;
-                    if marker.as_slice() != checkpoint_storage::MARKER {
+                    if marker.as_slice() != KnotDomain::VOCABULARY.storage_marker {
                         return Err(KnotSyncError::CheckpointStorage("invalid clean storage marker".into()));
                     }
                     current = true;
@@ -98,10 +105,10 @@ impl KnotSyncStore<RedbBackend> {
                 let old = if let Some(bytes) = entries.get(&checkpoint_slot) {
                     let plaintext = match replica.open_local(storage_vault, RecordKind::Checkpoint, bytes) {
                         Ok(value) => value,
-                        Err(KnotSyncError::CheckpointMigrationRequired) => {
+                        Err(SyncError::CheckpointMigrationRequired) => {
                             current = false; Zeroizing::new(bytes.clone())
                         },
-                        Err(error) => return Err(error),
+                        Err(error) => return Err(error.into()),
                     };
                     let value: KnotProjectionCheckpoint = serde_json::from_slice(&plaintext)
                         .map_err(|_| KnotSyncError::CheckpointStorage("invalid legacy checkpoint; original retained for recovery".into()))?;
@@ -116,10 +123,10 @@ impl KnotSyncStore<RedbBackend> {
                     if profile != KnotEncryptionProfile::CommonsDataV1 { return Err(KnotSyncError::WrongEncryptionProfile); }
                     let plaintext = match replica.open_local(storage_vault, RecordKind::CommunalKeyring, bytes) {
                         Ok(value) => value,
-                        Err(KnotSyncError::CheckpointMigrationRequired) => {
+                        Err(SyncError::CheckpointMigrationRequired) => {
                             current = false; Zeroizing::new(bytes.clone())
                         },
-                        Err(error) => return Err(error),
+                        Err(error) => return Err(error.into()),
                     };
                     existing_keyring = Some(DataKeyring::from_bytes(&plaintext)?);
                 }
@@ -129,7 +136,7 @@ impl KnotSyncStore<RedbBackend> {
                 }
                 if let Some(legacy_keys) = existing_keyring {
                     let KnotSyncCipher::CommonsData(keys) = cipher else { return Err(KnotSyncError::WrongEncryptionProfile); };
-                    if !checkpoint_storage::keyrings_match(keys, &legacy_keys)? {
+                    if !storage::keyrings_match(keys, &legacy_keys)? {
                         return Err(KnotSyncError::CheckpointStorage(
                             "legacy group keyring differs from independently authorized keys; recover/reconcile through the membership owner".into()));
                     }
@@ -159,7 +166,7 @@ impl KnotSyncStore<RedbBackend> {
                     .map_err(|error| KnotSyncError::Payload(error.to_string()))?);
                 let mut replacements = BTreeMap::from([
                     (checkpoint_slot, Some(replica.seal_local(storage_vault, RecordKind::Checkpoint, &plaintext)?)),
-                    (marker_slot, Some(replica.seal_local(storage_vault, RecordKind::StorageMarker, checkpoint_storage::MARKER)?)),
+                    (marker_slot, Some(replica.seal_local(storage_vault, RecordKind::StorageMarker, KnotDomain::VOCABULARY.storage_marker)?)),
                     (keyring_slot.clone(), None),
                 ]);
                 if let KnotSyncCipher::CommonsData(keys) = cipher {
@@ -186,16 +193,14 @@ impl KnotSyncStore<RedbBackend> {
             preserved_keys: closed.receipt.preserved_key_count,
         };
         Ok((
-            Self {
-                store: MunimentStore::new(closed.backend),
-                policy: KnotSyncPolicy {
-                    space_id,
-                    writers: Arc::new(RwLock::new(writers)),
-                    encryption: profile,
-                },
-                mutation_gate: Arc::new(Mutex::new(())),
-                storage_fresh: false,
-            },
+            Self::from_backend(
+                closed.backend,
+                space_id,
+                writers,
+                profile,
+                KnotDomain::new(recipes),
+                false,
+            ),
             receipt,
         ))
     }

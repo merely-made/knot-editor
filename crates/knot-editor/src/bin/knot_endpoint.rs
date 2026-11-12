@@ -4,6 +4,8 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
+#[allow(unused_imports)]
+use crate::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::ffi::OsStr;
 use std::fs;
 use std::path::{Path, PathBuf};

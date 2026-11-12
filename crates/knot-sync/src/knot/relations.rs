@@ -12,7 +12,7 @@ use serde::de::{self, MapAccess, Visitor};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use zeroize::Zeroize;
 
-use crate::settings::hex32;
+use crate::document::hex32;
 
 /// Base IRI of Mere's canonical relation vocabulary. Knot consumes that table
 /// rather than owning it; this is a local const because knot-editor depends on

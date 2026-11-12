@@ -1,5 +1,6 @@
 //! Knot-resident retained composition authority. This never opens a persona,
 //! enables replication, or projects private material into publishable documents.
+use knot_composition::CollectionItemExt as _;
 use super::{KnotResidentSource, VaultSyncAuthority};
 use crate::KnotSyncCipher;
 use knot_capture::{

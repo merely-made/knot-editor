@@ -12,7 +12,7 @@ use knot_composition::DocumentAnchor;
 use knot_composition::retention::{
     ProjectionRecipeMaterial, RecipeSourceAnchor, VALIDATION_CARD, validation_compiler,
 };
-use knot_composition::{CollectionItem, ItemKind};
+use knot_composition::{CollectionItem, CollectionItemExt, ItemKind};
 use knot_readings::sound::SoundReading;
 use layout_dom_api::{LayoutDom, LocalName, Namespace};
 use sceno::Size2;
@@ -1335,7 +1335,7 @@ mod tests {
         let reopened: CollectionItem =
             serde_json::from_slice(&serde_json::to_vec(&item).unwrap()).unwrap();
         reopened.validate().unwrap();
-        let reopened = reopened.projection_recipe.unwrap();
+        let reopened = reopened.recipe_material().unwrap().unwrap();
         assert_eq!(reopened, material);
         let compiled = validation_compiler()
             .compile_relationship_snapshot(&reopened.snapshot, &reopened.dataset)

@@ -4,6 +4,8 @@
 
 //! Windowless receipt for the real desktop review and resident-retain route.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::{sync::Arc, time::Duration};
 
 use cambium_genet_winit_host::{Harness, Init, WindowCommands};

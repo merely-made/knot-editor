@@ -2,8 +2,11 @@
 //! Native acceptance instrument, NEVER a personal-wallet initializer.
 //! Uses public deterministic test keys in a marked disposable fixture. Ordinary
 //! Knot launch never calls this instrument or acquires its synthetic authority.
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use knot_capture::KnotPersonaDisplayV1;
 use knot_composition::{
+    CollectionItemExt as _,
     CollectionItem, DocumentAnchor, ItemKind, retention::CompositionRetainPort,
 };
 use knot_desktop::{DesktopLaunch, run_desktop_with_targets_and_relations};
@@ -189,7 +192,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // for selecting one immutable test version.
         // This mode is guarded by the same public-fixture marker as reopen.
         let recipes: Vec<_> = port.list(port.target())?.into_iter().filter_map(|entry| {
-            let material = entry.item.projection_recipe.as_ref()?;
+            let material = entry.item.recipe_material().ok().flatten()?;
             Some(serde_json::json!({
                 "item_id": entry.item.id,
                 "authored_positions": material.scene_positions().ok()?.len(),

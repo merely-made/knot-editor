@@ -1,5 +1,7 @@
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use knot_capture::KnotPersonaDisplayV1;
-use knot_composition::{CollectionItem, ItemKind, retention::CompositionRetainPort};
+use knot_composition::{CollectionItem, CollectionItemExt, ItemKind, retention::CompositionRetainPort};
 use knot_editor::{
     CompositionGrant, KnotResidentCompositionPort, KnotResidentSource, KnotSyncCipher,
     KnotSyncFileStore, KnotVault,
@@ -151,7 +153,7 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
         "Human-readable summary",
     )
     .with_projection_recipe(recipe_support::recipe_material());
-    let mut material = first.projection_recipe.clone().unwrap();
+    let mut material = first.recipe_material().unwrap().unwrap();
     material.presentation = Some(knot_composition::retention::RecipeScenePresentation {
         overview_visible: true,
         ..Default::default()
@@ -237,8 +239,8 @@ fn typed_recipe_edits_are_immutable_encrypted_versions_that_reopen() {
         assert_eq!(retained.receipt.operation, receipt.operation);
         retained
             .item
-            .projection_recipe
-            .as_ref()
+            .recipe_material()
+            .unwrap()
             .unwrap()
             .validate()
             .unwrap();

@@ -3,6 +3,8 @@
 
 //! Real signed-history and redb receiving cases for local checkpoint custody.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::collections::BTreeMap;
 use std::path::Path;
 

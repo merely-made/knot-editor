@@ -9,7 +9,7 @@
 //! prepared bytes; these tests do not establish a cipher's confidentiality.
 
 #[allow(dead_code)]
-#[path = "../src/checkpoint_migration.rs"]
+#[path = "../../knot-sync/src/generic/migration.rs"]
 mod checkpoint_migration;
 
 use std::collections::{BTreeMap, BTreeSet};

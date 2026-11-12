@@ -14,6 +14,8 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+use knot_sync::{SyncSealer, VaultDocument};
+
 use crate::embedding::KnotIndexIdentity;
 
 const INDEX_PATH: &str = "knot/documents.json";
@@ -23,19 +25,6 @@ const DERIVED_CACHE_VERSION: u64 = 1;
 const INDEX_VERSION: u64 = 1;
 const SYNC_KEY_CONTEXT: &str = "mere.knot.personal-vault-sync.v1";
 const LOCAL_STORAGE_KEY_CONTEXT: &str = "mere.knot.local-storage-protection.v1";
-
-/// One authored document in the sealed vault.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
-pub struct VaultDocument {
-    /// Stable caller-selected identity.
-    pub id: String,
-    /// Display title.
-    pub title: String,
-    /// Authored source bytes, unsealed only inside the endpoint.
-    pub body: Vec<u8>,
-    /// Source media type.
-    pub media_type: String,
-}
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 struct VaultIndex {
@@ -473,6 +462,28 @@ impl KnotVault {
 impl Drop for KnotVault {
     fn drop(&mut self) {
         self.index.zeroize();
+    }
+}
+
+impl SyncSealer for KnotVault {
+    fn is_locked(&self) -> bool {
+        KnotVault::is_locked(self)
+    }
+
+    fn seal_sync_payload(&self, aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
+        KnotVault::seal_sync_payload(self, aad, plaintext)
+    }
+
+    fn unseal_sync_payload(&self, aad: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+        KnotVault::unseal_sync_payload(self, aad, ciphertext)
+    }
+
+    fn seal_local_storage(&self, aad: &[u8], plaintext: &[u8]) -> Result<Vec<u8>, String> {
+        KnotVault::seal_local_storage(self, aad, plaintext)
+    }
+
+    fn unseal_local_storage(&self, aad: &[u8], ciphertext: &[u8]) -> Result<Vec<u8>, String> {
+        KnotVault::unseal_local_storage(self, aad, ciphertext)
     }
 }
 

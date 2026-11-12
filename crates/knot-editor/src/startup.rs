@@ -13,6 +13,7 @@
 //! djinn absent or Locked the persona is pending; Knot holds no fallback key
 //! and writes nothing (D12).
 
+use crate::KnotFileStoreExt as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 #[cfg(feature = "peers")]

@@ -6,6 +6,8 @@
 
 //! G1 receipt for attributable, vault-native relation assertions.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 

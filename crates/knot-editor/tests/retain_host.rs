@@ -3,6 +3,8 @@
 
 //! Host-bound desktop retention uses a resident-issued capability.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use knot_capture::{KnotPersonaDisplayV1, KnotRetainPort};
 use knot_editor::{
     KnotCaptureGrant, KnotFileRevisionV1, KnotResidentRetainPort, KnotResidentSource,

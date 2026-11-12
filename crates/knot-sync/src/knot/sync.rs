@@ -31,18 +31,22 @@ use stickleback::{
     OperationProcessor, PendingCausalOperation, ProcessError, Reject, StoreTarget, author_head,
     causal_projection, observed_frontier, propose_epoch_pruning, validate_causal_metadata,
 };
-#[cfg(feature = "peers")]
-use stickleback::JoinError;
-#[cfg(feature = "peers")]
-use murm_sync::{Endpoint, Gossip, JoinedSpace};
 use tokio::sync::Mutex;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::checkpoint_storage::{self, RecordKind};
+use crate::generic::storage::{self, RecordKind};
+use crate::generic::{
+    AssertedTime as KnotAssertedTime, EncryptionProfile as KnotEncryptionProfile, LOG_ID,
+    CAUSAL_LIMITS as KNOT_CAUSAL_LIMITS, LocalCheck, StoredOperation as StoredKnotOperation, SyncCipher as KnotSyncCipher, SyncDomain,
+    SyncError, SyncExt as KnotSyncExt, SyncStore, Vocabulary, causal_entries,
+};
+#[cfg(test)]
+use crate::generic::seal_event;
+use crate::recipe::RecipeValidator;
 
 use crate::{
-    KnotFileRevisionV1, KnotVault, VaultDocument,
-    djot_merge::{automatic_text_merge, automatic_text_merge_head},
+    KnotFileRevisionV1, SyncSealer, VaultDocument,
+    knot::djot_merge::{automatic_text_merge, automatic_text_merge_head},
     predicates::{
         KnotPredicateCatalogV1, KnotPredicateDefinitionV1, KnotPredicateReplacementV1,
         KnotRejectedPredicateV1, mint_predicate_iri, validate_predicate_definition_payload,
@@ -54,28 +58,30 @@ use crate::{
     },
 };
 
-const LOG_ID: u64 = 0;
-fn composition_item(json: &str) -> Result<knot_composition::CollectionItem, KnotSyncError> {
-    if json.len() > knot_composition::MAX_STORE_BYTES {
+fn composition_item(
+    json: &str,
+    recipes: &dyn RecipeValidator,
+) -> Result<crate::CollectionItem, KnotSyncError> {
+    if json.len() > crate::MAX_STORE_BYTES {
         return Err(KnotSyncError::Payload(
             "composition item exceeds byte limit".into(),
         ));
     }
-    let item: knot_composition::CollectionItem =
+    let item: crate::CollectionItem =
         serde_json::from_str(json).map_err(|error| KnotSyncError::Payload(error.to_string()))?;
-    item.validate()
+    item.validate_with(recipes)
         .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
     Ok(item)
 }
 fn composition_organization(
     json: &str,
-) -> Result<knot_composition::retention::CollectionOrganization, KnotSyncError> {
-    if json.len() > knot_composition::MAX_STORE_BYTES {
+) -> Result<crate::CollectionOrganization, KnotSyncError> {
+    if json.len() > crate::MAX_STORE_BYTES {
         return Err(KnotSyncError::Payload(
             "organization exceeds byte limit".into(),
         ));
     }
-    let organization: knot_composition::retention::CollectionOrganization =
+    let organization: crate::CollectionOrganization =
         serde_json::from_str(json).map_err(|error| KnotSyncError::Payload(error.to_string()))?;
     organization
         .validate()
@@ -84,18 +90,12 @@ fn composition_organization(
 }
 
 type OrganizedComposition = (
-    knot_composition::CollectionItem,
+    crate::CollectionItem,
     [u8; 32],
     [u8; 32],
-    knot_composition::retention::CollectionOrganization,
+    crate::CollectionOrganization,
     [u8; 32],
 );
-const SYNC_AAD: &[u8] = b"mere.knot.sync-operation.v1";
-const KNOT_CAUSAL_LIMITS: CausalLimits = CausalLimits {
-    max_parents: 64,
-    max_payload_bytes: 16 * 1024 * 1024,
-};
-
 fn file_revision_as_vault_document(revision: &KnotFileRevisionV1) -> VaultDocument {
     VaultDocument {
         id: revision.document_id.clone(),
@@ -108,59 +108,6 @@ fn file_revision_as_vault_document(revision: &KnotFileRevisionV1) -> VaultDocume
 /// Communal Knot uses the same retained-data floor as Commons chat.
 pub const KNOT_COMMONS_ENCRYPTION_PROFILE: GroupEncryptionProfile =
     GroupEncryptionProfile::durable_data(8);
-
-/// The signed encryption contract for one Knot space.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub enum KnotEncryptionProfile {
-    /// Personal device sync derives a key from the local vault root.
-    #[default]
-    PersonalVaultV1,
-    /// Commons documents use the group's retained data-encryption epochs.
-    CommonsDataV1,
-}
-
-/// Signed addressing extension for one Knot vault space.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
-pub struct KnotSyncExt {
-    pub space_id: [u8; 32],
-    #[serde(default)]
-    pub encryption: KnotEncryptionProfile,
-    /// Exact per-author frontier observed before this event was authored.
-    #[serde(default)]
-    pub parents: Vec<[u8; 32]>,
-    /// Author-asserted wall clock, set at authoring and overridable before
-    /// signing. Declared last and skipped when absent so an operation authored
-    /// before this field reserializes to its original CBOR and keeps its hash.
-    /// Inside the signed header bytes; informative only, it never orders a fold.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub asserted_at_ms: Option<u64>,
-}
-
-/// What wall clock an authoring call binds into the signed header.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum KnotAssertedTime {
-    /// This machine's clock now, or nothing at all if the clock fails.
-    #[default]
-    Now,
-    /// An explicit time, so a transcribed note can carry its real date.
-    At(u64),
-    /// Assert no time.
-    None,
-}
-
-impl KnotAssertedTime {
-    fn resolve(self) -> Option<u64> {
-        match self {
-            // A failed clock asserts nothing; a time is never invented.
-            Self::Now => std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .ok()
-                .and_then(|elapsed| u64::try_from(elapsed.as_millis()).ok()),
-            Self::At(milliseconds) => Some(milliseconds),
-            Self::None => None,
-        }
-    }
-}
 
 /// Plaintext event sealed inside the p2panda operation body.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Zeroize)]
@@ -219,21 +166,7 @@ pub enum KnotSyncEvent {
     },
 }
 
-/// Encryption material used by a Knot replica.
-#[derive(Clone, Copy)]
-pub enum KnotSyncCipher<'a> {
-    Personal(&'a KnotVault),
-    CommonsData(&'a DataKeyring),
-}
-
 impl KnotSyncCipher<'_> {
-    fn profile(self) -> KnotEncryptionProfile {
-        match self {
-            Self::Personal(_) => KnotEncryptionProfile::PersonalVaultV1,
-            Self::CommonsData(_) => KnotEncryptionProfile::CommonsDataV1,
-        }
-    }
-
     /// The strictness a projection uses when the caller does not name one.
     ///
     /// Personal history is only ever undecodable because this peer has not
@@ -300,68 +233,6 @@ pub enum KnotSyncError {
     BlockedRetentionProposal,
     #[error("document {0} has operations from more than one writer")]
     ConcurrentWriter(String),
-}
-
-#[derive(Clone)]
-struct KnotSyncPolicy {
-    space_id: [u8; 32],
-    writers: Arc<RwLock<BTreeSet<[u8; 32]>>>,
-    encryption: KnotEncryptionProfile,
-}
-
-impl OperationPolicy<KnotSyncExt> for KnotSyncPolicy {
-    type LogId = u64;
-
-    fn admit(&self, operation: &Operation<KnotSyncExt>) -> Result<Admission<u64>, Reject> {
-        if operation.header.extensions.space_id != self.space_id {
-            return Err(Reject::new(
-                "wrong-knot-space",
-                "operation addresses a different Knot vault",
-            ));
-        }
-        if operation.header.extensions.encryption != self.encryption {
-            return Err(Reject::new(
-                "wrong-knot-encryption-profile",
-                "operation uses a different Knot encryption profile",
-            ));
-        }
-        if !self
-            .writers
-            .read()
-            .is_ok_and(|writers| writers.contains(operation.header.verifying_key.as_bytes()))
-        {
-            return Err(Reject::new(
-                "unrecognized-knot-writer",
-                "operation author is not admitted to this Knot vault",
-            ));
-        }
-        let body = operation.body.as_ref().ok_or_else(|| {
-            Reject::new(
-                "missing-knot-event",
-                "Knot sync operations require a sealed body",
-            )
-        })?;
-        if self.encryption == KnotEncryptionProfile::CommonsDataV1 {
-            decode_cbor_strict::<GroupCiphertext, _>(body.to_bytes().as_slice()).map_err(
-                |error| {
-                    Reject::new(
-                        "invalid-knot-group-ciphertext",
-                        format!("Commons Knot body is not a data-envelope: {error}"),
-                    )
-                },
-            )?;
-        }
-        validate_causal_metadata(
-            operation,
-            &operation.header.extensions.parents,
-            KNOT_CAUSAL_LIMITS,
-        )
-        .map_err(|error| Reject::new("invalid-knot-causality", error.to_string()))?;
-        Ok(Admission::keep(StoreTarget::new(
-            Topic::from(self.space_id),
-            LOG_ID,
-        )))
-    }
 }
 
 /// One writer's current contribution to a conflicted document id.
@@ -548,178 +419,192 @@ pub enum KnotOfflineMemberRecovery {
     BootstrapRequired { checkpoint: Option<Digest> },
 }
 
+/// Knot's domain over the store: its grammar, its fold and its local validation.
+/// Built with the judge of projection recipes; there is no domain without one.
 #[derive(Clone)]
-struct StoredKnotOperation {
-    operation: Operation<KnotSyncExt>,
-    log_id: u64,
+pub struct KnotDomain {
+    recipes: Arc<dyn RecipeValidator>,
 }
 
-/// Replicated encrypted event store for one personal Knot vault.
-#[derive(Clone)]
-pub struct KnotSyncStore<B> {
-    store: MunimentStore<B, KnotSyncExt>,
-    policy: KnotSyncPolicy,
-    /// Coordinates Knot-managed mutations. Direct writes through [`Self::sync_store`]
-    /// remain outside this guarantee.
-    mutation_gate: Arc<Mutex<()>>,
-    // Only a newly created file or a memory backend can be free of old redb
-    // pages without an authenticated clean-format marker. Clones retain this
-    // process-local fact; reopened files must authenticate their marker.
-    storage_fresh: bool,
+impl KnotDomain {
+    #[must_use]
+    pub fn new(recipes: Arc<dyn RecipeValidator>) -> Self {
+        Self { recipes }
+    }
+
+    pub(crate) fn recipes(&self) -> &dyn RecipeValidator {
+        self.recipes.as_ref()
+    }
 }
+
+impl SyncDomain for KnotDomain {
+    type Event = KnotSyncEvent;
+    type Error = KnotSyncError;
+
+    const VOCABULARY: Vocabulary = Vocabulary {
+        operation_aad: b"mere.knot.sync-operation.v1",
+        lane_kind: "knot/vault-space/v1",
+        key_prefix: "knot-sync",
+        storage_format: "mere.knot.sealed-local-record",
+        storage_marker: b"mere.knot.clean-checkpoint-database.v1",
+        writer_refusal: "signing writer is not admitted to this Knot vault",
+        wrong_space: (
+            "wrong-knot-space",
+            "operation addresses a different Knot vault",
+        ),
+        wrong_profile: (
+            "wrong-knot-encryption-profile",
+            "operation uses a different Knot encryption profile",
+        ),
+        unadmitted_writer: (
+            "unrecognized-knot-writer",
+            "operation author is not admitted to this Knot vault",
+        ),
+        missing_body: (
+            "missing-knot-event",
+            "Knot sync operations require a sealed body",
+        ),
+        bad_group_body: (
+            "invalid-knot-group-ciphertext",
+            "Commons Knot body is not a data-envelope",
+        ),
+        bad_causality: "invalid-knot-causality",
+    };
+
+    fn validate_local(&self, check: LocalCheck<'_, Self>) -> Result<(), KnotSyncError> {
+        validate_local_relation_event(
+            check.event,
+            check.author,
+            check.records,
+            check.order,
+            check.cipher,
+            check.causal,
+            check.parents,
+            check.space_id,
+            self.recipes(),
+        )
+    }
+}
+
+/// Replicated encrypted event store for one personal or Commons Knot space.
+pub type KnotSyncStore<B> = SyncStore<B, KnotDomain>;
 
 pub type KnotSyncFileStore = KnotSyncStore<RedbBackend>;
 
-impl KnotSyncStore<MemoryBackend> {
-    pub fn in_memory(space_id: [u8; 32], writers: impl IntoIterator<Item = [u8; 32]>) -> Self {
-        Self::in_memory_with_profile(space_id, writers, KnotEncryptionProfile::PersonalVaultV1)
+impl From<SyncError> for KnotSyncError {
+    fn from(error: SyncError) -> Self {
+        match error {
+            SyncError::Store(error) => Self::Store(error),
+            SyncError::Process(error) => Self::Process(error),
+            SyncError::Causal(error) => Self::Causal(error),
+            SyncError::GroupCrypto(error) => Self::GroupCrypto(error),
+            SyncError::Payload(message) => Self::Payload(message),
+            SyncError::WrongEncryptionProfile => Self::WrongEncryptionProfile,
+            SyncError::CheckpointMigrationRequired => Self::CheckpointMigrationRequired,
+            SyncError::CheckpointStorage(message) => Self::CheckpointStorage(message),
+        }
     }
+}
 
-    pub fn in_memory_commons(
+#[cfg(test)]
+fn operation_aad(space_id: [u8; 32], author: &[u8; 32], seq_num: u32) -> Vec<u8> {
+    crate::generic::operation_aad::<KnotDomain>(space_id, author, seq_num)
+}
+
+impl KnotSyncStore<MemoryBackend> {
+    pub fn in_memory_validated(
         space_id: [u8; 32],
         writers: impl IntoIterator<Item = [u8; 32]>,
+        recipes: Arc<dyn RecipeValidator>,
     ) -> Self {
-        Self::in_memory_with_profile(space_id, writers, KnotEncryptionProfile::CommonsDataV1)
+        Self::in_memory_with_profile_validated(
+            space_id,
+            writers,
+            KnotEncryptionProfile::PersonalVaultV1,
+            recipes,
+        )
     }
 
-    pub fn in_memory_with_profile(
+    pub fn in_memory_commons_validated(
+        space_id: [u8; 32],
+        writers: impl IntoIterator<Item = [u8; 32]>,
+        recipes: Arc<dyn RecipeValidator>,
+    ) -> Self {
+        Self::in_memory_with_profile_validated(
+            space_id,
+            writers,
+            KnotEncryptionProfile::CommonsDataV1,
+            recipes,
+        )
+    }
+
+    pub fn in_memory_with_profile_validated(
         space_id: [u8; 32],
         writers: impl IntoIterator<Item = [u8; 32]>,
         encryption: KnotEncryptionProfile,
+        recipes: Arc<dyn RecipeValidator>,
     ) -> Self {
-        Self {
-            store: MunimentStore::new(MemoryBackend::new()),
-            policy: KnotSyncPolicy {
-                space_id,
-                writers: Arc::new(RwLock::new(writers.into_iter().collect())),
-                encryption,
-            },
-            mutation_gate: Arc::new(Mutex::new(())),
-            storage_fresh: true,
-        }
+        Self::from_backend(
+            MemoryBackend::new(),
+            space_id,
+            writers,
+            encryption,
+            KnotDomain::new(recipes),
+            true,
+        )
     }
 }
 
 impl KnotSyncStore<RedbBackend> {
-    pub fn open(
+    pub fn open_validated(
         path: impl AsRef<Path>,
         space_id: [u8; 32],
         writers: impl IntoIterator<Item = [u8; 32]>,
+        recipes: Arc<dyn RecipeValidator>,
     ) -> Result<Self, KnotSyncError> {
-        Self::open_with_profile(
+        Self::open_with_profile_validated(
             path,
             space_id,
             writers,
             KnotEncryptionProfile::PersonalVaultV1,
+            recipes,
         )
     }
 
-    pub fn open_commons(
+    pub fn open_commons_validated(
         path: impl AsRef<Path>,
         space_id: [u8; 32],
         writers: impl IntoIterator<Item = [u8; 32]>,
+        recipes: Arc<dyn RecipeValidator>,
     ) -> Result<Self, KnotSyncError> {
-        Self::open_with_profile(
+        Self::open_with_profile_validated(
             path,
             space_id,
             writers,
             KnotEncryptionProfile::CommonsDataV1,
+            recipes,
         )
     }
 
-    pub fn open_with_profile(
+    pub fn open_with_profile_validated(
         path: impl AsRef<Path>,
         space_id: [u8; 32],
         writers: impl IntoIterator<Item = [u8; 32]>,
         encryption: KnotEncryptionProfile,
+        recipes: Arc<dyn RecipeValidator>,
     ) -> Result<Self, KnotSyncError> {
-        let path = path.as_ref();
-        let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
-        }
-        let fresh = match options.open(path) {
-            Ok(_) => true,
-            Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => false,
-            Err(error) => return Err(KnotSyncError::CheckpointStorage(error.to_string())),
-        };
-        Ok(Self {
-            store: MunimentStore::new(RedbBackend::open(path)?),
-            policy: KnotSyncPolicy {
-                space_id,
-                writers: Arc::new(RwLock::new(writers.into_iter().collect())),
-                encryption,
-            },
-            mutation_gate: Arc::new(Mutex::new(())),
-            storage_fresh: fresh,
-        })
+        Self::open_file(path, space_id, writers, encryption, KnotDomain::new(recipes))
     }
 }
-
 impl<B> KnotSyncStore<B>
 where
     B: Backend + Clone,
 {
-    pub fn space_id(&self) -> [u8; 32] {
-        self.policy.space_id
-    }
-
-    pub fn encryption_profile(&self) -> KnotEncryptionProfile {
-        self.policy.encryption
-    }
-
-    /// Writers currently admitted by this replica's materialized policy.
-    pub fn admitted_writers(&self) -> Vec<[u8; 32]> {
-        self.policy
-            .writers
-            .read()
-            .map(|writers| writers.iter().copied().collect())
-            .unwrap_or_default()
-    }
-
-    /// Admit one newly paired writer without rebuilding the active LogSync
-    /// session. Returns whether the materialized policy changed.
-    pub fn admit_writer(&self, writer: [u8; 32]) -> bool {
-        self.policy
-            .writers
-            .write()
-            .map(|mut writers| writers.insert(writer))
-            .unwrap_or(false)
-    }
-
-    /// Revoke one paired writer for future operation admission.
-    pub fn deny_writer(&self, writer: &[u8; 32]) -> bool {
-        self.policy
-            .writers
-            .write()
-            .map(|mut writers| writers.remove(writer))
-            .unwrap_or(false)
-    }
-
-    /// Replace communal writer admission from a newly materialized Gemot view.
-    pub fn replace_admitted_writers(&self, writers: impl IntoIterator<Item = [u8; 32]>) -> bool {
-        let next = writers.into_iter().collect::<BTreeSet<_>>();
-        self.policy
-            .writers
-            .write()
-            .map(|mut current| {
-                if *current == next {
-                    return false;
-                }
-                *current = next;
-                true
-            })
-            .unwrap_or(false)
-    }
-
     /// Seal, sign, admit, and store the next event in this device's log.
     pub async fn author(
         &self,
         signing_seed: &[u8; 32],
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
         event: &KnotSyncEvent,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
         self.author_with_cipher(signing_seed, KnotSyncCipher::Personal(vault), event)
@@ -730,7 +615,7 @@ where
     pub async fn author_at(
         &self,
         signing_seed: &[u8; 32],
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
         event: &KnotSyncEvent,
         asserted_at: KnotAssertedTime,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
@@ -769,94 +654,10 @@ where
         .await
     }
 
-    pub async fn author_with_cipher(
-        &self,
-        signing_seed: &[u8; 32],
-        cipher: KnotSyncCipher<'_>,
-        event: &KnotSyncEvent,
-    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
-        self.author_with_cipher_at(signing_seed, cipher, event, KnotAssertedTime::Now)
-            .await
-    }
-
-    pub async fn author_with_cipher_at(
-        &self,
-        signing_seed: &[u8; 32],
-        cipher: KnotSyncCipher<'_>,
-        event: &KnotSyncEvent,
-        asserted_at: KnotAssertedTime,
-    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
-        let _gate = self.mutation_gate.lock().await;
-        self.author_under_gate(signing_seed, cipher, event, asserted_at)
-            .await
-    }
-
-    async fn author_under_gate(
-        &self,
-        signing_seed: &[u8; 32],
-        cipher: KnotSyncCipher<'_>,
-        event: &KnotSyncEvent,
-        asserted_at: KnotAssertedTime,
-    ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
-        self.require_cipher(cipher)?;
-        let signing_key = SigningKey::from_bytes(signing_seed);
-        let author = signing_key.verifying_key();
-        let records = self.load_operations().await?;
-        let entries = causal_entries(&records);
-        let parents = observed_frontier(&entries)?;
-        let causal = CausalIndex::new(&entries);
-        let closed = causal_projection(&entries)?;
-        validate_local_relation_event(
-            event,
-            *author.as_bytes(),
-            &records,
-            &closed.order,
-            cipher,
-            &causal,
-            &parents,
-            self.policy.space_id,
-        )?;
-        let (seq_num, backlink) = author_head(&entries, *author.as_bytes(), &LOG_ID)?;
-        let plaintext = Zeroizing::new(
-            serde_json::to_vec(event).map_err(|error| KnotSyncError::Payload(error.to_string()))?,
-        );
-        // The AEAD AAD stays at v1: the asserted time is bound by the ed25519
-        // signature over the CBOR header and by the operation hash, and the
-        // body through payload_hash. Changing this would orphan sealed bodies.
-        let aad = operation_aad(self.policy.space_id, author.as_bytes(), seq_num);
-        let ciphertext = seal_event(cipher, &aad, plaintext.as_slice())?;
-        let body = Body::from_bytes(&ciphertext);
-        // p2panda 0.7.1 made the header's CBOR cache, size and digest private
-        // and folded signing into the builder: `build` encodes, signs and
-        // caches the digest in one step, so the struct-literal + `sign` pair
-        // has no equivalent. The builder derives verifying_key from the
-        // signing key -- the same value `author` already held.
-        let header = Header::builder()
-            .body(&ciphertext)
-            .seq_num(seq_num)
-            .backlink(backlink.map(Hash::from))
-            .build(
-                &signing_key,
-                KnotSyncExt {
-                    space_id: self.policy.space_id,
-                    encryption: self.policy.encryption,
-                    parents,
-                    asserted_at_ms: asserted_at.resolve(),
-                },
-            );
-        let operation = Operation {
-            hash: header.hash(),
-            header,
-            body: Some(body),
-        };
-        self.accept_under_gate(&operation).await?;
-        Ok(operation)
-    }
-
     pub async fn resolve_conflict(
         &self,
         signing_seed: &[u8; 32],
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
         conflict: &KnotDocumentConflict,
         document: Option<VaultDocument>,
     ) -> Result<Operation<KnotSyncExt>, KnotSyncError> {
@@ -919,66 +720,6 @@ where
         .await
     }
 
-    fn require_cipher(&self, cipher: KnotSyncCipher<'_>) -> Result<(), KnotSyncError> {
-        if cipher.profile() != self.policy.encryption {
-            return Err(KnotSyncError::WrongEncryptionProfile);
-        }
-        Ok(())
-    }
-
-    fn require_admitted_writer(&self, writer: [u8; 32]) -> Result<(), KnotSyncError> {
-        if self
-            .policy
-            .writers
-            .read()
-            .is_ok_and(|writers| writers.contains(&writer))
-        {
-            return Ok(());
-        }
-        Err(KnotSyncError::Payload(
-            "signing writer is not admitted to this Knot vault".into(),
-        ))
-    }
-
-    /// The Knot-specific `accept` closure target used by Stickleback.
-    pub async fn accept(&self, operation: &Operation<KnotSyncExt>) -> Result<bool, KnotSyncError> {
-        let _gate = self.mutation_gate.lock().await;
-        self.accept_under_gate(operation).await
-    }
-
-    async fn accept_under_gate(
-        &self,
-        operation: &Operation<KnotSyncExt>,
-    ) -> Result<bool, KnotSyncError> {
-        let processor = OperationProcessor::new(self.store.clone(), self.policy.clone());
-        Ok(processor.process(operation).await?.inserted())
-    }
-
-    async fn load_operations(&self) -> Result<Vec<StoredKnotOperation>, KnotSyncError> {
-        let logs: BTreeMap<VerifyingKey, Vec<u64>> = self
-            .store
-            .resolve(&Topic::from(self.policy.space_id))
-            .await?;
-        let mut records = Vec::new();
-        for (author, mut log_ids) in logs {
-            log_ids.sort_unstable();
-            log_ids.dedup();
-            for log_id in log_ids {
-                let Some(entries) = self
-                    .store
-                    .get_log_entries(&author, &log_id, None, None)
-                    .await?
-                else {
-                    continue;
-                };
-                for (operation, _) in entries {
-                    records.push(StoredKnotOperation { operation, log_id });
-                }
-            }
-        }
-        Ok(records)
-    }
-
     /// Fold the causally closed subset into documents while preserving
     /// document conflicts and missing-history diagnostics.
     ///
@@ -986,7 +727,7 @@ where
     /// cannot decode is a newer variant it has not learned, not a lost key.
     pub async fn projection(
         &self,
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
     ) -> Result<KnotDocumentProjection, KnotSyncError> {
         self.projection_with_cipher(KnotSyncCipher::Personal(vault))
             .await
@@ -995,7 +736,7 @@ where
     /// [`Self::projection`] with an explicit undecodable-event policy.
     pub async fn projection_with_strictness(
         &self,
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
         strictness: KnotProjectionStrictness,
     ) -> Result<KnotDocumentProjection, KnotSyncError> {
         self.projection_with_cipher_and_strictness(KnotSyncCipher::Personal(vault), strictness)
@@ -1194,7 +935,7 @@ where
     /// not need to infer history from a current endpoint projection.
     pub async fn document_version(
         &self,
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
         document_id: &str,
         operation_id: [u8; 32],
     ) -> Result<Option<VaultDocument>, KnotSyncError> {
@@ -1244,7 +985,7 @@ where
     /// projections.
     pub async fn file_revision(
         &self,
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
         document_id: &str,
         operation_id: [u8; 32],
     ) -> Result<Option<KnotFileRevisionV1>, KnotSyncError> {
@@ -1290,7 +1031,7 @@ where
     /// capture hidden behind an unavailable parent is not a safe idempotency
     /// receipt. If more than one closed operation matches, the lowest operation
     /// hash is returned so the result is independent of causal traversal order.
-    pub(crate) async fn find_file_revision_with_cipher(
+    pub async fn find_file_revision_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
         writer: [u8; 32],
@@ -1331,7 +1072,7 @@ where
 
     /// Retain one exact file revision, returning its operation id and whether
     /// the revision was already present for this writer.
-    pub(crate) async fn retain_file_revision_with_cipher(
+    pub async fn retain_file_revision_with_cipher(
         &self,
         signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
@@ -1361,12 +1102,12 @@ where
     }
 
     /// Strict, bounded composition projection, independent of publishable documents.
-    pub(crate) async fn composition_with_cipher(
+    pub async fn composition_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
         max_items: usize,
         max_bytes: usize,
-    ) -> Result<Vec<(knot_composition::CollectionItem, [u8; 32], [u8; 32])>, KnotSyncError> {
+    ) -> Result<Vec<(crate::CollectionItem, [u8; 32], [u8; 32])>, KnotSyncError> {
         self.require_cipher(cipher)?;
         let records = self.load_operations().await?;
         let entries = causal_entries(&records);
@@ -1382,7 +1123,7 @@ where
             let operation = &records[index].operation;
             let event = Zeroizing::new(decode_event(cipher, operation)?);
             if let KnotSyncEvent::RetainCompositionV1 { item_json } = &*event {
-                let item = composition_item(item_json)?;
+                let item = composition_item(item_json, self.domain.recipes())?;
                 total = total.saturating_add(item_json.len());
                 if total > max_bytes {
                     return Err(KnotSyncError::Payload(
@@ -1413,7 +1154,7 @@ where
         Ok(items.into_values().collect())
     }
 
-    pub(crate) async fn organized_composition_with_cipher(
+    pub async fn organized_composition_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
         max_items: usize,
@@ -1426,7 +1167,7 @@ where
             .into_iter()
             .map(|(item, operation, author)| {
                 let organization =
-                    knot_composition::retention::CollectionOrganization::from_item(&item);
+                    crate::CollectionOrganization::from_item(&item);
                 (
                     (author, item.id.clone()),
                     (item, operation, author, organization, operation),
@@ -1481,11 +1222,11 @@ where
         Ok((items.into_values().collect(), total))
     }
 
-    pub(crate) async fn organize_composition_with_cipher(
+    pub async fn organize_composition_with_cipher(
         &self,
         signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
-        change: &knot_composition::retention::OrganizeComposition,
+        change: &crate::OrganizeComposition,
         max_items: usize,
         max_bytes: usize,
     ) -> Result<([u8; 32], bool), KnotSyncError> {
@@ -1534,11 +1275,11 @@ where
         Ok((*operation.hash.as_bytes(), false))
     }
 
-    pub(crate) async fn retain_composition_with_cipher(
+    pub async fn retain_composition_with_cipher(
         &self,
         signing_seed: &[u8; 32],
         cipher: KnotSyncCipher<'_>,
-        item: &knot_composition::CollectionItem,
+        item: &crate::CollectionItem,
         max_items: usize,
         max_bytes: usize,
     ) -> Result<([u8; 32], bool), KnotSyncError> {
@@ -1573,7 +1314,7 @@ where
         }
         let item_json = serde_json::to_string(item)
             .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
-        composition_item(&item_json)?;
+        composition_item(&item_json, self.domain.recipes())?;
         if history_bytes.saturating_add(item_json.len()) > max_bytes {
             return Err(KnotSyncError::Payload(
                 "composition byte limit reached".into(),
@@ -1589,7 +1330,7 @@ where
     /// Compatibility view for existing callers. New consumers should use
     /// [`Self::projection`] so unrelated documents remain available beside an
     /// explicit conflict.
-    pub async fn documents(&self, vault: &KnotVault) -> Result<Vec<VaultDocument>, KnotSyncError> {
+    pub async fn documents(&self, vault: &dyn SyncSealer) -> Result<Vec<VaultDocument>, KnotSyncError> {
         self.documents_with_cipher(KnotSyncCipher::Personal(vault))
             .await
     }
@@ -1617,7 +1358,7 @@ where
     /// not permission to prune.
     pub async fn save_checkpoint(
         &self,
-        vault: &KnotVault,
+        vault: &dyn SyncSealer,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
         self.save_checkpoint_with_cipher(KnotSyncCipher::Personal(vault), vault)
             .await
@@ -1626,7 +1367,7 @@ where
     pub async fn save_communal_checkpoint(
         &self,
         keys: &DataKeyring,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
         self.save_checkpoint_with_cipher(KnotSyncCipher::CommonsData(keys), storage_vault)
             .await
@@ -1635,7 +1376,7 @@ where
     pub async fn save_checkpoint_with_cipher(
         &self,
         cipher: KnotSyncCipher<'_>,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
     ) -> Result<KnotProjectionCheckpoint, KnotSyncError> {
         let _gate = self.mutation_gate.lock().await;
         self.require_cipher(cipher)?;
@@ -1665,131 +1406,6 @@ where
         }
         self.store.backend().apply(&writes).await?;
         Ok(checkpoint)
-    }
-
-    fn seal_local(
-        &self,
-        vault: &KnotVault,
-        kind: RecordKind,
-        bytes: &[u8],
-    ) -> Result<Vec<u8>, KnotSyncError> {
-        checkpoint_storage::seal(
-            vault,
-            self.space_id(),
-            self.encryption_profile(),
-            kind,
-            bytes,
-        )
-    }
-
-    fn open_local(
-        &self,
-        vault: &KnotVault,
-        kind: RecordKind,
-        bytes: &[u8],
-    ) -> Result<Zeroizing<Vec<u8>>, KnotSyncError> {
-        checkpoint_storage::open(
-            vault,
-            self.space_id(),
-            self.encryption_profile(),
-            kind,
-            bytes,
-        )
-    }
-
-    fn storage_marker_write(&self, vault: &KnotVault) -> Result<WriteOp, KnotSyncError> {
-        Ok(WriteOp::Put {
-            key: checkpoint_storage::marker_key(self.space_id()),
-            value: self.seal_local(vault, RecordKind::StorageMarker, checkpoint_storage::MARKER)?,
-        })
-    }
-
-    async fn require_clean_storage(&self, vault: &KnotVault) -> Result<(), KnotSyncError> {
-        if vault.is_locked() {
-            return Err(KnotSyncError::CheckpointStorage(
-                "local storage vault is locked".into(),
-            ));
-        }
-        match self
-            .store
-            .backend()
-            .get(&checkpoint_storage::marker_key(self.space_id()))
-            .await?
-        {
-            Some(bytes) => {
-                let marker = self.open_local(vault, RecordKind::StorageMarker, &bytes)?;
-                if marker.as_slice() != checkpoint_storage::MARKER {
-                    return Err(KnotSyncError::CheckpointStorage(
-                        "invalid clean storage marker".into(),
-                    ));
-                }
-                Ok(())
-            },
-            None if self.storage_fresh => Ok(()),
-            None => Err(KnotSyncError::CheckpointMigrationRequired),
-        }
-    }
-
-    async fn validate_existing_keyring(&self, vault: &KnotVault) -> Result<(), KnotSyncError> {
-        if let Some(bytes) = self
-            .store
-            .backend()
-            .get(&communal_keyring_key(self.space_id()))
-            .await?
-        {
-            let plaintext = self.open_local(vault, RecordKind::CommunalKeyring, &bytes)?;
-            DataKeyring::from_bytes(&plaintext)?;
-        }
-        Ok(())
-    }
-
-    async fn validate_keyring_matches(
-        &self,
-        vault: &KnotVault,
-        supplied: &DataKeyring,
-    ) -> Result<(), KnotSyncError> {
-        self.require_clean_storage(vault).await?;
-        if let Some(bytes) = self
-            .store
-            .backend()
-            .get(&communal_keyring_key(self.space_id()))
-            .await?
-        {
-            let plaintext = self.open_local(vault, RecordKind::CommunalKeyring, &bytes)?;
-            let persisted = DataKeyring::from_bytes(&plaintext)?;
-            if !checkpoint_storage::keyrings_match(supplied, &persisted)? {
-                return Err(KnotSyncError::CheckpointStorage(
-                    "membership keys differ from persisted retention state; use the explicit membership handoff".into()));
-            }
-        }
-        Ok(())
-    }
-
-    /// Persist an authorized membership handoff under independent local custody.
-    pub async fn persist_communal_keyring(
-        &self,
-        keys: &DataKeyring,
-        storage_vault: &KnotVault,
-    ) -> Result<(), KnotSyncError> {
-        let _gate = self.mutation_gate.lock().await;
-        if self.encryption_profile() != KnotEncryptionProfile::CommonsDataV1 {
-            return Err(KnotSyncError::WrongEncryptionProfile);
-        }
-        self.require_clean_storage(storage_vault).await?;
-        self.validate_existing_keyring(storage_vault).await?;
-        let plaintext = Zeroizing::new(keys.to_bytes()?);
-        let sealed = self.seal_local(storage_vault, RecordKind::CommunalKeyring, &plaintext)?;
-        self.store
-            .backend()
-            .apply(&[
-                self.storage_marker_write(storage_vault)?,
-                WriteOp::Put {
-                    key: communal_keyring_key(self.space_id()),
-                    value: sealed,
-                },
-            ])
-            .await?;
-        Ok(())
     }
 
     async fn build_checkpoint_with_cipher(
@@ -1856,7 +1472,7 @@ where
     /// Read only under local custody; plaintext legacy state is never trusted.
     pub async fn load_checkpoint(
         &self,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
     ) -> Result<Option<KnotProjectionCheckpoint>, KnotSyncError> {
         self.require_clean_storage(storage_vault).await?;
         let Some(bytes) = self
@@ -1881,7 +1497,7 @@ where
     /// Name the exact operations newer than the last durable checkpoint.
     pub async fn tail_receipt(
         &self,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
     ) -> Result<KnotTailReceipt, KnotSyncError> {
         let checkpoint = self
             .load_checkpoint(storage_vault)
@@ -1926,7 +1542,7 @@ where
     pub async fn communal_epoch_pruning_proposal(
         &self,
         keys: &DataKeyring,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
         checkpoint_authority_revision: Digest,
         current_authority_revision: Digest,
         authority_reevaluation_epochs: &[GroupSecretId],
@@ -2049,7 +1665,7 @@ where
     pub async fn execute_communal_epoch_pruning(
         &self,
         keys: &mut DataKeyring,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
         reviewed: &EpochPruningProposal,
         checkpoint_authority_revision: Digest,
         current_authority_revision: Digest,
@@ -2125,7 +1741,7 @@ where
     pub async fn restore_communal_keyring(
         &self,
         keys: &mut DataKeyring,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
     ) -> Result<bool, KnotSyncError> {
         if self.encryption_profile() != KnotEncryptionProfile::CommonsDataV1 {
             return Err(KnotSyncError::WrongEncryptionProfile);
@@ -2142,7 +1758,7 @@ where
         let plaintext = self.open_local(storage_vault, RecordKind::CommunalKeyring, &bytes)?;
         let restored = DataKeyring::from_bytes(&plaintext)?;
         if keys.epoch_count() != 0 {
-            if !checkpoint_storage::keyrings_match(keys, &restored)? {
+            if !storage::keyrings_match(keys, &restored)? {
                 return Err(KnotSyncError::CheckpointStorage(
                     "supplied membership keys differ from persisted retention state; reconcile through the membership owner".into()));
             }
@@ -2171,7 +1787,7 @@ where
     pub async fn communal_offline_member_recovery(
         &self,
         keys: &DataKeyring,
-        storage_vault: &KnotVault,
+        storage_vault: &dyn SyncSealer,
         required_epoch: GroupSecretId,
     ) -> Result<KnotOfflineMemberRecovery, KnotSyncError> {
         if keys.contains(&required_epoch) {
@@ -2189,70 +1805,18 @@ where
         Ok(KnotOfflineMemberRecovery::BootstrapRequired { checkpoint })
     }
 
-    /// Return the raw replication store for read and transport plumbing.
-    ///
-    /// Direct writes through this handle bypass Knot's mutation gate. Normal
-    /// replication must submit accepted operations through [`Self::accept`].
-    pub fn sync_store(&self) -> MunimentStore<B, KnotSyncExt> {
-        self.store.clone()
-    }
-}
-
-#[cfg(feature = "peers")]
-impl<B> KnotSyncStore<B>
-where
-    B: Backend + Clone + Send + Sync + 'static,
-{
-    /// Join the real p2panda LogSync lane with Knot's admission closure.
-    pub async fn join(
-        &self,
-        endpoint: Endpoint,
-        gossip: Gossip,
-    ) -> Result<JoinedSpace<KnotSyncExt>, JoinError> {
-        let accept_store = self.clone();
-        JoinedSpace::join::<_, u64, _, _>(
-            // Scoped to kind AND space: a persona's vault space and any other
-            // Knot space on one endpoint would otherwise share a protocol id.
-            stickleback::lane_id("knot/vault-space/v1", self.policy.space_id),
-            self.sync_store(),
-            endpoint,
-            gossip,
-            self.policy.space_id,
-            move |operation: Operation<KnotSyncExt>| {
-                let store = accept_store.clone();
-                async move { matches!(store.accept(&operation).await, Ok(true)) }
-            },
-        )
-        .await
-    }
-}
-
-fn causal_entries(records: &[StoredKnotOperation]) -> Vec<CausalEntry<u64>> {
-    records
-        .iter()
-        .map(|record| {
-            CausalEntry::from_operation(
-                &record.operation,
-                record.log_id,
-                record.operation.header.extensions.parents.clone(),
-            )
-        })
-        .collect()
 }
 
 fn checkpoint_key(space_id: [u8; 32]) -> String {
-    let hex: String = space_id.iter().map(|byte| format!("{byte:02x}")).collect();
-    format!("knot-sync/checkpoint/{hex}")
+    storage::record_key::<KnotDomain>("checkpoint", space_id)
 }
 
 fn communal_keyring_key(space_id: [u8; 32]) -> String {
-    let hex: String = space_id.iter().map(|byte| format!("{byte:02x}")).collect();
-    format!("knot-sync/commons-keyring/{hex}")
+    storage::record_key::<KnotDomain>("commons-keyring", space_id)
 }
 
 fn communal_epoch_receipt_key(space_id: [u8; 32]) -> String {
-    let hex: String = space_id.iter().map(|byte| format!("{byte:02x}")).collect();
-    format!("knot-sync/commons-epoch-receipt/{hex}")
+    storage::record_key::<KnotDomain>("commons-epoch-receipt", space_id)
 }
 
 fn communal_operation_epoch(
@@ -2267,56 +1831,11 @@ fn communal_operation_epoch(
     Ok(envelope.epoch)
 }
 
-fn operation_aad(space_id: [u8; 32], author: &[u8; 32], seq_num: u32) -> Vec<u8> {
-    let mut aad = Vec::with_capacity(SYNC_AAD.len() + 68);
-    aad.extend_from_slice(SYNC_AAD);
-    aad.extend_from_slice(&space_id);
-    aad.extend_from_slice(author);
-    aad.extend_from_slice(&seq_num.to_le_bytes());
-    aad
-}
-
-fn seal_event(
-    cipher: KnotSyncCipher<'_>,
-    aad: &[u8],
-    plaintext: &[u8],
-) -> Result<Vec<u8>, KnotSyncError> {
-    match cipher {
-        KnotSyncCipher::Personal(vault) => vault
-            .seal_sync_payload(aad, plaintext)
-            .map_err(KnotSyncError::Payload),
-        KnotSyncCipher::CommonsData(keys) => {
-            let envelope = keys.seal_random(plaintext)?;
-            encode_cbor(&envelope).map_err(|error| KnotSyncError::Payload(error.to_string()))
-        },
-    }
-}
-
 fn decode_event(
     cipher: KnotSyncCipher<'_>,
     operation: &Operation<KnotSyncExt>,
 ) -> Result<KnotSyncEvent, KnotSyncError> {
-    let body = operation
-        .body
-        .as_ref()
-        .ok_or_else(|| KnotSyncError::Payload("operation body is absent".into()))?;
-    let aad = operation_aad(
-        operation.header.extensions.space_id,
-        operation.header.verifying_key.as_bytes(),
-        operation.header.seq_num,
-    );
-    let plaintext = Zeroizing::new(match cipher {
-        KnotSyncCipher::Personal(vault) => vault
-            .unseal_sync_payload(&aad, &body.to_bytes())
-            .map_err(KnotSyncError::Payload)?,
-        KnotSyncCipher::CommonsData(keys) => {
-            let envelope: GroupCiphertext = decode_cbor_strict(body.to_bytes().as_slice())
-                .map_err(|error| KnotSyncError::Payload(error.to_string()))?;
-            keys.open(&envelope)?
-        },
-    });
-    serde_json::from_slice(plaintext.as_slice())
-        .map_err(|error| KnotSyncError::Payload(error.to_string()))
+    Ok(crate::generic::decode_event::<KnotDomain>(cipher, operation)?)
 }
 
 #[derive(Default)]
@@ -2779,10 +2298,11 @@ fn validate_local_relation_event(
     causal: &CausalIndex<'_, u64>,
     parents: &[[u8; 32]],
     scope: [u8; 32],
+    recipes: &dyn RecipeValidator,
 ) -> Result<(), KnotSyncError> {
     match event {
         KnotSyncEvent::RetainCompositionV1 { item_json } => {
-            composition_item(item_json)?;
+            composition_item(item_json, recipes)?;
         },
         KnotSyncEvent::OrganizeCompositionV1 {
             item_id,
@@ -2817,7 +2337,7 @@ fn validate_local_relation_event(
             let same_item = match &*event {
                 KnotSyncEvent::RetainCompositionV1 { item_json } => {
                     predecessor.header.verifying_key.as_bytes() == original_author
-                        && composition_item(item_json)?.id == *item_id
+                        && composition_item(item_json, recipes)?.id == *item_id
                 },
                 KnotSyncEvent::OrganizeCompositionV1 {
                     original_author: author,
@@ -3056,6 +2576,7 @@ mod tests {
 
     use super::*;
     use crate::relations::{KnotCorePredicateV1, capture_endpoint_context};
+    use crate::test_support::{KnotVault, TestFileStore, TestMemoryStore};
 
     const SPACE: [u8; 32] = [0x81; 32];
     const VAULT_KEY: [u8; 32] = [0x82; 32];

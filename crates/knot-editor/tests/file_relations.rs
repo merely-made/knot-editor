@@ -6,6 +6,8 @@
 
 //! Catalog-to-signed-relation receipt through the public application APIs.
 
+#[allow(unused_imports)]
+use knot_editor::{KnotFileStoreExt as _, KnotMemoryStoreExt as _};
 use std::collections::BTreeSet;
 use std::fs;
 

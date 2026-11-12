@@ -158,11 +158,8 @@ scenotime = { git = "https://github.com/merely-made/graphshell.git", branch = "m
 graphshell-endpoint = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 chirograph = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 hest = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
-script-wire = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
-script-witgen = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 peer-facts = { version = "0.0.1", git = "https://github.com/merely-made/armillary.git", branch = "main" }
 chartulary = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
-commons-spine = { git = "https://github.com/merely-made/gemot.git", branch = "main" }
 errand = { git = "https://github.com/merely-made/errand.git", branch = "main" }
 esp = { git = "https://github.com/merely-made/distillery.git", branch = "main" }
 finger-protocol = { git = "https://github.com/merely-made/errand.git", branch = "main" }

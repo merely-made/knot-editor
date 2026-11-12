@@ -17874,18 +17874,3 @@ dependencies = [
  "syn 3.0.9",
  "winnow 1.0.5",
 ]
-
-[[patch.unused]]
-name = "commons-spine"
-version = "0.0.1"
-source = "git+https://github.com/merely-made/gemot.git?branch=main#638cfd2b9af1d00dab6764b6a8829f3ac0c7b139"
-
-[[patch.unused]]
-name = "script-wire"
-version = "0.0.1"
-source = "git+https://github.com/merely-made/graphshell.git?branch=main#893818f6cb74606f7ed9dcd0cd38947e538f564b"
-
-[[patch.unused]]
-name = "script-witgen"
-version = "0.0.1"
-source = "git+https://github.com/merely-made/graphshell.git?branch=main#893818f6cb74606f7ed9dcd0cd38947e538f564b"

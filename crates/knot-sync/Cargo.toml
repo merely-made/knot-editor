@@ -25,21 +25,21 @@ murm-sync = { workspace = true, optional = true }
 p2panda-core = { package = "p2mere-core", version = "0.10" }
 p2panda-store = { package = "p2mere-store", version = "0.10", default-features = false }
 personae = { workspace = true, optional = true }
-pollster = { version = "0.4", optional = true }
+pollster = { version = "1", optional = true }
 proofs.workspace = true
 sceno-backdrops.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["raw_value"] }
 similar = "2.7"
 stickleback.workspace = true
-thiserror = "1"
+thiserror = "2"
 tokio = { version = "1", features = ["io-util", "macros", "rt-multi-thread", "sync", "time"] }
 uuid.workspace = true
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 personae.workspace = true
-pollster = "0.4"
+pollster = "1"
 tempfile = "3"
 transport = { workspace = true, features = ["test-identity"] }
 

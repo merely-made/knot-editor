@@ -63,7 +63,7 @@ uuid.workspace = true
 tokio = { version = "1", features = ["rt", "time"] }
 
 [dev-dependencies]
-pollster = "0.4"
+pollster = "1"
 tempfile = "3"
 
 [lints]

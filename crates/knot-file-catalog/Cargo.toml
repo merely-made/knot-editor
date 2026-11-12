@@ -13,7 +13,7 @@ name = "knot_file_catalog"
 
 [dependencies]
 muniment = { workspace = true, features = ["redb"] }
-pollster = "0.4"
+pollster = "1"
 serde.workspace = true
 serde_json.workspace = true
 uuid.workspace = true

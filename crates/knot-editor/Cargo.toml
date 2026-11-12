@@ -141,7 +141,7 @@ insigne.workspace = true
 personae.workspace = true
 p2panda-core = { package = "p2mere-core", version = "0.10" }
 p2panda-store = { package = "p2mere-store", version = "0.10", default-features = false }
-pollster = "0.4"
+pollster = "1"
 postcard = { version = "1", features = ["alloc"] }
 proofs.workspace = true
 quinn = { version = "0.11", optional = true }
@@ -160,7 +160,7 @@ esp.workspace = true
 # Stickleback supplies local storage and admission. `peers` adds murm-sync;
 # the store, validation and merge APIs stay available offline.
 stickleback.workspace = true
-thiserror = "1"
+thiserror = "2"
 transport = { workspace = true, features = ["noise", "notochord"], optional = true }
 tokio = { version = "1", features = ["io-util", "macros", "rt-multi-thread", "sync", "time"] }
 tracing.workspace = true
@@ -216,7 +216,7 @@ tokio = { version = "1", features = ["macros", "rt-multi-thread", "time"] }
 transport = { workspace = true, features = ["test-identity"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.59", features = [
+windows-sys = { version = "0.61", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
 ] }

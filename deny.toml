@@ -22,9 +22,6 @@ reason = "held by noq-proto 1.4.0, ssh-cipher 0.2.0 (third-party); gone when the
 crate = "base16ct@0.2.0"
 reason = "held by elliptic-curve 0.13.8, p521 0.13.3, sec1 0.7.3 (third-party); gone when they move to base16ct 1.0.0"
 
-[[bans.skip]]
-crate = "base64@0.22.1"
-reason = "held by chirograph 0.0.5 (graphshell), ostiary 0.0.1 (armillary), pem 3.0.6 under rcgen 0.13.2 (gemot-site-host, misfin) (includes family crates: chirograph, ostiary); gone when they move to base64 0.23.1"
 
 [[bans.skip]]
 crate = "bit-set@0.5.3"

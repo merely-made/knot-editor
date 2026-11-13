@@ -12,8 +12,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
-use chartulary::{CLASS_FACET, Container, FacetId, FacetStore};
 use knot_file_catalog::media_type_for_extension;
+use portolan::{CLASS_FACET, Container, FacetId, FacetStore};
 use serde_json::json;
 
 use crate::{
@@ -521,7 +521,7 @@ fn file_address(path: &Path) -> String {
 mod tests {
     use std::fs;
 
-    use chartulary::{Addressed, FacetId};
+    use portolan::{Addressed, FacetId};
     use serde_json::json;
     use tempfile::tempdir;
 
@@ -560,7 +560,7 @@ mod tests {
                 id.clone(),
                 FacetId::new("knot.test-pin"),
                 json!({"x": 4}),
-                &chartulary::AcceptAll,
+                &portolan::AcceptAll,
             )
             .unwrap();
 

@@ -9,7 +9,7 @@
 use std::path::Path;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
-use chartulary::{Container, EditSpec, GraphLog, Relation};
+use portolan::{Container, EditSpec, GraphLog, Relation};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use personae::IdentityProvider;
 use servitor::{AuthorityProvider, Cap, Gate, Grant, Mode, ScopePath, Subject};

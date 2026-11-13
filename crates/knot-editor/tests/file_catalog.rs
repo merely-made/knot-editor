@@ -9,8 +9,8 @@
 use std::fs;
 use std::path::Path;
 
-use chartulary::{AcceptAll, FacetId};
 use knot_editor::{DirectorySource, FILE_DOCUMENT_FACET, IgnorePolicy, KnotFileCatalog};
+use portolan::{AcceptAll, FacetId};
 use serde_json::json;
 use tempfile::tempdir;
 

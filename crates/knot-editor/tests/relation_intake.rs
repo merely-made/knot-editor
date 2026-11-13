@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::SystemTime;
 
-use chartulary::resource_id;
+use portolan::resource_id;
 #[path = "support/knot_relation_intake.rs"]
 mod knot_relation_intake;
 use knot_relation_intake::{KnotEndpointBinding, KnotRelationProjection, import_knot_relations};

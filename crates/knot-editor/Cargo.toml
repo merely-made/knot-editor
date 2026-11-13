@@ -104,7 +104,7 @@ knot-composition.workspace = true
 knot-sync.workspace = true
 base64.workspace = true
 blake3.workspace = true
-chartulary.workspace = true
+portolan.workspace = true
 eidetic = { workspace = true, features = ["json-schema"] }
 fetch = { workspace = true, optional = true }
 fleece.workspace = true

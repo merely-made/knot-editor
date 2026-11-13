@@ -45,7 +45,7 @@ reference-data = { version = "0.0.1", path = "crates/reference-data" }
 # used to live in this comment is in git: `git log -p -- Cargo.toml`.
 # Mesquite owns execution and receipts; Taproot owns semantic selection and
 # click delivery hooks; Apparatus owns bounded diagnostic observations.
-chartulary = { version = "0.3.0", git = "https://github.com/merely-made/eidetic.git", branch = "main" }
+portolan = { version = "0.1.0", git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 chirograph = { version = "0.0.5", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 eidetic = { version = "0.0.3", default-features = false, git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 esp = { version = "0.1.0", git = "https://github.com/merely-made/distillery.git", branch = "main" }
@@ -162,7 +162,10 @@ graphshell-endpoint = { git = "https://github.com/merely-made/graphshell.git", b
 chirograph = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 hest = { git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 peer-facts = { version = "0.0.1", git = "https://github.com/merely-made/armillary.git", branch = "main" }
-chartulary = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
+fieldbook = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
+hodograph = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
+portolan = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
+quadstore = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 errand = { git = "https://github.com/merely-made/errand.git", branch = "main" }
 esp = { git = "https://github.com/merely-made/distillery.git", branch = "main" }
 finger-protocol = { git = "https://github.com/merely-made/errand.git", branch = "main" }

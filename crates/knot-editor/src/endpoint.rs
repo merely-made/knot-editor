@@ -25,7 +25,7 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 
-use chartulary::{Addressed, Labeled};
+use portolan::{Addressed, Labeled};
 use chirograph::{
     AdvertisedAction, BoundsRelationship, CachePolicy, CardValueV1, CarrierNotice, ContentHash,
     DerivedCacheInfoV1, DerivedTextV1, EDITABLE_TEXT_SAVE_INTENT, EDITABLE_TEXT_SAVE_SCHEMA,
@@ -436,7 +436,7 @@ impl VaultSource {
 #[derive(Clone)]
 struct PresentedDocument {
     id: String,
-    container: chartulary::Container,
+    container: portolan::Container,
     byte_size: u64,
 }
 
@@ -610,7 +610,7 @@ impl KnotEndpoint {
 
     /// Deterministic fixed disclosure used by K0's process receipt.
     pub fn fixture() -> Self {
-        use chartulary::Container;
+        use portolan::Container;
         use std::path::PathBuf;
 
         let documents = [
@@ -794,7 +794,7 @@ impl KnotEndpoint {
     /// The watcher's attributed journal when this is a directory endpoint.
     pub fn watcher_audit(
         &self,
-    ) -> Option<&chartulary::GraphLog<chartulary::Container, chartulary::Relation>> {
+    ) -> Option<&portolan::GraphLog<portolan::Container, portolan::Relation>> {
         match &self.source {
             Source::Directory { watcher, .. } => Some(watcher.audit()),
             Source::Fixture(_) | Source::Vault(_) => None,
@@ -960,7 +960,7 @@ impl KnotEndpoint {
                     .documents()
                     .map(|document| {
                         let mut container =
-                            chartulary::Container::new(format!("knot:vault:{}", document.id))
+                            portolan::Container::new(format!("knot:vault:{}", document.id))
                                 .with_address(format!("knot://vault/{}", document.id))
                                 .with_title(document.title.clone());
                         container.media_type = Some(document.media_type.clone());
@@ -972,7 +972,7 @@ impl KnotEndpoint {
                     })
                     .collect::<Vec<_>>();
                 documents.extend(source.conflicts.iter().map(|id| {
-                    let mut container = chartulary::Container::new(format!("knot:vault:{id}"))
+                    let mut container = portolan::Container::new(format!("knot:vault:{id}"))
                         .with_address(format!("knot://vault/{id}"))
                         .with_title(format!("Conflict: {id}"));
                     container.media_type = Some("text/vnd.knot".into());

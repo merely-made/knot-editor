@@ -6,9 +6,9 @@
 
 //! Knot's content-class pack.
 
-use chartulary::{CLASS_FACET, ClassRegistry, ContentClass, FacetId};
 use eidetic::{MereNativeFieldSpec, MereNativeSchemaBuilder, SchemaDefinition, SchemaFormat};
 use pandect::SchemaFacetValidator;
+use portolan::{CLASS_FACET, ClassRegistry, ContentClass, FacetId};
 use serde_json::json;
 
 /// The general files-in-place class.
@@ -102,7 +102,7 @@ impl Default for KnotContentClasses {
 
 #[cfg(test)]
 mod tests {
-    use chartulary::{AcceptAll, ClassMembership, FacetId, FacetStore, FacetValidator, NodeFacets};
+    use portolan::{AcceptAll, ClassMembership, FacetId, FacetStore, FacetValidator, NodeFacets};
     use serde_json::json;
 
     use super::*;
@@ -184,7 +184,7 @@ mod tests {
         let empty = NodeFacets::new();
         let note = classes
             .registry
-            .get(&chartulary::ClassId::new(NOTE_CLASS))
+            .get(&portolan::ClassId::new(NOTE_CLASS))
             .unwrap();
         assert!(note.admits(&empty, &classes.validator).is_err());
     }

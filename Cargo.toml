@@ -115,7 +115,7 @@ nematic = { git = "https://github.com/merely-made/inker.git", branch = "main", d
 taproot = { version = "0.1.0", git = "https://github.com/merely-made/genet.git", branch = "main" }
 
 # Shared registry dependencies.
-base64 = "0.22"
+base64 = "0.23"
 blake3 = "1"
 percent-encoding = "2"
 mora = { version = "0.1.0", path = "crates/mora" }

@@ -87,28 +87,16 @@ crate = "png@0.17.16"
 reason = "held by mandrake 0.1.0 (includes family crates: mandrake); gone when they move to png 0.18.1"
 
 [[bans.skip]]
-crate = "quick-xml@0.37.5"
-reason = "held by oxrdfxml 0.2.5 (third-party, oxigraph, latest; under mere's query engine); gone when they move to quick-xml 0.41.0"
-
-[[bans.skip]]
 crate = "quick-xml@0.39.4"
 reason = "held by errand 0.4.0, knot-composition 0.0.1 (includes family crates: errand, knot-composition); gone when they move to quick-xml 0.41.0"
 
 [[bans.skip]]
+crate = "quick-xml@0.41.0"
+reason = "held by wayland-scanner 0.31.11 (third-party, latest; under smithay-client-toolkit, winit, cambium-desktop, knot-desktop); gone when they move to quick-xml 0.42.0"
+
+[[bans.skip]]
 crate = "r-efi@5.3.0"
 reason = "held by getrandom 0.3.4 (third-party); gone when they move to r-efi 6.0.0"
-
-[[bans.skip]]
-crate = "rand@0.9.5"
-reason = "held by oxrdf 0.3.5 (third-party, oxigraph, latest; under mere's query engine); gone when they move to rand 0.10.3"
-
-[[bans.skip]]
-crate = "rand_chacha@0.9.0"
-reason = "held by rand 0.9.5 (third-party; rand 0.9 under oxrdf 0.3.5 and tokenizers 0.23.2); gone when they move to rand_chacha 0.10.0"
-
-[[bans.skip]]
-crate = "rand_core@0.9.5"
-reason = "held by rand_chacha 0.9.0 (third-party); gone when they move to rand_core 0.10.1"
 
 [[bans.skip]]
 crate = "redox_syscall@0.4.1"

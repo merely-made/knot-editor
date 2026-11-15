@@ -1,0 +1,34 @@
+# cargo-deny configuration for crates/knot-document, which is its own workspace.
+# The rule and how a skip is argued are in the root deny.toml.
+
+[bans]
+multiple-versions = "deny"
+wildcards = "allow"
+
+[[bans.skip]]
+crate = "foldhash@0.1.5"
+reason = "petgraph 0.8.3 (latest) requires it, via hashbrown 0.15.5, under inker; goes when petgraph moves to foldhash 0.2.0"
+
+[[bans.skip]]
+crate = "getrandom@0.2.17"
+reason = "ring 0.17.14 (latest) requires it, under errand, gemini-protocol, misfin; goes when ring moves to getrandom 0.4.3"
+
+[[bans.skip]]
+crate = "hashbrown@0.15.5"
+reason = "petgraph 0.8.3 (latest) requires it, under inker; goes when petgraph moves to hashbrown 0.17.1"
+
+[[bans.skip]]
+crate = "hashbrown@0.16.1"
+reason = "regress 0.11.1 (family, merely-made/genet) requires it; goes when merely-made/genet moves regress to hashbrown 0.17.1"
+
+[[bans.skip]]
+crate = "miniz_oxide@0.8.9"
+reason = "png 0.18.1 (latest) requires it, under netrender-vello; goes when png moves to miniz_oxide 0.9.1"
+
+[[bans.skip]]
+crate = "syn@2.0.119"
+reason = "asn1-rs-derive 0.6.0 (latest), asn1-rs-impl 0.2.0 (latest), enumn 0.1.14 (latest), logos-codegen 0.16.1 (latest) and 5 more require it, under cambium, errand, grafting-frame, hodograph and 7 more; goes when asn1-rs-derive, asn1-rs-impl, enumn and 5 more move to syn 3.0.10; their dependents take synstructure 0.14.0"
+
+[[bans.skip]]
+crate = "windows-sys@0.52.0"
+reason = "ring 0.17.14 (latest) requires it, under errand, gemini-protocol, misfin; goes when ring moves to windows-sys 0.61.2"

@@ -1,140 +1,431 @@
 # cargo-deny configuration for knot-editor.
 #
+#   cargo deny --workspace --all-features check -D unmatched-skip bans
+#
+# The hook runs that here and in each nested workspace that ships, each against
+# its own deny.toml: crates/knot-document (Knot's document surface, a path
+# dependency of knot-editor kept as its own workspace) and crates/mora (the
+# published prosody engine, its own no_std/MSRV workspace). A skip that matches
+# nothing fails. No tracked workspace is exempt.
+#
 # Duplicates are denied (Mark, 2026-11-12: "no duplicates. latest releases or an
-# argument why"): each [[bans.skip]] names the holder and what removes it.
+# argument why"; 2026-11-13: "One version, latest version, no duplicates,
+# unafraid to patch or fork if needed"). Two versions of one crate in a build
+# are a defect: move the older version's holder forward. Each skip below is a
+# duplicate that cannot be removed from here yet, naming the holder that keeps
+# it ("latest" when that holder is at its newest release, "drops it" when a
+# newer release of the holder already would, "family" for a family crate
+# updated in its own repository), the path it arrives by, and what removes it.
+# A holder that is our own manifest is updated, not skipped; a skip is a
+# stopgap, never an end state.
+
+[graph]
+all-features = true
 
 [bans]
 multiple-versions = "deny"
+wildcards = "allow"
+
+[[bans.skip]]
+crate = "aead@0.5.2"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, chacha20poly1305 0.10.1, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to aead 0.6.1"
+
+[[bans.skip]]
+crate = "aes@0.8.4"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to aes 0.9.4"
+
+[[bans.skip]]
+crate = "aes-gcm@0.10.3"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to aes-gcm 0.11.1"
+
+[[bans.skip]]
+crate = "base64@0.13.1"
+reason = "spm_precompiled 0.1.4 (latest) requires it, under esp; goes when spm_precompiled moves to base64 0.23.1"
+
+[[bans.skip]]
+crate = "base64@0.22.1"
+reason = "tokio-websockets 0.13.3 (latest), turso_sync_engine 0.8.3 (latest), wasmtime-internal-cache 45.0.3 (latest), attohttpc 0.30.1 (attohttpc 0.32.0 drops it) and 3 more require it, under authority-host, esp, knot-editor, mere-transport and 1 more; goes when tokio-websockets, turso_sync_engine, wasmtime-internal-cache move to base64 0.23.1; their dependents take attohttpc 0.32.0, portmapper 0.20.0; merely-made/genet moves genet-sri to base64 0.23.1; merely-made/genet moves netfetcher to base64 0.23.1"
 
 [[bans.skip]]
 crate = "bit-set@0.8.0"
-reason = "held by fancy-regex 0.20.2 under jsonschema 0.61.2 (third-party, both latest); gone when they move to bit-set 0.10.0"
+reason = "fancy-regex 0.20.2 (latest), tokenizers 0.23.2 (latest) require it, via fancy-regex 0.17.0, under eidetic, esp; goes when fancy-regex, tokenizers move to bit-set 0.10.0"
 
 [[bans.skip]]
 crate = "bit-vec@0.8.0"
-reason = "held by bit-set 0.8.0 (third-party, under fancy-regex 0.20.2); gone when they move to bit-vec 0.9.1"
+reason = "fancy-regex 0.20.2 (latest), tokenizers 0.23.2 (latest) require it, via bit-set 0.8.0, fancy-regex 0.17.0, under eidetic, esp; goes when fancy-regex, tokenizers move to bit-vec 0.9.1"
 
 [[bans.skip]]
 crate = "bitflags@1.3.2"
-reason = "held by core-graphics 0.23.2, core-graphics-types 0.1.3, png 0.17.16, redox_syscall 0.4.1 (third-party); gone when they move to bitflags 2.13.2"
+reason = "winit 0.30.13 (latest), core-graphics 0.23.2 (core-graphics 0.25.0 drops it), core-graphics-types 0.1.3 (core-graphics-types 0.2.0 drops it), mandrake 0.1.0 (family, merely-made/graphshell) require it, via png 0.17.16, redox_syscall 0.4.1, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to bitflags 2.13.2; their dependents take core-graphics 0.25.0, core-graphics-types 0.2.0; merely-made/graphshell moves mandrake to bitflags 2.13.2"
+
+[[bans.skip]]
+crate = "block-buffer@0.10.4"
+reason = "snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), blake2 0.10.6 (blake2 0.11.0 drops it), wasmtime-environ 45.0.3 (wasmtime-environ 50.0.1 drops it) and 1 more require it, via digest 0.10.7, sha2 0.10.9, under authority-host, esp, mere-transport; goes when snow, tracel-llvm-bundler move to block-buffer 0.12.1; their dependents take blake2 0.11.0, wasmtime-environ 50.0.1, wasmtime-internal-cache 50.0.1"
 
 [[bans.skip]]
 crate = "block2@0.5.1"
-reason = "held by objc2-foundation 0.2.2, winit 0.30.13 (third-party); gone when they move to block2 0.6.2"
+reason = "winit 0.30.13 (latest), accesskit_macos 0.27.1 (accesskit_macos 0.27.2 drops it), objc2-cloud-kit 0.2.2 (objc2-cloud-kit 0.3.2 drops it), objc2-contacts 0.2.2 (objc2-contacts 0.3.2 drops it) and 10 more require it, via objc2-app-kit 0.2.2, objc2-foundation 0.2.2, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to block2 0.6.2; their dependents take accesskit_macos 0.27.2, objc2-cloud-kit 0.3.2, objc2-contacts 0.3.2 and 10 more"
+
+[[bans.skip]]
+crate = "chacha20@0.9.1"
+reason = "snow 0.10.0 (latest) requires it, via chacha20poly1305 0.10.1, under mere-transport; goes when snow moves to chacha20 0.10.2"
+
+[[bans.skip]]
+crate = "chacha20poly1305@0.10.1"
+reason = "snow 0.10.0 (latest) requires it, under mere-transport; goes when snow moves to chacha20poly1305 0.11.0"
+
+[[bans.skip]]
+crate = "cipher@0.4.4"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes 0.8.4, aes-gcm 0.10.3 and 3 more, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to cipher 0.5.2"
+
+[[bans.skip]]
+crate = "convert_case@0.10.0"
+reason = "derive_more-impl 2.1.1 (latest) requires it, under esp, knot-editor, mere-transport, p2mere-net; goes when derive_more-impl moves to convert_case 0.12.0"
+
+[[bans.skip]]
+crate = "core-foundation@0.9.4"
+reason = "winit 0.30.13 (latest), core-graphics 0.23.2 (core-graphics 0.25.0 drops it), core-graphics-types 0.1.3 (core-graphics-types 0.2.0 drops it) require it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to core-foundation 0.10.1; their dependents take core-graphics 0.25.0, core-graphics-types 0.2.0"
+
+[[bans.skip]]
+crate = "cpufeatures@0.2.17"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), turso_core 0.8.3 (latest) and 2 more require it, via aes 0.8.4, aes-gcm 0.10.3 and 7 more, under authority-host, esp, knot-editor, mere-transport and 1 more; goes when noq-proto, snow, tracel-llvm-bundler and 1 more move to cpufeatures 0.3.1; their dependents take wasmtime-environ 50.0.1, wasmtime-internal-cache 50.0.1"
+
+[[bans.skip]]
+crate = "crypto-common@0.1.7"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), turso_core 0.8.3 (latest) and 3 more require it, via aead 0.5.2, aes 0.8.4 and 11 more, under authority-host, esp, knot-editor, mere-transport and 1 more; goes when noq-proto, snow, tracel-llvm-bundler and 1 more move to crypto-common 0.2.2; their dependents take blake2 0.11.0, wasmtime-environ 50.0.1, wasmtime-internal-cache 50.0.1"
+
+[[bans.skip]]
+crate = "ctr@0.9.2"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to ctr 0.10.1"
+
+[[bans.skip]]
+crate = "curve25519-dalek@4.1.3"
+reason = "snow 0.10.0 (latest) requires it, under mere-transport; goes when snow moves to curve25519-dalek 5.0.0"
+
+[[bans.skip]]
+crate = "darling@0.20.11"
+reason = "derive_builder_core 0.20.2 (latest), wrapcenum-derive 0.4.1 (latest) require it, under esp; goes when derive_builder_core, wrapcenum-derive move to darling 0.24.1"
+
+[[bans.skip]]
+crate = "darling@0.21.3"
+reason = "enumset_derive 0.15.1 (latest) requires it, under esp; goes when enumset_derive moves to darling 0.24.1"
+
+[[bans.skip]]
+crate = "darling_core@0.20.11"
+reason = "derive_builder_core 0.20.2 (latest), wrapcenum-derive 0.4.1 (latest) require it, via darling 0.20.11, darling_macro 0.20.11, under esp; goes when derive_builder_core, wrapcenum-derive move to darling_core 0.24.1"
+
+[[bans.skip]]
+crate = "darling_core@0.21.3"
+reason = "enumset_derive 0.15.1 (latest) requires it, via darling 0.21.3, darling_macro 0.21.3, under esp; goes when enumset_derive moves to darling_core 0.24.1"
+
+[[bans.skip]]
+crate = "darling_macro@0.20.11"
+reason = "derive_builder_core 0.20.2 (latest), wrapcenum-derive 0.4.1 (latest) require it, via darling 0.20.11, under esp; goes when derive_builder_core, wrapcenum-derive move to darling_macro 0.24.1"
+
+[[bans.skip]]
+crate = "darling_macro@0.21.3"
+reason = "enumset_derive 0.15.1 (latest) requires it, via darling 0.21.3, under esp; goes when enumset_derive moves to darling_macro 0.24.1"
+
+[[bans.skip]]
+crate = "digest@0.10.7"
+reason = "snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), blake2 0.10.6 (blake2 0.11.0 drops it), wasmtime-environ 45.0.3 (wasmtime-environ 50.0.1 drops it) and 1 more require it, via sha2 0.10.9, under authority-host, esp, mere-transport; goes when snow, tracel-llvm-bundler move to digest 0.11.3; their dependents take blake2 0.11.0, wasmtime-environ 50.0.1, wasmtime-internal-cache 50.0.1"
 
 [[bans.skip]]
 crate = "downcast-rs@1.2.1"
-reason = "held by wayland-backend 0.3.17 (third-party); gone when they move to downcast-rs 2.0.2"
+reason = "wayland-backend 0.3.17 (latest) requires it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when wayland-backend moves to downcast-rs 2.0.2"
+
+[[bans.skip]]
+crate = "embedded-hal@0.2.7"
+reason = "embassy-time 0.5.1 (latest) requires it, under esp; goes when embassy-time moves to embedded-hal 1.0.0"
+
+[[bans.skip]]
+crate = "fancy-regex@0.17.0"
+reason = "tokenizers 0.23.2 (latest) requires it, under esp; goes when tokenizers moves to fancy-regex 0.20.2"
+
+[[bans.skip]]
+crate = "fiat-crypto@0.2.9"
+reason = "snow 0.10.0 (latest) requires it, via curve25519-dalek 4.1.3, under mere-transport; goes when snow moves to fiat-crypto 0.3.0"
 
 [[bans.skip]]
 crate = "foldhash@0.1.5"
-reason = "held by hashbrown 0.15.5 (third-party); gone when they move to foldhash 0.2.0"
+reason = "internment 0.8.6 (latest), petgraph 0.8.3 (latest) require it, via hashbrown 0.15.5, under chartulary, esp, incipit, inker and 7 more; goes when internment, petgraph move to foldhash 0.2.0"
 
 [[bans.skip]]
 crate = "getrandom@0.2.17"
-reason = "held by const-random-macro 0.1.16, redox_users 0.4.6, ring 0.17.14 (third-party); gone when they move to getrandom 0.4.3"
+reason = "const-random-macro 0.1.16 (latest), noq-proto 1.4.0 (latest), ring 0.17.14 (latest), snow 0.10.0 (latest) and 10 more require it, via aead 0.5.2, aes 0.8.4 and 15 more, under authority-host, cambium-a11y, cambium-desktop, cambium-winit and 14 more; goes when const-random-macro, noq-proto, ring and 3 more move to getrandom 0.4.3; their dependents take antithesis_sdk 0.4.0, blake2 0.11.0, rand_pcg 0.10.2 and 4 more; merely-made/gemot moves gemot-site-host to getrandom 0.4.3"
 
 [[bans.skip]]
 crate = "getrandom@0.3.4"
-reason = "held by ahash 0.8.12, castellan 0.0.4, djinn-custodian 0.0.1, graphshell-host 0.0.2 and 4 more (includes family crates: castellan, djinn-custodian, graphshell-host, pandect); gone when they move to getrandom 0.4.3"
+reason = "ahash 0.8.12 (latest), jsonschema 0.61.2 (latest), jsonschema-value 0.61.2 (latest), rav1e 0.8.1 (latest) and 5 more require it, via rand 0.9.5, rand_chacha 0.9.0 and 1 more, under cambium-a11y, cambium-desktop, cambium-winit, eidetic and 6 more; goes when ahash, jsonschema, jsonschema-value and 5 more move to getrandom 0.4.3; their dependents take fastbloom 0.17.0"
+
+[[bans.skip]]
+crate = "ghash@0.5.1"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to ghash 0.6.0"
+
+[[bans.skip]]
+crate = "hash32@0.2.1"
+reason = "postcard 1.1.3 (latest) requires it, via heapless 0.7.17, under authority-host, knot-editor, mandrake, mere-transport and 5 more; goes when postcard moves to hash32 0.3.1"
+
+[[bans.skip]]
+crate = "hashbrown@0.13.2"
+reason = "text_placeholder 0.5.1 (latest) requires it, under esp; goes when text_placeholder moves to hashbrown 0.17.1"
+
+[[bans.skip]]
+crate = "hashbrown@0.14.5"
+reason = "dashmap 6.2.1 (latest) requires it, under p2mere-net; goes when dashmap moves to hashbrown 0.17.1"
 
 [[bans.skip]]
 crate = "hashbrown@0.15.5"
-reason = "held by petgraph 0.8.3 (third-party); gone when they move to hashbrown 0.17.1"
+reason = "internment 0.8.6 (latest), petgraph 0.8.3 (latest) require it, under chartulary, esp, incipit, inker and 7 more; goes when internment, petgraph move to hashbrown 0.17.1"
 
 [[bans.skip]]
 crate = "hashbrown@0.16.1"
-reason = "held by gimli 0.33.0, gpu-allocator 0.28.0, regress 0.11.1, spade 2.15.1 (third-party); gone when they move to hashbrown 0.17.1"
+reason = "burn-autodiff 0.23.0-pre.2 (latest), burn-backend 0.23.0-pre.2 (latest), burn-core 0.23.0-pre.2 (latest), burn-cubecl-fusion 0.23.0-pre.2 (latest) and 10 more require it, under authority-host, cambium-desktop, cambium-rootstock, esp and 6 more; goes when burn-autodiff, burn-backend, burn-core and 9 more move to hashbrown 0.17.1; their dependents take gimli 0.34.0; merely-made/genet moves regress to hashbrown 0.17.1"
 
 [[bans.skip]]
 crate = "hax-lib@0.3.7"
-reason = "held by core-models 0.0.7 (third-party); gone when they move to hax-lib 0.4.2"
+reason = "core-models 0.0.7 (latest) requires it, under p2mere-encryption; goes when core-models moves to hax-lib 0.4.2"
 
 [[bans.skip]]
 crate = "hax-lib-macros@0.3.7"
-reason = "held by hax-lib 0.3.7 (third-party); gone when they move to hax-lib-macros 0.4.2"
+reason = "core-models 0.0.7 (latest) requires it, via hax-lib 0.3.7, under p2mere-encryption; goes when core-models moves to hax-lib-macros 0.4.2"
 
 [[bans.skip]]
 crate = "hax-lib-macros-types@0.3.7"
-reason = "held by hax-lib-macros 0.3.7 (third-party); gone when they move to hax-lib-macros-types 0.4.2"
+reason = "core-models 0.0.7 (latest) requires it, via hax-lib 0.3.7, hax-lib-macros 0.3.7, under p2mere-encryption; goes when core-models moves to hax-lib-macros-types 0.4.2"
+
+[[bans.skip]]
+crate = "heapless@0.7.17"
+reason = "postcard 1.1.3 (latest) requires it, under authority-host, knot-editor, mandrake, mere-transport and 5 more; goes when postcard moves to heapless 0.9.3"
+
+[[bans.skip]]
+crate = "hi_sparse_bitset@0.9.0"
+reason = "cubecl-opt 0.12.0-pre.2 (latest) requires it, under esp; goes when cubecl-opt moves to hi_sparse_bitset 0.10.0"
+
+[[bans.skip]]
+crate = "inout@0.1.4"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes 0.8.4, aes-gcm 0.10.3 and 4 more, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to inout 0.2.6"
+
+[[bans.skip]]
+crate = "itertools@0.13.0"
+reason = "bindgen 0.72.1 (bindgen 0.73.2 drops it) requires it, under p2mere-encryption; goes when their dependents take bindgen 0.73.2"
+
+[[bans.skip]]
+crate = "itertools@0.14.0"
+reason = "rav1e 0.8.1 (latest), rayon-cond 0.4.0 (latest), tokenizers 0.23.2 (latest), wasmtime-internal-cranelift 45.0.3 (latest) require it, under authority-host, esp, genet-livery, mere-lanes; goes when rav1e, rayon-cond, tokenizers and 1 more move to itertools 0.15.0"
+
+[[bans.skip]]
+crate = "jni@0.21.1"
+reason = "netdev 0.46.3 (latest), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via netdev 0.45.1, under knot-editor, mere-transport, p2mere-net; goes when netdev moves to jni 0.22.4; their dependents take netwatch 0.20.0"
 
 [[bans.skip]]
 crate = "jni-sys@0.3.1"
-reason = "held by jni 0.21.1, ndk 0.9.0, ndk-sys 0.6.0+11769913 (third-party); gone when they move to jni-sys 0.4.1"
+reason = "ndk 0.9.0 (latest), ndk-sys 0.6.0+11769913 (latest), netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1, under cambium-a11y, cambium-desktop, cambium-rootstock, cambium-winit and 9 more; goes when ndk, ndk-sys move to jni-sys 0.4.1; their dependents take netdev 0.47.0, netwatch 0.20.0"
 
 [[bans.skip]]
 crate = "linux-raw-sys@0.4.15"
-reason = "held by rustix 0.38.44 (third-party); gone when they move to linux-raw-sys 0.12.1"
+reason = "winit 0.30.13 (latest), calloop 0.13.0 (calloop 0.14.5 drops it), calloop-wayland-source 0.3.0 (calloop-wayland-source 0.4.1 drops it), smithay-client-toolkit 0.19.2 (smithay-client-toolkit 0.21.1 drops it) and 1 more require it, via rustix 0.38.44, under cambium-a11y, cambium-desktop, cambium-winit, esp and 1 more; goes when winit moves to linux-raw-sys 0.12.1; their dependents take calloop 0.14.5, calloop-wayland-source 0.4.1, smithay-client-toolkit 0.21.1 and 1 more"
 
 [[bans.skip]]
 crate = "miniz_oxide@0.8.9"
-reason = "held by png 0.17.16, png 0.18.1 (third-party); gone when they move to miniz_oxide 0.9.1"
+reason = "exr 1.74.3 (latest), png 0.18.1 (latest), mandrake 0.1.0 (family, merely-made/graphshell) require it, via png 0.17.16, under esp, genet-livery, mere-lanes, netrender-vello; goes when exr, png move to miniz_oxide 0.9.1; merely-made/graphshell moves mandrake to miniz_oxide 0.9.1"
+
+[[bans.skip]]
+crate = "netdev@0.45.1"
+reason = "netwatch 0.19.3 (netwatch 0.20.0 drops it) requires it, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "netlink-packet-core@0.8.2"
+reason = "netlink-proto 0.12.2 (netlink-proto 0.14.1 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via netdev 0.45.1, netlink-packet-route 0.31.0, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netlink-proto 0.14.1, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "netlink-packet-route@0.31.0"
+reason = "netwatch 0.19.3 (netwatch 0.20.0 drops it) requires it, via netdev 0.45.1, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "netlink-sys@0.8.8"
+reason = "netlink-proto 0.12.2 (netlink-proto 0.14.1 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via netdev 0.45.1, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netlink-proto 0.14.1, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "nom@7.1.3"
+reason = "asn1-rs 0.7.2 (latest), cexpr 0.6.0 (latest), der-parser 10.0.0 (latest), spm_precompiled 0.1.4 (latest) and 2 more require it, under esp, gemot-site-host, knot-editor, mere-resident and 4 more; goes when asn1-rs, cexpr, der-parser and 2 more move to nom 8.0.0; their dependents take rusticata-macros 5.0.0"
 
 [[bans.skip]]
 crate = "objc2@0.5.3"
-reason = "held by accesskit_macos 0.27.1, block2 0.5.1, objc2-app-kit 0.2.2, objc2-foundation 0.2.2 and 2 more (third-party); gone when they move to objc2 0.6.5"
+reason = "accesskit_macos 0.27.1 (latest), winit 0.30.13 (latest), objc2-cloud-kit 0.2.2 (objc2-cloud-kit 0.3.2 drops it), objc2-contacts 0.2.2 (objc2-contacts 0.3.2 drops it) and 10 more require it, via block2 0.5.1, objc2-app-kit 0.2.2 and 1 more, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when accesskit_macos, winit move to objc2 0.6.5; their dependents take objc2-cloud-kit 0.3.2, objc2-contacts 0.3.2, objc2-core-data 0.3.2 and 9 more"
 
 [[bans.skip]]
 crate = "objc2-app-kit@0.2.2"
-reason = "held by accesskit_macos 0.27.1, winit 0.30.13 (third-party); gone when they move to objc2-app-kit 0.3.2"
+reason = "accesskit_macos 0.27.1 (latest), winit 0.30.13 (latest), objc2-link-presentation 0.2.2 (objc2-link-presentation 0.3.2 drops it) require it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when accesskit_macos, winit move to objc2-app-kit 0.3.2; their dependents take objc2-link-presentation 0.3.2"
 
 [[bans.skip]]
 crate = "objc2-foundation@0.2.2"
-reason = "held by accesskit_macos 0.27.1, objc2-app-kit 0.2.2, objc2-ui-kit 0.2.2, winit 0.30.13 (third-party); gone when they move to objc2-foundation 0.3.2"
+reason = "accesskit_macos 0.27.1 (latest), winit 0.30.13 (latest), objc2-cloud-kit 0.2.2 (objc2-cloud-kit 0.3.2 drops it), objc2-contacts 0.2.2 (objc2-contacts 0.3.2 drops it) and 10 more require it, via objc2-app-kit 0.2.2, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when accesskit_macos, winit move to objc2-foundation 0.3.2; their dependents take objc2-cloud-kit 0.3.2, objc2-contacts 0.3.2, objc2-core-data 0.3.2 and 9 more"
+
+[[bans.skip]]
+crate = "object@0.39.1"
+reason = "ar_archive_writer 0.5.5 (latest), wasmtime 45.0.3 (wasmtime 50.0.1 drops it), wasmtime-environ 45.0.3 (wasmtime-environ 50.0.1 drops it), wasmtime-internal-cranelift 45.0.3 (wasmtime-internal-cranelift 50.0.1 drops it) and 3 more require it, under authority-host, buckram, genet-livery; goes when ar_archive_writer moves to object 0.40.0; their dependents take wasmtime 50.0.1, wasmtime-environ 50.0.1, wasmtime-internal-cranelift 50.0.1 and 3 more"
 
 [[bans.skip]]
 crate = "png@0.17.16"
-reason = "held by mandrake 0.1.0 (includes family crates: mandrake); gone when they move to png 0.18.1"
+reason = "mandrake 0.1.0 (family, merely-made/graphshell) requires it; goes when merely-made/graphshell moves mandrake to png 0.18.1"
+
+[[bans.skip]]
+crate = "poly1305@0.8.0"
+reason = "snow 0.10.0 (latest) requires it, via chacha20poly1305 0.10.1, under mere-transport; goes when snow moves to poly1305 0.9.1"
+
+[[bans.skip]]
+crate = "polyval@0.6.2"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, ghash 0.5.1, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to polyval 0.7.3"
+
+[[bans.skip]]
+crate = "prettyplease@0.2.37"
+reason = "bindgen 0.69.5 (latest), bindgen 0.72.1 (latest) require it, under esp, p2mere-encryption; goes when bindgen moves to prettyplease 0.3.0"
 
 [[bans.skip]]
 crate = "quick-xml@0.39.4"
-reason = "held by errand 0.4.0, knot-composition 0.0.1 (includes family crates: errand, knot-composition); gone when they move to quick-xml 0.41.0"
+reason = "errand 0.4.0 (family, merely-made/errand) requires it; goes when merely-made/errand moves errand to quick-xml 0.42.0"
 
 [[bans.skip]]
 crate = "quick-xml@0.41.0"
-reason = "held by wayland-scanner 0.31.11 (third-party, latest; under smithay-client-toolkit, winit, cambium-desktop, knot-desktop); gone when they move to quick-xml 0.42.0"
+reason = "wayland-scanner 0.31.11 (latest) requires it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when wayland-scanner moves to quick-xml 0.42.0"
 
 [[bans.skip]]
 crate = "r-efi@5.3.0"
-reason = "held by getrandom 0.3.4 (third-party); gone when they move to r-efi 6.0.0"
+reason = "ahash 0.8.12 (latest), jsonschema 0.61.2 (latest), jsonschema-value 0.61.2 (latest), rav1e 0.8.1 (latest) and 5 more require it, via getrandom 0.3.4, rand 0.9.5 and 2 more, under cambium-a11y, cambium-desktop, cambium-winit, eidetic and 6 more; goes when ahash, jsonschema, jsonschema-value and 5 more move to r-efi 6.0.0; their dependents take fastbloom 0.17.0"
+
+[[bans.skip]]
+crate = "rand@0.9.5"
+reason = "rav1e 0.8.1 (latest), tokenizers 0.23.2 (latest), turso_core 0.8.3 (latest) require it, under esp, genet-livery, mere-lanes; goes when rav1e, tokenizers, turso_core move to rand 0.10.3"
+
+[[bans.skip]]
+crate = "rand_chacha@0.9.0"
+reason = "rav1e 0.8.1 (latest), tokenizers 0.23.2 (latest), turso_core 0.8.3 (latest) require it, via rand 0.9.5, under esp, genet-livery, mere-lanes; goes when rav1e, tokenizers, turso_core move to rand_chacha 0.10.0"
+
+[[bans.skip]]
+crate = "rand_core@0.9.5"
+reason = "rav1e 0.8.1 (latest), tokenizers 0.23.2 (latest), turso_core 0.8.3 (latest) require it, via rand 0.9.5, rand_chacha 0.9.0, under esp, genet-livery, mere-lanes; goes when rav1e, tokenizers, turso_core move to rand_core 0.10.1"
 
 [[bans.skip]]
 crate = "redox_syscall@0.4.1"
-reason = "held by winit 0.30.13 (third-party); gone when they move to redox_syscall 0.9.5"
+reason = "winit 0.30.13 (latest) requires it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to redox_syscall 0.9.5"
 
 [[bans.skip]]
 crate = "redox_syscall@0.5.18"
-reason = "held by parking_lot_core 0.9.12 (third-party); gone when they move to redox_syscall 0.9.5"
+reason = "parking_lot_core 0.9.12 (parking_lot_core 0.10.0 drops it) requires it, under cambium-desktop, cambium-rootstock, eidetic, esp and 9 more; goes when their dependents take parking_lot_core 0.10.0"
 
 [[bans.skip]]
 crate = "rustc-hash@1.1.0"
-reason = "held by naga 30.0.2, naga-types 30.0.2, wgpu-core 30.0.2 (third-party); gone when they move to rustc-hash 2.1.3"
+reason = "naga 30.0.2 (latest), naga-types 30.0.2 (latest), wgpu-core 30.0.2 (latest), bindgen 0.69.5 (bindgen 0.73.2 drops it) require it, under cambium-desktop, cambium-rootstock, esp, genet-presenter and 5 more; goes when naga, naga-types, wgpu-core move to rustc-hash 2.1.3; their dependents take bindgen 0.73.2"
 
 [[bans.skip]]
 crate = "rustix@0.38.44"
-reason = "held by calloop 0.13.0, calloop-wayland-source 0.3.0, smithay-client-toolkit 0.19.2, winit 0.30.13 (third-party); gone when they move to rustix 1.1.6"
+reason = "winit 0.30.13 (latest), calloop 0.13.0 (calloop 0.14.5 drops it), calloop-wayland-source 0.3.0 (calloop-wayland-source 0.4.1 drops it), smithay-client-toolkit 0.19.2 (smithay-client-toolkit 0.21.1 drops it) and 1 more require it, under cambium-a11y, cambium-desktop, cambium-winit, esp and 1 more; goes when winit moves to rustix 1.1.6; their dependents take calloop 0.14.5, calloop-wayland-source 0.4.1, smithay-client-toolkit 0.21.1 and 1 more"
+
+[[bans.skip]]
+crate = "sha2@0.10.9"
+reason = "snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), wasmtime-environ 45.0.3 (latest), wasmtime-internal-cache 45.0.3 (latest) require it, under authority-host, esp, mere-transport; goes when snow, tracel-llvm-bundler, wasmtime-environ and 1 more move to sha2 0.11.1"
 
 [[bans.skip]]
 crate = "shlex@1.3.0"
-reason = "held by bindgen 0.72.1 (third-party); gone when they move to shlex 2.0.1"
+reason = "bindgen 0.69.5 (bindgen 0.73.2 drops it), bindgen 0.72.1 (bindgen 0.73.2 drops it) require it, under esp, p2mere-encryption; goes when their dependents take bindgen 0.73.2"
+
+[[bans.skip]]
+crate = "smol_str@0.1.24"
+reason = "acto 0.8.2 (latest) requires it, under p2mere-net; goes when acto moves to smol_str 0.2.2"
+
+[[bans.skip]]
+crate = "spin@0.9.9"
+reason = "postcard 1.1.3 (latest) requires it, via heapless 0.7.17, under authority-host, knot-editor, mandrake, mere-transport and 5 more; goes when postcard moves to spin 0.12.3"
+
+[[bans.skip]]
+crate = "spin@0.10.1"
+reason = "futures-buffered 0.2.14 (latest) requires it, under knot-editor, mere-transport, p2mere-net; goes when futures-buffered moves to spin 0.12.3"
+
+[[bans.skip]]
+crate = "syn@1.0.109"
+reason = "genawaiter-proc-macro 0.99.1 (latest), proc-macro-error 0.4.12 (latest), proc-macro-error-attr 0.4.12 (proc-macro-error-attr 1.0.4 drops it), syn-mid 0.5.4 (syn-mid 0.7.0 drops it) require it, under esp, mere-transport; goes when genawaiter-proc-macro, proc-macro-error move to syn 3.0.10; their dependents take proc-macro-error-attr 1.0.4, syn-mid 0.7.0"
 
 [[bans.skip]]
 crate = "syn@2.0.119"
-reason = "held by async-stream-impl 0.3.6, bindgen 0.72.1, curve25519-dalek-derive 0.1.1, derive_more-impl 2.1.1 and 38 more (third-party); gone when they move to syn 3.0.10"
+reason = "arg_enum_proc_macro 0.3.4 (latest), aristo-macros 0.4.1 (latest), asn1-rs-derive 0.6.0 (latest), asn1-rs-impl 0.2.0 (latest) and 74 more require it, via darling 0.20.11, darling 0.21.3 and 14 more, under armillary, authority-host, cadency, cambium and 94 more; goes when arg_enum_proc_macro, aristo-macros, asn1-rs-derive and 51 more move to syn 3.0.10; their dependents take accesskit_windows 0.35.2, calloop 0.14.5, equator-macro 0.6.0 and 18 more; merely-made/genet moves genet-fontique to syn 3.0.10"
 
 [[bans.skip]]
 crate = "thiserror@1.0.69"
-reason = "held by calloop 0.13.0, castellan 0.0.4, castellan-client 0.0.2, distillery 0.0.1 and 23 more (includes family crates: castellan, castellan-client, distillery, djinn); gone when they move to thiserror 2.0.21"
+reason = "ndk 0.9.0 (latest), nvml-wrapper 0.13.0 (latest), witx 0.9.1 (latest), calloop 0.13.0 (calloop 0.14.5 drops it) and 5 more require it, via jni 0.21.1, netdev 0.45.1, under authority-host, cambium-a11y, cambium-desktop, cambium-winit and 5 more; goes when ndk, nvml-wrapper, witx move to thiserror 2.0.21; their dependents take calloop 0.14.5, netdev 0.47.0, netwatch 0.20.0 and 3 more"
 
 [[bans.skip]]
 crate = "thiserror-impl@1.0.69"
-reason = "held by thiserror 1.0.69 (third-party); gone when they move to thiserror-impl 2.0.21"
+reason = "ndk 0.9.0 (latest), nvml-wrapper 0.13.0 (latest), witx 0.9.1 (latest), calloop 0.13.0 (calloop 0.14.5 drops it) and 5 more require it, via jni 0.21.1, netdev 0.45.1 and 1 more, under authority-host, cambium-a11y, cambium-desktop, cambium-winit and 5 more; goes when ndk, nvml-wrapper, witx move to thiserror-impl 2.0.21; their dependents take calloop 0.14.5, netdev 0.47.0, netwatch 0.20.0 and 3 more"
+
+[[bans.skip]]
+crate = "universal-hash@0.5.1"
+reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, chacha20poly1305 0.10.1 and 3 more, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to universal-hash 0.6.1"
+
+[[bans.skip]]
+crate = "windows-core@0.62.2"
+reason = "accesskit_windows 0.35.1 (latest), iana-time-zone 0.1.65 (latest), wgpu-hal 30.0.2 (latest), windows 0.62.2 (latest) and 5 more require it, under authority-host, cambium-desktop, cambium-rootstock, castellan and 13 more; goes when accesskit_windows, iana-time-zone, wgpu-hal and 2 more move to windows-core 0.100.0; their dependents take windows-collections 0.100.0, windows-future 0.100.0, windows-numerics 0.100.0; merely-made/genet moves genet-fontique to windows-core 0.100.0"
+
+[[bans.skip]]
+crate = "windows-implement@0.60.2"
+reason = "iana-time-zone 0.1.65 (latest), wgpu-hal 30.0.2 (latest), windows 0.62.2 (latest), wmi 0.18.4 (latest) and 5 more require it, via windows-core 0.62.2, under authority-host, cambium-desktop, cambium-rootstock, castellan and 13 more; goes when iana-time-zone, wgpu-hal, windows and 1 more move to windows-implement 0.100.0; their dependents take accesskit_windows 0.35.2, windows-collections 0.100.0, windows-future 0.100.0 and 1 more; merely-made/genet moves genet-fontique to windows-implement 0.100.0"
+
+[[bans.skip]]
+crate = "windows-interface@0.59.3"
+reason = "iana-time-zone 0.1.65 (latest), wgpu-hal 30.0.2 (latest), windows 0.62.2 (latest), wmi 0.18.4 (latest) and 5 more require it, via windows-core 0.62.2, under authority-host, cambium-desktop, cambium-rootstock, castellan and 13 more; goes when iana-time-zone, wgpu-hal, windows and 1 more move to windows-interface 0.100.0; their dependents take accesskit_windows 0.35.2, windows-collections 0.100.0, windows-future 0.100.0 and 1 more; merely-made/genet moves genet-fontique to windows-interface 0.100.0"
+
+[[bans.skip]]
+crate = "windows-link@0.2.1"
+reason = "backtrace 0.3.77 (latest), chrono 0.4.45 (latest), gethostname 1.1.0 (latest), iana-time-zone 0.1.65 (latest) and 17 more require it, via windows-core 0.62.2, windows-result 0.4.1 and 1 more, under armillary, authority-host, buckram, cambium-a11y and 65 more; goes when backtrace, chrono, gethostname and 9 more move to windows-link 0.100.0; their dependents take accesskit_windows 0.35.2, netwatch 0.20.0, windows-collections 0.100.0 and 4 more; merely-made/genet moves genet-fontique to windows-link 0.100.0"
+
+[[bans.skip]]
+crate = "windows-result@0.4.1"
+reason = "iana-time-zone 0.1.65 (latest), ipconfig 0.3.4 (latest), netwatch 0.19.3 (latest), wgpu-hal 30.0.2 (latest) and 8 more require it, via windows-core 0.62.2, under authority-host, cambium-desktop, cambium-rootstock, castellan and 13 more; goes when iana-time-zone, ipconfig, netwatch and 3 more move to windows-result 0.100.0; their dependents take accesskit_windows 0.35.2, windows-collections 0.100.0, windows-future 0.100.0 and 2 more; merely-made/genet moves genet-fontique to windows-result 0.100.0"
+
+[[bans.skip]]
+crate = "windows-strings@0.5.1"
+reason = "iana-time-zone 0.1.65 (latest), wgpu-hal 30.0.2 (latest), windows 0.62.2 (latest), wmi 0.18.4 (latest) and 6 more require it, via windows-core 0.62.2, under authority-host, cambium-desktop, cambium-rootstock, castellan and 13 more; goes when iana-time-zone, wgpu-hal, windows and 1 more move to windows-strings 0.100.0; their dependents take accesskit_windows 0.35.2, windows-collections 0.100.0, windows-future 0.100.0 and 2 more; merely-made/genet moves genet-fontique to windows-strings 0.100.0"
+
+[[bans.skip]]
+crate = "windows-sys@0.45.0"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
 
 [[bans.skip]]
 crate = "windows-sys@0.52.0"
-reason = "held by ring 0.17.14, winit 0.30.13 (third-party); gone when they move to windows-sys 0.61.2"
+reason = "ring 0.17.14 (latest), winit 0.30.13 (latest) require it, under cambium-a11y, cambium-desktop, cambium-winit, castellan and 11 more; goes when ring, winit move to windows-sys 0.61.2"
 
 [[bans.skip]]
 crate = "windows-sys@0.59.0"
-reason = "held by cap-fs-ext 3.4.6, cap-primitives 3.4.6, castellan 0.0.4, custody-wire 0.0.1 and 8 more (includes family crates: castellan, custody-wire, djinn, djinn-custodian); gone when they move to windows-sys 0.61.2"
+reason = "fs-set-times 0.20.3 (latest), io-extras 0.18.4 (latest), winit 0.30.13 (latest), winx 0.36.4 (latest) and 6 more require it, via rustix 0.38.44, under authority-host, cambium-a11y, cambium-desktop, cambium-winit and 2 more; goes when fs-set-times, io-extras, winit and 1 more move to windows-sys 0.61.2; their dependents take calloop 0.14.5, calloop-wayland-source 0.4.1, cap-fs-ext 4.0.3 and 3 more"
 
+[[bans.skip]]
+crate = "windows-targets@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 1 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_aarch64_gnullvm@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_aarch64_msvc@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_i686_gnu@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_i686_msvc@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_x86_64_gnu@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_x86_64_gnullvm@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
+
+[[bans.skip]]
+crate = "windows_x86_64_msvc@0.42.2"
+reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 2 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"

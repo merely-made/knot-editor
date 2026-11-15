@@ -57,6 +57,9 @@ undocumented_unsafe_blocks = "warn"
 too_many_lines = "warn"
 
 [patch.crates-io]
+# Registry Webcue and Inker's Genet sessions share one document-session-api, as
+# in the root (patches do not carry across a git dependency).
+document-session-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }
 # Canonical promoted families; keep registry and Git consumers type-identical.
 fieldbook = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 hodograph = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }

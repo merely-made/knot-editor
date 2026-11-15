@@ -23,7 +23,7 @@ blake3.workspace = true
 uuid.workspace = true
 tempfile = "3"
 reference-data.workspace = true
-quick-xml = "0.39"
+quick-xml = "0.42"
 
 [lints]
 workspace = true

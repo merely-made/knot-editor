@@ -200,21 +200,16 @@ fn count(counts: &mut BTreeMap<String, usize>, key: &str) -> Result<(), ImportEr
     Ok(())
 }
 
-fn attributes(
-    event: &BytesStart<'_>,
-    reader: &Reader<&[u8]>,
-) -> Result<BTreeMap<String, String>, ImportError> {
+fn attributes(event: &BytesStart<'_>) -> Result<BTreeMap<String, String>, ImportError> {
     let mut values = BTreeMap::new();
     for attribute in event.attributes() {
         let attribute = attribute.map_err(|error| invalid(error.to_string()))?;
-        let name = std::str::from_utf8(attribute.key.as_ref())
-            .map_err(|_| invalid("attribute name is not UTF-8"))?
-            .to_owned();
+        let name = attribute.key.as_ref().to_owned();
         if name.len() > 128 {
             return Err(invalid("XML attribute name exceeds 128 bytes"));
         }
-        let value = attribute
-            .decode_and_unescape_value(reader.decoder())
+        // Unescape only: no attribute-value whitespace normalization.
+        let value = quick_xml::escape::unescape(&attribute.value)
             .map_err(|error| invalid(error.to_string()))?
             .into_owned();
         if matches!(name.as_str(), "id" | "synset" | "target") && value.len() > 128 {

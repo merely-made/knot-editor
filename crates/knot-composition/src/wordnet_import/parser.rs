@@ -30,13 +30,11 @@ pub(super) fn parse(xml: &[u8], max_estimated_bytes: usize) -> Result<RawWordnet
         let empty = matches!(&event, Event::Empty(_));
         match event {
             Event::Start(event) | Event::Empty(event) => {
-                let name = std::str::from_utf8(event.name().as_ref())
-                    .map_err(|_| invalid("element name is not UTF-8"))?
-                    .to_owned();
+                let name = event.name().as_ref().to_owned();
                 if name.len() > 128 {
                     return Err(invalid("XML element name exceeds 128 bytes"));
                 }
-                let attrs = attributes(&event, &reader)?;
+                let attrs = attributes(&event)?;
                 budget.charge(
                     attrs
                         .iter()
@@ -204,9 +202,7 @@ pub(super) fn parse(xml: &[u8], max_estimated_bytes: usize) -> Result<RawWordnet
                 }
             },
             Event::End(event) => {
-                let name = std::str::from_utf8(event.name().as_ref())
-                    .map_err(|_| invalid("element name is not UTF-8"))?
-                    .to_owned();
+                let name = event.name().as_ref().to_owned();
                 if stack.pop().as_deref() != Some(name.as_str()) {
                     return Err(invalid("mismatched XML end element"));
                 }
@@ -224,28 +220,24 @@ pub(super) fn parse(xml: &[u8], max_estimated_bytes: usize) -> Result<RawWordnet
                     ignored_depth = None;
                 }
             },
+            // Raw content, as `decode()` gave before quick-xml 0.42: no EOL normalization.
             Event::Text(value) => {
-                let value = value.decode().map_err(|error| invalid(error.to_string()))?;
                 budget.charge(value.len())?;
                 append_text(&mut text, &stack, ignored_depth, &value)?;
             },
             Event::CData(value) => {
-                let value = value.decode().map_err(|error| invalid(error.to_string()))?;
                 budget.charge(value.len())?;
                 append_text(&mut text, &stack, ignored_depth, &value)?;
             },
             Event::GeneralRef(value) => {
-                let entity = format!(
-                    "&{};",
-                    value.decode().map_err(|error| invalid(error.to_string()))?
-                );
+                let entity = format!("&{};", &*value);
                 let resolved = quick_xml::escape::unescape(&entity)
                     .map_err(|error| invalid(format!("unsupported XML entity: {error}")))?;
                 budget.charge(resolved.len())?;
                 append_text(&mut text, &stack, ignored_depth, &resolved)?;
             },
             Event::DocType(value) => {
-                if value.as_ref().contains(&b'[') {
+                if value.contains('[') {
                     return Err(invalid(
                         "internal DTD/entities are unsupported; no external entities are fetched",
                     ));
@@ -254,7 +246,7 @@ pub(super) fn parse(xml: &[u8], max_estimated_bytes: usize) -> Result<RawWordnet
             Event::Decl(value) => {
                 if let Some(encoding) = value.encoding() {
                     let encoding = encoding.map_err(|error| invalid(error.to_string()))?;
-                    if !encoding.as_ref().eq_ignore_ascii_case(b"UTF-8") {
+                    if !encoding.eq_ignore_ascii_case("UTF-8") {
                         return Err(invalid("only UTF-8 XML is supported"));
                     }
                 }

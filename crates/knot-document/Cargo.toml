@@ -32,7 +32,7 @@ same-file = "1.0.6"
 cambium = { version = ">=0.4.0, <0.7.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 mere-surface-api = { version = "0.1.1", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 # The retained editor's readout highlights through Illume's Markdown reuse-lexer.
-illume = { version = "0.0.3", git = "https://github.com/merely-made/inker.git", branch = "main", features = ["markdown"] }
+illume = { version = ">=0.0.3", git = "https://github.com/merely-made/inker.git", branch = "main", features = ["markdown"] }
 inker = { git = "https://github.com/merely-made/inker.git", branch = "main", optional = true }
 nematic = { git = "https://github.com/merely-made/inker.git", branch = "main", default-features = false, optional = true }
 serde_json = { version = "1", optional = true }

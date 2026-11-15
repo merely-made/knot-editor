@@ -239,6 +239,9 @@ async fn the_supervised_child_repairs_a_legacy_checkpoint_and_serves_the_route()
     let temp = tempfile::tempdir().unwrap();
     let data_root = temp.path().join("shared");
     std::fs::create_dir_all(&data_root).unwrap();
+    // The wallet is opened in this process only: the supervised child gets its
+    // keys through the door, so an in-memory store serves (custody D5).
+    castellan::custody::os_kek::install_memory_os_kek(&data_root);
     castellan::custody::wallet::ensure_wallet_state(&data_root, persona(), DEVICE).unwrap();
     // The child refuses to start without a sync section; nobody is paired.
     KnotSettings { sync: Some(KnotSyncSettings::default()) }

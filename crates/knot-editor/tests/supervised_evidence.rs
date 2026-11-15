@@ -141,6 +141,9 @@ async fn a_peer_fetches_evidence_from_the_supervised_child_and_revocation_cuts_i
     let temp = tempfile::tempdir().unwrap();
     let data_root = temp.path().join("shared");
     std::fs::create_dir_all(&data_root).unwrap();
+    // The wallet is opened in this process only: the supervised child gets its
+    // keys through the door, so an in-memory store serves (custody D5).
+    castellan::custody::os_kek::install_memory_os_kek(&data_root);
     castellan::custody::wallet::ensure_wallet_state(&data_root, persona(), DEVICE).unwrap();
 
     // Keys as the resident's custody releases them, the same derivation the

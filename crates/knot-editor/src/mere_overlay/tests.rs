@@ -190,7 +190,7 @@ async fn failed_refresh_purges_cached_actions_and_merge_choices() {
             write_native_message_async(
                 &mut stream,
                 &AppHostMessage::Challenge {
-                    challenge: BrowserChallenge::fresh(),
+                    challenge: BrowserChallenge::fresh().expect("nonce"),
                 },
             )
             .await

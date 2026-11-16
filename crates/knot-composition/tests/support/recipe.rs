@@ -19,16 +19,18 @@ pub fn recipe_material() -> knot_composition::retention::ProjectionRecipeMateria
     let revision = PublicSourceRevision::new("analysis:night-light-v1");
     let occurrences = [("night:0", "Night", 0.0), ("light:6", "light", 1.0)]
         .into_iter()
-        .map(|(id, label, order)| ProjectionOccurrence {
-            occurrence_id: id.into(),
-            source: serde_json::from_value(serde_json::json!({"adapter":"knot.document", "id":id}))
-                .unwrap(),
-            values: [
-                ("occurrence_id".into(), ProjectionValue::Text(id.into())),
-                ("label".into(), ProjectionValue::Text(label.into())),
-                ("order".into(), ProjectionValue::Number(order)),
-            ]
-            .into(),
+        .map(|(id, label, order)| {
+            ProjectionOccurrence::new(
+                id,
+                serde_json::from_value(serde_json::json!({"adapter":"knot.document", "id":id}))
+                    .unwrap(),
+                [
+                    ("occurrence_id".into(), ProjectionValue::Text(id.into())),
+                    ("label".into(), ProjectionValue::Text(label.into())),
+                    ("order".into(), ProjectionValue::Number(order)),
+                ]
+                .into(),
+            )
         })
         .collect();
     let dataset = RelationshipDataset {

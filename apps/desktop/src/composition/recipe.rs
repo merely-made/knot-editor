@@ -380,9 +380,16 @@ fn material(
         dataset: ProjectionDataset {
             source: binding.clone(), revision: revision.clone(),
             fields: BTreeMap::from([("occurrence_id".into(), ProjectionFieldType::Text), ("order".into(), ProjectionFieldType::Number), ("label".into(), ProjectionFieldType::Text)]),
-            occurrences: facts.occurrences.iter().enumerate().map(|(index, occurrence)| ProjectionOccurrence {
-                occurrence_id: occurrence.id.clone(), source: source_ref.clone(),
-                values: BTreeMap::from([("occurrence_id".into(), ProjectionValue::Text(occurrence.id.clone())), ("order".into(), ProjectionValue::Number(index as f64)), ("label".into(), ProjectionValue::Text(occurrence.label.clone()))]),
+            occurrences: facts.occurrences.iter().enumerate().map(|(index, occurrence)| {
+                ProjectionOccurrence::new(
+                    occurrence.id.clone(),
+                    source_ref.clone(),
+                    BTreeMap::from([
+                        ("occurrence_id".into(), ProjectionValue::Text(occurrence.id.clone())),
+                        ("order".into(), ProjectionValue::Number(index as f64)),
+                        ("label".into(), ProjectionValue::Text(occurrence.label.clone())),
+                    ]),
+                )
             }).collect(),
         },
         facets: BTreeSet::from(["authored_order".into(), "occurrence_labels".into(), "explained_relationships".into()]),

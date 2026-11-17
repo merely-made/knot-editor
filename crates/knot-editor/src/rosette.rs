@@ -327,6 +327,7 @@ pub fn project_rosette(
             };
             if let Some((kind, weight)) = kind {
                 scene.relations.push(RoutedRelation {
+                    form: Default::default(),
                     from: InstanceId(left as u32),
                     to: InstanceId(right as u32),
                     space: Scene::WORLD,

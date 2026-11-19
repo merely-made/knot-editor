@@ -48,6 +48,7 @@ fn measure(state: &DesktopState) -> Measure {
             count: 1,
             spacing: 16.0,
             coordinates: None,
+            columns: 1,
         };
     };
     let card = state
@@ -63,6 +64,7 @@ fn measure(state: &DesktopState) -> Measure {
         count: material.dataset.dataset.occurrences.len(),
         spacing: material.snapshot.recipe.definition.arrangement.spacing as f32,
         coordinates: None,
+        columns: material.snapshot.recipe.definition.fields.len().max(1),
     }
 }
 
@@ -425,6 +427,7 @@ mod tests {
             count: 4,
             spacing: 16.0,
             coordinates: None,
+            columns: 1,
         }
     }
 

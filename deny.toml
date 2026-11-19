@@ -231,20 +231,8 @@ crate = "miniz_oxide@0.8.9"
 reason = "exr 1.74.3 (latest), png 0.18.1 (latest), mandrake 0.1.0 (family, merely-made/graphshell) require it, via png 0.17.16, under esp, genet-livery, mere-lanes, netrender-vello; goes when exr, png move to miniz_oxide 0.9.1; merely-made/graphshell moves mandrake to miniz_oxide 0.9.1"
 
 [[bans.skip]]
-crate = "netdev@0.45.1"
-reason = "netwatch 0.19.3 (netwatch 0.20.0 drops it) requires it, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netwatch 0.20.0"
-
-[[bans.skip]]
-crate = "netlink-packet-core@0.8.2"
-reason = "netlink-proto 0.12.2 (netlink-proto 0.14.1 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via netdev 0.45.1, netlink-packet-route 0.31.0, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netlink-proto 0.14.1, netwatch 0.20.0"
-
-[[bans.skip]]
-crate = "netlink-packet-route@0.31.0"
-reason = "netwatch 0.19.3 (netwatch 0.20.0 drops it) requires it, via netdev 0.45.1, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netwatch 0.20.0"
-
-[[bans.skip]]
-crate = "netlink-sys@0.8.8"
-reason = "netlink-proto 0.12.2 (netlink-proto 0.14.1 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via netdev 0.45.1, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netlink-proto 0.14.1, netwatch 0.20.0"
+crate = "lru@0.18.5"
+reason = "held by n0-dns-resolver 0.1.1; gone when it moves to lru 0.19.0 (n0-dns-resolver 0.1.1 is its latest release)"
 
 [[bans.skip]]
 crate = "nom@7.1.3"

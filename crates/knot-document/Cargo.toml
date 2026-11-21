@@ -29,8 +29,8 @@ mere-edit = { version = "0.1.0", git = "https://github.com/merely-made/eidetic.g
 same-file = "1.0.6"
 # The embedded surface uses the widget API shared by the 0.4 through 0.6 cohorts.
 # It implements neither of the contributed-observation callbacks changed in 0.6.
-cambium = { version = ">=0.4.0, <0.7.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
-mere-surface-api = { version = "0.1.1", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
+cambium = { version = ">=0.4.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
+mere-surface-api = { version = ">=0.1.1", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 # The retained editor's readout highlights through Illume's Markdown reuse-lexer.
 illume = { version = ">=0.0.3", git = "https://github.com/merely-made/inker.git", branch = "main", features = ["markdown"] }
 inker = { git = "https://github.com/merely-made/inker.git", branch = "main", optional = true }
@@ -41,8 +41,8 @@ serde_json = { version = "1", optional = true }
 windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_Storage_FileSystem"] }
 
 [dev-dependencies]
-genet-scripted-dom = { version = "0.1.2", git = "https://github.com/merely-made/genet.git", branch = "main" }
-layout-dom-api = { version = "0.1.1", git = "https://github.com/merely-made/genet.git", branch = "main" }
+genet-scripted-dom = { version = ">=0.1.2", git = "https://github.com/merely-made/genet.git", branch = "main" }
+layout-dom-api = { version = ">=0.1.1", git = "https://github.com/merely-made/genet.git", branch = "main" }
 tempfile = "3"
 
 [lints.rust]
@@ -73,8 +73,8 @@ stickleback = { git = "https://github.com/merely-made/eidetic.git", branch = "ma
 muniment = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 mere-proofs = { git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 netrender_device = { git = "https://github.com/merely-made/netrender.git", branch = "main" }
-layout-dom-api = { version = "0.1.1", git = "https://github.com/merely-made/genet.git", branch = "main" }
-genet-scripted-dom = { version = "0.1.2", git = "https://github.com/merely-made/genet.git", branch = "main" }
+layout-dom-api = { version = ">=0.1.1", git = "https://github.com/merely-made/genet.git", branch = "main" }
+genet-scripted-dom = { version = ">=0.1.2", git = "https://github.com/merely-made/genet.git", branch = "main" }
 # No parley/fontique patch rows: as of genet 5ae30cad the forks are published as
 # `genet-parley` and `genet-fontique`, so nothing in genet answers to the name
 # `parley` and a row keyed on it would match no package and fail resolution.

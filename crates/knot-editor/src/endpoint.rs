@@ -2318,10 +2318,7 @@ impl KnotEndpoint {
             .as_ref()
             .map(|snapshot| (snapshot.scene.epoch, snapshot.scene.revision))
             .unwrap_or((SceneEpoch(1), self.revision()));
-        IntentResult::Stale {
-            current_epoch,
-            current_revision,
-        }
+        IntentResult::stale(current_epoch, current_revision)
     }
 
     fn validate_request(&self, request: &ProjectionRequest) -> Result<(), String> {
@@ -2664,18 +2661,12 @@ impl IntentSink for KnotEndpoint {
             let announced = self.last_announced;
             let current = self.build_snapshot()?;
             self.last_announced = announced;
-            return Ok(IntentResult::Stale {
-                current_epoch: current.scene.epoch,
-                current_revision: current.scene.revision,
-            });
+            return Ok(IntentResult::stale(current.scene.epoch, current.scene.revision));
         }
         if intent.observed_epoch != snapshot.scene.epoch
             || intent.observed_revision != snapshot.scene.revision
         {
-            return Ok(IntentResult::Stale {
-                current_epoch: snapshot.scene.epoch,
-                current_revision: snapshot.scene.revision,
-            });
+            return Ok(IntentResult::stale(snapshot.scene.epoch, snapshot.scene.revision));
         }
         let expected_schema = match intent.intent.as_str() {
             EDITABLE_TEXT_SAVE_INTENT => EDITABLE_TEXT_SAVE_SCHEMA,

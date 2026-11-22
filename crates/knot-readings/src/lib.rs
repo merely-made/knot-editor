@@ -19,6 +19,9 @@
 
 mod bindings;
 pub mod backend;
+pub mod didge;
+mod didge_bindings;
+mod didge_host;
 mod input;
 pub mod links;
 pub mod sound;
@@ -29,6 +32,7 @@ pub mod metre_alignment;
 mod scripts;
 
 pub use bindings::READING_SURFACE;
+pub use didge_bindings::DIDGE_READING_SURFACE;
 pub use input::{
     ReadingEndpointV1, ReadingInput, ReadingLinkV1, ReadingRelationV1, ReadingSourceIdV1,
 };
@@ -272,6 +276,15 @@ fn coerce_items(
             ),
         });
     };
+    split_items(items, budget)
+}
+
+/// Split a reading's items into rows and notes and hold them to the row and
+/// note limits. Both lanes end here.
+pub(crate) fn split_items(
+    items: Vec<ReadingItem>,
+    budget: ReadingBudget,
+) -> Result<(Vec<ReadingRowV1>, Vec<ReadingNoteV1>), ReadingError> {
     let mut rows = Vec::new();
     let mut notes = Vec::new();
     for item in items {

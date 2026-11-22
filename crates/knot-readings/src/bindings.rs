@@ -399,7 +399,7 @@ pub const READING_SURFACE: [&str; 10] = [
     "text_in",
 ];
 
-fn fold_kind(kind: KnotFoldKindV1) -> &'static str {
+pub(crate) fn fold_kind(kind: KnotFoldKindV1) -> &'static str {
     match kind {
         KnotFoldKindV1::Section => "section",
         KnotFoldKindV1::List => "list",
@@ -409,7 +409,7 @@ fn fold_kind(kind: KnotFoldKindV1) -> &'static str {
     }
 }
 
-fn endpoint_range(position: Option<(usize, usize)>) -> (i64, i64) {
+pub(crate) fn endpoint_range(position: Option<(usize, usize)>) -> (i64, i64) {
     position.map_or((-1, -1), |(start, end)| (start as i64, end as i64))
 }
 

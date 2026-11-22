@@ -81,6 +81,10 @@ scenotime = { version = ">=0.0.5", git = "https://github.com/merely-made/graphsh
 cartography = { package = "mere-cartography", version = ">=0.0.2", git = "https://github.com/merely-made/graphshell.git", branch = "main", default-features = false, features = ["canvas", "physics-engine"] }
 seiche = { version = ">=0.0.6", git = "https://github.com/merely-made/seiche.git", branch = "main", default-features = false, features = ["serde"] }
 script-rhai = { version = ">=0.0.1", git = "https://github.com/merely-made/inker.git", branch = "main" }
+script-didge = { version = ">=0.0.1", git = "https://github.com/merely-made/inker.git", branch = "main" }
+# didgeridoo, the piccolo fork, which script-didge runs on; the readings lane
+# builds its own host values on it.
+piccolo = { git = "https://github.com/merely-made/didgeridoo", branch = "main", default-features = false }
 servitor = { version = ">=0.0.3", git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 stickleback = { version = "0.4", default-features = false, git = "https://github.com/merely-made/eidetic.git", branch = "main" }
 transport = { package = "mere-transport", version = ">=0.0.2", git = "https://github.com/merely-made/murm.git", branch = "main" }

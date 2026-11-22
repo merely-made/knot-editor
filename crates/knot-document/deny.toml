@@ -18,10 +18,6 @@ crate = "hashbrown@0.15.5"
 reason = "petgraph 0.8.3 (latest) requires it, under inker; goes when petgraph moves to hashbrown 0.17.1"
 
 [[bans.skip]]
-crate = "hashbrown@0.16.1"
-reason = "regress 0.11.1 (family, merely-made/genet) requires it; goes when merely-made/genet moves regress to hashbrown 0.17.1"
-
-[[bans.skip]]
 crate = "miniz_oxide@0.8.9"
 reason = "png 0.18.1 (latest) requires it, under netrender-vello; goes when png moves to miniz_oxide 0.9.1"
 

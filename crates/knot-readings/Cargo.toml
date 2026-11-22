@@ -14,6 +14,8 @@ inker.workspace = true
 knot-document = { workspace = true, features = ["engine"] }
 mora.workspace = true
 mora-cmudict.workspace = true
+piccolo.workspace = true
+script-didge.workspace = true
 script-rhai.workspace = true
 sceno = { workspace = true, optional = true }
 sceno-backdrops = { workspace = true, optional = true }

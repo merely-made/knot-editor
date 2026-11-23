@@ -409,7 +409,7 @@ pub(crate) fn fold_kind(kind: KnotFoldKindV1) -> &'static str {
     }
 }
 
-pub(crate) fn endpoint_range(position: Option<(usize, usize)>) -> (i64, i64) {
+fn endpoint_range(position: Option<(usize, usize)>) -> (i64, i64) {
     position.map_or((-1, -1), |(start, end)| (start as i64, end as i64))
 }
 

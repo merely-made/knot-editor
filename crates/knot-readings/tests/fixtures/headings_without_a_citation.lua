@@ -1,7 +1,7 @@
 -- Sections whose body contains no `rel=cites` link.
 local cited = {}
 for _, link in ipairs(links()) do
-  if link.rel == "cites" and link.has_span then
+  if link.rel == "cites" and link.span then
     cited[#cited + 1] = link.span.start
   end
 end

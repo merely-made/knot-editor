@@ -79,6 +79,7 @@ const ALLOWED_GLOBALS: &[&str] = &[
     "tonumber",
     "tostring",
     "type",
+    "utf8",
 ];
 
 /// (11) The allowlist receipt: every name on the reading surface resolves, and
@@ -96,7 +97,6 @@ fn the_reading_surface_is_the_whole_surface() {
         ("row", r#"return row("r")"#),
         ("note", r#"return note("n", "djot")"#),
         ("text_in", r#"return row(document():text_in(span(0, 1)))"#),
-        ("char_count", r#"return row("" .. char_count("héllo"))"#),
     ];
     assert_eq!(calls.len(), DIDGE_READING_SURFACE.len());
     for (name, call) in calls {
@@ -155,10 +155,9 @@ fn no_file_binding_exists() {
     }
     assert_eq!(
         label_of(
-            r#"return row(tostring(io) .. tostring(os) .. tostring(package) .. tostring(debug)
-                          .. tostring(utf8))"#
+            r#"return row(tostring(io) .. tostring(os) .. tostring(package) .. tostring(debug))"#
         ),
-        "nilnilnilnilnil"
+        "nilnilnilnil"
     );
 }
 

@@ -15,17 +15,15 @@
 //!
 //! Byte offsets are 0-based, as spans are; lists are the Lua way, 1-based.
 
-use crate::bindings::{endpoint_range, fold_kind};
-use crate::didge_host::{
-    Endpoint, Host, Range, check_range, field, host_of, int, make, refuse, span,
-};
+use crate::bindings::fold_kind;
+use crate::didge_host::{Endpoint, Host, Range, check_range, field, host_of, make, refuse, span};
 use crate::{NOTE_FORMATS, ReadingInput, ReadingItemKind, ReadingNoteV1, ReadingRowV1, hex32};
 use piccolo::{Callback, CallbackReturn, Context, Error, MetaMethod, Stack, Table, Value};
 use std::sync::Arc;
 
 /// The names a Lua reading may call. `text_in` is a method of a document
 /// (`document():text_in(span)`); the rest are globals.
-pub const DIDGE_READING_SURFACE: [&str; 11] = [
+pub const DIDGE_READING_SURFACE: [&str; 10] = [
     "document",
     "outline",
     "sections",
@@ -36,11 +34,7 @@ pub const DIDGE_READING_SURFACE: [&str; 11] = [
     "row",
     "note",
     "text_in",
-    "char_count",
 ];
-
-/// Bytes of text one unit of fuel pays for in a host function.
-const BYTES_PER_FUEL: usize = 32;
 
 /// Charge fuel for host work: one unit per item, at least one.
 fn charge(exec: &mut piccolo::Execution<'_, '_>, units: usize) {
@@ -217,24 +211,18 @@ fn readers_of_records<'gc>(
 }
 
 fn link_host(link: &crate::ReadingLinkV1) -> Host {
-    let (start, end) = link.span.unwrap_or((0, 0));
     Host::Link {
         target: link.target.clone(),
-        rel: link.rel.clone().unwrap_or_default(),
+        rel: link.rel.clone(),
         text: link.text.clone(),
-        span: Range { start, end },
-        has_span: link.span.is_some(),
+        span: link.span.map(|(start, end)| Range { start, end }),
     }
 }
 
 fn relation_host(relation: &crate::ReadingRelationV1) -> Host {
-    let endpoint = |end: &crate::ReadingEndpointV1| {
-        let (start, stop) = endpoint_range(end.position);
-        Endpoint {
-            document: end.document_id.clone(),
-            start,
-            end: stop,
-        }
+    let endpoint = |end: &crate::ReadingEndpointV1| Endpoint {
+        document: end.document_id.clone(),
+        range: end.position.map(|(start, end)| Range { start, end }),
     };
     Host::Relation {
         id: hex32(&relation.id),
@@ -303,20 +291,6 @@ fn constructors<'gc>(
         "note",
         Callback::from_fn_with(&ctx, meta, move |meta, ctx, _, stack| {
             note(ctx, *meta, stack)
-        }),
-    )?;
-    ctx.globals().set(
-        ctx,
-        "char_count",
-        Callback::from_fn(&ctx, |ctx, mut exec, mut stack| {
-            let Value::String(string) = stack.get(0) else {
-                return Err(refuse("char_count takes a string"));
-            };
-            let bytes = usize::try_from(string.len()).unwrap_or(usize::MAX);
-            charge(&mut exec, bytes / BYTES_PER_FUEL + 1);
-            let count = String::from_utf8_lossy(string.as_bytes()).chars().count();
-            stack.replace(ctx, int(count));
-            Ok(CallbackReturn::Return)
         }),
     )?;
     Ok(())

@@ -53,14 +53,14 @@ fn every_field_of_every_host_type_reads() {
     let read = notes(
         r#"local h, s, f, l, d = outline()[1], sections()[1], folds()[1], links()[2], document()
            return {
-             note(h.label .. "|" .. h.level .. "|" .. h.start .. "|" .. h["end"] .. "|" .. h.stop
-                  .. "|" .. h.span.start .. "|" .. h.span["end"] .. "|" .. h.span.len),
+             note(h.label .. "|" .. h.level .. "|" .. h.start .. "|" .. h.stop .. "|" .. h.stop
+                  .. "|" .. h.span.start .. "|" .. h.span.stop .. "|" .. h.span.len),
              note(s.label .. "|" .. s.level .. "|" .. s.heading.start .. "|" .. s.body.start
                   .. "|" .. s.span.stop .. "|" .. s.span.len),
-             note(f.kind .. "|" .. f.start .. "|" .. f["end"] .. "|" .. f.span.len),
-             note(l.target .. "|" .. l.rel .. "|" .. l.text .. "|" .. tostring(l.has_span)
+             note(f.kind .. "|" .. f.start .. "|" .. f.stop .. "|" .. f.span.len),
+             note(l.target .. "|" .. (l.rel or "-") .. "|" .. l.text
                   .. "|" .. l.span.start .. "|" .. l.span.len),
-             note(d.selection_start .. "|" .. d.selection_end .. "|[" .. d.revision .. "]"),
+             note(d.selection_start .. "|" .. d.selection_end .. "|[" .. tostring(d.revision) .. "]"),
            }"#,
         &input,
     );
@@ -87,24 +87,25 @@ fn every_field_of_every_host_type_reads() {
     assert_eq!(
         read[3],
         format!(
-            "{}|{}|{}|true|{link_start}|{}",
+            "{}|{}|{}|{link_start}|{}",
             link.target,
-            link.rel.clone().unwrap_or_default(),
+            link.rel.clone().unwrap_or_else(|| "-".to_owned()),
             link.text,
             link_end - link_start
         )
     );
-    // The selection is the session's (a caret); no revision reads as "".
+    // The selection is the session's (a caret); no revision is nil.
     let (from, to) = input.selection.unwrap();
-    assert_eq!(read[4], format!("{from}|{to}|[]"));
+    assert_eq!(read[4], format!("{from}|{to}|[nil]"));
     let bare = ReadingInput::from_text("memory:bare", "djot", "x");
     assert_eq!(
         notes(
-            r#"return note(document().selection_start .. "|" .. document().selection_end)"#,
+            r#"local d = document()
+               return note(tostring(d.selection_start) .. "|" .. tostring(d.selection_end))"#,
             &bare
         ),
-        vec!["-1|-1"],
-        "no selection reads as -1, as in the Rhai lane"
+        vec!["nil|nil"],
+        "no selection is nil"
     );
 }
 
@@ -209,4 +210,34 @@ fn constructors_refuse_what_they_cannot_read() {
             "{bad}: {error:?}"
         );
     }
+}
+
+/// One name for a range's end, and absent values are nil (the Lua way):
+/// `end` and `has_span` are not fields, and `utf8.len` counts characters.
+#[test]
+fn ends_are_stop_and_absent_values_are_nil() {
+    let input = input_from(&field_notes());
+    for gone in [
+        r#"outline()[1]["end"]"#,
+        r#"span(0, 1)["end"]"#,
+        "links()[1].has_span",
+    ] {
+        let source = format!("return row(tostring({gone}))");
+        let error = run(&inline(&source), &input, ReadingBudget::default()).unwrap_err();
+        assert!(
+            matches!(error, ReadingError::Runtime { .. }),
+            "{gone}: {error:?}"
+        );
+    }
+    let read = notes(
+        r#"local out = {}
+           for _, l in ipairs(links()) do
+             if l.rel then out[#out + 1] = note("rel " .. l.rel) end
+           end
+           out[#out + 1] = note("chars " .. utf8.len("héllo") .. " bytes " .. #"héllo")
+           return out"#,
+        &input,
+    );
+    assert_eq!(read.len(), 3, "{read:?}");
+    assert_eq!(read[2], "chars 5 bytes 6");
 }

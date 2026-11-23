@@ -36,12 +36,11 @@ pub(crate) struct Range {
     pub(crate) end: usize,
 }
 
-/// One end of a relation: a document and a byte range, `-1` when unplaced.
+/// One end of a relation: a document and a byte range, absent when unplaced.
 #[derive(Clone, Debug)]
 pub(crate) struct Endpoint {
     pub(crate) document: String,
-    pub(crate) start: i64,
-    pub(crate) end: i64,
+    pub(crate) range: Option<Range>,
 }
 
 /// What a host value holds. Everything is owned or shared and read-only.
@@ -67,10 +66,9 @@ pub(crate) enum Host {
     },
     Link {
         target: String,
-        rel: String,
+        rel: Option<String>,
         text: String,
-        span: Range,
-        has_span: bool,
+        span: Option<Range>,
     },
     Relation {
         id: String,
@@ -118,7 +116,7 @@ pub(crate) fn span<'gc>(ctx: Context<'gc>, meta: Table<'gc>, range: Range) -> Va
 }
 
 /// The value of `key` on `host`, or `None` when the type has no such field.
-/// `end` is a Lua keyword, so every `end` is also readable as `stop`.
+/// A range's end is `stop`: `end` is a Lua keyword.
 pub(crate) fn field<'gc>(
     host: &Host,
     ctx: Context<'gc>,
@@ -127,14 +125,14 @@ pub(crate) fn field<'gc>(
 ) -> Option<Value<'gc>> {
     let range = |range: &Range| match key {
         "start" => Some(int(range.start)),
-        "end" | "stop" => Some(int(range.end)),
+        "stop" => Some(int(range.end)),
         "span" => Some(span(ctx, meta, *range)),
         _ => None,
     };
     match host {
         Host::Span(range) => match key {
             "start" => Some(int(range.start)),
-            "end" | "stop" => Some(int(range.end)),
+            "stop" => Some(int(range.end)),
             "len" => Some(int(range.end.saturating_sub(range.start))),
             _ => None,
         },
@@ -171,13 +169,11 @@ pub(crate) fn field<'gc>(
             rel,
             text: label,
             span: at,
-            has_span,
         } => match key {
             "target" => Some(text(ctx, target)),
-            "rel" => Some(text(ctx, rel)),
+            "rel" => Some(rel.as_deref().map_or(Value::Nil, |rel| text(ctx, rel))),
             "text" => Some(text(ctx, label)),
-            "span" => Some(span(ctx, meta, *at)),
-            "has_span" => Some(Value::Boolean(*has_span)),
+            "span" => Some(at.map_or(Value::Nil, |at| span(ctx, meta, at))),
             _ => None,
         },
         Host::Relation { .. } => relation_field(host, ctx, key),
@@ -186,31 +182,27 @@ pub(crate) fn field<'gc>(
 }
 
 fn document_field<'gc>(input: &ReadingInput, ctx: Context<'gc>, key: &str) -> Option<Value<'gc>> {
-    let selection = |pick: fn((usize, usize)) -> usize| {
-        Value::Integer(
-            input
-                .selection
-                .map_or(-1, |at| i64::try_from(pick(at)).unwrap_or(i64::MAX)),
-        )
-    };
+    let selection =
+        |pick: fn((usize, usize)) -> usize| input.selection.map_or(Value::Nil, |at| int(pick(at)));
     Some(match key {
         "address" => text(ctx, &input.source.address),
         "format" => text(ctx, &input.format),
         "text" => text(ctx, &input.text),
         "selection_start" => selection(|(start, _)| start),
         "selection_end" => selection(|(_, end)| end),
-        "revision" => text(
-            ctx,
-            &input
-                .source
-                .revision
-                .as_ref()
-                .map(hex32)
-                .unwrap_or_default(),
-        ),
+        "revision" => input
+            .source
+            .revision
+            .as_ref()
+            .map_or(Value::Nil, |revision| text(ctx, &hex32(revision))),
         "text_in" => Callback::from_fn(&ctx, text_in).into(),
         _ => return None,
     })
+}
+
+/// One offset of a relation endpoint, nil when the endpoint is unplaced.
+fn place<'gc>(end: &Endpoint, pick: fn(&Range) -> usize) -> Value<'gc> {
+    end.range.as_ref().map_or(Value::Nil, |at| int(pick(at)))
 }
 
 fn relation_field<'gc>(host: &Host, ctx: Context<'gc>, key: &str) -> Option<Value<'gc>> {
@@ -231,11 +223,11 @@ fn relation_field<'gc>(host: &Host, ctx: Context<'gc>, key: &str) -> Option<Valu
         "predicate" => text(ctx, predicate),
         "active" => Value::Boolean(*active),
         "subject_document" => text(ctx, &subject.document),
-        "subject_start" => Value::Integer(subject.start),
-        "subject_end" => Value::Integer(subject.end),
+        "subject_start" => place(subject, |at| at.start),
+        "subject_stop" => place(subject, |at| at.end),
         "object_document" => text(ctx, &object.document),
-        "object_start" => Value::Integer(object.start),
-        "object_end" => Value::Integer(object.end),
+        "object_start" => place(object, |at| at.start),
+        "object_stop" => place(object, |at| at.end),
         _ => return None,
     })
 }

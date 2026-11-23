@@ -74,12 +74,14 @@ pub(crate) fn hex32(bytes: &[u8; 32]) -> String {
 
 /// Every bound a reading runs under. `max_ops` of `0` is refused rather than
 /// honoured: rhai reads zero as *unlimited*, which is the opposite of a budget.
+/// `max_heap_bytes` bounds the Lua lane's heap; the Rhai lane ignores it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ReadingBudget {
     pub max_ops: u64,
     pub max_source_bytes: usize,
     pub max_rows: usize,
     pub max_note_bytes: usize,
+    pub max_heap_bytes: usize,
 }
 
 impl Default for ReadingBudget {
@@ -89,6 +91,7 @@ impl Default for ReadingBudget {
             max_source_bytes: 64 * 1024,
             max_rows: 2_000,
             max_note_bytes: 64 * 1024,
+            max_heap_bytes: 16 * 1024 * 1024,
         }
     }
 }

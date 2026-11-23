@@ -10,7 +10,7 @@
 //! Each limit has a control: the same script one step inside the limit runs.
 
 use knot_readings::backend::ReadingBackend;
-use knot_readings::didge::{DidgeReadingBackend, MAX_HEAP_BYTES};
+use knot_readings::didge::DidgeReadingBackend;
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 
 fn field_notes() -> ReadingInput {
@@ -172,15 +172,24 @@ fn the_string_limit_is_the_note_limit() {
 
 /// What stood behind Rhai's array and map ceilings was memory. Fuel bounds work
 /// and the string limit bounds one string, but a table can still grow: the heap
-/// is read between fuel steps and past [`MAX_HEAP_BYTES`] the run is cut off.
+/// is read between fuel steps and past `ReadingBudget::max_heap_bytes` the run is cut off.
 #[test]
 fn the_heap_ceiling_cuts_off_growth_that_fuel_would_allow() {
     let strings = "local t = {} for i = 1, 100000 do t[i] = ('x'):rep(60000) .. i end";
     let message = budget_message(strings, roomy());
     assert!(message.contains("memory"), "{message}");
-    assert!(message.contains(&MAX_HEAP_BYTES.to_string()), "{message}");
+    assert!(message.contains(&ReadingBudget::default().max_heap_bytes.to_string()), "{message}");
     let tables = "local t = {} for i = 1, 5000000 do t[i] = {i, i, i} end";
     assert!(budget_message(tables, roomy()).contains("memory"));
+
+    // The ceiling is the budget's field: halve it and a smaller growth is cut.
+    let half = ReadingBudget {
+        max_heap_bytes: 1024 * 1024,
+        ..roomy()
+    };
+    let grow = "local t = {} for i = 1, 100 do t[i] = ('x'):rep(60000) .. i end";
+    assert!(budget_message(grow, half).contains("1048576"));
+    assert!(run(&format!("{grow} return row('done')"), roomy()).is_ok());
 
     // Controls: garbage that is collected does not count, and honest work in
     // the same loops, a little smaller, runs.

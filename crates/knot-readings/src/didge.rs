@@ -18,7 +18,7 @@
 //!
 //! Bounds: `max_ops` is VM fuel; the string limit is the note limit; a list may
 //! hold at most four times `max_rows` items and the state's heap may not pass
-//! [`MAX_HEAP_BYTES`], the two limits standing where Rhai's array and map
+//! [`ReadingBudget::max_heap_bytes`], the two limits standing where Rhai's array and map
 //! ceilings stood.
 
 use crate::backend::{BudgetSupport, ReadingBackend, ReadingBackendDescriptor};
@@ -38,9 +38,6 @@ use std::time::Instant;
 /// Fuel handed to one `Executor::step`. Between steps the arena is left, which
 /// lets the collector run, and the heap and the budget are checked.
 const FUEL_PER_STEP: i32 = 4096;
-
-/// The most heap a reading's state may hold between steps.
-pub const MAX_HEAP_BYTES: usize = 16 * 1024 * 1024;
 
 /// A reading's list may hold this many items for each row the budget allows.
 const ITEMS_PER_ROW: usize = 4;
@@ -163,7 +160,7 @@ fn start(
 }
 
 /// Step the executor until it finishes, spends `max_ops` fuel or grows the heap
-/// past [`MAX_HEAP_BYTES`]. Returns the fuel spent: `ops_used`.
+/// past `max_heap_bytes`. Returns the fuel spent: `ops_used`.
 fn drive(
     lua: &mut Lua,
     executor: &StashedExecutor,
@@ -187,9 +184,12 @@ fn drive(
         if finished {
             return Ok(used);
         }
-        if lua.total_memory() > MAX_HEAP_BYTES {
+        if lua.total_memory() > budget.max_heap_bytes {
             return Err(over_budget(
-                format!("the reading used more than {MAX_HEAP_BYTES} bytes of memory"),
+                format!(
+                    "the reading used more than {} bytes of memory",
+                    budget.max_heap_bytes
+                ),
                 budget,
             ));
         }

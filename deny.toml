@@ -63,10 +63,6 @@ crate = "block-buffer@0.10.4"
 reason = "snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), blake2 0.10.6 (blake2 0.11.0 drops it), wasmtime-environ 45.0.3 (wasmtime-environ 50.0.1 drops it) and 1 more require it, via digest 0.10.7, sha2 0.10.9, under authority-host, esp, mere-transport; goes when snow, tracel-llvm-bundler move to block-buffer 0.12.1; their dependents take blake2 0.11.0, wasmtime-environ 50.0.1, wasmtime-internal-cache 50.0.1"
 
 [[bans.skip]]
-crate = "block2@0.5.1"
-reason = "winit 0.30.13 (latest), accesskit_macos 0.27.1 (accesskit_macos 0.27.2 drops it), objc2-cloud-kit 0.2.2 (objc2-cloud-kit 0.3.2 drops it), objc2-contacts 0.2.2 (objc2-contacts 0.3.2 drops it) and 10 more require it, via objc2-app-kit 0.2.2, objc2-foundation 0.2.2, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to block2 0.6.2; their dependents take accesskit_macos 0.27.2, objc2-cloud-kit 0.3.2, objc2-contacts 0.3.2 and 10 more"
-
-[[bans.skip]]
 crate = "chacha20@0.9.1"
 reason = "snow 0.10.0 (latest) requires it, via chacha20poly1305 0.10.1, under mere-transport; goes when snow moves to chacha20 0.10.2"
 
@@ -81,10 +77,6 @@ reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (late
 [[bans.skip]]
 crate = "convert_case@0.10.0"
 reason = "derive_more-impl 2.1.1 (latest) requires it, under esp, knot-editor, mere-transport, p2mere-net; goes when derive_more-impl moves to convert_case 0.12.0"
-
-[[bans.skip]]
-crate = "core-foundation@0.9.4"
-reason = "winit 0.30.13 (latest), core-graphics 0.23.2 (core-graphics 0.25.0 drops it), core-graphics-types 0.1.3 (core-graphics-types 0.2.0 drops it) require it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to core-foundation 0.10.1; their dependents take core-graphics 0.25.0, core-graphics-types 0.2.0"
 
 [[bans.skip]]
 crate = "cpufeatures@0.2.17"
@@ -219,8 +211,8 @@ crate = "jni-sys@0.3.1"
 reason = "ndk 0.9.0 (latest), ndk-sys 0.6.0+11769913 (latest), netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1, under cambium-a11y, cambium-desktop, cambium-rootstock, cambium-winit and 9 more; goes when ndk, ndk-sys move to jni-sys 0.4.1; their dependents take netdev 0.47.0, netwatch 0.20.0"
 
 [[bans.skip]]
-crate = "linux-raw-sys@0.4.15"
-reason = "winit 0.30.13 (latest), calloop 0.13.0 (calloop 0.14.5 drops it), calloop-wayland-source 0.3.0 (calloop-wayland-source 0.4.1 drops it), smithay-client-toolkit 0.19.2 (smithay-client-toolkit 0.21.1 drops it) and 1 more require it, via rustix 0.38.44, under cambium-a11y, cambium-desktop, cambium-winit, esp and 1 more; goes when winit moves to linux-raw-sys 0.12.1; their dependents take calloop 0.14.5, calloop-wayland-source 0.4.1, smithay-client-toolkit 0.21.1 and 1 more"
+crate = "libloading@0.8.9"
+reason = "ash 0.38.0 (latest), wgpu-hal 30.0.2 (latest), khronos-egl 6.0.0, dlib 0.5.3, clang-sys 1.9.1 and 6 more require it; cudarc 0.19.10 and x11rb 0.14.0 take libloading 0.9.1; goes when ash, wgpu-hal and the rest move to libloading 0.9.1"
 
 [[bans.skip]]
 crate = "miniz_oxide@0.8.9"
@@ -287,20 +279,12 @@ crate = "rand_core@0.9.5"
 reason = "rav1e 0.8.1 (latest), tokenizers 0.23.2 (latest), turso_core 0.8.3 (latest) require it, via rand 0.9.5, rand_chacha 0.9.0, under esp, genet-livery, mere-lanes; goes when rav1e, tokenizers, turso_core move to rand_core 0.10.1"
 
 [[bans.skip]]
-crate = "redox_syscall@0.4.1"
-reason = "winit 0.30.13 (latest) requires it, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to redox_syscall 0.9.5"
-
-[[bans.skip]]
 crate = "redox_syscall@0.5.18"
 reason = "parking_lot_core 0.9.12 (parking_lot_core 0.10.0 drops it) requires it, under cambium-desktop, cambium-rootstock, eidetic, esp and 9 more; goes when their dependents take parking_lot_core 0.10.0"
 
 [[bans.skip]]
 crate = "rustc-hash@1.1.0"
 reason = "naga 30.0.2 (latest), naga-types 30.0.2 (latest), wgpu-core 30.0.2 (latest), bindgen 0.69.5 (bindgen 0.73.2 drops it) require it, under cambium-desktop, cambium-rootstock, esp, genet-presenter and 5 more; goes when naga, naga-types, wgpu-core move to rustc-hash 2.1.3; their dependents take bindgen 0.73.2"
-
-[[bans.skip]]
-crate = "rustix@0.38.44"
-reason = "winit 0.30.13 (latest), calloop 0.13.0 (calloop 0.14.5 drops it), calloop-wayland-source 0.3.0 (calloop-wayland-source 0.4.1 drops it), smithay-client-toolkit 0.19.2 (smithay-client-toolkit 0.21.1 drops it) and 1 more require it, under cambium-a11y, cambium-desktop, cambium-winit, esp and 1 more; goes when winit moves to rustix 1.1.6; their dependents take calloop 0.14.5, calloop-wayland-source 0.4.1, smithay-client-toolkit 0.21.1 and 1 more"
 
 [[bans.skip]]
 crate = "sha2@0.10.9"
@@ -369,10 +353,6 @@ reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20
 [[bans.skip]]
 crate = "windows-sys@0.52.0"
 reason = "ring 0.17.14 (latest), winit 0.30.13 (latest) require it, under cambium-a11y, cambium-desktop, cambium-winit, castellan and 11 more; goes when ring, winit move to windows-sys 0.61.2"
-
-[[bans.skip]]
-crate = "windows-sys@0.59.0"
-reason = "fs-set-times 0.20.3 (latest), io-extras 0.18.4 (latest), winit 0.30.13 (latest), winx 0.36.4 (latest) and 6 more require it, via rustix 0.38.44, under authority-host, cambium-a11y, cambium-desktop, cambium-winit and 2 more; goes when fs-set-times, io-extras, winit and 1 more move to windows-sys 0.61.2; their dependents take calloop 0.14.5, calloop-wayland-source 0.4.1, cap-fs-ext 4.0.3 and 3 more"
 
 [[bans.skip]]
 crate = "windows-targets@0.42.2"

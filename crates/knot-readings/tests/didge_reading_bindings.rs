@@ -7,8 +7,9 @@
 //!
 //! Differences from the Rhai file, all by ruling (plan D4, D6, D7, D8):
 //! a reading `return`s its value; lists are 1-based but byte offsets stay
-//! 0-based; text joins with `..`; `#s` is bytes and `char_count(s)` is
-//! characters; `end` is a Lua keyword, so a range's end is `["end"]` or `stop`.
+//! 0-based; text joins with `..`; `#s` is bytes and `utf8.len(s)` is
+//! characters; `end` is a Lua keyword, so a range's end is `stop`; absent values
+//! are nil.
 
 use knot_document::KnotDocumentSession;
 use knot_readings::backend::{BudgetSupport, ReadingBackend};
@@ -88,7 +89,7 @@ fn every_binding_reads_the_snapshot_it_was_given() {
             note("address=" .. document().address),
             note("format=" .. document().format),
             note("text_bytes=" .. #document().text),
-            note("text_chars=" .. char_count(document().text)),
+            note("text_chars=" .. utf8.len(document().text)),
         }"#,
         &input,
     );
@@ -103,7 +104,7 @@ fn every_binding_reads_the_snapshot_it_was_given() {
             "address=memory:field-notes".to_owned(),
             "format=djot".to_owned(),
             // D8: `#` is bytes, as spans are; the Rhai test's characters are
-            // `char_count`.
+            // `utf8.len`.
             format!("text_bytes={}", input.text.len()),
             format!("text_chars={}", input.text.chars().count()),
         ]
@@ -129,13 +130,13 @@ fn every_binding_reads_the_snapshot_it_was_given() {
         notes(
             r#"local r = relations()[1]
                return {note(r.predicate .. "|" .. tostring(r.active) .. "|" .. r.subject_start
-                     .. "|" .. r.object_start .. "|" .. r.subject_document .. "|"
-                     .. r.object_document .. "|" .. r.id .. "|" .. r.subject_end
-                     .. "|" .. r.object_end .. "|" .. r.author)}"#,
+                     .. "|" .. tostring(r.object_start) .. "|" .. r.subject_document .. "|"
+                     .. r.object_document .. "|" .. r.id .. "|" .. r.subject_stop
+                     .. "|" .. tostring(r.object_stop) .. "|" .. r.author)}"#,
             &with_relations,
         ),
         vec![format!(
-            "cites|true|10|-1|memory:field-notes|memory:other|{}|20|-1|{}",
+            "cites|true|10|nil|memory:field-notes|memory:other|{}|20|nil|{}",
             "11".repeat(32),
             "22".repeat(32)
         )]
@@ -372,8 +373,8 @@ fn links_carry_spans_and_rel_in_document_order() {
     let read = notes(
         r#"local out = {}
            for _, l in ipairs(links()) do
-             out[#out + 1] = note(l.target .. "|" .. l.rel .. "|" .. tostring(l.has_span)
-               .. "|" .. l.span.start .. "|" .. l.span["end"])
+             out[#out + 1] = note(l.target .. "|" .. (l.rel or "-") .. "|" .. l.span.start
+               .. "|" .. l.span.stop)
            end
            return out"#,
         &input,
@@ -384,9 +385,9 @@ fn links_carry_spans_and_rel_in_document_order() {
         .map(|link| {
             let (start, end) = link.span.unwrap();
             format!(
-                "{}|{}|true|{start}|{end}",
+                "{}|{}|{start}|{end}",
                 link.target,
-                link.rel.clone().unwrap_or_default()
+                link.rel.clone().unwrap_or_else(|| "-".to_owned())
             )
         })
         .collect::<Vec<_>>();
@@ -408,7 +409,7 @@ fn links_carry_spans_and_rel_in_document_order() {
 }
 
 /// (9b) A paragraph link's `{rel=...}` predicate survives the knot preview and
-/// reaches a Lua script with its rel; a plain link reads as an empty rel.
+/// reaches a Lua script with its rel; a plain link's rel is nil.
 #[test]
 fn paragraph_link_predicates_reach_a_lua_reading() {
     let source = field_notes();
@@ -428,7 +429,7 @@ fn paragraph_link_predicates_reach_a_lua_reading() {
     );
     let unplaced = notes(
         r#"local n = 0
-           for _, l in ipairs(links()) do if not l.has_span then n = n + 1 end end
+           for _, l in ipairs(links()) do if l.span == nil then n = n + 1 end end
            return note("unplaced=" .. n)"#,
         &input,
     );

@@ -80,6 +80,7 @@ fn open(scripts: &[(&str, &str)], readings_root: Option<&Path>) -> Fixture {
         WindowCommands::new(),
         Some(document.clone()),
     );
+    state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow);
     state.set_readings_root(Some(
         readings_root.map_or(readings, |explicit| explicit.to_path_buf()),
     ));

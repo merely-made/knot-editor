@@ -5,7 +5,7 @@
 // SPDX-License-Identifier: MPL-2.0
 
 //! The host values of the Lua reading surface: what a userdata holds and the
-//! fields it answers to. See [`crate::didge_bindings`] for how they are made
+//! fields it answers to. See [`crate::lua_bindings`] for how they are made
 //! and why a write to one fails.
 
 use crate::{ReadingInput, ReadingItemKind, hex32};

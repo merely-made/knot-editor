@@ -39,10 +39,10 @@ pub(super) fn effect_authority(
         .allowed_schemes
         .iter()
         .any(|scheme| is_read_network_scheme(scheme));
-    let has_rhai = policy
+    let has_lua = policy
         .allowed_languages
         .iter()
-        .any(|language| language == "rhai");
+        .any(|language| language == "lua");
     let mut authority = knot_editor::KnotEffectAuthority::new(policy);
     if has_file || has_network {
         let file = has_file.then(|| {
@@ -61,8 +61,8 @@ pub(super) fn effect_authority(
         });
         authority = authority.with_fetcher(RoutedEffectFetcher { file, network });
     }
-    if has_rhai {
-        authority = authority.register_evaluator(script_rhai::RhaiEvaluator::new());
+    if has_lua {
+        authority = authority.register_evaluator(script_didge::LuaEvaluator::new());
     }
     authority
 }

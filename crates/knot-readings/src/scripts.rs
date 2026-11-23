@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! Listing `.rhai` readings in a directory the app owns.
+//! Listing `.lua` readings in a directory the app owns.
 //!
 //! Read-only and non-recursive: no symlink following, no writes, and no
 //! traversal past the named directory. A missing directory is an empty list,
@@ -33,8 +33,16 @@ pub fn load_dir(
         };
         let path = entry.path();
         let name = entry.file_name().to_string_lossy().into_owned();
-        if path.extension().and_then(|value| value.to_str()) != Some("rhai") {
-            continue;
+        match path.extension().and_then(|value| value.to_str()) {
+            Some("lua") => {},
+            // Rhai readings are no longer run; say so rather than skip them.
+            Some("rhai") => {
+                notes.push(format!(
+                    "{name}: Rhai readings are no longer run; rewrite it in Lua as a .lua file"
+                ));
+                continue;
+            },
+            _ => continue,
         }
         // `symlink_metadata` does not follow links, so a link out of the
         // readings directory is refused rather than quietly followed.

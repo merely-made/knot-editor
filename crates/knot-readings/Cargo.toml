@@ -6,7 +6,7 @@ license.workspace = true
 
 rust-version = "1.97.1"
 repository.workspace = true
-description = "Sandboxed rhai reading lane over Knot's typed document snapshots."
+description = "Sandboxed Lua reading lane over Knot's typed document snapshots."
 
 [dependencies]
 blake3.workspace = true
@@ -16,7 +16,6 @@ mora.workspace = true
 mora-cmudict.workspace = true
 piccolo.workspace = true
 script-didge.workspace = true
-script-rhai.workspace = true
 sceno = { workspace = true, optional = true }
 sceno-backdrops = { workspace = true, optional = true }
 scenomise = { workspace = true, optional = true }

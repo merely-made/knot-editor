@@ -10,7 +10,7 @@
 //! Each limit has a control: the same script one step inside the limit runs.
 
 use knot_readings::backend::ReadingBackend;
-use knot_readings::didge::DidgeReadingBackend;
+use knot_readings::lua::LuaReadingBackend;
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 
 fn field_notes() -> ReadingInput {
@@ -23,7 +23,7 @@ fn field_notes() -> ReadingInput {
 }
 
 fn run(source: &str, budget: ReadingBudget) -> Result<ReadingResult, ReadingError> {
-    DidgeReadingBackend.run(
+    LuaReadingBackend.run(
         &ReadingScript::new("limits", source),
         &field_notes(),
         budget,

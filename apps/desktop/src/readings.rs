@@ -4,7 +4,7 @@
 // file, You can obtain one at https://mozilla.org/MPL/2.0/.
 // SPDX-License-Identifier: MPL-2.0
 
-//! The Readings tile: run a sandboxed rhai reading over its document and show
+//! The Readings tile: run a sandboxed Lua reading over its document and show
 //! its rows as selectable source ranges.
 //!
 //! A reading is derived state, so the tile labels every one of them with the

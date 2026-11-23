@@ -3551,8 +3551,9 @@ impl DesktopState {
             },
         };
         let source = input.text.clone();
-        use knot_readings::backend::{ReadingBackend, RhaiReadingBackend};
-        match RhaiReadingBackend.run(&script, &input, ReadingBudget::default()) {
+        use knot_readings::backend::ReadingBackend;
+        use knot_readings::lua::LuaReadingBackend;
+        match LuaReadingBackend.run(&script, &input, ReadingBudget::default()) {
             Ok(result) => {
                 entry.reading_result = Some(result);
                 entry.reading_source = Some(source);
@@ -9033,8 +9034,8 @@ mod tests {
     }
 
     /// A reading script that lists every heading as a row over its span.
-    const HEADING_ROWS: &str =
-        "let out = [];\nfor h in outline() { out.push(row(h.label, h.span)); }\nout\n";
+    const HEADING_ROWS: &str = "local out = {}\nfor _, h in ipairs(outline()) do\n  \
+                                out[#out + 1] = row(h.label, h.span)\nend\nreturn out\n";
 
     /// A document `a.djot` with two headings and a readings folder holding
     /// `scripts`, open in a laid-out harness.
@@ -9055,7 +9056,7 @@ mod tests {
 
     #[test]
     fn a_pinned_readings_tile_runs_over_its_own_document() {
-        let (_temp, mut host) = readings_host(&["headings.rhai"]);
+        let (_temp, mut host) = readings_host(&["headings.lua"]);
         let a = host.state().focused_key().unwrap();
         assert!(host.click_on(&Selector::role("button").containing("Readings")));
         assert!(host.click_on(&Selector::role("button").containing("Pin")));
@@ -9088,7 +9089,7 @@ mod tests {
 
     #[test]
     fn each_readings_tile_keeps_its_own_script_and_id() {
-        let (_temp, mut host) = readings_host(&["first.rhai", "second.rhai"]);
+        let (_temp, mut host) = readings_host(&["first.lua", "second.lua"]);
         assert!(host.click_on(&Selector::role("button").containing("Readings")));
         assert!(host.click_on(&Selector::role("button").containing("Pin")));
         let pinned = reading_tile(&host, ReadingKind::Readings, true);
@@ -9103,8 +9104,8 @@ mod tests {
                 .reading_script(tile)
                 .map(|script| script.name.clone())
         };
-        assert_eq!(chosen(&host, pinned).as_deref(), Some("first.rhai"));
-        assert_eq!(chosen(&host, following).as_deref(), Some("second.rhai"));
+        assert_eq!(chosen(&host, pinned).as_deref(), Some("first.lua"));
+        assert_eq!(chosen(&host, following).as_deref(), Some("second.lua"));
         for tile in [pinned, following] {
             host.update(|state| state.docs.activate(tile));
             let dom = host.runner().dom();

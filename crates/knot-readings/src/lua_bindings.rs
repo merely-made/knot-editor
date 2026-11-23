@@ -15,15 +15,15 @@
 //!
 //! Byte offsets are 0-based, as spans are; lists are the Lua way, 1-based.
 
-use crate::bindings::fold_kind;
-use crate::didge_host::{Endpoint, Host, Range, check_range, field, host_of, make, refuse, span};
+use knot_document::KnotFoldKindV1;
+use crate::lua_host::{Endpoint, Host, Range, check_range, field, host_of, make, refuse, span};
 use crate::{NOTE_FORMATS, ReadingInput, ReadingItemKind, ReadingNoteV1, ReadingRowV1, hex32};
 use piccolo::{Callback, CallbackReturn, Context, Error, MetaMethod, Stack, Table, Value};
 use std::sync::Arc;
 
 /// The names a Lua reading may call. `text_in` is a method of a document
 /// (`document():text_in(span)`); the rest are globals.
-pub const DIDGE_READING_SURFACE: [&str; 10] = [
+pub const READING_SURFACE: [&str; 10] = [
     "document",
     "outline",
     "sections",
@@ -353,4 +353,14 @@ pub(crate) fn item_of(value: Value<'_>) -> Option<ReadingItemKind> {
 /// The name of a script value for a shape error: a host type's own, else Lua's.
 pub(crate) fn kind_of(value: Value<'_>) -> &'static str {
     host_of(value).map_or_else(|| value.type_name(), Host::type_name)
+}
+
+fn fold_kind(kind: KnotFoldKindV1) -> &'static str {
+    match kind {
+        KnotFoldKindV1::Section => "section",
+        KnotFoldKindV1::List => "list",
+        KnotFoldKindV1::Blockquote => "blockquote",
+        KnotFoldKindV1::CodeBlock => "code",
+        KnotFoldKindV1::Div => "div",
+    }
 }

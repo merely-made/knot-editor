@@ -20,12 +20,14 @@ const SOURCE: &str =
     "# Field notes\n\nOpening.\n\n## Citations\n\nA cited passage.\n\n## Σχόλια\n\nGreek notes.\n";
 
 /// Every heading as a row carrying its own span, plus a rendered note.
-const OUTLINE_ROWS: &str = r###"let out = [];
-for h in outline() { out.push(row(h.label, h.span)); }
-out.push(note("## Rendered note", "djot"));
-out"###;
+const OUTLINE_ROWS: &str = r###"local out = {}
+for _, h in ipairs(outline()) do
+  out[#out + 1] = row(h.label, h.span)
+end
+out[#out + 1] = note("## Rendered note", "djot")
+return out"###;
 
-const RUNAWAY: &str = "let n = 0;\nloop { n += 1; }\n";
+const RUNAWAY: &str = "local n = 0\nwhile true do\n  n = n + 1\nend\n";
 
 type DesktopHarness = Harness<DesktopState, fn(&DesktopState) -> DesktopView, DesktopView>;
 
@@ -127,13 +129,13 @@ fn run_first_reading(harness: &mut DesktopHarness) {
 /// returning focus to the one editable source.
 #[test]
 fn a_reading_lists_runs_and_selects_its_source_range() {
-    let mut fixture = open(&[("outline_rows.rhai", OUTLINE_ROWS)], None);
+    let mut fixture = open(&[("outline_rows.lua", OUTLINE_ROWS)], None);
     show_panel(&mut fixture.harness);
-    assert!(panel_text(&fixture.harness).contains("outline_rows.rhai"));
+    assert!(panel_text(&fixture.harness).contains("outline_rows.lua"));
     run_first_reading(&mut fixture.harness);
 
     let provenance = class_text(&fixture.harness, "knot-readings-provenance").unwrap();
-    assert!(provenance.contains("outline_rows.rhai"), "{provenance}");
+    assert!(provenance.contains("outline_rows.lua"), "{provenance}");
     assert!(provenance.contains("3 rows"), "{provenance}");
     assert!(provenance.contains("ops"), "{provenance}");
     // The declared-format note rendered through the preview block renderer.
@@ -167,7 +169,7 @@ fn a_reading_lists_runs_and_selects_its_source_range() {
 /// its rows refuse to select, and a rerun rederives against the new source.
 #[test]
 fn a_source_edit_makes_a_reading_stale_until_it_is_rerun() {
-    let mut fixture = open(&[("outline_rows.rhai", OUTLINE_ROWS)], None);
+    let mut fixture = open(&[("outline_rows.lua", OUTLINE_ROWS)], None);
     show_panel(&mut fixture.harness);
     run_first_reading(&mut fixture.harness);
     let before = class_text(&fixture.harness, "knot-readings-provenance").unwrap();
@@ -224,7 +226,7 @@ fn a_source_edit_makes_a_reading_stale_until_it_is_rerun() {
 /// the source it read.
 #[test]
 fn a_runaway_reading_reports_a_budget_without_a_hang() {
-    let mut fixture = open(&[("runaway.rhai", RUNAWAY)], None);
+    let mut fixture = open(&[("runaway.lua", RUNAWAY)], None);
     show_panel(&mut fixture.harness);
     let started = std::time::Instant::now();
     run_first_reading(&mut fixture.harness);

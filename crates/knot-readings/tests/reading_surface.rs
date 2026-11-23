@@ -7,7 +7,7 @@
 
 use knot_document::KnotDocumentSession;
 use knot_readings::backend::ReadingBackend;
-use knot_readings::didge::DidgeReadingBackend;
+use knot_readings::lua::LuaReadingBackend;
 use knot_readings::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 use std::path::PathBuf;
 
@@ -34,7 +34,7 @@ fn run(
     input: &ReadingInput,
     budget: ReadingBudget,
 ) -> Result<ReadingResult, ReadingError> {
-    DidgeReadingBackend.run(script, input, budget)
+    LuaReadingBackend.run(script, input, budget)
 }
 
 fn notes(source: &str, input: &ReadingInput) -> Vec<String> {

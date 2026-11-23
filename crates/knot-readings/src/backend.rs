@@ -10,7 +10,7 @@
 //! host extension; each backend must enforce the budget and authority it
 //! advertises. Hosts decide which backend may run a given script.
 
-use crate::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript, run};
+use crate::{ReadingBudget, ReadingError, ReadingInput, ReadingResult, ReadingScript};
 
 /// How a backend enforces the `ReadingBudget::max_ops` bound.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -33,7 +33,7 @@ pub struct ReadingBackendDescriptor {
 
 /// Evaluate a typed reading input into owned rows, notes and provenance.
 ///
-/// This trait carries no Rhai `Dynamic` or any language-specific VM value.
+/// This trait carries no language-specific VM value.
 pub trait ReadingBackend: Send {
     fn descriptor(&self) -> ReadingBackendDescriptor;
 
@@ -43,29 +43,6 @@ pub trait ReadingBackend: Send {
         input: &ReadingInput,
         budget: ReadingBudget,
     ) -> Result<ReadingResult, ReadingError>;
-}
-
-/// Existing Rhai reading semantics behind the typed dispatch seam.
-#[derive(Default)]
-pub struct RhaiReadingBackend;
-
-impl ReadingBackend for RhaiReadingBackend {
-    fn descriptor(&self) -> ReadingBackendDescriptor {
-        ReadingBackendDescriptor {
-            id: "knot.rhai.reading",
-            version: env!("CARGO_PKG_VERSION"),
-            budget_support: BudgetSupport::NativeOperations,
-        }
-    }
-
-    fn run(
-        &mut self,
-        script: &ReadingScript,
-        input: &ReadingInput,
-        budget: ReadingBudget,
-    ) -> Result<ReadingResult, ReadingError> {
-        run(script, input, budget)
-    }
 }
 
 #[cfg(test)]
@@ -110,7 +87,7 @@ mod tests {
     }
 
     #[test]
-    fn host_dispatches_a_typed_fake_without_rhai_values() {
+    fn host_dispatches_a_typed_fake_without_vm_values() {
         let input = ReadingInput::from_text("memory:fake", "djot", "one reading");
         let script = ReadingScript::new("fake", "unused");
         let budget = ReadingBudget::default();
@@ -121,20 +98,5 @@ mod tests {
         assert_eq!(result.rows[0].span, Some((0, 11)));
         assert_eq!(result.provenance.source, input.source);
         assert_eq!(result.provenance.script_hash, script.hash);
-    }
-
-    #[test]
-    fn rhai_adapter_retains_existing_budgeted_run() {
-        let input = ReadingInput::from_text("memory:rhai", "djot", "hello");
-        let script = ReadingScript::new("rhai", "row(\"ok\")");
-        let mut backend = RhaiReadingBackend;
-        assert_eq!(
-            backend.descriptor().budget_support,
-            BudgetSupport::NativeOperations
-        );
-        let result = backend
-            .run(&script, &input, ReadingBudget::default())
-            .unwrap();
-        assert_eq!(result.rows[0].label, "ok");
     }
 }

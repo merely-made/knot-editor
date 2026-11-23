@@ -355,6 +355,10 @@ crate = "windows-sys@0.52.0"
 reason = "ring 0.17.14 (latest), winit 0.30.13 (latest) require it, under cambium-a11y, cambium-desktop, cambium-winit, castellan and 11 more; goes when ring, winit move to windows-sys 0.61.2"
 
 [[bans.skip]]
+crate = "windows-sys@0.59.0"
+reason = "dirs-sys 0.5.0 (latest) requires it, via dirs 7.0.0 (latest), under merely-made/mere's catchment, through Graphshell's incipit and scenograph; goes when dirs-sys moves to windows-sys 0.61.2"
+
+[[bans.skip]]
 crate = "windows-targets@0.42.2"
 reason = "netdev 0.46.3 (netdev 0.47.0 drops it), netwatch 0.19.3 (netwatch 0.20.0 drops it) require it, via jni 0.21.1, netdev 0.45.1 and 1 more, under knot-editor, mere-transport, p2mere-net; goes when their dependents take netdev 0.47.0, netwatch 0.20.0"
 

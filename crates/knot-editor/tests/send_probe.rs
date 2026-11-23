@@ -10,9 +10,10 @@
 //! A resident Graphshell host schedules endpoints across threads, so
 //! `ResidentEndpointCatalog` will not register one that is not `Send`. The
 //! chain that makes this hold runs through two repos and is easy to break by
-//! accident: rhai's `sync` feature makes `rhai::Engine` `Send`, which lets
-//! `RhaiEvaluator` satisfy inker's `BlockEvaluator: Send` bound, which is what
-//! keeps `KnotEffectAuthority`'s evaluator map `Send`.
+//! accident: `script-didge`'s `LuaEvaluator` holds no Lua state (a piccolo
+//! `Lua` is not `Send`) and builds a fresh one per fence, which lets it satisfy
+//! inker's `BlockEvaluator: Send` bound, which is what keeps
+//! `KnotEffectAuthority`'s evaluator map `Send`.
 //!
 //! Without this test, breaking any link in that chain surfaces as a confusing
 //! trait error at a catalog registration in another crate. With it, the

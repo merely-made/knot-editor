@@ -511,7 +511,7 @@ fn communal_fixture_endpoint(
     let source = "\
 # Received calculation
 
-```rhai eval
+```lua eval
 40 + 2
 ```
 ";

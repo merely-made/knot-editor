@@ -1,25 +1,29 @@
 // Copyright 2026 Mark Alan Boykin
 // SPDX-License-Identifier: MPL-2.0
 
-//! Receipts for the reading surface: every binding reads the snapshot it was
-//! given, results carry valid spans and provenance, and every failure mode
-//! arrives as a labelled error rather than a hang.
+//! The Lua reading lane's counterpart of `reading_bindings.rs`: every binding
+//! reads the snapshot it was given, results carry valid spans and provenance,
+//! and every failure arrives as a labelled error rather than a hang.
+//!
+//! Differences from the Rhai file, all by ruling (plan D4, D6, D7, D8):
+//! a reading `return`s its value; lists are 1-based but byte offsets stay
+//! 0-based; text joins with `..`; `#s` is bytes and `utf8.len(s)` is
+//! characters; `end` is a Lua keyword, so a range's end is `stop`; absent values
+//! are nil.
 
 use knot_document::KnotDocumentSession;
+use knot_readings::backend::{BudgetSupport, ReadingBackend};
+use knot_readings::lua::LuaReadingBackend;
 use knot_readings::{
-    ReadingBudget, ReadingEndpointV1, ReadingError, ReadingInput, ReadingRelationV1, ReadingScript,
-    run,
+    ReadingBudget, ReadingEndpointV1, ReadingError, ReadingInput, ReadingRelationV1, ReadingResult,
+    ReadingScript,
 };
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 const FIXTURES: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures");
 
-fn fixtures() -> PathBuf {
-    PathBuf::from(FIXTURES)
-}
-
 fn field_notes() -> String {
-    std::fs::read_to_string(fixtures().join("field_notes.djot")).unwrap()
+    std::fs::read_to_string(PathBuf::from(FIXTURES).join("field_notes.djot")).unwrap()
 }
 
 fn input_from(source: &str) -> ReadingInput {
@@ -31,12 +35,20 @@ fn input_from(source: &str) -> ReadingInput {
 }
 
 fn fixture_script(name: &str) -> ReadingScript {
-    let path = fixtures().join(name);
+    let path = PathBuf::from(FIXTURES).join(name);
     ReadingScript::new(name, std::fs::read_to_string(path).unwrap())
 }
 
 fn inline(source: &str) -> ReadingScript {
     ReadingScript::new("inline", source)
+}
+
+fn run(
+    script: &ReadingScript,
+    input: &ReadingInput,
+    budget: ReadingBudget,
+) -> Result<ReadingResult, ReadingError> {
+    LuaReadingBackend.run(script, input, budget)
 }
 
 fn notes(source: &str, input: &ReadingInput) -> Vec<String> {
@@ -48,6 +60,14 @@ fn notes(source: &str, input: &ReadingInput) -> Vec<String> {
         .collect()
 }
 
+#[test]
+fn the_backend_names_itself_and_counts_fuel() {
+    let backend: Box<dyn ReadingBackend> = Box::new(LuaReadingBackend);
+    let descriptor = backend.descriptor();
+    assert_eq!(descriptor.id, "knot.didge.reading");
+    assert_eq!(descriptor.budget_support, BudgetSupport::NativeOperations);
+}
+
 /// (1) Every reader hands back exactly what the host put in the input.
 #[test]
 fn every_binding_reads_the_snapshot_it_was_given() {
@@ -55,17 +75,22 @@ fn every_binding_reads_the_snapshot_it_was_given() {
     assert!(!input.outline.is_empty());
     assert!(!input.folds.is_empty());
     assert!(!input.links.is_empty());
+    assert!(
+        input.text.len() > input.text.chars().count(),
+        "the fixture has multibyte text, so bytes and characters differ"
+    );
     let counted = notes(
-        r#"[
-            note("outline=" + outline().len()),
-            note("sections=" + sections().len()),
-            note("folds=" + folds().len()),
-            note("links=" + links().len()),
-            note("relations=" + relations().len()),
-            note("address=" + document().address),
-            note("format=" + document().format),
-            note("text=" + document().text.len()),
-        ]"#,
+        r#"return {
+            note("outline=" .. #outline()),
+            note("sections=" .. #sections()),
+            note("folds=" .. #folds()),
+            note("links=" .. #links()),
+            note("relations=" .. #relations()),
+            note("address=" .. document().address),
+            note("format=" .. document().format),
+            note("text_bytes=" .. #document().text),
+            note("text_chars=" .. utf8.len(document().text)),
+        }"#,
         &input,
     );
     assert_eq!(
@@ -78,7 +103,10 @@ fn every_binding_reads_the_snapshot_it_was_given() {
             "relations=0".to_owned(),
             "address=memory:field-notes".to_owned(),
             "format=djot".to_owned(),
-            format!("text={}", input.text.chars().count()),
+            // D8: `#` is bytes, as spans are; the Rhai test's characters are
+            // `utf8.len`.
+            format!("text_bytes={}", input.text.len()),
+            format!("text_chars={}", input.text.chars().count()),
         ]
     );
 
@@ -100,30 +128,29 @@ fn every_binding_reads_the_snapshot_it_was_given() {
     }]);
     assert_eq!(
         notes(
-            r#"let r = relations()[0];
-               [note(r.predicate + "|" + r.active + "|" + r.subject_start + "|" + r.object_start
-                     + "|" + r.subject_document + "|" + r.object_document + "|" + r.id)]"#,
+            r#"local r = relations()[1]
+               return {note(r.predicate .. "|" .. tostring(r.active) .. "|" .. r.subject_start
+                     .. "|" .. tostring(r.object_start) .. "|" .. r.subject_document .. "|"
+                     .. r.object_document .. "|" .. r.id .. "|" .. r.subject_stop
+                     .. "|" .. tostring(r.object_stop) .. "|" .. r.author)}"#,
             &with_relations,
         ),
         vec![format!(
-            "cites|true|10|-1|memory:field-notes|memory:other|{}",
-            "11".repeat(32)
+            "cites|true|10|nil|memory:field-notes|memory:other|{}|20|nil|{}",
+            "11".repeat(32),
+            "22".repeat(32)
         )]
     );
 }
 
 /// (2) The headings-without-a-citation reading returns exactly the uncited
 /// sections, in document order, with the outline items' own spans.
-///
-/// The expectation is recomputed here from the same input rather than written
-/// down, because which links carry a `rel` is upstream's answer, not this
-/// crate's — see `paragraph_link_predicates_survive_the_knot_preview`.
 #[test]
 fn headings_without_a_citation_returns_the_uncited_sections() {
     let source = field_notes();
     let input = input_from(&source);
     let result = run(
-        &fixture_script("headings_without_a_citation.rhai"),
+        &fixture_script("headings_without_a_citation.lua"),
         &input,
         ReadingBudget::default(),
     )
@@ -152,6 +179,10 @@ fn headings_without_a_citation_returns_the_uncited_sections() {
         .map(|(_, item)| item.label.as_str())
         .collect::<Vec<_>>();
     assert_eq!(labels, expected);
+    assert!(
+        labels.len() < input.outline.len() && !labels.is_empty(),
+        "the fixture has both cited and uncited sections"
+    );
     for row in &result.rows {
         let item = input
             .outline
@@ -169,7 +200,7 @@ fn rows_carry_valid_spans_and_a_plain_trailing_note() {
     let source = field_notes();
     let input = input_from(&source);
     let result = run(
-        &fixture_script("rows_with_spans.rhai"),
+        &fixture_script("rows_with_spans.lua"),
         &input,
         ReadingBudget::default(),
     )
@@ -197,37 +228,45 @@ fn a_runaway_is_a_budget_receipt_not_a_hang() {
         ..ReadingBudget::default()
     };
     let started = std::time::Instant::now();
-    let error = run(&fixture_script("runaway.rhai"), &input, budget).unwrap_err();
-    assert!(
-        matches!(error, ReadingError::Budget { .. }),
-        "expected a budget error, got {error:?}"
-    );
+    let error = run(&fixture_script("runaway.lua"), &input, budget).unwrap_err();
+    match &error {
+        ReadingError::Budget { message, .. } => assert!(message.contains("10000"), "{message}"),
+        other => panic!("expected a budget error, got {other:?}"),
+    }
     assert!(started.elapsed() < std::time::Duration::from_secs(1));
     let after = run(&inline(r#"row("still here")"#), &input, budget).unwrap();
     assert_eq!(after.rows[0].label, "still here");
 }
 
-/// (5) Rhai reads a zero operation cap as unlimited, so the lane refuses it.
+/// (5) A budget of 0 is refused: the lane never runs unbounded. The control is
+/// the same script under a stated budget, which runs.
 #[test]
 fn a_zero_operation_budget_is_refused_not_unlimited() {
     let input = input_from(&field_notes());
-    let budget = ReadingBudget {
+    let zero = ReadingBudget {
         max_ops: 0,
         ..ReadingBudget::default()
     };
-    let error = run(&fixture_script("runaway.rhai"), &input, budget).unwrap_err();
-    match error {
-        ReadingError::Budget { message, .. } => assert!(message.contains("unlimited")),
-        other => panic!("expected a refusal, got {other:?}"),
+    for script in [fixture_script("runaway.lua"), inline(r#"row("ok")"#)] {
+        match run(&script, &input, zero).unwrap_err() {
+            ReadingError::Budget { message, .. } => assert!(message.contains('0'), "{message}"),
+            other => panic!("expected a refusal, got {other:?}"),
+        }
     }
+    let one_thousand = ReadingBudget {
+        max_ops: 1_000,
+        ..ReadingBudget::default()
+    };
+    assert!(run(&inline(r#"row("ok")"#), &input, one_thousand).is_ok());
 }
 
-/// (6) Compile and runtime failures are separable in the panel.
+/// (6) Compile and runtime failures are separable in the panel, and a compile
+/// error names its line.
 #[test]
 fn compile_and_runtime_errors_are_separable() {
     let input = input_from(&field_notes());
     let compile = run(
-        &inline("this is not valid rhai @@@"),
+        &inline("this is not valid lua @@@"),
         &input,
         ReadingBudget::default(),
     )
@@ -236,24 +275,63 @@ fn compile_and_runtime_errors_are_separable() {
         ReadingError::Compile { line, .. } => assert_eq!(line, Some(1)),
         other => panic!("expected a compile error, got {other:?}"),
     }
-    let runtime = run(&inline(r#"span(-1, 4)"#), &input, ReadingBudget::default()).unwrap_err();
-    assert!(
-        matches!(runtime, ReadingError::Runtime { .. }),
-        "expected a runtime error, got {runtime:?}"
-    );
+    // The line is the author's, though the source is first tried as a value.
+    let third = run(
+        &inline("local a = 1\nlocal b = 2\nlocal c = = 3\nreturn row('x')"),
+        &input,
+        ReadingBudget::default(),
+    )
+    .unwrap_err();
+    match third {
+        ReadingError::Compile { line, .. } => assert_eq!(line, Some(3)),
+        other => panic!("expected a compile error, got {other:?}"),
+    }
+    for source in [
+        r#"span(-1, 4)"#,
+        "local x = nil\nreturn x + 1",
+        "error('boom')",
+    ] {
+        let runtime = run(&inline(source), &input, ReadingBudget::default()).unwrap_err();
+        assert!(
+            matches!(runtime, ReadingError::Runtime { .. }),
+            "{source}: expected a runtime error, got {runtime:?}"
+        );
+    }
 }
 
-/// (7) A script whose final expression is not a reading is a shape error.
+/// (7) A script whose result is not a reading is a shape error. An ambiguous
+/// table is refused, never guessed (D14).
 #[test]
 fn a_non_reading_result_is_a_shape_error() {
     let input = input_from(&field_notes());
-    for source in ["42", r#""a string""#, "[1, 2, 3]"] {
+    for source in [
+        "42",
+        r#""a string""#,
+        "{1, 2, 3}",
+        "nil",
+        "outline()[1]",
+        "{row('a'), x = row('b')}",
+        "{[1] = row('a'), [3] = row('b')}",
+        "{[0] = row('a'), row('b')}",
+        "{x = row('a')}",
+    ] {
         let error = run(&inline(source), &input, ReadingBudget::default()).unwrap_err();
         assert!(
             matches!(error, ReadingError::Shape { .. }),
             "expected a shape error for {source}, got {error:?}"
         );
     }
+    // Controls: a list, an empty list, and a single item are readings.
+    let list = run(
+        &inline("{row('a'), note('b')}"),
+        &input,
+        ReadingBudget::default(),
+    )
+    .unwrap();
+    assert_eq!((list.rows.len(), list.notes.len()), (1, 1));
+    let empty = run(&inline("{}"), &input, ReadingBudget::default()).unwrap();
+    assert!(empty.rows.is_empty() && empty.notes.is_empty());
+    assert!(run(&inline("note('b')"), &input, ReadingBudget::default()).is_ok());
 }
 
 /// (8) Every reading is labelled, and an edited source is a different source.
@@ -261,9 +339,9 @@ fn a_non_reading_result_is_a_shape_error() {
 fn provenance_labels_every_reading_and_tracks_the_source() {
     let source = field_notes();
     let input = input_from(&source);
-    let script = fixture_script("rows_with_spans.rhai");
+    let script = fixture_script("rows_with_spans.lua");
     let first = run(&script, &input, ReadingBudget::default()).unwrap();
-    assert_eq!(first.provenance.script_name, "rows_with_spans.rhai");
+    assert_eq!(first.provenance.script_name, "rows_with_spans.lua");
     assert_eq!(first.provenance.script_hash, script.hash);
     assert_eq!(first.provenance.source, input.source);
     assert_eq!(first.provenance.budget, ReadingBudget::default());
@@ -273,23 +351,50 @@ fn provenance_labels_every_reading_and_tracks_the_source() {
     let second = run(&script, &edited, ReadingBudget::default()).unwrap();
     assert_ne!(second.provenance.source.hash, first.provenance.source.hash);
     assert_eq!(second.provenance.script_hash, first.provenance.script_hash);
+
+    // `ops_used` is fuel: more work reads as more, and never more than allowed.
+    let small = run(&inline("row('x')"), &input, ReadingBudget::default()).unwrap();
+    let big = run(
+        &inline("local n = 0 for i = 1, 1000 do n = n + i end return row('x')"),
+        &input,
+        ReadingBudget::default(),
+    )
+    .unwrap();
+    assert!(big.provenance.ops_used > small.provenance.ops_used + 1_000);
+    assert!(big.provenance.ops_used <= ReadingBudget::default().max_ops);
 }
 
 /// (9) Inline links carry spans, and predicate links carry their rel, in
-/// document order.
+/// document order, through the Lua reader.
 #[test]
 fn links_carry_spans_and_rel_in_document_order() {
     let source = field_notes();
     let input = input_from(&source);
-    let spanned = input
+    let read = notes(
+        r#"local out = {}
+           for _, l in ipairs(links()) do
+             out[#out + 1] = note(l.target .. "|" .. (l.rel or "-") .. "|" .. l.span.start
+               .. "|" .. l.span.stop)
+           end
+           return out"#,
+        &input,
+    );
+    let expected = input
         .links
         .iter()
-        .filter_map(|link| link.span.map(|span| (link, span)))
+        .map(|link| {
+            let (start, end) = link.span.unwrap();
+            format!(
+                "{}|{}|{start}|{end}",
+                link.target,
+                link.rel.clone().unwrap_or_else(|| "-".to_owned())
+            )
+        })
         .collect::<Vec<_>>();
-    assert_eq!(spanned.len(), input.links.len(), "every link was placed");
-    let targets = spanned
+    assert_eq!(read, expected);
+    let targets = read
         .iter()
-        .map(|(link, _)| link.target.as_str())
+        .map(|line| line.split('|').next().unwrap())
         .collect::<Vec<_>>();
     assert_eq!(
         targets,
@@ -301,60 +406,34 @@ fn links_carry_spans_and_rel_in_document_order() {
         ],
         "the fenced code block is not scanned for links"
     );
-    let rels = spanned
-        .iter()
-        .map(|(link, _)| link.rel.as_deref())
-        .collect::<Vec<_>>();
-    assert_eq!(
-        rels,
-        vec![None, Some("cites"), None, Some("cites")],
-        "each rel-annotated link keeps its predicate, plain nav links have none"
-    );
-    for (link, (start, end)) in &spanned {
-        assert!(source[*start..*end].starts_with(&format!("[{}]", link.text)));
-        assert!(source[*start..*end].contains(&link.target));
-    }
-    // The reader hands the same rows to a script.
-    assert_eq!(
-        notes(
-            r#"let out = [];
-               for l in links() { out.push(note(l.target + "|" + l.rel + "|" + l.has_span)); }
-               out"#,
-            &input,
-        )
-        .len(),
-        input.links.len()
-    );
 }
 
-/// (9b) A paragraph link's `{rel=...}` predicate survives the knot preview,
-/// the same as a heading link's.
-///
-/// nematic's knot expand pass (`rewrite_one_span` in `knot/expand.rs`) used to
-/// rebuild every **paragraph** link with `predicate: None`, so
-/// `inker::link_statements` reported nothing for a source that plainly carries
-/// `{rel="cites"}` and the join in `links.rs` was fed nothing. Fixed upstream
-/// in mere d075c6be; this test holds the fix in place.
+/// (9b) A paragraph link's `{rel=...}` predicate survives the knot preview and
+/// reaches a Lua script with its rel; a plain link's rel is nil.
 #[test]
-fn paragraph_link_predicates_survive_the_knot_preview() {
+fn paragraph_link_predicates_reach_a_lua_reading() {
     let source = field_notes();
     assert!(source.contains(r#"{rel="cites"}"#));
     let input = input_from(&source);
-    let cited = input
-        .links
-        .iter()
-        .filter(|link| link.rel.as_deref() == Some("cites"))
-        .map(|link| link.target.as_str())
-        .collect::<Vec<_>>();
+    let cited = notes(
+        r#"local out = {}
+           for _, l in ipairs(links()) do
+             if l.rel == "cites" then out[#out + 1] = note(l.target) end
+           end
+           return out"#,
+        &input,
+    );
     assert_eq!(
         cited,
-        vec!["https://example.test/gibson", "https://example.test/latour"],
-        "every paragraph cites-annotated link reached the reader with its rel"
+        vec!["https://example.test/gibson", "https://example.test/latour"]
     );
-    assert!(
-        input.links.iter().all(|link| link.span.is_some()),
-        "no link statement was left unplaced"
+    let unplaced = notes(
+        r#"local n = 0
+           for _, l in ipairs(links()) do if l.span == nil then n = n + 1 end end
+           return note("unplaced=" .. n)"#,
+        &input,
     );
+    assert_eq!(unplaced, vec!["unplaced=0"]);
 }
 
 /// (10) A section runs to the next heading at or above its own level.
@@ -364,9 +443,11 @@ fn sections_nest_by_level() {
     let input = input_from(&source);
     let rows = run(
         &inline(
-            r#"let out = [];
-               for s in sections() { out.push(row(s.label + "|" + s.level, s.span)); }
-               out"#,
+            r#"local out = {}
+               for _, s in ipairs(sections()) do
+                 out[#out + 1] = row(s.label .. "|" .. s.level, s.span)
+               end
+               return out"#,
         ),
         &input,
         ReadingBudget::default(),
@@ -397,29 +478,36 @@ fn sections_nest_by_level() {
     assert!(source.is_char_boundary(greek.0));
 }
 
-/// (20, crate half) A missing readings directory is an empty list.
+/// (20) `load_dir` lists `.lua` readings, sorted; a missing directory is an
+/// empty list; a skipped entry says why, and an old `.rhai` reading is named
+/// as no longer run (plan D27, D28).
 #[test]
 fn load_dir_lists_sorted_scripts_and_refuses_nothing_silently() {
-    let (missing, notes) = knot_readings::load_dir(Path::new("no/such/readings"), 64, 65_536);
+    let (missing, notes) = knot_readings::load_dir(&PathBuf::from("no/such/readings"), 64, 65_536);
     assert!(missing.is_empty() && notes.is_empty());
 
-    let (scripts, notes) = knot_readings::load_dir(&fixtures(), 64, 65_536);
+    let (scripts, notes) = knot_readings::load_dir(&PathBuf::from(FIXTURES), 64, 65_536);
     assert_eq!(
         scripts.iter().map(|s| s.name.as_str()).collect::<Vec<_>>(),
         vec![
-            "headings_without_a_citation.rhai",
-            "rows_with_spans.rhai",
-            "runaway.rhai"
+            "headings_without_a_citation.lua",
+            "rows_with_spans.lua",
+            "runaway.lua"
         ],
         "sorted by name, and the .djot fixture is not a script"
     );
-    assert!(notes.is_empty());
+    assert_eq!(
+        notes,
+        vec![
+            "an_old_reading.rhai: Rhai readings are no longer run; rewrite it in Lua as a .lua file"
+        ]
+    );
 
-    let (capped, notes) = knot_readings::load_dir(&fixtures(), 1, 65_536);
+    let (capped, notes) = knot_readings::load_dir(&PathBuf::from(FIXTURES), 1, 65_536);
     assert_eq!(capped.len(), 1);
-    assert_eq!(notes.len(), 2, "every skipped script says why: {notes:?}");
+    assert_eq!(notes.len(), 3, "every skipped script says why: {notes:?}");
 
-    let (none, notes) = knot_readings::load_dir(&fixtures(), 64, 8);
+    let (none, notes) = knot_readings::load_dir(&PathBuf::from(FIXTURES), 64, 8);
     assert!(none.is_empty());
-    assert_eq!(notes.len(), 3);
+    assert_eq!(notes.len(), 4);
 }

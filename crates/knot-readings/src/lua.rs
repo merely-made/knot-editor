@@ -10,19 +10,18 @@
 //! The sandbox is `script_didge::sandbox`: `base`, `coroutine`, `math`,
 //! `string` and `table`, with no `io`, no `load`, no `require` and no `print`,
 //! and a string limit set from [`ReadingBudget::max_note_bytes`]. The reading
-//! surface is added to it (see [`crate::didge_bindings`]).
+//! surface is added to it (see [`crate::lua_bindings`]).
 //!
 //! A reading is a chunk that `return`s one item or a list of them. As in a
-//! `didge eval` fence it is tried as a value first (`row("x")`) and as written
+//! `lua eval` fence it is tried as a value first (`row("x")`) and as written
 //! otherwise, and a compile error reports the line of the source as written.
 //!
 //! Bounds: `max_ops` is VM fuel; the string limit is the note limit; a list may
 //! hold at most four times `max_rows` items and the state's heap may not pass
-//! [`ReadingBudget::max_heap_bytes`], the two limits standing where Rhai's array and map
-//! ceilings stood.
+//! [`ReadingBudget::max_heap_bytes`].
 
 use crate::backend::{BudgetSupport, ReadingBackend, ReadingBackendDescriptor};
-use crate::didge_bindings::{self, item_of, kind_of};
+use crate::lua_bindings::{self, item_of, kind_of};
 use crate::{
     ReadingBudget, ReadingError, ReadingInput, ReadingItem, ReadingProvenanceV1, ReadingResult,
     ReadingScript, split_items,
@@ -43,7 +42,7 @@ const FUEL_PER_STEP: i32 = 4096;
 const ITEMS_PER_ROW: usize = 4;
 
 /// The name a reading's chunk carries in error messages.
-const CHUNK_NAME: &str = "didge reading";
+const CHUNK_NAME: &str = "lua reading";
 
 /// Put before the source to read it as a value, on the same line so error line
 /// numbers stay the author's.
@@ -54,9 +53,9 @@ const STRING_TOO_LARGE: &[u8] = b"resulting string too large";
 
 /// Lua readings behind the typed dispatch seam.
 #[derive(Default)]
-pub struct DidgeReadingBackend;
+pub struct LuaReadingBackend;
 
-impl ReadingBackend for DidgeReadingBackend {
+impl ReadingBackend for LuaReadingBackend {
     fn descriptor(&self) -> ReadingBackendDescriptor {
         ReadingBackendDescriptor {
             id: "knot.didge.reading",
@@ -85,7 +84,7 @@ fn over_budget(message: String, budget: ReadingBudget) -> ReadingError {
 ///
 /// A budget of 0 or an oversize source is refused before anything runs; then
 /// compile, runtime, budget (fuel, heap, string or list limits) and result
-/// shape errors, as for the Rhai lane.
+/// shape errors.
 pub fn run(
     script: &ReadingScript,
     input: &ReadingInput,
@@ -146,7 +145,7 @@ fn start(
     source: &str,
     input: &Arc<ReadingInput>,
 ) -> Result<StashedExecutor, ReadingError> {
-    didge_bindings::install(ctx, input).map_err(|error| ReadingError::Runtime {
+    lua_bindings::install(ctx, input).map_err(|error| ReadingError::Runtime {
         message: error.to_string(),
     })?;
     let as_value = format!("{RETURN_PREFIX}{source}");

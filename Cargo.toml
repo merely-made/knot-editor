@@ -80,7 +80,6 @@ scenograph = { version = ">=0.0.6", git = "https://github.com/merely-made/graphs
 scenotime = { version = ">=0.0.5", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 cartography = { package = "mere-cartography", version = ">=0.0.2", git = "https://github.com/merely-made/graphshell.git", branch = "main", default-features = false, features = ["canvas", "physics-engine"] }
 seiche = { version = ">=0.0.6", git = "https://github.com/merely-made/seiche.git", branch = "main", default-features = false, features = ["serde"] }
-script-rhai = { version = ">=0.0.1", git = "https://github.com/merely-made/inker.git", branch = "main" }
 script-didge = { version = ">=0.0.1", git = "https://github.com/merely-made/inker.git", branch = "main" }
 # didgeridoo, the piccolo fork, which script-didge runs on; the readings lane
 # builds its own host values on it.
@@ -90,7 +89,7 @@ stickleback = { version = "0.4", default-features = false, git = "https://github
 transport = { package = "mere-transport", version = ">=0.0.2", git = "https://github.com/merely-made/murm.git", branch = "main" }
 
 # Presentation stack. Cambium is in Mere; Illume, Inker, Nematic and
-# script-rhai left Mere for merely-made/inker (Mere engine split plan, P1), and
+# the script crates left Mere for merely-made/inker (Mere engine split plan, P1), and
 # the retained Knot editor lives in knot-document (D17); the raw engine
 # contracts stay in Genet. Keep every source on the same immutable revision per
 # repository as the Mere and Turnstone consumers.

@@ -111,6 +111,19 @@ pub enum KnotEffectMode {
     Never,
 }
 
+/// Languages Knot no longer runs, with the message a fence in one fails with
+/// (Lua evaluator plan D27). The fence stays and an error block follows it.
+pub const KNOT_RETIRED_LANGUAGES: [(&str, &str); 2] = [
+    (
+        "rhai",
+        "Rhai is no longer run; rewrite this fence in Lua as `lua eval`",
+    ),
+    (
+        "rhai-command",
+        "Rhai is no longer run; rewrite this fence in Lua as `lua-command eval`",
+    ),
+];
+
 /// User settings and hard limits for Knot's derived document effects.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct KnotEffectPolicy {
@@ -2195,7 +2208,10 @@ impl KnotEndpoint {
             .effects
             .as_mut()
             .ok_or_else(|| "Knot session has no effect authority".to_string())?;
-        let policy = EvaluationPolicy::for_own_notes(effects.policy.allowed_languages.clone());
+        let policy = KNOT_RETIRED_LANGUAGES.iter().fold(
+            EvaluationPolicy::for_own_notes(effects.policy.allowed_languages.clone()),
+            |policy, (language, message)| policy.with_retired(*language, *message),
+        );
         let max_ops = effects.policy.max_ops;
         let evaluators = &mut effects.evaluators;
         let mut evaluate =
@@ -3339,7 +3355,7 @@ mod tests {
 Fallback.
 ```
 
-```rhai eval
+```lua eval
 40 + 2
 ```
 ";
@@ -3348,13 +3364,13 @@ Fallback.
             resolve: KnotEffectMode::Ask,
             run: KnotEffectMode::Ask,
             allowed_schemes: vec!["file".into()],
-            allowed_languages: vec!["rhai".into()],
+            allowed_languages: vec!["lua".into()],
             max_depth: 1,
             max_ops: 10_000,
         };
         let effects = KnotEffectAuthority::new(policy)
             .with_fetcher(StubFetcher)
-            .register_evaluator(script_rhai::RhaiEvaluator::new());
+            .register_evaluator(script_didge::LuaEvaluator::new());
         let mut endpoint =
             KnotEndpoint::open_writable(temp.path(), KnotWriteGrant::new(4096)).unwrap();
         endpoint.grant_effects(effects);
@@ -3417,7 +3433,7 @@ Fallback.
             derived.summary
         );
         assert!(derived.source.contains("Fetched text."));
-        assert!(derived.source.contains("rhai eval"));
+        assert!(derived.source.contains("lua eval"));
         assert_eq!(derived.summary, "resolved 1; denied 0; failed 0");
 
         assert_eq!(
@@ -3452,7 +3468,7 @@ Fallback.
         let derived = ran_text.derived.expect("run result");
         assert!(derived.source.contains("Included"));
         assert!(derived.source.contains("42"));
-        assert!(!derived.source.contains("rhai eval"));
+        assert!(!derived.source.contains("lua eval"));
         assert_eq!(derived.summary, "ran 1; denied 0; failed 0");
 
         fs::write(&path, "# Changed elsewhere\n").unwrap();
@@ -3531,16 +3547,16 @@ Fallback.
     fn auto_run_stops_at_the_injected_operation_budget() {
         let temp = tempdir().unwrap();
         let path = temp.path().join("field.knot");
-        let authored = "# Field\n\n```rhai eval\nloop { }\n```\n";
+        let authored = "# Field\n\n```lua eval\nwhile true do end\n```\n";
         fs::write(&path, authored).unwrap();
         let policy = KnotEffectPolicy {
             run: KnotEffectMode::Auto,
-            allowed_languages: vec!["rhai".into()],
+            allowed_languages: vec!["lua".into()],
             max_ops: 100,
             ..KnotEffectPolicy::default()
         };
         let effects =
-            KnotEffectAuthority::new(policy).register_evaluator(script_rhai::RhaiEvaluator::new());
+            KnotEffectAuthority::new(policy).register_evaluator(script_didge::LuaEvaluator::new());
         let mut endpoint =
             KnotEndpoint::open_writable(temp.path(), KnotWriteGrant::new(4096)).unwrap();
         endpoint.grant_effects(effects);
@@ -3575,7 +3591,66 @@ Fallback.
         let (_, current, _) = editable_resource(&mut endpoint, &current, "field.knot");
         let derived = current.derived.expect("bounded failure result");
         assert_eq!(derived.summary, "ran 0; denied 0; failed 1");
-        assert!(derived.source.contains("loop { }"));
+        assert!(derived.source.contains("while true do end"));
+        // The fence stays and an error block after it says why (D31).
+        assert!(derived.source.contains("lua eval failed"), "{}", derived.source);
+        assert!(derived.source.contains("didgeridoo refused"), "{}", derived.source);
+        assert_eq!(fs::read_to_string(path).unwrap(), authored);
+    }
+
+    #[test]
+    fn a_rhai_fence_is_refused_with_the_lua_form() {
+        let temp = tempdir().unwrap();
+        let path = temp.path().join("field.knot");
+        let authored = "# Field\n\n```rhai eval\n40 + 2\n```\n";
+        fs::write(&path, authored).unwrap();
+        let policy = KnotEffectPolicy {
+            run: KnotEffectMode::Auto,
+            allowed_languages: vec!["lua".into()],
+            ..KnotEffectPolicy::default()
+        };
+        let effects =
+            KnotEffectAuthority::new(policy).register_evaluator(script_didge::LuaEvaluator::new());
+        let mut endpoint =
+            KnotEndpoint::open_writable(temp.path(), KnotWriteGrant::new(4096)).unwrap();
+        endpoint.grant_effects(effects);
+        let request = endpoint.describe().projections.remove(0).request;
+        let snapshot = endpoint.snapshot(request).unwrap();
+        let (target, editable, _) = editable_resource(&mut endpoint, &snapshot, "field.knot");
+        assert_eq!(
+            endpoint
+                .invoke(effect_invocation(
+                    &snapshot,
+                    target,
+                    KNOT_BLOCK_RUN_INTENT,
+                    &KnotEffectV1 {
+                        base_token: editable.base_token,
+                        confirmed: false,
+                    },
+                ))
+                .unwrap(),
+            IntentResult::Accepted
+        );
+        let ResumeReply::Snapshot(current) = endpoint
+            .resume(ResumeRequest {
+                session: snapshot.session,
+                epoch: snapshot.scene.epoch,
+                revision: snapshot.scene.revision,
+            })
+            .unwrap()
+        else {
+            panic!("a refused fence still produces a derived receipt");
+        };
+        let (_, current, _) = editable_resource(&mut endpoint, &current, "field.knot");
+        let derived = current.derived.expect("refusal result");
+        assert_eq!(derived.summary, "ran 0; denied 0; failed 1");
+        assert!(
+            derived
+                .source
+                .contains("Rhai is no longer run; rewrite this fence in Lua as `lua eval`"),
+            "{}",
+            derived.source
+        );
         assert_eq!(fs::read_to_string(path).unwrap(), authored);
     }
 

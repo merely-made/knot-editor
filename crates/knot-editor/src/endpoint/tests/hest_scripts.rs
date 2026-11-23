@@ -8,10 +8,10 @@
 
 use super::*;
 use cambium::{CommandSet, Invocation, catalogue};
-use script_rhai::command::{CommandLimits, RhaiCommandEvaluator};
+use script_didge::{CommandLimits, LuaCommandEvaluator};
 
 const SCHEMA: &str = "graphshell.viewer/v1";
-const LANGUAGE: &str = "rhai-command";
+const LANGUAGE: &str = "lua-command";
 
 fn command_endpoint(root: &std::path::Path, allowed: bool, max_ops: u64) -> KnotEndpoint {
     let mut offered = CommandSet::new();
@@ -23,12 +23,12 @@ fn command_endpoint(root: &std::path::Path, allowed: bool, max_ops: u64) -> Knot
         allowed_languages: if allowed {
             vec![LANGUAGE.into()]
         } else {
-            vec!["rhai".into()]
+            vec!["lua".into()]
         },
         max_ops,
         ..Default::default()
     };
-    let effects = KnotEffectAuthority::new(policy).register_evaluator(RhaiCommandEvaluator::new(
+    let effects = KnotEffectAuthority::new(policy).register_evaluator(LuaCommandEvaluator::new(
         offered,
         SCHEMA,
         CommandLimits::default(),
@@ -76,7 +76,7 @@ fn resumed(endpoint: &mut KnotEndpoint, prior: &ProjectionSnapshot) -> Projectio
 fn hest_command_fence_requires_consent_and_only_authors_request_data() {
     let temp = tempdir().unwrap();
     let path = temp.path().join("commands.knot");
-    let authored = "```rhai-command eval\ncommand(\"view:zoom_in\", \"\");\ncommand(\"physics:toggle\", \"\");\n```\n";
+    let authored = "```lua-command eval\ncommand(\"view:zoom_in\", \"\");\ncommand(\"physics:toggle\", \"\");\n```\n";
     fs::write(&path, authored).unwrap();
     let mut endpoint = command_endpoint(temp.path(), true, 10_000);
     let request = endpoint.describe().projections.remove(0).request;
@@ -144,12 +144,12 @@ fn hest_command_fence_requires_consent_and_only_authors_request_data() {
 #[test]
 fn hest_failed_command_fences_preserve_source_without_partial_request_output() {
     for script in [
-        "command(\"view:zoom_in\", \"\"); throw \"late failure\";",
-        "command(\"view:zoom_in\", \"\"); loop {}",
+        "command(\"view:zoom_in\", \"\"); error(\"late failure\")",
+        "command(\"view:zoom_in\", \"\"); while true do end",
     ] {
         let temp = tempdir().unwrap();
         let path = temp.path().join("commands.knot");
-        let authored = format!("```rhai-command eval\n{script}\n```\n");
+        let authored = format!("```lua-command eval\n{script}\n```\n");
         fs::write(&path, &authored).unwrap();
         let mut endpoint = command_endpoint(temp.path(), true, 1_000);
         let request = endpoint.describe().projections.remove(0).request;
@@ -163,10 +163,13 @@ fn hest_failed_command_fences_preserve_source_without_partial_request_output() {
         let preview = editable.derived.unwrap();
         assert_eq!(preview.summary, "ran 0; denied 0; failed 1");
         assert!(preview.source.contains(script));
+        // The fence stays and only an error block follows it: no request data
+        // from the command that ran before the failure (D31).
         let derived = endpoint.derived.values().next().unwrap();
         assert!(matches!(
             derived.document.blocks.as_slice(),
-            [inker::Block::CodeBlock { .. }]
+            [inker::Block::CodeBlock { .. }, inker::Block::Preformatted { text }]
+                if text.starts_with("lua-command eval failed\n") && !text.contains("\"id\"")
         ));
         assert_eq!(fs::read_to_string(&path).unwrap(), authored);
     }
@@ -176,7 +179,7 @@ fn hest_failed_command_fences_preserve_source_without_partial_request_output() {
 fn hest_command_language_still_requires_the_hosts_allowlist() {
     let temp = tempdir().unwrap();
     let path = temp.path().join("commands.knot");
-    let authored = "```rhai-command eval\ncommand(\"view:zoom_in\", \"\");\n```\n";
+    let authored = "```lua-command eval\ncommand(\"view:zoom_in\", \"\");\n```\n";
     fs::write(&path, authored).unwrap();
     let mut endpoint = command_endpoint(temp.path(), false, 10_000);
     let request = endpoint.describe().projections.remove(0).request;

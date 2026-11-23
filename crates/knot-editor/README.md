@@ -79,7 +79,7 @@ Integration tests: `tests/place_projection.rs`, `tests/revision_bell.rs`,
 - Sync: `stickleback` (its `net` half only with `peers`), `p2panda-core`,
   `p2panda-store` (all 0.7); with `peers`, `transport`, `quinn` and `rustls`.
 - Search: `esp::embed`.
-- Effects: `script-rhai`, `url`; `fetch` with `peers`.
+- Effects: `script-didge`, `url`; `fetch` with `peers`.
 - Filesystem and platform: `notify` 8, and `windows-sys` on Windows for file
   identity.
 - Dev-dependencies: `graphshell`, `notochord`,

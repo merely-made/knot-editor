@@ -22,7 +22,7 @@ Genet and Cambium supply the document presentation and desktop host.
 - `crates/knot-composition`: selected-material schema, host-issued collection
   capability, legacy import and offline WordNet conversion. Desktop collection
   records live in Knot's signed, sealed mere, not a separate plaintext store.
-- `crates/knot-readings`: the sandboxed rhai reading lane over typed document
+- `crates/knot-readings`: the sandboxed Lua reading lane over typed document
   snapshots, the Mora sound reading and the portable metre scene exporter
   (below).
 - `crates/knot-editor`: file, vault, evidence, sync, publishing, and

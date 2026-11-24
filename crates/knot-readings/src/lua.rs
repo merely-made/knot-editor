@@ -29,14 +29,11 @@ use crate::{
 use piccolo::meta_ops::MetaOperatorError;
 use piccolo::thread::VMError;
 use piccolo::{
-    Closure, CompilerError, Context, Error, Executor, Fuel, Lua, StashedExecutor, Table, Value,
+    Closure, CompilerError, Context, DriveError, DriveLimits, Error, Executor, Lua,
+    StashedExecutor, Table, Value,
 };
 use std::sync::Arc;
 use std::time::Instant;
-
-/// Fuel handed to one `Executor::step`. Between steps the arena is left, which
-/// lets the collector run, and the heap and the budget are checked.
-const FUEL_PER_STEP: i32 = 4096;
 
 /// A reading's list may hold this many items for each row the budget allows.
 const ITEMS_PER_ROW: usize = 4;
@@ -158,52 +155,28 @@ fn start(
     Ok(ctx.stash(Executor::start(ctx, closure.into(), ())))
 }
 
-/// Step the executor until it finishes, spends `max_ops` fuel or grows the heap
-/// past `max_heap_bytes`. Returns the fuel spent: `ops_used`.
+/// Run the executor under the budget with didgeridoo's bounded run. Returns
+/// the fuel spent: `ops_used`.
 fn drive(
     lua: &mut Lua,
     executor: &StashedExecutor,
     budget: ReadingBudget,
 ) -> Result<u64, ReadingError> {
-    let mut left = budget.max_ops;
-    let mut used: u64 = 0;
-    loop {
-        let slice = i32::try_from(left)
-            .unwrap_or(FUEL_PER_STEP)
-            .min(FUEL_PER_STEP);
-        let mut fuel = Fuel::with(slice);
-        let finished = lua
-            .enter(|ctx| ctx.fetch(executor).step(ctx, &mut fuel))
-            .map_err(|error| ReadingError::Runtime {
-                message: error.to_string(),
-            })?;
-        // A callback may overdraw the slice, so remaining fuel can be negative.
-        let spent = u64::try_from(i64::from(slice) - i64::from(fuel.remaining())).unwrap_or(0);
-        used = used.saturating_add(spent);
-        if finished {
-            return Ok(used);
-        }
-        if lua.total_memory() > budget.max_heap_bytes {
-            return Err(over_budget(
-                format!(
-                    "the reading used more than {} bytes of memory",
-                    budget.max_heap_bytes
-                ),
-                budget,
-            ));
-        }
-        // At least one unit a step, so an interrupt cannot spin forever.
-        left = left.saturating_sub(spent.max(1));
-        if left == 0 {
-            return Err(over_budget(
-                format!(
-                    "the reading ran past its budget of {} operations",
-                    budget.max_ops
-                ),
-                budget,
-            ));
-        }
-    }
+    let limits = DriveLimits {
+        max_ops: Some(budget.max_ops),
+        max_heap_bytes: budget.max_heap_bytes,
+    };
+    piccolo::drive(lua, executor, limits).map_err(|error| match error {
+        DriveError::OutOfFuel { max_ops } => over_budget(
+            format!("the reading ran past its budget of {max_ops} operations"),
+            budget,
+        ),
+        DriveError::OverHeap { max_heap_bytes } => over_budget(
+            format!("the reading used more than {max_heap_bytes} bytes of memory"),
+            budget,
+        ),
+        DriveError::Runtime(message) => ReadingError::Runtime { message },
+    })
 }
 
 /// Only a limit the sandbox set is a budget failure: the string limit, in

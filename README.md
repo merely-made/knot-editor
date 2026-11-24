@@ -64,10 +64,34 @@ over working files. Folder identity binds local history: moving the site starts
 a separate history. Revision list/load APIs are available through
 `knot_site::history`; a history browser and restore UI are subsequent work.
 
-The root `Cargo.lock` is committed because this repository ships application
-binaries as well as libraries. `knot-document` is an excluded nested workspace
+The Git note at `refs/notes/resolved` records the lockfiles used for the
+application and library builds. After fetching that notes ref, run
+`house resolved show HEAD --write` to restore them. `knot-document` is an excluded nested workspace
 so a surface-only consumer can resolve it without paying for the sync and
 publishing graph.
+
+## Reading vocabularies
+
+Knot's outgoing-links and personal-relation readings show the CiTO equivalent
+or broader predicate for a typed link when Mere declares that alignment.
+The sound reading names the OntoPoetry classes for a detected rhyme match
+or a candidate metrical foot.
+Both are annotations on the reading. The document keeps the relationship its
+author supplied.
+
+In Personal relation assertions, select a vocabulary predicate to compare
+captured passages across documents. The count follows your choice of Held or
+Retained history. Each row shows the original direction and signed predicate,
+the vocabulary correspondence, and any qualification or evidence. Choose
+All relationships to return to the opened links.
+
+To choose vocabularies, copy [the bundled lens](crates/knot-readings/ontology/lens.toml)
+to `lens.toml` in a local directory and launch Knot with `KNOT_ONTOLOGY_DIR`
+set to that directory. Edit `lens.select` to keep either subject, both, or
+neither. To extend the lens, place a vocabulary pack TOML alongside it and add
+the pack's ID and version to `select`. A local pack with the same ID replaces
+its bundled counterpart. The outgoing-links reading recognizes a selected
+predicate by its full IRI in a link's `rel` attribute.
 
 ## Portable metre recipes
 
@@ -95,7 +119,7 @@ scenes or any host implementing the shared recipe. The native editor's existing
 sound reading supplies the same `SoundReading`; no new native panel is implied.
 
 The portable-scene API is integrated in Mere's canonical `main` source.
-The committed lockfile pins the shared scene cohort, so the commands above
+The recorded lockfile pins the shared scene cohort, so the commands above
 need no temporary local source patches. Earlier local-cohort receipts remain
 historical evidence; ordinary checks use `--locked` and `portable-scenes`.
 

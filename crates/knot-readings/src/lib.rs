@@ -24,6 +24,7 @@ pub mod links;
 pub mod lua;
 mod lua_bindings;
 mod lua_host;
+pub mod ontology;
 pub mod sound;
 #[cfg(feature = "portable-scenes")]
 pub mod metre_scene;

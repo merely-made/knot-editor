@@ -334,12 +334,16 @@ pub(crate) fn reading_view(state: &DesktopState, key: DocKey) -> DesktopView {
                 rows.push((0, Box::new(span("No outgoing links."))));
             }
             for link in links {
-                let rel = link.rel.as_deref().map_or("ordinary link", |iri| {
+                let authored = link.rel.as_deref();
+                let known = authored.and_then(|value| {
                     document_links::RELATIONSHIPS
                         .iter()
-                        .find(|relationship| relationship.iri == iri)
-                        .map_or(iri, |relationship| relationship.label)
+                        .find(|relationship| relationship.iri == value || relationship.slug == value)
                 });
+                let rel = known.map_or(authored.unwrap_or("ordinary link"), |rel| rel.label);
+                let vocabulary = known.map(|rel| rel.iri).or(authored)
+                    .and_then(|iri| knot_readings::ontology::predicate_note(&state.ontology, iri))
+                    .map(span);
                 let display_target =
                     percent_encoding::percent_decode_str(&link.target).decode_utf8_lossy();
                 let status = session
@@ -370,6 +374,7 @@ pub(crate) fn reading_view(state: &DesktopState, key: DocKey) -> DesktopView {
                                             .attr("class", "knot-link-target"),
                                         span(format!("{rel} · {status}"))
                                             .attr("class", "knot-link-kind"),
+                                        vocabulary,
                                     ),
                                 )
                                 .attr("class", "knot-link-description")

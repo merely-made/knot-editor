@@ -394,6 +394,7 @@ pub struct DesktopState {
     recovery: Option<RecoveryRuntime>,
     recovery_error: Option<String>,
     readings_root: Option<PathBuf>,
+    pub(crate) ontology: knot_readings::ontology::Profile,
     pub(crate) readings: Vec<ReadingScript>,
     pub(crate) readings_load_notes: Vec<String>,
     pub(crate) composition: crate::composition::CompositionState,
@@ -462,6 +463,17 @@ impl DesktopState {
         initial_path: Option<PathBuf>,
         catalog: Option<KnotFileCatalog>,
     ) -> Self {
+        let ontology = knot_readings::ontology::load(None).expect("valid bundled Knot ontology");
+        Self::with_catalog_and_ontology(session, window, initial_path, catalog, ontology)
+    }
+
+    pub(crate) fn with_catalog_and_ontology(
+        session: KnotDocumentSession,
+        window: WindowCommands,
+        initial_path: Option<PathBuf>,
+        catalog: Option<KnotFileCatalog>,
+        ontology: knot_readings::ontology::Profile,
+    ) -> Self {
         let site_folder = initial_path.as_ref().filter(|path| path.is_dir()).cloned();
         let path = initial_path.map_or_else(TextInput::default, |path| {
             TextInput::new(display_path(&path))
@@ -511,6 +523,7 @@ impl DesktopState {
             preferences: None,
             recovery: None,
             recovery_error: None,
+            ontology,
             readings_root: None,
             readings: Vec::new(),
             composition: crate::composition::CompositionState::default(),

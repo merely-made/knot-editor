@@ -72,6 +72,8 @@ pub const CSS: &str = concat!(
     ".knot-personal-opened-links .detail-key { flex:none; }",
     ".knot-personal-opened-links .detail-value { flex:1 1 140px; max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; }",
     ".knot-link-history-controls { display:flex; flex-direction:row; flex-wrap:wrap; gap:6px; }",
+    ".knot-predicate-evidence, .knot-captured-passages { display:flex; flex-direction:column; gap:4px; min-width:0; }",
+    ".knot-captured-passages { white-space:pre-wrap; }",
 );
 
 /// The first eight hex digits of a hash, the panel's short form throughout.

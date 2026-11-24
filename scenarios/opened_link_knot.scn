@@ -6,6 +6,20 @@ assert snap readings_open == true
 assert text Relation history below is a startup snapshot from the authenticated Knot store; it does not live-refresh.
 assert text The highlighted passage supports this reading.
 assert text urn:knot:assertion:
+click role:button supports (1)
+settle 1
+assert text Evidence for supports
+assert text From essay ·
+assert text To source ·
+assert text Revision
+assert text · bytes
+assert text Authored predicate · https://mere.computer/ns/rel#supports
+assert text Equivalent predicate · http://purl.org/spar/cito/supports
+assert text Signed by · urn:knot:author:
+assert text Assertion · urn:knot:assertion:
+assert text The highlighted passage supports this reading.
+click role:button All relationships
+settle 1
 click role:button Retained history
 settle 1
 assert text A second, later withdrawn reading.
@@ -23,3 +37,17 @@ click .detail-value A second, later withdrawn reading.
 settle 2
 assert text withdrawn at 1670000000000
 capture opened-link-knot-history
+
+click role:button cites (2)
+settle 1
+assert text Evidence for cites
+assert text Authored predicate · https://mere.computer/ns/rel#questions
+assert text Broader predicate · http://purl.org/spar/cito/cites
+assert text Authored predicate · https://mere.computer/ns/rel#cites
+assert text Equivalent predicate · http://purl.org/spar/cito/cites
+assert text From source ·
+assert text To essay ·
+assert text Withdrawn
+click role:button Held
+settle 1
+assert text The highlighted passage supports this reading.

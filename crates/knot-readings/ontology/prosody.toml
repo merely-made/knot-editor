@@ -1,0 +1,21 @@
+# OntoPoetry Poetic Analysis V2.0
+# https://postdata.linhd.uned.es/OntoPoetry/Poetic/documentation/ontology.ttl
+id = "pack:knot/prosody"
+version = "0.1.0"
+kind = ["vocabulary"]
+licence = "MPL-2.0"
+provides = ["poetry:"]
+
+[prefixes]
+pack = "https://mere.computer/packs/"
+poetry = "http://postdata.linhd.uned.es/ontology/postdata-poeticAnalysis#"
+
+[[vocabulary.terms]]
+iri = "poetry:RhymeMatch"
+kind = "class"
+labels = { en = "rhyme match" }
+
+[[vocabulary.terms]]
+iri = "poetry:Foot"
+kind = "class"
+labels = { en = "metrical foot" }

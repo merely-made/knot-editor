@@ -7,16 +7,46 @@
 //! Read-only adapter from Knot's authenticated personal relation projection
 //! to the shared opened-link reading.
 
-#[cfg(feature = "mere-retention")]
-use std::collections::{BTreeMap, BTreeSet};
+mod facets;
 
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+
+use scenograph::SourceBinding;
 use scenograph::link::{
     LinkAssertion, LinkAssertionBasis, LinkBucket, LinkEndpoint, LinkGraphScope, LinkKey,
     LinkPairReading, LinkReading, LinkSource, LinkSourceRevision, LinkStratum,
 };
-use scenograph::SourceBinding;
 
 use crate::workspace::{DesktopState, DesktopView};
+
+#[derive(Clone, Debug)]
+struct CapturedPassage {
+    quote: String,
+    head: [u8; 32],
+    bytes: Option<(u64, u64)>,
+}
+
+impl CapturedPassage {
+    #[cfg(feature = "mere-retention")]
+    fn from_endpoint(endpoint: &knot_editor::KnotRelationEndpointV1) -> Self {
+        Self {
+            quote: endpoint.quote.clone(),
+            head: endpoint.document_head,
+            bytes: endpoint
+                .position
+                .map(|position| (position.start, position.end)),
+        }
+    }
+
+    fn location(&self) -> String {
+        let revision = hex(&self.head);
+        match self.bytes {
+            Some((start, end)) => format!("Revision {revision} · bytes {start}–{end}"),
+            None => format!("Revision {revision}"),
+        }
+    }
+}
 
 /// A transient view over one authenticated Knot projection. Held and retained
 /// history are separate readings so the host never paints a tombstone as held.
@@ -25,6 +55,9 @@ pub struct KnotRelationView {
     pub held: LinkPairReading,
     pub history: LinkPairReading,
     pub show_history: bool,
+    selected_predicate: Option<String>,
+    /// Captured subject and object quotations, keyed by the signed assertion ID.
+    passages: BTreeMap<String, (CapturedPassage, CapturedPassage)>,
     pub layout: scenograph::link::OpenedLinkLayout,
 }
 
@@ -86,13 +119,33 @@ impl KnotRelationView {
             .cloned()
             .collect::<Vec<_>>();
         let held = make_reading(&source, limits, &held_relations, projection)?;
+        let mut view = Self::from_readings(held, history);
+        view.passages = visible
+            .iter()
+            .map(|assertion| {
+                (
+                    format!("urn:knot:assertion:{}", hex(&assertion.id)),
+                    (
+                        CapturedPassage::from_endpoint(&assertion.subject),
+                        CapturedPassage::from_endpoint(&assertion.object),
+                    ),
+                )
+            })
+            .collect();
+        Ok(view)
+    }
+
+    /// Attach host-supplied admitted readings without captured passage text.
+    pub fn from_readings(held: LinkPairReading, history: LinkPairReading) -> Self {
         let layout = scenograph::link::OpenedLinkLayout::default_for(&held);
-        Ok(Self {
+        Self {
             held,
             history,
-            show_history: false,
             layout,
-        })
+            show_history: false,
+            selected_predicate: None,
+            passages: BTreeMap::new(),
+        }
     }
 
     pub fn reading(&self) -> &LinkPairReading {
@@ -118,12 +171,18 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
     let held_selected = !view.show_history;
     let held = button("Held", |state: &mut DesktopState, _| {
         if let Some(view) = &mut state.knot_relations {
+            if view.show_history {
+                view.selected_predicate = None;
+            }
             view.show_history = false;
         }
     })
     .attr("aria-pressed", held_selected.to_string());
     let history = button("Retained history", |state: &mut DesktopState, _| {
         if let Some(view) = &mut state.knot_relations {
+            if !view.show_history {
+                view.selected_predicate = None;
+            }
             view.show_history = true;
         }
     })
@@ -133,9 +192,10 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
         "p",
         "Relation history below is a startup snapshot from the authenticated Knot store; it does not live-refresh.",
     );
+    let (facet_controls, comparison) = facets::view(&state.ontology, view);
     let coverage: DesktopView = if reading.coverage.limits.is_empty() {
         Box::new(span(
-            "All valid relation records in the disclosed projection are shown.",
+            "This reading includes assertions from the disclosed documents.",
         ))
     } else {
         let limits = reading
@@ -154,6 +214,16 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
             .collect::<Vec<_>>();
         Box::new(el("p", format!("Coverage limits: {}", limits.join("; "))))
     };
+    if let Some(comparison) = comparison {
+        return Box::new(
+            el(
+                "section",
+                (controls, snapshot, coverage, facet_controls, comparison),
+            )
+            .attr("class", "knot-personal-opened-links")
+            .attr("aria-label", "Personal relation assertions"),
+        );
+    }
     let mut links: Vec<DesktopView> = Vec::new();
     for (index, link) in reading.links.iter().enumerate() {
         let scope = scenograph::swatch::Scope::Link(link.key.clone());
@@ -180,7 +250,26 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
                 }
             },
         );
-        links.push(Box::new(item));
+        let terms = link
+            .buckets
+            .iter()
+            .flat_map(|bucket| &bucket.assertions)
+            .filter_map(|assertion| {
+                let vocabulary =
+                    knot_readings::ontology::predicate_note(&state.ontology, &assertion.predicate)?;
+                let label = assertion.label.as_deref().unwrap_or(&assertion.predicate);
+                Some(format!("{label} · {vocabulary}"))
+            })
+            .collect::<BTreeSet<_>>();
+        let vocabulary = (!terms.is_empty()).then(|| {
+            let rows = terms
+                .into_iter()
+                .enumerate()
+                .map(|(index, text)| (index, span(text)))
+                .collect::<Vec<_>>();
+            el("div", cambium::Keyed::new(rows))
+        });
+        links.push(Box::new(el("div", (item, vocabulary))));
     }
     if links.is_empty() {
         links.push(Box::new(span(if view.show_history {
@@ -196,6 +285,7 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
                 controls,
                 snapshot,
                 coverage,
+                facet_controls,
                 el(
                     "div",
                     cambium::Keyed::new(links.into_iter().enumerate().collect::<Vec<_>>()),
@@ -207,7 +297,6 @@ pub(crate) fn view(state: &DesktopState) -> DesktopView {
     )
 }
 
-#[cfg(feature = "mere-retention")]
 fn hex(bytes: &[u8]) -> String {
     bytes.iter().map(|byte| format!("{byte:02x}")).collect()
 }

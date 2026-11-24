@@ -9,6 +9,8 @@ repository.workspace = true
 description = "Sandboxed Lua reading lane over Knot's typed document snapshots."
 
 [dependencies]
+mere = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false }
+mere-ontology = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main" }
 blake3.workspace = true
 inker.workspace = true
 knot-document = { workspace = true, features = ["engine"] }

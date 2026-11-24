@@ -175,6 +175,8 @@ pub fn run_desktop_with_targets_and_relations(
     titan_submission_error: Option<String>,
     knot_relations: Option<knot_relations::KnotRelationView>,
 ) -> Result<(), String> {
+    let ontology_directory = std::env::var_os("KNOT_ONTOLOGY_DIR").map(PathBuf::from);
+    let ontology = knot_readings::ontology::load(ontology_directory.as_deref())?;
     let mut hooks = host_hooks();
     let lane_config = LaneConfig::from_env("KNOT");
     let receipt = lane_config.is_some();
@@ -244,8 +246,13 @@ pub fn run_desktop_with_targets_and_relations(
                 mere_overlay,
                 site_history,
             } = launch;
-            let mut state =
-                DesktopState::with_catalog(first, commands.clone(), first_path, catalog);
+            let mut state = DesktopState::with_catalog_and_ontology(
+                first,
+                commands.clone(),
+                first_path,
+                catalog,
+                ontology,
+            );
             state.set_knot_relation_view(knot_relations);
             state.set_site_history(site_history);
             for folder in sites {

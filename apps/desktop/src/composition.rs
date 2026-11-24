@@ -1012,6 +1012,12 @@ fn sound_view(state: &DesktopState, key: DocKey) -> DesktopView {
                 .collect()
         })
         .unwrap_or_default();
+    let vocabulary = state
+        .composition
+        .sound
+        .as_ref()
+        .and_then(|reading| knot_readings::ontology::prosody_note(&state.ontology, reading))
+        .map(span);
     let meter = state
         .composition
         .sound
@@ -1073,7 +1079,7 @@ fn sound_view(state: &DesktopState, key: DocKey) -> DesktopView {
                     Keyed::new(relations),
                 ),
             ),
-            meter,
+            (meter, vocabulary),
             metre::view(state, key),
             button(
                 "Collect sound reading",

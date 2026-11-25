@@ -206,12 +206,12 @@ impl ProjectionRecipeMaterial {
             trace = trace
                 .appended(TraceStep::diff(
                     "Keep placement",
-                    SceneDiff {
-                        epoch: head.epoch,
-                        base: head.revision,
-                        revision: Revision(revision),
-                        operations: vec![SceneOp::UpdateItem { index, value }],
-                    },
+                    SceneDiff::new(
+                        head.epoch,
+                        head.revision,
+                        Revision(revision),
+                        vec![SceneOp::UpdateItem { index, value }],
+                    ),
                 ))
                 .map_err(|error| invalid(format!("scene placement refused: {error:?}")))?;
         }
@@ -303,12 +303,12 @@ impl ProjectionRecipeMaterial {
         let next = trace
             .appended(TraceStep::diff(
                 "Move occurrence",
-                SceneDiff {
-                    epoch: head.epoch,
-                    base: head.revision,
-                    revision: Revision(revision),
-                    operations: vec![SceneOp::UpdateItem { index, value }],
-                },
+                SceneDiff::new(
+                    head.epoch,
+                    head.revision,
+                    Revision(revision),
+                    vec![SceneOp::UpdateItem { index, value }],
+                ),
             ))
             .map_err(|error| invalid(format!("scene placement refused: {error:?}")))?;
         let mut candidate = self.clone();

@@ -413,15 +413,15 @@ fn placement_trace_refuses_shared_scene_edits_outside_occurrence_translation() {
     let illegal = trace
         .appended(TraceStep::diff(
             "Raise",
-            SceneDiff {
-                epoch: head.epoch,
-                base: head.revision,
-                revision: Revision(head.revision.0 + 1),
-                operations: vec![SceneOp::SetItemLayer {
+            SceneDiff::new(
+                head.epoch,
+                head.revision,
+                Revision(head.revision.0 + 1),
+                vec![SceneOp::SetItemLayer {
                     index: sceno::InstanceId(0),
                     layer: 1,
                 }],
-            },
+            ),
         ))
         .unwrap();
     material.presentation.as_mut().unwrap().placement_trace = Some(illegal);
@@ -431,15 +431,15 @@ fn placement_trace_refuses_shared_scene_edits_outside_occurrence_translation() {
     let rotated = trace
         .appended(TraceStep::diff(
             "Rotate",
-            SceneDiff {
-                epoch: head.epoch,
-                base: head.revision,
-                revision: Revision(head.revision.0 + 1),
-                operations: vec![SceneOp::UpdateItem {
+            SceneDiff::new(
+                head.epoch,
+                head.revision,
+                Revision(head.revision.0 + 1),
+                vec![SceneOp::UpdateItem {
                     index: sceno::InstanceId(0),
                     value,
                 }],
-            },
+            ),
         ))
         .unwrap();
     material.presentation.as_mut().unwrap().placement_trace = Some(rotated);
@@ -509,12 +509,12 @@ fn placement_trace_refuses_nonfinite_items_annotations_and_excess_steps() {
     for position in 0..257 {
         let mut step = original.clone();
         let diff = step.diff.as_mut().unwrap();
-        *diff = SceneDiff {
-            epoch: trace.base().epoch,
-            base: Revision(position),
-            revision: Revision(position + 1),
-            operations: diff.operations.clone(),
-        };
+        *diff = SceneDiff::new(
+            trace.base().epoch,
+            Revision(position),
+            Revision(position + 1),
+            diff.operations.clone(),
+        );
         steps.push(step);
     }
     material.presentation.as_mut().unwrap().placement_trace =

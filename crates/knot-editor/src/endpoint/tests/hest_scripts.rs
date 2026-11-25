@@ -60,11 +60,11 @@ fn run(
 
 fn resumed(endpoint: &mut KnotEndpoint, prior: &ProjectionSnapshot) -> ProjectionSnapshot {
     let ResumeReply::Snapshot(current) = endpoint
-        .resume(ResumeRequest {
-            session: prior.session.clone(),
-            epoch: prior.scene.epoch,
-            revision: prior.scene.revision,
-        })
+        .resume(ResumeRequest::new(
+            prior.session.clone(),
+            prior.scene.epoch,
+            prior.scene.revision,
+        ))
         .unwrap()
     else {
         panic!("evaluation must refresh the derived presentation");

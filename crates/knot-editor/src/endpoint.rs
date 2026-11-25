@@ -3053,11 +3053,11 @@ mod tests {
         assert_eq!(endpoint.poll_notice().unwrap(), None);
 
         let resumed = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session.clone(),
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session.clone(),
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         let ResumeReply::Snapshot(current) = resumed else {
             panic!("accepted save must advance the projection");
@@ -3126,11 +3126,11 @@ mod tests {
         let notice = endpoint.poll_notice().unwrap().unwrap();
         assert!(notice.revision > snapshot.scene.revision);
         let ResumeReply::Snapshot(current) = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session.clone(),
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session.clone(),
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("clip insert must refresh the projection");
@@ -3415,11 +3415,11 @@ Fallback.
         let resolved_notice = endpoint.poll_notice().unwrap().unwrap();
         assert!(resolved_notice.revision > snapshot.scene.revision);
         let ResumeReply::Snapshot(resolved) = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session.clone(),
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session.clone(),
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("resolve must refresh the derived presentation");
@@ -3454,11 +3454,11 @@ Fallback.
         let run_notice = endpoint.poll_notice().unwrap().unwrap();
         assert!(run_notice.revision > resolved.scene.revision);
         let ResumeReply::Snapshot(ran) = endpoint
-            .resume(ResumeRequest {
-                session: resolved.session,
-                epoch: resolved.scene.epoch,
-                revision: resolved.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                resolved.session,
+                resolved.scene.epoch,
+                resolved.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("run must refresh the derived presentation");
@@ -3522,11 +3522,11 @@ Fallback.
             IntentResult::Accepted
         );
         let ResumeReply::Snapshot(current) = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("HTML resolve must refresh the derived presentation");
@@ -3579,11 +3579,11 @@ Fallback.
             IntentResult::Accepted
         );
         let ResumeReply::Snapshot(current) = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("bounded run must produce a derived receipt");
@@ -3632,11 +3632,11 @@ Fallback.
             IntentResult::Accepted
         );
         let ResumeReply::Snapshot(current) = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("a refused fence still produces a derived receipt");
@@ -3669,11 +3669,11 @@ Fallback.
 
         fs::write(&other, "# Other changed\n").unwrap();
         let resumed = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session.clone(),
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session.clone(),
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         let ResumeReply::Snapshot(current) = resumed else {
             panic!("unrelated edit must advance the scene");
@@ -3708,11 +3708,11 @@ Fallback.
 
         fs::write(&path, "one two three").unwrap();
         let reply = endpoint
-            .resume(ResumeRequest {
-                session: request.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                request.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         let ResumeReply::Snapshot(next) = reply else {
             panic!("changed directory should return a replacement snapshot");
@@ -3807,11 +3807,11 @@ Fallback.
         let old_resource = snapshot.presentation.offers.values().next().unwrap()[0].resource;
         fs::remove_file(poem).unwrap();
         let reply = endpoint
-            .resume(ResumeRequest {
-                session: poem_request.session.clone(),
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                poem_request.session.clone(),
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         let ResumeReply::Snapshot(removed) = reply else {
             panic!("a removed Rosette source must replace the stale scene");
@@ -3837,11 +3837,11 @@ Fallback.
         let request = endpoint.describe().projections.remove(0).request;
         let snapshot = endpoint.snapshot(request.clone()).unwrap();
         let reply = endpoint
-            .resume(ResumeRequest {
-                session: request.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                request.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         assert!(matches!(reply, ResumeReply::Current(_)));
     }
@@ -3858,21 +3858,21 @@ Fallback.
         assert!(endpoint.revoke_watcher());
         fs::write(&path, "one two three").unwrap();
         let paused = endpoint
-            .resume(ResumeRequest {
-                session: request.session.clone(),
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                request.session.clone(),
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         assert!(matches!(paused, ResumeReply::Current(_)));
 
         assert!(endpoint.grant_watcher());
         let resumed = endpoint
-            .resume(ResumeRequest {
-                session: request.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                request.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap();
         assert!(matches!(resumed, ResumeReply::Snapshot(_)));
     }
@@ -4064,11 +4064,11 @@ Fallback.
         assert_eq!(bo.poll_notice().unwrap(), None);
 
         let refreshed = match bo
-            .resume(ResumeRequest {
-                session: bo_request.session,
-                epoch: bo_snapshot.scene.epoch,
-                revision: bo_snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                bo_request.session,
+                bo_snapshot.scene.epoch,
+                bo_snapshot.scene.revision,
+            ))
             .unwrap()
         {
             ResumeReply::Snapshot(snapshot) => *snapshot,
@@ -4114,11 +4114,11 @@ Fallback.
         assert_eq!(bo.poll_notice().unwrap(), None);
 
         let ada_refreshed = match ada
-            .resume(ResumeRequest {
-                session: ada_snapshot.session.clone(),
-                epoch: ada_snapshot.scene.epoch,
-                revision: ada_snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                ada_snapshot.session.clone(),
+                ada_snapshot.scene.epoch,
+                ada_snapshot.scene.revision,
+            ))
             .unwrap()
         {
             ResumeReply::Snapshot(snapshot) => *snapshot,
@@ -4393,11 +4393,11 @@ Fallback.
             IntentResult::Accepted
         );
         let ResumeReply::Snapshot(resolved) = endpoint
-            .resume(ResumeRequest {
-                session: snapshot.session,
-                epoch: snapshot.scene.epoch,
-                revision: snapshot.scene.revision,
-            })
+            .resume(ResumeRequest::new(
+                snapshot.session,
+                snapshot.scene.epoch,
+                snapshot.scene.revision,
+            ))
             .unwrap()
         else {
             panic!("resolve should advance");

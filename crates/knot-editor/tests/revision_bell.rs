@@ -47,11 +47,11 @@ fn a_real_knot_process_rings_and_resumes_after_a_disk_edit() {
     assert!(notice.revision > snapshot.scene.revision);
 
     let reply = match carrier
-        .request(CarrierRequestBody::Resume(ResumeRequest {
-            session: snapshot.session.clone(),
-            epoch: snapshot.scene.epoch,
-            revision: snapshot.scene.revision,
-        }))
+        .request(CarrierRequestBody::Resume(ResumeRequest::new(
+            snapshot.session.clone(),
+            snapshot.scene.epoch,
+            snapshot.scene.revision,
+        )))
         .unwrap()
     {
         CarrierResponseBody::Resume(reply) => reply,

@@ -177,11 +177,22 @@ mod tests {
     use cambium_genet_winit_host::WindowCommands;
     use knot_document::KnotDocumentSession;
     use site_host::{Site, SiteFormat};
+    /// Canonical temp root without the Windows `\\?\` prefix: the exporter's
+    /// path check stats the bare `\\?\C:` prefix, which fails with os error 1.
+    /// Stopgap until gemot's `checked_destination` skips a lone prefix
+    /// (merely-made/gemot fix/verbatim-destination); then plain canonicalize returns.
+    fn canonical_root(path: &std::path::Path) -> std::path::PathBuf {
+        let canonical = std::fs::canonicalize(path).unwrap();
+        match canonical.to_str().and_then(|s| s.strip_prefix(r"\\?\")) {
+            Some(plain) if plain.as_bytes().get(1) == Some(&b':') => plain.into(),
+            _ => canonical,
+        }
+    }
     #[test]
     fn build_control_exports_saved_snapshot_without_starting_a_server_or_overwriting() {
         let temp = tempfile::tempdir().unwrap();
         // Canonical: macOS temp roots pass through /tmp or /var symlinks, which the exporter refuses.
-        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let root = canonical_root(temp.path());
         let site = Site::create_for(&root.join("source"), SiteFormat::Gemini).unwrap();
         let mut state = DesktopState::new(
             KnotDocumentSession::open(&site.page_path("index.gmi").unwrap()).unwrap(),
@@ -229,7 +240,7 @@ mod tests {
         use knot_document::KnotDocumentIntentV1;
         let temp = tempfile::tempdir().unwrap();
         // Canonical: macOS temp roots pass through /tmp or /var symlinks, which the exporter refuses.
-        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let root = canonical_root(temp.path());
         let site = Site::create_for(&root.join("source"), SiteFormat::Gemini).unwrap();
         let path = site.page_path("index.gmi").unwrap();
         let bytes = b"# Native\n\nLiteral & source *stays*.\n";
@@ -274,7 +285,7 @@ mod tests {
         use taproot::Selector;
         let temp = tempfile::tempdir().unwrap();
         // Canonical: macOS temp roots pass through /tmp or /var symlinks, which the exporter refuses.
-        let root = std::fs::canonicalize(temp.path()).unwrap();
+        let root = canonical_root(temp.path());
         let site = Site::create_for(&root.join("source"), SiteFormat::Gemini).unwrap();
         let mut state = DesktopState::new(
             KnotDocumentSession::open(site.page_path("index.gmi").unwrap()).unwrap(),

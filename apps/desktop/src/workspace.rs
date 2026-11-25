@@ -10343,8 +10343,11 @@ mod tests {
         host.click_at(x + width / 2.0, y + height / 2.0);
         assert_eq!(host.focus(), Some(folder_input));
         // The folder field sits in the Site popover: a click outside closes it
-        // first, and the next reaches the outline.
-        assert!(host.click_on(&Selector::class("knot-outline-row").containing("Second heading")));
+        // first, and the next reaches the outline. The outside click lands on
+        // the dismiss layer, so it goes by point: click_on refuses a covered row.
+        let row = Selector::class("knot-outline-row").containing("Second heading");
+        let (x, y) = host.resolve(&row).expect("outline row");
+        host.click_at(x, y);
         assert!(!host.state().scroll.popover.open);
         assert!(host.click_on(&Selector::class("knot-outline-row").containing("Second heading")));
         let text_field = {

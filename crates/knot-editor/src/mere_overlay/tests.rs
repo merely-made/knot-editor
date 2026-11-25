@@ -165,7 +165,7 @@ fn refresh_prunes_vanished_conflicts_and_clears_changed_or_absent_merge() {
 async fn failed_refresh_purges_cached_actions_and_merge_choices() {
     use chirograph::{ProjectionSession, ProtocolVersion, SceneSnapshot};
     use ostiary::app_admission::AppHello;
-    use ostiary::frame::{read_native_message_async, write_native_message_async};
+    use ostiary::frame::{read_cbor_message_async, write_cbor_message_async};
     use ostiary::wire::BrowserChallenge;
     type AppMessage = ostiary::wire::AppMessage<chirograph::CarrierRequest, ()>;
     type AppHostMessage =
@@ -183,11 +183,11 @@ async fn failed_refresh_purges_cached_actions_and_merge_choices() {
         let listener = tokio::net::UnixListener::bind(&endpoint).unwrap();
         let server = tokio::spawn(async move {
             let (mut stream, _) = listener.accept().await.unwrap();
-            let _: AppHello = read_native_message_async(&mut stream)
+            let _: AppHello = read_cbor_message_async(&mut stream)
                 .await
                 .unwrap()
                 .unwrap();
-            write_native_message_async(
+            write_cbor_message_async(
                 &mut stream,
                 &AppHostMessage::Challenge {
                     challenge: BrowserChallenge::fresh().expect("nonce"),
@@ -195,12 +195,12 @@ async fn failed_refresh_purges_cached_actions_and_merge_choices() {
             )
             .await
             .unwrap();
-            let connect: AppMessage = read_native_message_async(&mut stream)
+            let connect: AppMessage = read_cbor_message_async(&mut stream)
                 .await
                 .unwrap()
                 .unwrap();
             assert!(matches!(connect, AppMessage::Connect { .. }));
-            write_native_message_async(
+            write_cbor_message_async(
                 &mut stream,
                 &AppHostMessage::Connected {
                     app: AppId::new(MERE_OVERLAY_APP),
@@ -209,13 +209,13 @@ async fn failed_refresh_purges_cached_actions_and_merge_choices() {
             )
             .await
             .unwrap();
-            let request: AppMessage = read_native_message_async(&mut stream)
+            let request: AppMessage = read_cbor_message_async(&mut stream)
                 .await
                 .unwrap()
                 .unwrap();
             assert!(matches!(request, AppMessage::Request { request }
                 if matches!(request.body, CarrierRequestBody::Open(_))));
-            write_native_message_async(
+            write_cbor_message_async(
                 &mut stream,
                 &AppHostMessage::Failure {
                     message: "refresh refused".into(),
@@ -223,7 +223,7 @@ async fn failed_refresh_purges_cached_actions_and_merge_choices() {
             )
             .await
             .unwrap();
-            let next: Option<AppMessage> = read_native_message_async(&mut stream).await.unwrap();
+            let next: Option<AppMessage> = read_cbor_message_async(&mut stream).await.unwrap();
             assert!(next.is_none(), "no stale action may reach the resident");
         });
         let client =

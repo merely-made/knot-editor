@@ -50,6 +50,7 @@ fn wait_for_confirmation(host: &mut DesktopHarness, count: usize) {
             // The worker's confirmation can enter the retained DOM from the
             // post-dispatch hook after the wake's layout. Deliver the next
             // redraw before resolving controls newly inserted by that result.
+            host.prepare_frame();
             host.relayout();
             return;
         }
@@ -115,7 +116,9 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     );
     let wake = host.wake();
     host.update(|state| state.set_composition_targets(vec![target_port], wake));
-    host.layout_at(1100.0, 800.0);
+    host.layout_at(1280.0, 800.0);
+    host.prepare_frame();
+    host.relayout();
 
     assert!(host.click_on(&Selector::role("button").containing("Readings")));
     host.after_dispatch();
@@ -156,6 +159,7 @@ fn desktop_collection_retains_in_sealed_signed_mere_and_reopens_without_sidecar(
     assert!(!panel_text(&host).contains("Restore collection item"));
     assert!(host.click_on(&Selector::role("button").containing("Include archived items")));
     host.after_dispatch();
+    host.prepare_frame();
     host.relayout();
     assert!(panel_text(&host).contains("Restore collection item"));
     assert!(host.click_on(&Selector::role("button").containing("Restore collection item")));
@@ -244,7 +248,9 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         );
         let wake = host.wake();
         host.update(|state| state.set_composition_targets(vec![port], wake));
-        host.layout_at(1100.0, 800.0);
+        host.layout_at(1280.0, 800.0);
+        host.prepare_frame();
+        host.relayout();
         host
     };
     let open_resident = || {
@@ -275,6 +281,7 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         );
         host.after_dispatch();
         // One native frame: the frame hook measures any new recipe cards.
+        host.prepare_frame();
         host.prepare_frame();
         host.relayout();
     };
@@ -323,6 +330,7 @@ fn edited_relationship_recipe_roundtrips_through_real_desktop_worker_and_mere() 
         let node = Selector::class("graph-canvas-swatch-node").with_attr("data-key", "token-6-11");
         assert!(host.click_on(&node));
         host.after_dispatch();
+        host.prepare_frame();
         host.relayout();
         let (x, y) = host.resolve(&node).expect("painted occurrence drag target");
         host.press_at(x, y);

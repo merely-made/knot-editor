@@ -1,4 +1,4 @@
-# Step 9: current research arrangement. `references.rhai` projects the
+# Step 9: current research arrangement. `references.lua` projects the
 # document's authored links while the dedicated References/custody panel
 # remains a recorded post-slice difference from the design frame.
 log knot research-with-references: launched
@@ -8,7 +8,7 @@ settle 1
 assert snap outline_open == true
 assert snap readings_open == true
 assert snap reading_count == 2
-click role:button references.rhai
+click role:button references.lua
 click role:button Run
 settle 1
 assert snap reading_result_rows >= 3

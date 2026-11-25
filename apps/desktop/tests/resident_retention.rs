@@ -158,7 +158,10 @@ fn desktop_retention_tracks_owner_grant_revocation_and_explicit_regrant() {
     );
     let wake = harness.wake();
     harness.update(|state| state.set_retention_targets(vec![target], wake));
-    harness.layout_at(1000.0, 760.0);
+    harness.update(|state| state.set_command_chrome(knot_desktop::workspace::CommandChrome::PlainRow));
+    harness.layout_at(1280.0, 760.0);
+    harness.prepare_frame();
+    harness.relayout();
 
     assert!(harness.click_on(&Selector::role("button").containing("Show changes")));
     assert!(harness.click_on(&Selector::role("button").containing("Review saved revision")));

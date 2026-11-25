@@ -13,9 +13,9 @@ cargo build -p knot-desktop --bin knot
 Use a fresh output directory for each scenario. `focused_writing.scn` and
 `source_beside_preview.scn` launch with
 `scenarios/fixtures/field_notes.djot`. `research_with_references.scn` also
-expects `references.rhai` under the launch settings root's `Knot/readings`
+expects `references.lua` under the launch settings root's `Knot/readings`
 directory; the checked-in source is
-`scenarios/fixtures/readings/references.rhai`.
+`scenarios/fixtures/readings/references.lua`.
 
 `last_tab_graph.scn` launches the same document with an explicit catalog:
 
@@ -56,7 +56,7 @@ The focused-writing receipt clicks the source textbox and asserts its
 host-owned keyboard focus without dirtying the document. Preview receipts
 assert a successfully rendered Preview and its heading count rather than
 matching source text on the global surface. Research asserts both the reading
-result row count and exact labels emitted by `references.rhai`. Open-reading
+result row count and exact labels emitted by `references.lua`. Open-reading
 snapshot flags count pinned and following tiles alike, and `wait` includes
 graph, publication, retention, and pending capture work.
 

@@ -75,7 +75,7 @@ fn apply(snapshot: &ProjectionSnapshot, edits: Vec<pandect::CapturedDelta>) -> I
         observed_epoch: snapshot.scene.epoch,
         observed_revision: snapshot.scene.revision,
         intent: session_item::APPLY_EDITS_INTENT.into(),
-        payload: serde_json::to_vec(&ApplyEditsV1::new(edits)).unwrap(),
+        payload: chirograph::wire::encode(&ApplyEditsV1::new(edits)).unwrap(),
     }
 }
 
@@ -108,7 +108,7 @@ fn sessions_step(
         observed_epoch: snapshot.scene.epoch,
         observed_revision: snapshot.scene.revision,
         intent: intent.into(),
-        payload: serde_json::to_vec(&payload).unwrap(),
+        payload: chirograph::wire::encode(&payload).unwrap(),
     }
 }
 

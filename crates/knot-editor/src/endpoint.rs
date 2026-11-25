@@ -2716,7 +2716,7 @@ impl IntentSink for KnotEndpoint {
         };
         match intent.intent.as_str() {
             EDITABLE_TEXT_SAVE_INTENT => {
-                let payload: SaveTextV1 = match serde_json::from_slice(&intent.payload) {
+                let payload: SaveTextV1 = match chirograph::wire::decode(&intent.payload) {
                     Ok(payload) => payload,
                     Err(_) => {
                         return Ok(IntentResult::Rejected {
@@ -2729,7 +2729,7 @@ impl IntentSink for KnotEndpoint {
             },
             KNOT_CLIP_INSERT_INTENT => {
                 if self.clip_evidence.is_some() {
-                    let payload: InsertKnotClipV2 = match serde_json::from_slice(&intent.payload) {
+                    let payload: InsertKnotClipV2 = match chirograph::wire::decode(&intent.payload) {
                         Ok(payload) => payload,
                         Err(_) => {
                             return Ok(IntentResult::Rejected {
@@ -2739,7 +2739,7 @@ impl IntentSink for KnotEndpoint {
                     };
                     self.insert_clip_v2(&document_id, payload)
                 } else {
-                    let payload: InsertKnotClipV1 = match serde_json::from_slice(&intent.payload) {
+                    let payload: InsertKnotClipV1 = match chirograph::wire::decode(&intent.payload) {
                         Ok(payload) => payload,
                         Err(_) => {
                             return Ok(IntentResult::Rejected {
@@ -2751,7 +2751,7 @@ impl IntentSink for KnotEndpoint {
                 }
             },
             KNOT_TRANSCLUSION_RESOLVE_INTENT | KNOT_BLOCK_RUN_INTENT => {
-                let payload: KnotEffectV1 = match serde_json::from_slice(&intent.payload) {
+                let payload: KnotEffectV1 = match chirograph::wire::decode(&intent.payload) {
                     Ok(payload) => payload,
                     Err(_) => {
                         return Ok(IntentResult::Rejected {
@@ -2839,7 +2839,7 @@ mod tests {
             observed_epoch: snapshot.scene.epoch,
             observed_revision: snapshot.scene.revision,
             intent: action.intent.0.clone(),
-            payload: serde_json::to_vec(payload).unwrap(),
+            payload: chirograph::wire::encode(payload).unwrap(),
         }
     }
 
@@ -2870,7 +2870,7 @@ mod tests {
             observed_epoch: snapshot.scene.epoch,
             observed_revision: snapshot.scene.revision,
             intent: KNOT_CLIP_INSERT_INTENT.into(),
-            payload: serde_json::to_vec(payload).unwrap(),
+            payload: chirograph::wire::encode(payload).unwrap(),
         }
     }
 
@@ -2886,7 +2886,7 @@ mod tests {
             observed_epoch: snapshot.scene.epoch,
             observed_revision: snapshot.scene.revision,
             intent: intent.into(),
-            payload: serde_json::to_vec(payload).unwrap(),
+            payload: chirograph::wire::encode(payload).unwrap(),
         }
     }
 
@@ -3758,7 +3758,7 @@ Fallback.
             observed_epoch: snapshot.scene.epoch,
             observed_revision: snapshot.scene.revision,
             intent: KNOT_CLIP_INSERT_INTENT.into(),
-            payload: serde_json::to_vec(payload).unwrap(),
+            payload: chirograph::wire::encode(payload).unwrap(),
         }
     }
 

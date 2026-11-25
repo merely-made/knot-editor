@@ -77,7 +77,7 @@ fn apply_choices(
         choices,
     )
     .expect("every conflict has a choice, so Apply is available");
-    serde_json::from_slice(&invocation.payload).unwrap()
+    chirograph::wire::decode(&invocation.payload).unwrap()
 }
 
 #[test]

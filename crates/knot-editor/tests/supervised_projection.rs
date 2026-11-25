@@ -218,7 +218,7 @@ async fn visit(endpoint: &str, replacement: Option<&str>) -> String {
                     observed_epoch: snapshot.scene.epoch,
                     observed_revision: snapshot.scene.revision,
                     intent: action.intent.0.clone(),
-                    payload: serde_json::to_vec(&SaveTextV1 {
+                    payload: chirograph::wire::encode(&SaveTextV1 {
                         base_token: editable.base_token.clone(),
                         source: source.into(),
                     })

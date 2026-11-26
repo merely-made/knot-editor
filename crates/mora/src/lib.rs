@@ -62,8 +62,7 @@
 //! # Canonical sound-kinship API
 //!
 //! Sound kinship is part of this crate: use [`sonance`] as
-//! `mora::sonance`. The separately named `sonance` repository is an archived
-//! pointer, not a second implementation or dependency surface.
+//! `mora::sonance`. There is no separate `sonance` crate or repository.
 //!
 //! # Boundaries
 //!

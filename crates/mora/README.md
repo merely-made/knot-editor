@@ -2,10 +2,16 @@
 
 A prosody engine, built on the mora.
 
-## Status (2026-08-18)
+Mora is maintained in
+[Knot-editor](https://github.com/merely-made/knot-editor/tree/main/crates/mora)
+as `crates/mora`; its own repository was retired on 2026-11-25 and its history
+came along.
 
-Published as `mora` 0.1.0. The engine is complete and tested; no pronunciation
-lexicon ships with it.
+## Status (2026-11-26)
+
+Published as `mora` 0.2.0. The engine is complete and tested; no pronunciation
+lexicon ships with it. Since 0.1.0 the licence is MPL-2.0; the API is
+unchanged.
 
 `mora` turns pronunciations into the units verse is measured in. It reads
 phones and knows nothing about spelling.
@@ -100,16 +106,15 @@ not a rhyming dictionary: it answers whether two given pronunciations rhyme,
 not which words in a language do. Meaning-side kinship belongs to an embedding
 model, and the two are meant to be read side by side rather than merged.
 
-The canonical sound-kinship API is `mora::sonance`. The separately named
-[`sonance`](https://github.com/merely-made/sonance) repository is an archive
-pointer, not another implementation or dependency surface.
+The canonical sound-kinship API is `mora::sonance`; there is no separate
+`sonance` crate or repository.
 
 ## License
 
 MPL-2.0 (see [`LICENSE`](LICENSE)). Provenance is recorded in
 [`LICENSES.md`](LICENSES.md): nothing here is third-party, and no lexicon
 ships. Published `mora` 0.1.0 keeps the MIT OR Apache-2.0 grant it shipped
-with; MPL-2.0 reaches crates.io at the next functional bump.
+with; 0.2.0 and later are MPL-2.0.
 
 ---
 

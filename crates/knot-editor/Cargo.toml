@@ -151,7 +151,7 @@ scenotime.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
-similar = "2.7"
+similar = ">=3.2.1"
 script-didge.workspace = true
 servitor.workspace = true
 pandect.workspace = true

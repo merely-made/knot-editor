@@ -30,7 +30,7 @@ proofs.workspace = true
 sceno-backdrops.workspace = true
 serde.workspace = true
 serde_json = { workspace = true, features = ["raw_value"] }
-similar = "2.7"
+similar = ">=3.2.1"
 stickleback.workspace = true
 thiserror = "2"
 tokio = { version = "1", features = ["io-util", "macros", "rt-multi-thread", "sync", "time"] }

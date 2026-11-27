@@ -106,7 +106,10 @@ cambium-desktop = { git = "https://github.com/merely-made/graphshell.git", branc
 sprigging = { version = ">=0.3.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 workbench = { version = ">=0.1.1", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 platen = { version = ">=0.0.1", git = "https://github.com/merely-made/graphshell.git", branch = "main", default-features = false, features = ["workspace-editor"] }
-kernel = { package = "mere-kernel", version = ">=0.0.3", git = "https://github.com/merely-made/mere.git", branch = "main" }
+# The surface graph, moved from Mere's mere-kernel to Graphshell (engine split
+# D211), and the session methods over it (D256, D267).
+kernel = { package = "incipit-graph", version = "0.1.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
+incipit-session = { version = "0.1.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 backstep = { version = ">=0.2.0", git = "https://github.com/merely-made/graphshell.git", branch = "main" }
 fleece = { version = "0.5.0", git = "https://github.com/merely-made/genet.git", branch = "main" }
 genet-host-api = { git = "https://github.com/merely-made/genet.git", branch = "main" }

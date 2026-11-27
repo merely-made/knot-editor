@@ -182,6 +182,7 @@ castellan = { git = "https://github.com/merely-made/dramatis.git", branch = "mai
 dramatis-resident = { git = "https://github.com/merely-made/dramatis.git", branch = "main", default-features = false }
 # The signed relation projection test (moved from Mere's resident, cycle breaks P2).
 kernel.workspace = true
+incipit-session.workspace = true
 # The names the kernel re-exported from the engine, at their home (engine split D141).
 mere = { version = "0.1.0", git = "https://github.com/merely-made/mere.git", branch = "main", default-features = false }
 incipit.workspace = true

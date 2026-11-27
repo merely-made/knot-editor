@@ -17,6 +17,7 @@ use portolan::resource_id;
 #[path = "support/knot_relation_intake.rs"]
 mod knot_relation_intake;
 use knot_relation_intake::{KnotEndpointBinding, KnotRelationProjection, import_knot_relations};
+use incipit_session::{IncipitSession, IncipitSessions};
 use kernel::geometry::PortablePoint;
 use kernel::graph::{
     Graph,

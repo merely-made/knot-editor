@@ -275,7 +275,7 @@ async fn knot_overlay_saves_and_opens_an_archive_through_the_door() {
     assert_eq!(source, "Session");
     let thaw = format!(
         "Session (from {})",
-        pandect::graph_codicil::codicil_short_id(&entries[0].key)
+        incipit_session::graph_codicil::codicil_short_id(&entries[0].key)
     );
     assert!(
         names.contains(&thaw),

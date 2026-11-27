@@ -75,6 +75,10 @@ crate = "cipher@0.4.4"
 reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes 0.8.4, aes-gcm 0.10.3 and 3 more, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to cipher 0.5.2"
 
 [[bans.skip]]
+crate = "constant_time_eq@0.4.2"
+reason = "held by castellan (dramatis, through totp-rs) and iroh-blobs 0.103.1 (through murm's mere-transport; main caps <0.6.2 for MSRV); blake3 1.8.8 takes 0.6.2. Stopgap until patch-only forks (Graphshell mod projects D58, upstream ledger item 16)"
+
+[[bans.skip]]
 crate = "convert_case@0.10.0"
 reason = "derive_more-impl 2.1.1 (latest) requires it, under esp, knot-editor, mere-transport, p2mere-net; goes when derive_more-impl moves to convert_case 0.12.0"
 

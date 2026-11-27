@@ -34,10 +34,13 @@ use mere::model::author::Author;
 use mere::model::resource::ResourceNode;
 use mere::model::{AssertionBasis, AssertionWithdrawal, GraphScope};
 use muniment::DirectoryBackend;
-use pandect::{GraphSession, MereSessions};
 use personae::{IdentityProvider, InMemoryProvider};
 use tempfile::TempDir;
 use uuid::Uuid;
+
+// pandect's graph-generic types over this crate's graph, one alias each (engine split D244).
+pub(crate) type GraphSession<B> = pandect::GraphSession<B, kernel::graph::Graph>;
+pub(crate) type MereSessions<B> = pandect::MereSessions<B, kernel::graph::Graph>;
 
 include!("support/relation_intake_helpers.rs");
 

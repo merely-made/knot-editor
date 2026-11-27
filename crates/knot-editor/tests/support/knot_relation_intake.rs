@@ -21,7 +21,8 @@ use knot_editor::{KnotDocumentProjection, KnotRelationAssertionV1, KnotSyncFileS
 use mere::model::{AssertionBasis, AssertionWithdrawal, GraphScope};
 use mere::model::{SemanticStatement, sub_kind_from_iri};
 use pandect::graph_session::LegacyTransactionBackend;
-use pandect::{Author, GraphSession};
+use crate::GraphSession;
+use pandect::Author;
 use uuid::Uuid;
 
 /// A caller-admitted existing surface and the resource it is expected to show.

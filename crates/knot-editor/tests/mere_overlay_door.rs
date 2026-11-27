@@ -30,16 +30,16 @@ use mere_view::MereViewModel;
 use pandect::SessionId;
 use uuid::Uuid;
 
-fn node(n: u128) -> pandect::CapturedDelta {
-    pandect::CapturedDelta::ReplayAddNodeWithIdIfMissing {
+fn node(n: u128) -> kernel::graph::CapturedDelta {
+    kernel::graph::CapturedDelta::ReplayAddNodeWithIdIfMissing {
         id: Uuid::from_u128(n).to_string(),
         url: format!("https://{n}.test/"),
         position: [0.0, 0.0],
     }
 }
 
-fn retitle(n: u128, title: &str) -> pandect::CapturedDelta {
-    pandect::CapturedDelta::ReplaySetNodeTitleById {
+fn retitle(n: u128, title: &str) -> kernel::graph::CapturedDelta {
+    kernel::graph::CapturedDelta::ReplaySetNodeTitleById {
         node_id: Uuid::from_u128(n).to_string(),
         title: title.to_string(),
     }
@@ -68,7 +68,7 @@ fn session_item_of(snapshot: &ProjectionSnapshot) -> InstanceId {
         .expect("the resident graph shows the session item")
 }
 
-fn apply(snapshot: &ProjectionSnapshot, edits: Vec<pandect::CapturedDelta>) -> IntentInvocation {
+fn apply(snapshot: &ProjectionSnapshot, edits: Vec<kernel::graph::CapturedDelta>) -> IntentInvocation {
     IntentInvocation {
         session: snapshot.session.clone(),
         target: session_item_of(snapshot),

@@ -25,8 +25,8 @@ fn pending_plan() -> PendingMergeV1 {
         source_name: "Branch".into(),
         target: pandect::SessionId::from_uuid(uuid::Uuid::from_u128(8)),
         target_name: "Main".into(),
-        conflicts: vec![pandect::MergeConflict {
-            part: pandect::Part::Title(uuid::Uuid::from_u128(9)),
+        conflicts: vec![crate::MergeConflict {
+            part: kernel::graph::Part::Title(uuid::Uuid::from_u128(9)),
             base: Some(serde_json::json!("Base")),
             source: Some(serde_json::json!("Source")),
             target: Some(serde_json::json!("Target")),
@@ -85,7 +85,7 @@ fn replacement_for_dropped_choice_survives_unchanged_refresh_and_apply() {
     let mut plan = pending_plan();
     let part = plan.conflicts[0].part.clone();
     let key = route::conflict_key(&part);
-    plan.dropped.push(pandect::DroppedChoice {
+    plan.dropped.push(crate::DroppedChoice {
         part: part.clone(),
         choice: pandect::MergeChoice::Source,
         reason: "The conflict changed".into(),

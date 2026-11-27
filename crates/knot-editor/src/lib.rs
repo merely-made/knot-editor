@@ -166,3 +166,10 @@ pub use vault::{KnotSealedSearchIndex, KnotVault};
 pub use watcher::DirectoryWatcher;
 pub use web_annotation::{SpecificResource, SpecificResourceSelector};
 pub use writer::{AuthoredFile, DocumentFormat, SaveOutcome};
+
+// pandect's graph-generic types over the kernel graph the overlay tests hold,
+// one alias each (engine split D244).
+#[cfg(all(test, feature = "mere-overlay"))]
+pub(crate) type DroppedChoice = pandect::DroppedChoice<kernel::graph::Graph>;
+#[cfg(all(test, feature = "mere-overlay"))]
+pub(crate) type MergeConflict = pandect::MergeConflict<kernel::graph::Graph>;

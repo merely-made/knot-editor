@@ -16,12 +16,10 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
-use kernel::graph::{
-    CapturedDelta, Graph, SemanticStatement, apply::GraphDelta, sub_kind_from_iri,
-    with_isolated_capture,
-};
-use kernel::types::{AssertionBasis, AssertionWithdrawal, GraphScope};
+use kernel::graph::{CapturedDelta, Graph, apply::GraphDelta, with_isolated_capture};
 use knot_editor::{KnotDocumentProjection, KnotRelationAssertionV1, KnotSyncFileStore, KnotVault};
+use mere::model::{AssertionBasis, AssertionWithdrawal, GraphScope};
+use mere::model::{SemanticStatement, sub_kind_from_iri};
 use pandect::graph_session::LegacyTransactionBackend;
 use pandect::{Author, GraphSession};
 use uuid::Uuid;

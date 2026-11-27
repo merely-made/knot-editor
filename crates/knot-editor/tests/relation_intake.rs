@@ -19,17 +19,20 @@ mod knot_relation_intake;
 use knot_relation_intake::{KnotEndpointBinding, KnotRelationProjection, import_knot_relations};
 use kernel::geometry::PortablePoint;
 use kernel::graph::{
-    Author, Graph, ResourceNode, SemanticStatement,
+    Graph,
     apply::apply_graph_delta,
     apply::{GraphDelta, add_node},
 };
-use kernel::persistence::PersistedResourceRecord;
-use kernel::types::{AssertionBasis, AssertionWithdrawal, GraphScope};
 use knot_editor::{
     KnotAssertedTime, KnotCorePredicateV1, KnotPredicateRefV1, KnotRelationEndpointV1,
     KnotRelationPositionV1, KnotSyncEvent, KnotSyncFileStore, KnotVault, VaultDocument,
     capture_endpoint_context,
 };
+use mere::model::PersistedResourceRecord;
+use mere::model::SemanticStatement;
+use mere::model::author::Author;
+use mere::model::resource::ResourceNode;
+use mere::model::{AssertionBasis, AssertionWithdrawal, GraphScope};
 use muniment::DirectoryBackend;
 use pandect::{GraphSession, MereSessions};
 use personae::{IdentityProvider, InMemoryProvider};

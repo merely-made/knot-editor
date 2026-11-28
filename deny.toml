@@ -55,10 +55,6 @@ crate = "bit-vec@0.8.0"
 reason = "fancy-regex 0.20.2 (latest), tokenizers 0.23.2 (latest) require it, via bit-set 0.8.0, fancy-regex 0.17.0, under eidetic, esp; goes when fancy-regex, tokenizers move to bit-vec 0.9.1"
 
 [[bans.skip]]
-crate = "bitflags@1.3.2"
-reason = "winit 0.30.13 (latest), core-graphics 0.23.2 (core-graphics 0.25.0 drops it), core-graphics-types 0.1.3 (core-graphics-types 0.2.0 drops it), mandrake 0.1.0 (family, merely-made/graphshell) require it, via png 0.17.16, redox_syscall 0.4.1, under cambium-a11y, cambium-desktop, cambium-winit, genet-winit; goes when winit moves to bitflags 2.13.2; their dependents take core-graphics 0.25.0, core-graphics-types 0.2.0; merely-made/graphshell moves mandrake to bitflags 2.13.2"
-
-[[bans.skip]]
 crate = "block-buffer@0.10.4"
 reason = "snow 0.10.0 (latest), tracel-llvm-bundler 23.1.0-4 (latest), blake2 0.10.6 (blake2 0.11.0 drops it), wasmtime-environ 45.0.3 (wasmtime-environ 50.0.1 drops it) and 1 more require it, via digest 0.10.7, sha2 0.10.9, under authority-host, esp, mere-transport; goes when snow, tracel-llvm-bundler move to block-buffer 0.12.1; their dependents take blake2 0.11.0, wasmtime-environ 50.0.1, wasmtime-internal-cache 50.0.1"
 
@@ -245,10 +241,6 @@ reason = "accesskit_macos 0.27.1 (latest), winit 0.30.13 (latest), objc2-cloud-k
 [[bans.skip]]
 crate = "object@0.39.1"
 reason = "ar_archive_writer 0.5.5 (latest), wasmtime 45.0.3 (wasmtime 50.0.1 drops it), wasmtime-environ 45.0.3 (wasmtime-environ 50.0.1 drops it), wasmtime-internal-cranelift 45.0.3 (wasmtime-internal-cranelift 50.0.1 drops it) and 3 more require it, under authority-host, buckram, genet-livery; goes when ar_archive_writer moves to object 0.40.0; their dependents take wasmtime 50.0.1, wasmtime-environ 50.0.1, wasmtime-internal-cranelift 50.0.1 and 3 more"
-
-[[bans.skip]]
-crate = "png@0.17.16"
-reason = "mandrake 0.1.0 (family, merely-made/graphshell) requires it; goes when merely-made/graphshell moves mandrake to png 0.18.1"
 
 [[bans.skip]]
 crate = "poly1305@0.8.0"

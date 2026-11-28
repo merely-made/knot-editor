@@ -6,7 +6,6 @@
 use std::path::Path;
 
 use crate::sound::{SoundKind, SoundReading};
-use mere::model::sub_kind_from_iri;
 use mere::profile::intern::TermEntry;
 use mere::profile::vocab::{Alignment, alignment};
 pub use mere_ontology::Profile;
@@ -47,7 +46,8 @@ pub fn selected_predicate<'a>(profile: &'a Profile, iri: &str) -> Option<Predica
             correspondence: "Declared predicate",
         });
     }
-    let (correspondence, standard) = match alignment(sub_kind_from_iri(iri)?) {
+    let predicate = mere::profile::core::terms().id(iri)?;
+    let (correspondence, standard) = match alignment(predicate)? {
         Alignment::Exact(iri) => ("Equivalent predicate", iri),
         Alignment::Approximate(iri) => ("Broader predicate", iri),
         Alignment::MereOnly => return None,

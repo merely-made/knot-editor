@@ -19,7 +19,7 @@ use std::time::SystemTime;
 use kernel::graph::{CapturedDelta, Graph, apply::GraphDelta, with_isolated_capture};
 use knot_editor::{KnotDocumentProjection, KnotRelationAssertionV1, KnotSyncFileStore, KnotVault};
 use mere::model::{AssertionBasis, AssertionWithdrawal, GraphScope};
-use mere::model::{SemanticStatement, sub_kind_from_iri};
+use mere::model::SemanticStatement;
 use pandect::graph_session::LegacyTransactionBackend;
 use crate::GraphSession;
 use pandect::Author;
@@ -115,7 +115,6 @@ struct PreparedRelation {
 fn same_immutable_source(left: &SemanticStatement, right: &SemanticStatement) -> bool {
     left.statement_id == right.statement_id
         && left.predicate == right.predicate
-        && left.recognized_sub_kind == right.recognized_sub_kind
         && left.graph_scope == right.graph_scope
         && left.provenance_iri == right.provenance_iri
         && left.basis == right.basis
@@ -265,7 +264,6 @@ where
             });
         let statement = SemanticStatement {
             statement_id: operation_iri(&relation.operation),
-            recognized_sub_kind: sub_kind_from_iri(&predicate),
             predicate,
             label: relation.qualification.clone(),
             basis: AssertionBasis {

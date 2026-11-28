@@ -311,7 +311,6 @@ fn imported_statement(
         });
     SemanticStatement {
         statement_id: format!("urn:knot:assertion:{}", hex(&relation.operation)),
-        recognized_sub_kind: mere::model::sub_kind_from_iri(&predicate),
         predicate,
         label: qualification.clone(),
         basis: AssertionBasis {

@@ -76,7 +76,7 @@ reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (late
 
 [[bans.skip]]
 crate = "constant_time_eq@0.4.2"
-reason = "held by castellan (dramatis, through totp-rs) and iroh-blobs 0.103.1 (through murm's mere-transport; main caps <0.6.2 for MSRV); blake3 1.8.8 takes 0.6.2. Stopgap until patch-only forks (Graphshell mod projects D58, upstream ledger item 16)"
+reason = "held by iroh-blobs 0.103.1 (through murm's mere-transport; main caps <0.6.2 for MSRV); blake3 1.8.8 takes 0.6.2. Stopgap until patch-only forks (Graphshell mod projects D58, upstream ledger item 16)"
 
 [[bans.skip]]
 crate = "convert_case@0.10.0"
@@ -257,10 +257,6 @@ reason = "snow 0.10.0 (latest) requires it, via chacha20poly1305 0.10.1, under m
 [[bans.skip]]
 crate = "polyval@0.6.2"
 reason = "noq-proto 1.4.0 (latest), snow 0.10.0 (latest), turso_core 0.8.3 (latest) require it, via aes-gcm 0.10.3, ghash 0.5.1, under esp, knot-editor, mere-transport, p2mere-net; goes when noq-proto, snow, turso_core move to polyval 0.7.3"
-
-[[bans.skip]]
-crate = "quick-xml@0.39.4"
-reason = "errand 0.4.0 (family, merely-made/errand) requires it; goes when merely-made/errand moves errand to quick-xml 0.42.0"
 
 [[bans.skip]]
 crate = "quick-xml@0.41.0"
